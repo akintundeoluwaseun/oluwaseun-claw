@@ -37,7 +37,18 @@ Added in Batch 2 (implemented and tested):
   the real protection — dangerous actions still need approval.)
 - Hard limits: step count, consecutive failures, repeated actions, per-step timeout.
 
+Added in Batch 3 (implemented; logic tested against a stand-in desktop):
+- Desktop actions go through a fixed tool set; no shell, no arbitrary commands. Apps open only
+  from the Start menu or a short built-in list; system/admin tools are refused.
+- Clicking a control or button whose label means a consequential action (send, delete, buy,
+  pay, submit, post, publish, uninstall…) is treated as destructive and always asks.
+- Keys are limited to an allowlist; the Windows key, Ctrl+Alt+Delete and Alt+Tab are refused.
+- Clicking at coordinates requires a screenshot first and on-screen coordinates.
+- Global stop: Ctrl+Alt+X. Window/control text is passed to the model as untrusted data.
+- File reading is read-only, text types only, under authorized folders, size-capped.
+- The Google key is DPAPI-encrypted (Windows), never in settings.json, never logged or returned.
+  A test-only address override accepts only localhost, so it cannot redirect the key.
+
 Not yet implemented (planned):
-- Desktop app control and a global stop hotkey (Batch 3).
 - Stronger prompt-injection defences and evaluation with real models (Batch 4).
 - Packaging, code signing, and installer review (Batch 5).

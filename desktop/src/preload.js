@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('claw', {
   restartBackend: () => ipcRenderer.invoke('claw:restart-backend'),
   pickFolder: () => ipcRenderer.invoke('claw:pick-folder'),
   shortcut: () => ipcRenderer.invoke('claw:shortcut'),
+  stopShortcut: () => ipcRenderer.invoke('claw:stop-shortcut'),
   platform: process.platform,
   onBackendStatus: (cb) => subscribe('claw:backend-status', cb),
   onAgentStatus: (cb) => subscribe('claw:agent-status', cb),

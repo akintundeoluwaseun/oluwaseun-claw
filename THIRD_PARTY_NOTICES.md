@@ -15,6 +15,11 @@ installed packages or separate programs.
 | HTTPX | 0.28.1 | BSD-3-Clause | Model server client |
 | Playwright for Python | 1.64.1 | Apache-2.0 | Browser control (includes a Node.js driver; see its NOTICE) |
 | SQLite (Python stdlib) | — | Public domain | Task history |
+| mss | 10.2.0 | MIT | Screenshots |
+| pywinauto (Windows only) | 0.6.9 | BSD-3-Clause | Windows UI Automation |
+| comtypes (Windows only) | 1.4.17 | MIT | COM access for pywinauto |
+| pywin32 (Windows only) | 312 | PSF-2.0 | Windows APIs for pywinauto |
+| six (Windows only) | 1.17.0 | MIT | pywinauto dependency |
 | Manrope (font, via @fontsource-variable/manrope 5.3.0) | — | SIL OFL 1.1 (`desktop/src/renderer/fonts/OFL-Manrope.txt`) | Interface typeface, bundled locally |
 
 ## Development and test only
@@ -29,7 +34,8 @@ installed packages or separate programs.
 |---|---|---|
 | Microsoft Edge / Google Chrome | Proprietary | Already on the user's computer; controlled, not bundled |
 | Chromium (optional, `setup.ps1 -Chromium`) | BSD-3-Clause and others | Downloaded by Playwright; not bundled |
-| Ollama | MIT | Not bundled |
+| Ollama | MIT | Needed only for Offline mode; not bundled yet (Batch 5) |
+| Google Gemini API | Google API Terms of Service | Online mode, with the user's own key |
 | llama.cpp | MIT | Not bundled |
 | Model weights (e.g. Qwen) | Per model card | Not bundled — check each model card |
 

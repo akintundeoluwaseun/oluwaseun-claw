@@ -59,6 +59,25 @@ class OllamaAdapter(ModelAdapter):
             raise ModelResponseError("The Ollama server returned a reply without any message content.")
         return message["content"]
 
+    async def see(self, png: bytes, question: str) -> str:
+        """Ask a vision model (e.g. qwen2.5vl) about a screenshot."""
+        import base64
+
+        self.require_model()
+        body: dict[str, Any] = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": question, "images": [base64.b64encode(png).decode("ascii")]}],
+            "stream": False,
+            "options": {"temperature": 0.1, **({"num_thread": self.num_thread} if self.num_thread else {})},
+        }
+        if self.keep_alive is not None:
+            body["keep_alive"] = self.keep_alive
+        data = await self._request("POST", "/api/chat", json=body, timeout=self.timeout_s)
+        message = data.get("message") or {}
+        if not isinstance(message.get("content"), str) or not message["content"]:
+            raise ModelResponseError("The seeing model returned no description.")
+        return message["content"]
+
     async def pull(self):
         """Download the model, yielding Ollama's progress objects."""
         import json as _json

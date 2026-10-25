@@ -27,6 +27,7 @@ from claw.agent.planner import PlanningFailed, make_plan
 from claw.agent.runner import TaskBusy, TaskRunner
 from claw.agent.schemas import PlanRequest, TaskStatus
 from claw.browser.session import BrowserSession
+from claw.computer.driver import DesktopSession, default_driver
 from claw.config import ConfigError, ModelSettings, Settings, SettingsStore, describe_validation_error
 from claw.logging_setup import log_event
 from claw.models.auto import ModelManager
@@ -59,6 +60,7 @@ class AppState:
     runner: TaskRunner | None = None
     models: ModelManager | None = None
     secrets: SecretStore | None = None
+    desktop: DesktopSession | None = None
 
     def ensure_manager(self) -> ModelManager:
         url = self.settings.model.base_url if self.settings.model.provider == "ollama" else "http://127.0.0.1:11434"
@@ -87,6 +89,35 @@ class AppState:
             adapter.keep_alive = "2m"  # Ollama frees the memory two minutes after Claw goes quiet
             return adapter
         raise ModelNotFound("Choose how Claw thinks first.", "Pick Online or Offline on the welcome screen.")
+
+    def vision_fn(self):
+        """A function that answers questions about screenshots, or None if this brain can't see."""
+        ms = self.settings.model
+        if ms.mode == "online":
+            key = self.secrets.get(GEMINI_KEY)
+            return GeminiAdapter(key, timeout_s=ms.request_timeout_s).see if key else None
+        if ms.mode == "offline":
+            mgr = self.ensure_manager()
+            tag = mgr.model_for("see")
+            if not tag:
+                return None
+
+            async def see(png: bytes, question: str) -> str:
+                ram = mgr.hardware.total_ram_gb or 8
+                if ram < 24:  # keep only one model in memory on ordinary laptops
+                    think = mgr.model_for("think")
+                    if think:
+                        try:
+                            await OllamaAdapter(mgr.base_url, think, 15, 0).unload()
+                        except ModelError:
+                            pass
+                adapter = OllamaAdapter(mgr.base_url, tag, timeout_s=ms.request_timeout_s, temperature=0.1)
+                adapter.num_thread = mgr.threads()
+                adapter.keep_alive = "1m"
+                return await adapter.see(png, question)
+
+            return see
+        return None
 
     def model_label(self) -> str | None:
         ms = self.settings.model
@@ -130,6 +161,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     store = SettingsStore(data_dir)
     state = AppState(data_dir=data_dir, token=token, store=store, db=Database(data_dir / "claw.db"))
     state.secrets = SecretStore(data_dir)
+    state.desktop = DesktopSession(default_driver())
     try:
         state.settings = store.load()
     except ConfigError as exc:
@@ -152,6 +184,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             state.runner.cancel(state.runner.current_id)
             await state.runner.wait()
         await state.browser.close()
+        state.desktop.close()
         state.db.close()
 
     app = FastAPI(

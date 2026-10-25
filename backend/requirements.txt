@@ -1,7 +1,13 @@
-# Oluwaseun Claw backend — pinned runtime dependencies (Batch 2)
-# Target: Python 3.12 on Windows 10 x64 (also tested on Python 3.13 / Linux in CI workspace)
+# Oluwaseun Claw backend — pinned runtime dependencies (Batch 3)
+# Target: Python 3.12 on Windows 10 x64 (also tested on Python 3.13 / Linux in the build workspace)
 fastapi==0.162.0
 uvicorn==0.54.0
 pydantic==2.14.1
 httpx==0.28.1
 playwright==1.64.1
+mss==10.2.0
+# Desktop control (Windows only)
+pywinauto==0.6.9; sys_platform == "win32"
+comtypes==1.4.17; sys_platform == "win32"
+pywin32==312; sys_platform == "win32"
+six==1.17.0; sys_platform == "win32"

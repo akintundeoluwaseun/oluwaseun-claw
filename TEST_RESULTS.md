@@ -1,5 +1,56 @@
 # Test results
 
+## Batch 3 + brain + interface — 25 October 2026
+
+**Environment:** Linux workspace (no Windows), Python 3.13.17, Node 22.23.4, Electron 45.0.0 under
+Xvfb, Chromium 153 via `CLAW_BROWSER_EXECUTABLE`. Backend tests run under Xvfb so the real
+screenshot test has a display.
+
+**Stand-ins (all labelled TEST DOUBLE in code):** model server (Ollama API), Google Gemini API
+(`tests/fake_gemini_server.py`, documented REST format), Windows desktop (`tests/fake_desktop.py`,
+a simulated Notepad with Save As). Browser, files, database, permissions, Electron app: real.
+
+| Command | Result |
+|---|---|
+| `xvfb-run python -m pytest -q` | **120 passed** |
+| `npm run check` / `npm test` | pass / **3 passed** |
+| `scripts/check.sh` end-to-end | **31/31 checks passed** |
+
+### Batch 3 acceptance — what was demonstrated (on the stand-in desktop)
+| Criterion | Evidence |
+|---|---|
+| Open an application | `launch_app` Notepad → new window detected (`test_open_type_save_in_notepad`) |
+| Interact with its UI | numbered controls; click Save → Save As dialog detected |
+| Type text | `type_into` read back and matched |
+| Inspect the resulting state | before/after snapshots; "nothing visible changed" reported as not checked |
+| Confirm success | full flow saved `notes.txt` with the typed text, 8/8 steps checked (`test_batch3_acceptance_flow`) |
+| Accessibility before coordinates | `click_at` refused until a screenshot exists; coordinates bounds-checked |
+| Real screen capture | mss full-screen and region PNG captured for real under Xvfb |
+
+### Other checks added
+- Online brain: key validation, wrong key message, key not in settings file or API replies,
+  Flash-Lite chosen, daily-limit fallback to the next model, legacy schema-field fallback,
+  screenshot sent as inline image, override can't redirect the key off this computer.
+- Offline brain: picks scale with RAM/GPU, cores left free, think-then-see downloads with
+  progress, smaller fallback when a tag is missing, unload, "Ollama not running" message.
+- Desktop safety: system tools refused before approval; "Send to Teams" asks even with writes
+  allowed; blocked key combos; locked screen message; stale control numbers refused.
+- File tools: newest PDF first; outside-folder and binary files refused.
+- E2E: first-launch welcome, wrong key refused, key connects, key never shown back, desktop step
+  on a machine without desktop control fails with a clear reason and is counted as failed.
+
+### Bugs found and fixed
+- Settings dropped the `policy()` method during a refactor (caught by tests).
+- Hardware detection was bound at import, ignoring test hardware profiles.
+- "visual studio" was not flagged as ambiguous between two apps.
+- Quick bar text "Claw needs you" was cut off; model chip stayed "ready" after an outage.
+
+### Not run
+- Windows UI Automation driver on Windows 10 (see checklist in `docs/DESKTOP.md`).
+- Google's live API with a real key; any real model.
+- Offline download from the real Ollama library; Ollama on Windows.
+- Tray icon and notifications (no tray/notification service in Xvfb; code paths guarded).
+
 ## Batch 2 — 25 October 2026
 
 **Environment:** Linux x86_64 workspace, Python 3.13.17, Node 22.23.4, Electron 45.0.0 (Xvfb,

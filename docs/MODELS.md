@@ -1,39 +1,49 @@
-# Choosing a local model
+# Claw's brain
 
-Oluwaseun Claw does not need any paid AI service. It talks to a model server
-running on your own computer:
+Users never pick models. On first launch Claw asks one question, Online or
+Offline, and handles the rest.
 
-- **Ollama** (default) — install from https://ollama.com/download, then e.g. `ollama pull qwen2.5:7b`.
-- **llama.cpp `llama-server`** — run `llama-server -m model.gguf --port 8080` and pick
-  "llama.cpp server" in Settings.
+## Online (default suggestion)
+- Uses Google's Gemini API with **the user's own free key** (created at
+  https://aistudio.google.com/apikey, no card needed). Nothing else to install.
+- Claw reads the key's model list and picks the model itself, preferring
+  **Flash-Lite** (the largest free daily allowance), then Flash. When one
+  model's daily limit is reached it moves to the next.
+- Screenshots can be read by the same model (needed for `describe_screen`).
+- Free-tier limits (reported by developers in 2026, not measured by us): about
+  500 requests/day for Flash-Lite and 20/day for Flash, per key. A task uses
+  roughly 10–25 requests. Limits reset at midnight Pacific time (about 8–9 AM in Lagos).
+- Google says free-tier requests may be reviewed and used to improve its
+  products, so the welcome screen recommends Offline for private documents.
+- The key is stored encrypted with Windows DPAPI in `secrets.bin`, never in
+  `settings.json`, never logged, never sent back to the UI.
 
-## Suggested starting points (not yet measured)
+## Offline
+- Claw measures memory, processor cores and NVIDIA GPU memory, then picks:
 
-Hardware needs have **not been measured** for this project yet: the build
-workspace cannot download model weights. The table below is a starting guide
-only; real figures will be recorded in this file after testing on actual
-Windows 10 machines (Batch 2).
-
-| Model (Ollama tag) | Approx. download | Typical fit | Notes |
+| Role | Computer | Model (Ollama tag) | Approx. download |
 |---|---|---|---|
-| `qwen2.5:7b` | ~4.7 GB | 16 GB RAM, or GPU with 8 GB VRAM | Good planning quality; recommended first try |
-| `qwen2.5:3b` | ~1.9 GB | 8 GB RAM | Faster, weaker plans; check license below |
-| `qwen2.5:1.5b` | ~1 GB | 8 GB RAM, slow CPUs | May fail to follow the JSON plan format |
-| `qwen3:8b` | ~5 GB | 16 GB RAM or 8 GB VRAM | Newer family; test before relying on it |
+| Thinking | 28 GB+ RAM or 12 GB+ VRAM | qwen2.5:14b | 9 GB |
+| Thinking | 14 GB+ RAM or 7 GB+ VRAM | qwen2.5:7b | 4.7 GB |
+| Thinking | 7 GB+ RAM | qwen2.5:3b | 1.9 GB |
+| Thinking | smaller | qwen2.5:1.5b | 1 GB |
+| Seeing | 22 GB+ RAM or 9 GB+ VRAM | qwen2.5vl:7b | 6 GB |
+| Seeing | 11 GB+ RAM or 5 GB+ VRAM | qwen2.5vl:3b | 3.2 GB |
 
-Running tasks (not just planning) needs a model that reliably returns the agent's JSON
-action format. Small models (1.5B–3B) are likely to fail this more often; this has not
-been measured yet.
+- It downloads the thinking model first, with progress on screen, then the
+  seeing model. If a model isn't in the library it falls back to the next size.
+- To keep the computer responsive: on machines under 24 GB Claw unloads the
+  thinking model before reading a screenshot, models unload two minutes after
+  Claw goes quiet, and Claw leaves 1–2 processor cores free.
+- **Currently requires the free Ollama engine to be installed** (the app links
+  to it). Bundling it into Claw's installer is a Batch 5 task.
+- Sizes and thresholds are estimates; they have not been measured on real laptops.
 
-How to choose: start with the largest model your RAM can hold with a few GB to
-spare. If planning takes longer than the timeout in Settings, choose a smaller
-model or raise the timeout. If plans are rejected ("did not produce a usable
-plan"), choose a larger model.
+## Licenses
+Qwen2.5 and Qwen3 repositories state Apache 2.0, but some sizes (notably
+qwen2.5:3b) use a Qwen research licence. Check model cards before commercial use.
+Google's API terms apply to Online mode.
 
-## Licenses of model weights
-
-Runtime licenses (Ollama, llama.cpp) are separate from **weight** licenses.
-The Qwen2.5 and Qwen3 repositories state Apache 2.0, but individual Qwen2.5
-sizes (notably 3B and 72B) have been published under different Qwen licenses.
-**Check each model card on Hugging Face before redistributing or using a model
-commercially.** This app does not bundle any model weights.
+## Developer setting
+Settings → Claw's brain → Developer lets a developer point Claw at any Ollama or
+llama.cpp server and model. Normal users never need it.

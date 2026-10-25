@@ -110,3 +110,11 @@ def test_choose_offline(tmp_path):
         c.headers["X-Claw-Token"] = TOKEN
         b = c.post("/brain/offline").json()
         assert b["mode"] == "offline" and "roles" in b["offline"]
+
+
+async def test_screen_reading_sends_image(gemini):
+    gemini.replies.append("A Save As dialog is open.")
+    out = await GeminiAdapter(VALID_KEY).see(b"\x89PNG fake", "What is open?")
+    assert out == "A Save As dialog is open."
+    parts = gemini.requests[-1]["body"]["contents"][0]["parts"]
+    assert parts[0]["inlineData"]["mimeType"] == "image/png" and parts[1]["text"] == "What is open?"

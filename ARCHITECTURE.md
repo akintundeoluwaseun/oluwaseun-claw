@@ -16,14 +16,18 @@
 │                 approvals, stop) · schemas.py (step states)                     │
 │ tools/          base.py (spec, schema, risk, precheck) · browser_tools · file   │
 │ browser/        session.py (Playwright, own profile) · extract.py · history.py  │
+│ computer/       driver.py (interface, 1 COM thread) · windows_uia.py ·          │
+│                 launcher.py (Start menu, system tools refused)                  │
+│ models/         gemini.py (online) · auto.py + hardware.py (offline manager)    │
+│ secrets.py      DPAPI-encrypted user key                                        │
 │ models/         base.py interface · ollama.py · openai_compat.py (llama.cpp)    │
 │ permissions/    policy.py: risk levels, allow/ask/deny, folder scoping          │
 │ storage/db.py   SQLite: tasks + audit events                                    │
 │ logging_setup   JSON logs with secret redaction                                 │
 └───────────────────────────────────────────────────────────────┬─────────────────┘
-                    HTTP localhost                         Playwright (CDP)
-       Ollama (:11434) or llama-server (:8080)         Edge / Chrome / Chromium
-                                                       (dedicated profile)
+      HTTPS (Online)            HTTP localhost (Offline)        Playwright      UI Automation
+   Google Gemini API      Ollama (:11434), models picked     Edge/Chrome      Windows apps
+   (user's free key)      and downloaded automatically        (own profile)   (pywinauto)
 ```
 
 ## How a task runs (Batch 2)
@@ -60,6 +64,16 @@ or `rejected` (unknown tool / invalid arguments / failed pre-check).
 `%APPDATA%\OluwaseunClaw\` → `settings.json`, `claw.db`, `logs\claw.log`, `browser-profile\`
 (override with `CLAW_DATA_DIR`).
 
+## Brain selection
+`settings.model.mode`: `unset` → welcome screen; `online` → GeminiAdapter (model ranked from the
+key's list, Flash-Lite first, falls back on 429); `offline` → ModelManager (hardware → role models
+→ Ollama pull → keep_alive 2m, num_thread = cores − 1/2); `custom` → developer adapter.
+Vision (`describe_screen`) uses Gemini inline images or the offline seeing model.
+
+## Desktop safety
+Effective risk per action (`ToolSpec.risk_for`): clicking something labelled Send/Delete/Buy…
+becomes destructive. Pre-checks run before approval. Before/after snapshots decide "checked".
+
 ## Planned additions
-- `backend/claw/computer/` — pywinauto UIA, screenshots, input (Batch 3)
-- Replanning, file/document/spreadsheet tools, stronger injection defences (Batch 4)
+- Replanning, document/spreadsheet tools, stronger injection defences (Batch 4)
+- Installer bundling Python runtime and Ollama; signing (Batch 5)

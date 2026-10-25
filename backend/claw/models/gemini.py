@@ -151,6 +151,33 @@ class GeminiAdapter(ModelAdapter):
                 last = exc
         raise last or ModelError("No Google model could answer.")
 
+    async def see(self, png: bytes, question: str) -> str:
+        """Answer a question about a screenshot (Gemini models accept images inline)."""
+        import base64
+
+        order = await self.pick()
+        last: ModelError | None = None
+        for model in order:
+            body = {
+                "contents": [{"role": "user", "parts": [
+                    {"inlineData": {"mimeType": "image/png", "data": base64.b64encode(png).decode("ascii")}},
+                    {"text": question},
+                ]}],
+                "generationConfig": {"temperature": 0.1},
+            }
+            try:
+                data = await self._request("POST", f"/v1beta/models/{model}:generateContent", json=body, timeout=self.timeout_s)
+            except QuotaExhausted as exc:
+                GeminiAdapter._exhausted[model] = time.time()
+                last = exc
+                continue
+            parts = ((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
+            text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+            if text:
+                return text
+            raise ModelResponseError("Google returned no description of the screen.")
+        raise last or ModelError("No Google model could look at the screen.")
+
     async def _generate(self, model: str, messages: list[ChatMessage], json_schema: dict[str, Any] | None) -> str:
         system = "\n\n".join(m.content for m in messages if m.role == "system")
         contents: list[dict[str, Any]] = []

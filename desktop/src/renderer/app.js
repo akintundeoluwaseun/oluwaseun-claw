@@ -25,10 +25,17 @@ const TOOL_LABEL = {
   read_page: 'Read the page', extract_links: 'Collected links', click_link: 'Followed a link', click_button: 'Clicked a button',
   list_tabs: 'Checked tabs', new_tab: 'Opened a tab', switch_tab: 'Switched tab', close_tab: 'Closed a tab',
   search_browser_history: 'Searched your history', save_links: 'Saved links to a file',
+  list_folder: 'Looked in a folder', read_text_file: 'Read a file', find_files: 'Found files',
+  list_windows: 'Checked open windows', focus_window: 'Switched window', launch_app: 'Opened an app',
+  look_at_window: 'Looked at a window', click_control: 'Clicked in an app', type_into: 'Typed in an app',
+  type_text: 'Typed in an app', press_keys: 'Pressed keys', read_control: 'Read from an app',
+  take_screenshot: 'Took a screenshot', describe_screen: 'Looked at the screen', click_at: 'Clicked on the screen',
 };
 const TOOL_ASK = {
   web_search: 'Search the web', open_url: 'Open a page', save_links: 'Save links to a file', click_button: 'Click a button',
   search_browser_history: 'Search your browsing history',
+  launch_app: 'Open an app', click_control: 'Click in an app', type_into: 'Type in an app', type_text: 'Type in an app',
+  press_keys: 'Press keys', click_at: 'Click on the screen',
 };
 const OUTCOME = {
   verified: ['Done', 'ok', 'check'], done_unverified: ['Done, not checked', 'warn-done', 'check'],

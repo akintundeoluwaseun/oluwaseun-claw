@@ -16,7 +16,23 @@ const TOOL_ACTIVITY = {
   close_tab: 'Closing a tab',
   search_browser_history: 'Searching your history',
   save_links: 'Saving links',
+  list_folder: 'Looking in a folder',
+  read_text_file: 'Reading a file',
+  find_files: 'Finding files',
+  list_windows: 'Checking open windows',
+  focus_window: 'Switching windows',
+  launch_app: 'Opening an app',
+  look_at_window: 'Looking at a window',
+  click_control: 'Clicking in an app',
+  type_into: 'Typing in an app',
+  type_text: 'Typing in an app',
+  press_keys: 'Pressing keys',
+  read_control: 'Reading an app',
+  take_screenshot: 'Taking a screenshot',
+  describe_screen: 'Looking at the screen',
+  click_at: 'Clicking on screen',
 };
+const USES_INPUT = new Set(['focus_window', 'launch_app', 'click_control', 'type_into', 'type_text', 'press_keys', 'click_at']);
 
 const OUTCOME_TEXT = {
   completed: 'Finished',
@@ -117,6 +133,7 @@ class AgentWatcher {
       if (e.kind === 'requested' || e.kind === 'attempted') {
         activity = TOOL_ACTIVITY[d.tool] || 'Working';
         step = d.step || step;
+        this.usingInput = USES_INPUT.has(d.tool);
       }
     }
     const approval = (ev.body.approvals || [])[0] || null;
@@ -124,8 +141,11 @@ class AgentWatcher {
       this.seenApprovals.add(approval.id);
       this.onApprovalNeeded({ ...approval, title: this.status.title });
     }
-    this.set({ phase: approval ? 'attention' : 'working', activity, step, approval: approval ? { id: approval.id, tool: approval.tool } : null });
+    this.set({
+      phase: approval ? 'attention' : 'working', activity, step, usingInput: !!this.usingInput && !approval,
+      approval: approval ? { id: approval.id, tool: approval.tool } : null,
+    });
   }
 }
 
-module.exports = { AgentWatcher, TOOL_ACTIVITY };
+module.exports = { AgentWatcher, TOOL_ACTIVITY, USES_INPUT };

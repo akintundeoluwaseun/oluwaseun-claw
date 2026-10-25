@@ -11,10 +11,13 @@ Carried over to verification on Windows: real model, Edge channel, live search e
 Chrome/Edge history files. browser-use was not adopted: the direct Playwright tools cover the
 acceptance tasks and keep every action inside the permission system.
 
-## Batch 3 — Desktop control
-0. **First:** Windows verification of Batches 1–2 with a real model (see PROJECT_STATUS.md).
-pywinauto (UIA backend) for windows/controls; screenshots (mss or PIL); pyautogui only as a
-coordinate fallback; folder picker; file inspection tool; global stop hotkey; click verification.
+## Batch 3 — Desktop control ✅ (logic tested on a stand-in desktop; Windows driver not yet run)
+Done: UI Automation driver (pywinauto), launcher, 12 desktop tools, 3 file tools, screenshots
+(mss, real capture tested), screen reading through the brain, risk escalation, stop shortcut.
+pyautogui not used: pywinauto's mouse/keyboard cover the fallback, one fewer dependency.
+Also done in this stage at the user's request: premium redesign, quick bar, tray, notifications,
+background mode, Online/Offline brain with automatic model choice.
+Carried over: run docs/DESKTOP.md checklist on Windows 10.
 
 ## Batch 4 — Multi-step autonomy
 Replanning, verification after key actions, searchable logs, file/doc/spreadsheet tools,

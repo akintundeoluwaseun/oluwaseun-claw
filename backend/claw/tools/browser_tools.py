@@ -12,7 +12,7 @@ from claw.browser import extract
 from claw.browser.history import HISTORY_SOURCES, history_path, search_history
 from claw.browser.session import validate_web_url
 from claw.permissions.policy import RiskLevel
-from claw.tools.base import NoArgs, ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec
+from claw.tools.base import NoArgs, ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec, escalate_by_label
 
 
 def _remember(ctx: ToolContext, urls) -> None:
@@ -229,7 +229,12 @@ def register_browser_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("read_page", "Read the main text of the current page.", B, R, NoArgs, read_page))
     reg.register(ToolSpec("extract_links", "List the links on the current page.", B, R, LinksArgs, extract_links))
     reg.register(ToolSpec("click_link", "Follow a link on the current page by its visible text.", B, R, ClickLinkArgs, click_link))
-    reg.register(ToolSpec("click_button", "Click a button on the current page (may submit a form).", B, RiskLevel.EXTERNAL, ClickButtonArgs, click_button))
+    reg.register(
+        ToolSpec(
+            "click_button", "Click a button on the current page (may submit a form).", B, RiskLevel.EXTERNAL,
+            ClickButtonArgs, click_button, risk_for=lambda a, c: escalate_by_label(a.text, RiskLevel.EXTERNAL),
+        )
+    )
     reg.register(ToolSpec("list_tabs", "List open browser tabs.", B, R, NoArgs, list_tabs))
     reg.register(ToolSpec("new_tab", "Open a new browser tab, optionally at an address.", B, R, NewTabArgs, new_tab))
     reg.register(ToolSpec("switch_tab", "Switch to a browser tab by its index from list_tabs.", B, R, TabArgs, switch_tab))

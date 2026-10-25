@@ -11,6 +11,7 @@ const { AgentWatcher } = require('./watcher');
 const BACKEND_DIR = process.env.CLAW_BACKEND_DIR || path.resolve(__dirname, '..', '..', 'backend');
 const ASSETS = path.join(__dirname, 'assets');
 const QUICK_SHORTCUT = 'CommandOrControl+Shift+Space';
+const STOP_SHORTCUT = 'CommandOrControl+Alt+X'; // works even while Claw is using the mouse and keyboard
 const START_HIDDEN = process.argv.includes('--background');
 const IS_WIN = process.platform === 'win32';
 
@@ -168,7 +169,7 @@ function buildTrayMenu() {
     { type: 'separator' },
     { label: 'Open Claw', click: () => showMain() },
     { label: 'New task…', accelerator: QUICK_SHORTCUT, click: () => openQuickBar() },
-    { label: 'Stop current task', enabled: s.phase === 'working' || s.phase === 'attention', click: () => stopCurrent() },
+    { label: 'Stop current task', accelerator: STOP_SHORTCUT, enabled: s.phase === 'working' || s.phase === 'attention', click: () => stopCurrent() },
     { type: 'separator' },
     { label: 'Show quick bar', type: 'checkbox', checked: desktop.show_quick_bar, click: (i) => updateDesktopSetting('show_quick_bar', i.checked) },
     { label: 'Start with Windows', type: 'checkbox', checked: desktop.start_with_windows, click: (i) => updateDesktopSetting('start_with_windows', i.checked) },
@@ -289,6 +290,7 @@ ipcMain.handle('claw:restart-backend', async (event) => {
   return backend.status;
 });
 ipcMain.handle('claw:shortcut', (event) => (fromOurWindows(event) ? QUICK_SHORTCUT.replace('CommandOrControl', 'Ctrl') : ''));
+ipcMain.handle('claw:stop-shortcut', (event) => (fromOurWindows(event) ? STOP_SHORTCUT.replace('CommandOrControl', 'Ctrl') : ''));
 
 // ---------- IPC: quick bar (narrower) ----------
 ipcMain.handle('quickbar:run', async (event, task) => {
@@ -348,6 +350,12 @@ app.whenReady().then(async () => {
   if (!globalShortcut.register(QUICK_SHORTCUT, () => openQuickBar())) {
     console.warn('Could not register', QUICK_SHORTCUT);
   }
+  globalShortcut.register(STOP_SHORTCUT, async () => {
+    const s = watcher && watcher.status;
+    if (!s || !s.taskId) return;
+    await stopCurrent();
+    notify('Claw stopped', 'You pressed the stop shortcut. The task was stopped.');
+  });
   nativeTheme.on('updated', () => {
     const c = overlayColors();
     if (mainWindow && IS_WIN) mainWindow.setTitleBarOverlay({ color: c.overlay, symbolColor: c.symbols });

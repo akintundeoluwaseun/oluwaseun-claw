@@ -5,7 +5,12 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 fail=0
 cd "$root/backend"
 echo "== Backend: compile"; .venv/bin/python -m compileall -q claw tests || fail=1
-echo "== Backend: tests";   .venv/bin/python -m pytest -q || fail=1
+echo "== Backend: tests"
+if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null; then
+  xvfb-run -a .venv/bin/python -m pytest -q || fail=1   # gives the real screenshot test a display
+else
+  .venv/bin/python -m pytest -q || fail=1
+fi
 cd "$root/desktop"
 echo "== Desktop: syntax";  npm run -s check || fail=1
 echo "== Desktop: unit";    npm test || fail=1

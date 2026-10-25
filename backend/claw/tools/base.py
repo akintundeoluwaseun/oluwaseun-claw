@@ -8,6 +8,7 @@ asks the user, or is refused.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -21,6 +22,7 @@ from claw.permissions.policy import PermissionPolicy, RiskLevel
 
 if TYPE_CHECKING:
     from claw.browser.session import BrowserSession
+    from claw.computer.driver import DesktopSession
 
 
 class ToolArgs(BaseModel):
@@ -56,10 +58,26 @@ class ToolContext:
     data_dir: Path
     browser: "BrowserSession"
     task_id: str
+    desktop: "DesktopSession | None" = None
+    # Reads an image with a model that can see (online Google AI, or the offline seeing model).
+    vision: Callable[[bytes, str], Awaitable[str]] | None = None
+    start_menu_dirs: list[Path] | None = None  # tests only; None = the real Start menu
 
 
 Handler = Callable[[ToolArgs, ToolContext], Awaitable[ToolResult]]
 Precheck = Callable[[ToolArgs, ToolContext], None]
+RiskFn = Callable[[ToolArgs, ToolContext], RiskLevel]
+
+# Words that turn a click into a consequential action that always needs the user's OK.
+CONSEQUENTIAL = re.compile(
+    r"\b(send|delete|remove|erase|discard|buy|purchase|pay|checkout|place order|order now|transfer|"
+    r"submit|post|publish|uninstall|format|empty|sign out|log out|unsubscribe|confirm)\b",
+    re.I,
+)
+
+
+def escalate_by_label(label: str, base: RiskLevel) -> RiskLevel:
+    return RiskLevel.DESTRUCTIVE if CONSEQUENTIAL.search(label or "") else base
 
 
 @dataclass
@@ -74,6 +92,11 @@ class ToolSpec:
     sensitive_scope: str | None = None
     # Cheap checks run BEFORE asking the user, so nobody approves a step that cannot work.
     precheck: Precheck | None = None
+    # Some actions are riskier than their tool's default (e.g. clicking a button labelled "Send").
+    risk_for: RiskFn | None = None
+
+    def effective_risk(self, args: ToolArgs, ctx: ToolContext) -> RiskLevel:
+        return self.risk_for(args, ctx) if self.risk_for else self.risk
 
     def parse_args(self, raw: Any) -> ToolArgs:
         if raw is None:

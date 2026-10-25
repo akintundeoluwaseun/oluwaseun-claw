@@ -111,10 +111,10 @@ def format_observation(spec_name: str, result: ToolResult | None, error: str | N
     return text
 
 
-def decide(spec: ToolSpec, ctx: ToolContext) -> Decision:
+def decide(spec: ToolSpec, ctx: ToolContext, risk=None) -> Decision:
     if spec.sensitive_scope == "browser_history":
         return Decision(ctx.settings.browser.history_access)
-    return ctx.policy.decide(spec.risk)
+    return ctx.policy.decide(risk or spec.risk)
 
 
 async def run_agent(
@@ -183,7 +183,8 @@ async def run_agent(
             emit("stopped", {"step": step_no, "reason": record["detail"]})
             return RunOutcome("stopped", "", steps, "The agent was repeating the same action, so it was stopped.")
 
-        record["risk"] = spec.risk.value
+        risk = spec.effective_risk(args, ctx)
+        record["risk"] = risk.value
         if spec.precheck is not None:
             try:
                 spec.precheck(args, ctx)
@@ -197,7 +198,7 @@ async def run_agent(
                     return RunOutcome("failed", "", steps, f"{consecutive_failures} steps failed in a row, so the task stopped.")
                 continue
 
-        decision = decide(spec, ctx)
+        decision = decide(spec, ctx, risk)
         if decision == Decision.DENY:
             record.update(outcome="denied", detail="Blocked by your permission settings.")
             steps.append(record)
@@ -210,7 +211,7 @@ async def run_agent(
                     "step": step_no,
                     "tool": spec.name,
                     "description": spec.description,
-                    "risk": spec.risk.value,
+                    "risk": risk.value,
                     "sensitive_scope": spec.sensitive_scope,
                     "args": args.model_dump(mode="json"),
                     "reason": action.thought,

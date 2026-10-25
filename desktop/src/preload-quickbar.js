@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('quick', {
   stop: () => ipcRenderer.send('quickbar:stop'),
   status: () => ipcRenderer.invoke('claw:agent-status'),
   shortcut: () => ipcRenderer.invoke('claw:shortcut'),
+  stopShortcut: () => ipcRenderer.invoke('claw:stop-shortcut'),
   onStatus: (cb) => {
     const l = (_e, s) => cb(s);
     ipcRenderer.on('claw:agent-status', l);

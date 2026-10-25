@@ -4,6 +4,7 @@ const q = window.quick;
 const $ = (id) => document.getElementById(id);
 let phase = 'idle';
 let shortcut = 'Ctrl+Shift+Space';
+let stopKeys = 'Ctrl+Alt+X';
 
 function setMode(mode) {
   document.body.dataset.mode = mode;
@@ -19,7 +20,7 @@ function renderStatus(s) {
   const pill = $('pill');
   if (phase === 'working') {
     $('pill-text').textContent = s.activity || 'Working';
-    $('pill-meta').textContent = s.step ? `step ${s.step}` : '';
+    $('pill-meta').textContent = s.usingInput ? `${stopKeys} stops` : s.step ? `step ${s.step}` : '';
     pill.setAttribute('aria-label', `Claw is working: ${s.activity}. Open Claw`);
   } else if (phase === 'attention') {
     $('pill-text').textContent = 'Needs your OK';
@@ -75,6 +76,9 @@ q.onMode((mode) => {
   if (mode === 'collapsed') foot('Claw asks before it saves files or changes anything online.');
 });
 q.onStatus(renderStatus);
+q.stopShortcut().then((k) => {
+  stopKeys = k || stopKeys;
+});
 q.shortcut().then((s) => {
   shortcut = s || shortcut;
   q.status().then(renderStatus);

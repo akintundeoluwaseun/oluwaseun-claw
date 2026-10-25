@@ -95,3 +95,24 @@ async def tool_ctx(tmp_path, site):
     )
     yield ctx
     await browser.close()
+
+
+# ---------- Desktop fixtures (Batch 3) ----------
+from claw.computer.driver import DesktopSession
+from tests.fake_desktop import FakeDesktop
+
+
+@pytest.fixture
+async def desk_ctx(tool_ctx, tmp_path):
+    """tool_ctx plus the stand-in desktop and a pretend Start menu."""
+    fake = FakeDesktop()
+    session = DesktopSession(fake)
+    tool_ctx.desktop = session
+    menu = tmp_path / "startmenu"
+    (menu / "Microsoft Office").mkdir(parents=True)
+    for name in ("Excel.lnk", "Word.lnk", "Microsoft Office/OneNote.lnk", "Command Prompt.lnk", "Visual Studio Code.lnk", "Visual Studio Installer.lnk"):
+        (menu / name).write_text("shortcut")
+    tool_ctx.start_menu_dirs = [menu]
+    tool_ctx.fake = fake
+    yield tool_ctx
+    session.close()

@@ -36,6 +36,9 @@ if __name__ == "__main__":
                 act("click_button", text="Send message"),
                 plan,  # 4. Task typed into the quick bar
                 json.dumps({"thought": "nothing needed", "action": "finish", "final_answer": "Checked: nothing needed doing."}),
+                plan,  # 5. Desktop task (the build workspace has no Windows desktop)
+                act("list_windows"),
+                json.dumps({"thought": "could not", "action": "finish", "final_answer": "I could not see the open windows."}),
             ]
         )
         google.default_reply = plan

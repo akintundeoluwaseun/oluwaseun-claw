@@ -1,54 +1,50 @@
 # Project status — Oluwaseun Claw
 
-**Current batch:** Batch 2 complete in the build workspace (scripted model, Linux, Chromium).
-Not yet run with a real local model or on Windows 10.
-**Next batch:** Batch 3 — Desktop control.
-**Last updated:** 2026-10-25
+**Current batch:** Batch 3 complete in the build workspace (Linux). The Windows UI
+Automation driver and the live Google service have not been run yet.
+**Next batch:** Batch 4 — multi-step autonomy and product features.
+**Version:** 0.3.0 · **Last updated:** 2026-10-25
 
 ## Completed
 - **Batch 1:** audit, architecture, backend foundation, Electron shell, scripts, tests.
-- **Batch 2:**
-  - Tool system: 13 tools, each with a schema, risk level, argument validation, optional pre-check.
-  - Browser (Playwright): dedicated profile; Edge by default on Windows; open, search, read page,
-    extract links, follow link, click button, tabs.
-  - Browser-history search: titles/addresses/time only; always needs your approval or is off.
-  - `save_links`: Markdown file in an authorized folder; never overwrites; refuses links not seen in the task.
-  - Executor loop with step limit, failure limit, repeat detection, per-step timeout, one retry for
-    transient errors, approval waiting, untrusted-content wrapping, and an outcome assembled from recorded steps.
-  - Background task runner: Run, Stop, approvals over the API; unfinished tasks marked "interrupted" on restart.
-  - UI: Run task / Plan only, live activity list, approval card, Stop button, outcome summary,
-    browser and limits settings.
-  - Database schema v2 with automatic migration from v1.
+- **Batch 2:** tool system, browser control (Playwright, own profile), history search,
+  save links, executor loop with approvals/stop/limits, background runner.
+- **Interface + background mode:** premium redesign (light/dark), quick bar
+  (Ctrl+Shift+Space), tray icon, notifications, start with Windows, keep awake, close to tray.
+- **Brain:** welcome screen with one choice — Online (user's free Google key, model picked
+  automatically, falls back on daily limits) or Offline (hardware-based model choice, automatic
+  download with progress, unload when idle). Key encrypted with DPAPI.
+- **Batch 3:** Windows UI Automation driver, app launcher (system tools refused), 12 desktop
+  tools with before/after checks, screenshots, screen reading via the brain, click-at fallback,
+  3 read-only file tools, consequential-label escalation, stop shortcut Ctrl+Alt+X.
 
 ## What the app can do today
-Take a task in English, plan it, and carry out browser steps one at a time with permission checks.
-It asks before saving files, clicking form buttons, or reading browser history. It can save
-collected links to a file and reports exactly which steps were done, checked, failed or refused.
+Take a task in English (main window or quick bar), plan it, and carry it out step by step in a
+browser and in Windows apps, reading files in allowed folders, asking before anything that
+changes things, and reporting exactly what was done and checked. Runs in the background.
 
 ## Remaining work
-Batches 3–5 (see `IMPLEMENTATION_PLAN.md`).
+Batches 4–5 (see `IMPLEMENTATION_PLAN.md`).
 
 ## Known issues / limits
-- **No real model has driven the agent yet.** All runs used a scripted test-double model.
-  How well qwen2.5/qwen3 follow the action format is unknown until tested on real hardware.
-- **Live DuckDuckGo/Bing result parsing is unverified** (no internet in the workspace). A generic
-  link fallback exists if their page layout differs.
-- **Chrome/Edge history on Windows is unverified.** History search is verified only on the agent's own
-  Chromium profile.
-- **Edge as the default browser is unverified** (Playwright `channel="msedge"`); tested with Chromium 153.
-- Never run on Windows 10; PowerShell scripts not executed.
-- Planning ("Plan only") is still one blocking request with no cancel; "Run task" can be stopped.
-- One task runs at a time.
+- **Not yet run on Windows 10.** The UI Automation driver is written against pywinauto 0.6.9's
+  source but unexecuted; see the checklist in `docs/DESKTOP.md`. PowerShell scripts not run.
+- **Not yet run against Google's live API** (no internet in the build workspace). Request format
+  follows Google's docs; Claw falls back to the older JSON-schema field if the newer is rejected.
+- **No real model has driven a task yet**; all runs used scripted stand-ins.
+- Offline mode needs the Ollama engine installed separately until Batch 5 bundles it.
+- Desktop steps can't run on a locked screen; admin windows, UAC and games are not supported.
+- Live DuckDuckGo/Bing parsing, Edge as controlled browser, Chrome/Edge history: unverified.
+- "Plan only" cannot be cancelled; one task at a time.
+- 28 tools in the prompt is heavy for the smallest offline models.
 
-## Exact startup commands (Windows 10)
+## Exact startup commands (Windows 10, developers)
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\setup.ps1   # once
-ollama pull qwen2.5:7b                                       # once
 powershell -ExecutionPolicy Bypass -File scripts\start.ps1
 ```
-In Settings: Test connection → choose model → add a folder for saved files → Save.
+Then choose Online (paste a free key from aistudio.google.com/apikey) or Offline.
 
 ## Next action
-On a Windows 10 laptop with Ollama: run setup + check, then run the Batch 2 acceptance tasks with a
-real model (search + save links; find a page in history) and record results in `TEST_RESULTS.md`.
-Then start Batch 3, step 1: pywinauto UI Automation adapter for listing and focusing windows.
+Batch 4, step 1: replanning when a step fails twice, plus document/spreadsheet tools (save a
+report with sources, create a spreadsheet from collected data).

@@ -82,8 +82,20 @@ async def test_declined_approval_stops_without_writing(tool_ctx, fake_server, si
     assert not list((tmp_path / "saved").iterdir())
 
 
+async def test_send_button_counts_as_consequential(tool_ctx, fake_server, site):
+    """A button labelled 'Send …' asks even if 'changes online' is set to go ahead."""
+    tool_ctx.policy = PermissionPolicy({RiskLevel.EXTERNAL: Decision.ALLOW}, [])
+    out, rec = await run(
+        tool_ctx, fake_server,
+        [act("open_url", url=site.base_url + "/contact"), act("click_button", text="Send message")],
+        answer=False,
+    )
+    assert rec.approvals and rec.approvals[0]["risk"] == "destructive"
+    assert site.form_submissions == [] and out.status == "stopped"
+
+
 async def test_denied_by_settings_never_asks(tool_ctx, fake_server, site):
-    tool_ctx.policy = PermissionPolicy({RiskLevel.EXTERNAL: Decision.DENY}, [])
+    tool_ctx.policy = PermissionPolicy({RiskLevel.DESTRUCTIVE: Decision.DENY}, [])
     out, rec = await run(
         tool_ctx, fake_server,
         [act("open_url", url=site.base_url + "/contact"), act("click_button", text="Send message")],

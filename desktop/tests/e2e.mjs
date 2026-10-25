@@ -141,6 +141,15 @@ try {
   await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Finished', null, { timeout: 20000 });
   check((await win.textContent('#summary-counts')) === 'No steps were carried out', 'outcome is honest when nothing was done');
 
+  // 3c. Desktop step where desktop control is unavailable: reported, not faked
+  await win.click('#new-task');
+  await win.fill('#task-input', 'Tell me which windows are open');
+  await win.click('#run-btn');
+  await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Finished', null, { timeout: 20000 });
+  const deskDetail = await win.textContent('#activity .tl-item[data-tone="bad"] .tl-detail');
+  check(/Windows only|locked|not available/.test(deskDetail), `desktop step failure explained: "${deskDetail}"`);
+  check((await win.textContent('#summary-counts')).includes('1 failed'), 'failed desktop step counted as failed');
+
   // 4. Settings validation
   await win.click('#open-settings');
   await win.waitForSelector('#settings:not([hidden])');

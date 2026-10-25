@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 — 2026-10-25 (Batch 3 + brain choice)
+### Added
+- **Claw's brain, chosen once on a welcome screen:** Online (Google Gemini with the user's own
+  free key; Claw picks the model and falls back when a daily limit is hit) or Offline (Claw
+  measures the computer, picks models by role, downloads them with progress, unloads when idle).
+  No model picking for users. Key stored encrypted with Windows DPAPI.
+- **Desktop control (Windows UI Automation via pywinauto):** list/switch windows, open apps from
+  the Start menu (system tools refused), numbered controls, click/type/keys with before-and-after
+  checks, screenshots, "look at the screen" through the brain, click-at-position fallback.
+- **File tools:** list folders, read text files, find files, all within authorized folders.
+- Buttons labelled Send/Delete/Buy/Pay/Submit/Post… always ask, in apps and on web pages.
+- Global stop shortcut **Ctrl+Alt+X**; quick bar shows it while Claw uses the mouse and keyboard.
+- Locked-screen and admin-window cases reported clearly.
+### Changed
+- Model settings moved to Settings → Claw's brain → Developer.
+
 ## 0.2.1 — 2026-10-25 (interface redesign + background mode)
 ### Added
 - Redesigned main window: custom title bar, grouped task list, large task box with example

@@ -101,7 +101,11 @@ class TaskRunner:
                 db.update_task(task_id, status="running")
 
         state.browser.reset_task_state()
-        ctx = ToolContext(settings=settings, policy=state.policy(), data_dir=state.data_dir, browser=state.browser, task_id=task_id)
+        state.desktop.reset_task_state()
+        ctx = ToolContext(
+            settings=settings, policy=state.policy(), data_dir=state.data_dir, browser=state.browser, task_id=task_id,
+            desktop=state.desktop, vision=state.vision_fn(),
+        )
         try:
             adapter = state.think_adapter()
             db.update_task(task_id, status="planning")
