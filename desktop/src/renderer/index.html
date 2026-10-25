@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oluwaseun Claw</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Oluwaseun Claw</span>
+    </div>
+    <div class="status-group">
+      <button class="pill" id="backend-pill" data-state="starting" title="Agent status" type="button">
+        <span class="dot"></span><span class="pill-text">Starting agent…</span>
+      </button>
+      <button class="pill" id="model-pill" data-state="unknown" title="Model status" type="button">
+        <span class="dot"></span><span class="pill-text">Model: checking…</span>
+      </button>
+      <button class="btn btn-ghost" id="open-settings" type="button">Settings</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="history" aria-label="Task history">
+      <div class="history-head">
+        <h2>History</h2>
+        <label class="sr-only" for="history-search">Search history</label>
+        <input id="history-search" type="search" placeholder="Search tasks" autocomplete="off">
+      </div>
+      <ol id="history-list" class="history-list"></ol>
+      <p id="history-empty" class="muted small history-empty">Your planned tasks will appear here.</p>
+    </aside>
+
+    <main class="workspace">
+      <div id="error-banner" class="banner banner-error" role="alert" hidden>
+        <div>
+          <strong id="error-title"></strong>
+          <p id="error-hint"></p>
+          <ul id="error-details"></ul>
+        </div>
+        <button class="btn btn-ghost btn-small" id="error-dismiss" type="button">Dismiss</button>
+      </div>
+
+      <section class="composer" aria-label="New task">
+        <label for="task-input" class="composer-label">What should the agent do?</label>
+        <textarea id="task-input" rows="4" maxlength="4000"
+          placeholder="Find the latest PDF in my Downloads folder and summarize it"></textarea>
+        <div class="composer-foot">
+          <span class="muted small">Plans first. Nothing on your computer is changed in this version.</span>
+          <div class="composer-actions">
+            <kbd class="small">Ctrl + Enter</kbd>
+            <button class="btn btn-primary" id="plan-btn" type="button" disabled>Plan task</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="progress" id="progress" aria-live="polite" hidden>
+        <h3>Progress</h3>
+        <ol class="progress-steps">
+          <li data-stage="send">Sending task to the agent</li>
+          <li data-stage="model">Asking the local model for a plan</li>
+          <li data-stage="validate">Checking the plan and permissions</li>
+          <li data-stage="done">Plan ready</li>
+        </ol>
+      </section>
+
+      <section class="results" id="results" aria-live="polite" hidden>
+        <div class="results-head">
+          <div>
+            <p class="eyebrow">Plan</p>
+            <h3 id="plan-goal"></h3>
+          </div>
+          <span class="tag tag-muted" id="plan-status"></span>
+        </div>
+        <p class="notice" id="plan-notice">This is a proposed plan. Step execution is not built yet, so none of these steps have been carried out.</p>
+        <ol id="plan-steps" class="plan-steps"></ol>
+        <div id="plan-questions" class="questions" hidden>
+          <h4>The agent needs to know</h4>
+          <ul></ul>
+        </div>
+        <details class="events">
+          <summary>Audit trail</summary>
+          <ol id="plan-events" class="events-list"></ol>
+        </details>
+      </section>
+
+      <section class="empty" id="empty-state">
+        <h3>Start with a task</h3>
+        <p class="muted">Describe the outcome you want in plain English. The agent will break it into steps and show what each step would touch and whether it needs your approval.</p>
+      </section>
+    </main>
+  </div>
+
+  <div class="scrim" id="settings-scrim" hidden></div>
+  <aside class="drawer" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+    <div class="drawer-head">
+      <h2 id="settings-title">Settings</h2>
+      <button class="btn btn-ghost btn-small" id="close-settings" type="button">Close</button>
+    </div>
+    <form id="settings-form" class="drawer-body" novalidate>
+      <fieldset>
+        <legend>Local model</legend>
+        <label for="s-provider">Model server</label>
+        <select id="s-provider">
+          <option value="ollama">Ollama</option>
+          <option value="openai_compatible">llama.cpp server (OpenAI-compatible)</option>
+        </select>
+
+        <label for="s-base-url">Server address</label>
+        <input id="s-base-url" type="url" spellcheck="false" autocomplete="off">
+
+        <label for="s-model">Model</label>
+        <div class="row">
+          <input id="s-model" list="s-model-list" spellcheck="false" autocomplete="off" placeholder="e.g. qwen2.5:7b">
+          <datalist id="s-model-list"></datalist>
+          <button class="btn btn-ghost" id="s-test" type="button">Test connection</button>
+        </div>
+        <p id="s-test-result" class="small field-note"></p>
+
+        <div class="row two">
+          <div>
+            <label for="s-timeout">Timeout (seconds)</label>
+            <input id="s-timeout" type="number" min="5" max="900" step="5">
+          </div>
+          <div>
+            <label for="s-temperature">Temperature</label>
+            <input id="s-temperature" type="number" min="0" max="2" step="0.1">
+          </div>
+        </div>
+        <label class="check"><input id="s-remote" type="checkbox"> Allow a model server on another computer</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Permissions</legend>
+        <p class="small muted">What the agent may do without asking you first.</p>
+        <div class="perm-grid">
+          <label for="p-read_only">Reading and looking</label>
+          <select id="p-read_only"><option value="allow">Allow</option><option value="ask">Ask me</option><option value="deny">Never</option></select>
+          <label for="p-local_write">Creating or editing files, typing</label>
+          <select id="p-local_write"><option value="allow">Allow</option><option value="ask">Ask me</option><option value="deny">Never</option></select>
+          <label for="p-external">Changes outside this computer</label>
+          <select id="p-external"><option value="allow">Allow</option><option value="ask">Ask me</option><option value="deny">Never</option></select>
+          <label for="p-destructive">Deleting, sending, buying</label>
+          <select id="p-destructive"><option value="ask">Ask me</option><option value="deny">Never</option></select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Folders the agent may use</legend>
+        <ul id="folder-list" class="folder-list"></ul>
+        <p id="folder-empty" class="small muted">No folders yet. File steps will be refused until you add one.</p>
+        <button class="btn btn-ghost" id="add-folder" type="button">Add folder</button>
+      </fieldset>
+
+      <div id="settings-error" class="banner banner-error small" role="alert" hidden></div>
+      <p class="small muted" id="data-dir"></p>
+    </form>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost" id="cancel-settings" type="button">Cancel</button>
+      <button class="btn btn-primary" id="save-settings" type="button">Save settings</button>
+    </div>
+  </aside>
+
+  <script src="app.js"></script>
+</body>
+</html>

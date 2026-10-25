@@ -1,0 +1,6 @@
+# Oluwaseun Claw backend — pinned runtime dependencies (Batch 1)
+# Target: Python 3.12 on Windows 10 x64 (also tested on Python 3.13 / Linux in CI workspace)
+fastapi==0.162.0
+uvicorn==0.54.0
+pydantic==2.14.1
+httpx==0.28.1

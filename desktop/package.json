@@ -1,0 +1,18 @@
+{
+  "name": "oluwaseun-claw",
+  "productName": "Oluwaseun Claw",
+  "version": "0.1.0",
+  "description": "Local-first AI agent that operates your Windows computer",
+  "main": "src/main.js",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/backend.js && node --check src/renderer/app.js",
+    "test": "node --test tests/routes.test.js"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "playwright-core": "1.64.1"
+  }
+}
