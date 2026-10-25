@@ -21,8 +21,23 @@ Implemented and tested in Batch 1:
 - Folder scoping: paths are resolved (symlinks and `..`) before checking they
   sit inside an authorized folder. Null bytes and sibling-prefix tricks are refused.
 
+Added in Batch 2 (implemented and tested):
+- The model can only name a registered tool; arguments are validated against a schema
+  (unknown fields refused) before anything runs.
+- Every tool call is permission-checked. "Ask" shows an approval card with the exact
+  arguments; declining, timing out, or pressing Stop ends the task.
+- Browser uses its own profile in the data folder: no access to the user's cookies,
+  passwords or logged-in sessions. Only http/https addresses can be opened.
+- History search copies only the `History` file to a temp folder, reads only url/title/time
+  from the `urls` table, then deletes the copy. It always asks (or is off).
+- Saved links must have been seen by the agent in the same task. Files are created with
+  exclusive mode (never overwritten) and names are sanitised; Windows reserved names avoided.
+- Page and history text is passed to the model inside `<untrusted>` tags, with an
+  instruction to treat it as data. (A model may still be fooled; the permission system is
+  the real protection — dangerous actions still need approval.)
+- Hard limits: step count, consecutive failures, repeated actions, per-step timeout.
+
 Not yet implemented (planned):
-- Execution of any tool (Batch 2+). Plans are produced but never run.
-- Approval dialog and global stop (Batch 2–3).
-- Prompt-injection handling for web/document content (Batch 4).
+- Desktop app control and a global stop hotkey (Batch 3).
+- Stronger prompt-injection defences and evaluation with real models (Batch 4).
 - Packaging, code signing, and installer review (Batch 5).

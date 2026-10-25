@@ -195,3 +195,32 @@ label { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
   border: 1px solid var(--line); border-radius: 8px; font-family: var(--mono); font-size: 12px;
 }
 .folder-list li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Run panel (Batch 2) */
+.btn-danger { border-color: rgba(239, 107, 107, 0.6); color: var(--bad); }
+.btn-danger:hover:not(:disabled) { background: rgba(239, 107, 107, 0.1); }
+.run { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 14px; }
+.run-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.approval {
+  border: 1px solid rgba(232, 163, 61, 0.55); background: rgba(232, 163, 61, 0.07);
+  border-radius: var(--radius); padding: 14px; display: grid; gap: 6px;
+}
+.approval h4 { font-size: 15px; }
+.approval-args { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 4px 0; font-size: 12.5px; }
+.approval-args dt { color: var(--muted); }
+.approval-args dd { margin: 0; font-family: var(--mono); word-break: break-word; white-space: pre-wrap; }
+.approval-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.activity { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.activity li {
+  display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; align-items: start;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2);
+}
+.activity .act-num { font-size: 12px; color: var(--muted); padding-top: 1px; }
+.activity .act-title { font-weight: 500; }
+.activity .act-detail { font-size: 12.5px; color: var(--muted); margin-top: 2px; word-break: break-word; }
+.activity li.act-note { grid-template-columns: 24px 1fr; background: transparent; border-style: dashed; }
+.summary { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 6px; }
+.summary-counts { font-weight: 600; }
+.summary-error { color: var(--bad); }
+.summary-error:empty { display: none; }
+.summary-answer { white-space: pre-wrap; border-left: 2px solid var(--line-strong); padding-left: 10px; }

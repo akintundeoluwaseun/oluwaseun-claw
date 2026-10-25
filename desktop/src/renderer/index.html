@@ -51,10 +51,48 @@
         <textarea id="task-input" rows="4" maxlength="4000"
           placeholder="Find the latest PDF in my Downloads folder and summarize it"></textarea>
         <div class="composer-foot">
-          <span class="muted small">Plans first. Nothing on your computer is changed in this version.</span>
+          <span class="muted small" id="composer-hint">The agent asks before saving files or changing anything online.</span>
           <div class="composer-actions">
-            <kbd class="small">Ctrl + Enter</kbd>
-            <button class="btn btn-primary" id="plan-btn" type="button" disabled>Plan task</button>
+            <kbd class="small" title="Run task">Ctrl + Enter</kbd>
+            <button class="btn btn-ghost" id="plan-btn" type="button" disabled>Plan only</button>
+            <button class="btn btn-primary" id="run-btn" type="button" disabled>Run task</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="run" id="run-panel" hidden>
+        <div class="results-head">
+          <div>
+            <p class="eyebrow">Task</p>
+            <h3 id="run-title"></h3>
+          </div>
+          <div class="run-head-actions">
+            <span class="tag tag-muted" id="run-status"></span>
+            <button class="btn btn-danger btn-small" id="stop-btn" type="button" hidden>Stop</button>
+          </div>
+        </div>
+
+        <div class="approval" id="approval-card" role="alertdialog" aria-labelledby="approval-title" hidden>
+          <p class="eyebrow">Your approval is needed</p>
+          <h4 id="approval-title"></h4>
+          <p id="approval-desc" class="muted small"></p>
+          <dl id="approval-args" class="approval-args"></dl>
+          <p id="approval-reason" class="small"></p>
+          <div class="approval-actions">
+            <button class="btn btn-ghost" id="deny-btn" type="button">Deny and stop</button>
+            <button class="btn btn-primary" id="approve-btn" type="button">Allow this step</button>
+          </div>
+        </div>
+
+        <ol id="activity" class="activity" aria-live="polite"></ol>
+
+        <div class="summary" id="run-summary" hidden>
+          <p class="eyebrow">Outcome</p>
+          <p id="summary-counts" class="summary-counts"></p>
+          <p id="summary-error" class="summary-error"></p>
+          <div id="summary-answer-wrap">
+            <p class="small muted">The agent's own summary (check it against the steps above):</p>
+            <p id="summary-answer" class="summary-answer"></p>
           </div>
         </div>
       </section>
@@ -147,6 +185,47 @@
           <select id="p-external"><option value="allow">Allow</option><option value="ask">Ask me</option><option value="deny">Never</option></select>
           <label for="p-destructive">Deleting, sending, buying</label>
           <select id="p-destructive"><option value="ask">Ask me</option><option value="deny">Never</option></select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Browser</legend>
+        <label for="b-channel">Browser the agent uses</label>
+        <select id="b-channel">
+          <option value="msedge">Microsoft Edge (built into Windows)</option>
+          <option value="chrome">Google Chrome</option>
+          <option value="chromium">Chromium (downloaded by setup)</option>
+        </select>
+        <label class="check"><input id="b-visible" type="checkbox"> Show the browser window while the agent works</label>
+        <label for="b-engine">Search engine</label>
+        <select id="b-engine">
+          <option value="duckduckgo">DuckDuckGo</option>
+          <option value="bing">Bing</option>
+          <option value="custom">Custom address</option>
+        </select>
+        <div id="b-custom-wrap" hidden>
+          <label for="b-custom">Search address (use {query} for the search words)</label>
+          <input id="b-custom" type="url" spellcheck="false" placeholder="https://example.com/search?q={query}">
+        </div>
+        <label for="b-history">Reading your Chrome / Edge history</label>
+        <select id="b-history">
+          <option value="ask">Ask me each time</option>
+          <option value="deny">Never</option>
+        </select>
+        <p class="small muted">The agent uses its own browser profile. It never sees your passwords or logged-in sessions.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Limits</legend>
+        <div class="row two">
+          <div>
+            <label for="a-max-steps">Most steps per task</label>
+            <input id="a-max-steps" type="number" min="1" max="50" step="1">
+          </div>
+          <div>
+            <label for="a-step-timeout">Seconds per step</label>
+            <input id="a-step-timeout" type="number" min="5" max="600" step="5">
+          </div>
         </div>
       </fieldset>
 

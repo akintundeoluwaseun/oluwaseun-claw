@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0 — 2026-10-25 (Batch 2)
+### Added
+- Tool system with schemas, risk levels, validation and pre-checks (13 tools).
+- Browser control through Playwright with a dedicated profile (Edge default on Windows):
+  web search, open address/result, read page, links, follow link, click button, tabs.
+- Browser-history search (titles/addresses only, always asks or off).
+- `save_links` to authorized folders (no overwrite, only links seen in the task).
+- Executor loop and background runner: Run, Stop, approvals, limits, retries, audit events.
+- UI: Run task, live activity, approval card, Stop, outcome summary, browser/limits settings.
+- Database v2 with migration; unfinished tasks marked interrupted after restart.
+- Local test website and 29 new backend tests; e2e test extended to 18 checks.
+### Changed
+- Ctrl+Enter now runs the task; "Plan only" is a separate button.
+
 ## 0.1.0 — 2026-10-25 (Batch 1)
 ### Added
 - Repository audit and architecture decision (custom Electron + Python runtime).

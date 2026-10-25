@@ -21,6 +21,10 @@ Windows 10 machines (Batch 2).
 | `qwen2.5:1.5b` | ~1 GB | 8 GB RAM, slow CPUs | May fail to follow the JSON plan format |
 | `qwen3:8b` | ~5 GB | 16 GB RAM or 8 GB VRAM | Newer family; test before relying on it |
 
+Running tasks (not just planning) needs a model that reliably returns the agent's JSON
+action format. Small models (1.5B–3B) are likely to fail this more often; this has not
+been measured yet.
+
 How to choose: start with the largest model your RAM can hold with a few GB to
 spare. If planning takes longer than the timeout in Settings, choose a smaller
 model or raise the timeout. If plans are rejected ("did not produce a usable

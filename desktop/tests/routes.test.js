@@ -9,6 +9,16 @@ test('allowed routes pass', () => {
   assert.ok(isAllowedRoute('POST', '/tasks/plan'));
   assert.ok(isAllowedRoute('GET', '/tasks?q=pdf%20report&limit=100'));
   assert.ok(isAllowedRoute('GET', '/tasks/0123456789abcdef0123456789abcdef'));
+  assert.ok(isAllowedRoute('POST', '/tasks/run'));
+  assert.ok(isAllowedRoute('POST', '/tasks/0123456789abcdef0123456789abcdef/cancel'));
+  assert.ok(isAllowedRoute('GET', '/tasks/0123456789abcdef0123456789abcdef/events?after=42'));
+  assert.ok(isAllowedRoute('POST', '/approvals/0123456789abcdef0123456789abcdef'));
+});
+
+test('run routes are tight', () => {
+  assert.ok(!isAllowedRoute('GET', '/tasks/run'));
+  assert.ok(!isAllowedRoute('POST', '/approvals/abc'));
+  assert.ok(!isAllowedRoute('GET', '/tasks/0123456789abcdef0123456789abcdef/events?after=1&x=2'));
 });
 
 test('everything else is refused', () => {

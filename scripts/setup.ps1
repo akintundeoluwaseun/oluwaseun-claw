@@ -1,5 +1,8 @@
 # Oluwaseun Claw - one-time developer setup on Windows 10 (PowerShell 5.1+)
 # Run from the project root:   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
+# Add -Chromium to also download Playwright's Chromium (only needed if you choose
+# "Chromium" in Settings; the default browser is the Microsoft Edge built into Windows).
+param([switch]$Chromium)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $backend = Join-Path $root 'backend'
@@ -30,6 +33,10 @@ $pyArgs = @($py | Select-Object -Skip 1)
 if (-not (Test-Path '.venv')) { & $pyExe @pyArgs -m venv .venv }
 & .\.venv\Scripts\python.exe -m pip install --upgrade pip
 & .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+if ($Chromium) {
+  Write-Host '== Downloading Chromium for Playwright'
+  & .\.venv\Scripts\python.exe -m playwright install chromium
+}
 Pop-Location
 
 Write-Host '== Installing desktop dependencies (Electron)'

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+from contextlib import asynccontextmanager
 import platform
 import sys
 from dataclasses import dataclass, field
@@ -23,13 +24,17 @@ from pydantic import ValidationError
 
 from claw import __version__
 from claw.agent.planner import PlanningFailed, make_plan
+from claw.agent.runner import TaskBusy, TaskRunner
 from claw.agent.schemas import PlanRequest, TaskStatus
+from claw.browser.session import BrowserSession
 from claw.config import ConfigError, ModelSettings, Settings, SettingsStore, describe_validation_error
 from claw.logging_setup import log_event
 from claw.models.base import ModelError
 from claw.models.registry import build_adapter
 from claw.permissions.policy import PermissionPolicy
 from claw.storage.db import Database
+from claw.tools.base import ToolRegistry
+from claw.tools.registry import build_registry
 
 log = logging.getLogger("claw.api")
 
@@ -45,6 +50,9 @@ class AppState:
     db: Database
     settings: Settings = field(default_factory=Settings)
     settings_error: ConfigError | None = None
+    registry: ToolRegistry = field(default_factory=build_registry)
+    browser: BrowserSession | None = None
+    runner: TaskRunner | None = None
 
     def policy(self) -> PermissionPolicy:
         return PermissionPolicy(self.settings.permissions.modes, self.settings.permissions.authorized_folders)
@@ -67,8 +75,24 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     except ConfigError as exc:
         state.settings_error = exc
         log.warning("settings invalid; running with defaults until fixed", extra={"fields": {"problems": exc.problems}})
+    state.browser = BrowserSession(data_dir, lambda: state.settings.browser)
+    state.runner = TaskRunner(state)
+    interrupted = state.db.mark_interrupted()
+    if interrupted:
+        log_event(log, "marked unfinished tasks as interrupted", count=interrupted)
 
-    app = FastAPI(title="Oluwaseun Claw backend", version=__version__, docs_url=None, redoc_url=None, openapi_url=None)
+    @asynccontextmanager
+    async def lifespan(_app):
+        yield
+        if state.runner.busy:
+            state.runner.cancel(state.runner.current_id)
+            await state.runner.wait()
+        await state.browser.close()
+        state.db.close()
+
+    app = FastAPI(
+        title="Oluwaseun Claw backend", version=__version__, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
+    )
     app.state.claw = state
 
     @app.middleware("http")
@@ -181,6 +205,62 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         state.db.update_task(task_id, status=TaskStatus.PLANNED, plan=plan_json)
         log_event(log, "task planned", task_id=task_id, steps=len(plan.steps))
         return state.db.get_task(task_id)
+
+    @app.post("/tasks/run")
+    async def run_task(request: Request):
+        try:
+            req = PlanRequest.model_validate(await request.json())
+        except ValidationError as exc:
+            return error_response(422, "invalid_task", "The task could not be accepted.", details=describe_validation_error(exc))
+        except ValueError:
+            return error_response(400, "bad_json", "The request was not valid JSON.")
+        if state.settings_error:
+            return error_response(409, "settings_invalid", state.settings_error.message, "Fix them in Settings.", state.settings_error.problems)
+        try:
+            task_id = state.runner.start(req.task)
+        except TaskBusy:
+            return error_response(409, "busy", "Another task is still running.", "Wait for it to finish or stop it first.")
+        return JSONResponse(status_code=202, content={"id": task_id})
+
+    @app.post("/tasks/{task_id}/cancel")
+    async def cancel_task(task_id: str):
+        if not state.runner.cancel(task_id):
+            return error_response(409, "not_running", "That task is not running.")
+        return {"cancelling": True}
+
+    @app.get("/tasks/{task_id}/events")
+    async def task_events(task_id: str, after: int = 0):
+        task = state.db.get_task(task_id)
+        if task is None:
+            return error_response(404, "not_found", "That task does not exist.")
+        return {
+            "status": task["status"],
+            "events": state.db.get_events(task_id, after),
+            "result": task["result"],
+            "plan": task["plan"],
+            "error": task["error"],
+            "approvals": [a for a in state.runner.pending() if a["task_id"] == task_id],
+        }
+
+    @app.get("/approvals")
+    async def approvals():
+        return {"approvals": state.runner.pending()}
+
+    @app.post("/approvals/{approval_id}")
+    async def answer_approval(approval_id: str, request: Request):
+        try:
+            body = await request.json()
+        except ValueError:
+            return error_response(400, "bad_json", "The request was not valid JSON.")
+        if not isinstance(body, dict) or not isinstance(body.get("approve"), bool):
+            return error_response(422, "invalid", "Send {\"approve\": true} or {\"approve\": false}.")
+        if not state.runner.answer(approval_id, body["approve"]):
+            return error_response(404, "not_found", "That approval request is no longer waiting.")
+        return {"ok": True}
+
+    @app.get("/runner")
+    async def runner_status():
+        return {"busy": state.runner.busy, "current_id": state.runner.current_id if state.runner.busy else None}
 
     @app.get("/tasks")
     async def list_tasks(q: str | None = None, limit: int = 50):

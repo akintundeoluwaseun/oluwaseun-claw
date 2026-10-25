@@ -9,7 +9,7 @@ echo "== Backend: tests";   .venv/bin/python -m pytest -q || fail=1
 cd "$root/desktop"
 echo "== Desktop: syntax";  npm run -s check || fail=1
 echo "== Desktop: unit";    npm test || fail=1
-echo "== Desktop: e2e"
+echo "== Desktop: e2e (set CLAW_BROWSER_EXECUTABLE if Playwright's Chromium is not installed)"
 if [ -z "${DISPLAY:-}" ] && command -v xvfb-run >/dev/null; then
   CLAW_E2E_NO_SANDBOX=${CLAW_E2E_NO_SANDBOX:-$([ "$(id -u)" = 0 ] && echo 1)} xvfb-run -a -s "-screen 0 1400x900x24" node tests/e2e.mjs || fail=1
 else

@@ -12,15 +12,32 @@
 ┌──────────────────────────── Python agent runtime (backend/claw/) ───────────────┐
 │ api/app.py      FastAPI routes, token + Host guard, error format                │
 │ config.py       Settings schema, validation → plain-English errors, atomic save │
-│ agent/          planner.py (task → validated plan), schemas.py (step states)    │
+│ agent/          planner.py · executor.py (bounded loop) · runner.py (background,│
+│                 approvals, stop) · schemas.py (step states)                     │
+│ tools/          base.py (spec, schema, risk, precheck) · browser_tools · file   │
+│ browser/        session.py (Playwright, own profile) · extract.py · history.py  │
 │ models/         base.py interface · ollama.py · openai_compat.py (llama.cpp)    │
 │ permissions/    policy.py: risk levels, allow/ask/deny, folder scoping          │
 │ storage/db.py   SQLite: tasks + audit events                                    │
 │ logging_setup   JSON logs with secret redaction                                 │
 └───────────────────────────────────────────────────────────────┬─────────────────┘
-                                         HTTP localhost
-                              Ollama (:11434)  or  llama-server (:8080)
+                    HTTP localhost                         Playwright (CDP)
+       Ollama (:11434) or llama-server (:8080)         Edge / Chrome / Chromium
+                                                       (dedicated profile)
 ```
+
+## How a task runs (Batch 2)
+1. `POST /tasks/run` → runner creates the task and returns at once.
+2. Planner asks the model for a step plan (shown to the user as guidance).
+3. Executor loop, one step at a time: model returns `{"action":"tool","tool":…,"args":…}` →
+   tool exists? → arguments valid? → same action repeated? → pre-check →
+   permission (allow / ask → approval card / deny) → run with timeout (one retry if transient) →
+   record verified / done-but-unchecked / failed → observation back to the model, with page text
+   inside `<untrusted>` tags.
+4. Stops on: model says finish, permission refused, Stop pressed, 3 failures in a row,
+   repeated action, step limit, model error.
+5. The outcome (counts per result) is built from recorded steps; the model's summary is shown
+   separately and labelled as the agent's own words.
 
 ## Key decisions
 - **Custom shell over forking Interpreter Workstation or UI-TARS Desktop** — see `docs/REPO_AUDIT.md`.
@@ -35,14 +52,14 @@
   corrective retry, then an honest failure.
 
 ## Step lifecycle
-`proposed → approved | denied → attempted → verified | failed` (also `skipped`).
-Batch 1 produces only `proposed` steps. The UI labels every step "Not run".
+Plan steps: `proposed`. Executed steps are recorded as events:
+`requested → (awaiting_approval → approved | denied) → attempted → verified | done_unverified | failed`,
+or `rejected` (unknown tool / invalid arguments / failed pre-check).
 
 ## Data locations
-`%APPDATA%\OluwaseunClaw\` → `settings.json`, `claw.db`, `logs\claw.log` (override with `CLAW_DATA_DIR`).
+`%APPDATA%\OluwaseunClaw\` → `settings.json`, `claw.db`, `logs\claw.log`, `browser-profile\`
+(override with `CLAW_DATA_DIR`).
 
 ## Planned additions
-- `backend/claw/browser/` — Playwright session, dedicated profile, tools (Batch 2)
 - `backend/claw/computer/` — pywinauto UIA, screenshots, input (Batch 3)
-- `backend/claw/tools/` — tool registry with schemas and risk levels (Batch 2)
-- `backend/claw/agent/executor.py` — bounded execute/verify/replan loop (Batch 2–4)
+- Replanning, file/document/spreadsheet tools, stronger injection defences (Batch 4)

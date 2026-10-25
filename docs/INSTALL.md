@@ -25,7 +25,11 @@ powershell -ExecutionPolicy Bypass -File scripts\start.ps1
 ```
 The window opens, starts the backend automatically, and shows two status
 pills: **Agent** and **Model**. Open **Settings**, click **Test connection**,
-choose your model, and **Save settings**.
+choose your model, add a folder under **Folders the agent may use** (needed for saving
+files), and **Save settings**. Type a task and press **Run task**.
+
+The agent controls Microsoft Edge by default, in its own separate profile. To use
+Chromium instead, run `scripts\setup.ps1 -Chromium` and choose it in Settings.
 
 ## 5. Run the checks
 ```powershell
@@ -34,6 +38,7 @@ powershell -ExecutionPolicy Bypass -File scripts\check.ps1
 
 ## Useful settings
 - `CLAW_PYTHON` — full path to a Python to use instead of `backend\.venv`.
+- `CLAW_BROWSER_EXECUTABLE` — full path to a Chromium-family browser to control (testing).
 - `CLAW_DATA_DIR` — where settings, history (`claw.db`) and logs live.
   Default: `%APPDATA%\OluwaseunClaw`.
 - Logs: `%APPDATA%\OluwaseunClaw\logs\claw.log`.
@@ -53,3 +58,7 @@ A development token is printed once; send it as the `X-Claw-Token` header.
 | "Model missing: …" | `ollama pull <name>`, then Test connection in Settings. |
 | "Some settings are not valid" | Open Settings and correct the listed fields, or delete `settings.json` in the data folder. |
 | Planning times out | Use a smaller model or raise the timeout in Settings. |
+| "Microsoft Edge was not found" | Choose Chrome or Chromium in Settings (Chromium needs `setup.ps1 -Chromium`). |
+| "browser profile is already open" | Close the agent's browser window and run the task again. |
+| "Step limit reached" | Raise "Most steps per task" in Settings, or split the task. |
+| Search finds nothing | Try the other search engine in Settings. |

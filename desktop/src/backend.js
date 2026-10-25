@@ -20,6 +20,12 @@ const ALLOWED_ROUTES = [
   ['POST', /^\/tasks\/plan$/],
   ['GET', /^\/tasks(\?[\w=&%.+-]*)?$/],
   ['GET', /^\/tasks\/[0-9a-f]{32}$/],
+  ['POST', /^\/tasks\/run$/],
+  ['POST', /^\/tasks\/[0-9a-f]{32}\/cancel$/],
+  ['GET', /^\/tasks\/[0-9a-f]{32}\/events(\?after=\d{1,9})?$/],
+  ['GET', /^\/approvals$/],
+  ['POST', /^\/approvals\/[0-9a-f]{32}$/],
+  ['GET', /^\/runner$/],
 ];
 
 function isAllowedRoute(method, route) {

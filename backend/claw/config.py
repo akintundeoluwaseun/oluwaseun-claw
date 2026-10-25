@@ -134,12 +134,52 @@ def _looks_like_windows_absolute(path: str) -> bool:
     return len(path) >= 3 and path[0].isalpha() and path[1] == ":" and path[2] in "\\/"
 
 
+BrowserChannel = Literal["msedge", "chrome", "chromium"]
+SearchEngine = Literal["duckduckgo", "bing", "custom"]
+
+
+def _default_channel() -> str:
+    # Windows 10 ships with Microsoft Edge, so no browser download is needed there.
+    return "msedge" if sys.platform == "win32" else "chromium"
+
+
+class BrowserSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    channel: BrowserChannel = Field(default_factory=_default_channel)
+    headless: bool = False
+    search_engine: SearchEngine = "duckduckgo"
+    custom_search_url: str = Field(default="", max_length=500)
+    # Reading the user's own browser history is private: it can be asked for or refused, never automatic.
+    history_access: Literal["ask", "deny"] = "ask"
+    navigation_timeout_s: float = Field(default=30, ge=5, le=120)
+
+    @model_validator(mode="after")
+    def _custom_needs_url(self) -> "BrowserSettings":
+        if self.search_engine == "custom":
+            parsed = urlparse(self.custom_search_url)
+            if parsed.scheme not in ("http", "https") or "{query}" not in self.custom_search_url:
+                raise ValueError("a custom search address must start with http(s):// and contain {query}")
+        return self
+
+
+class AgentSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    max_steps: int = Field(default=20, ge=1, le=50)
+    step_timeout_s: float = Field(default=60, ge=5, le=600)
+    approval_timeout_s: float = Field(default=600, ge=30, le=3600)
+    max_consecutive_failures: int = Field(default=3, ge=1, le=10)
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     version: int = SETTINGS_VERSION
     model: ModelSettings = Field(default_factory=ModelSettings)
     permissions: PermissionSettings = Field(default_factory=PermissionSettings)
+    browser: BrowserSettings = Field(default_factory=BrowserSettings)
+    agent: AgentSettings = Field(default_factory=AgentSettings)
 
 
 def describe_validation_error(exc: ValidationError) -> list[str]:

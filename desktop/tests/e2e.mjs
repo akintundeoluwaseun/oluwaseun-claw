@@ -1,9 +1,11 @@
-// End-to-end smoke test: launches the real Electron app, which starts the real
-// Python backend. The model server is the labelled TEST DOUBLE from
-// backend/tests/run_fake_server.py (no real model weights in CI).
+// End-to-end test: launches the real Electron app, which starts the real
+// Python backend, which drives a real Chromium against a local test website.
+// Model replies come from the labelled TEST DOUBLE in
+// backend/tests/run_e2e_servers.py (no real model weights in CI).
 //
 // Usage:  node tests/e2e.mjs [screenshotDir]
 // Linux CI needs a display (xvfb-run) and, when run as root, CLAW_E2E_NO_SANDBOX=1.
+// If Playwright's own Chromium is not installed, set CLAW_BROWSER_EXECUTABLE.
 
 import { _electron as electron } from 'playwright-core';
 import { spawn } from 'node:child_process';
@@ -24,16 +26,21 @@ function check(cond, msg) {
   console.log('ok -', msg);
 }
 
-const fake = spawn(python, ['-m', 'tests.run_fake_server'], { cwd: backendDir, stdio: ['ignore', 'pipe', 'inherit'] });
-const port = await new Promise((resolve, reject) => {
-  fake.stdout.once('data', (d) => resolve(Number(String(d).trim())));
-  fake.once('exit', (c) => reject(new Error('fake server exited ' + c)));
+const servers = spawn(python, ['-m', 'tests.run_e2e_servers'], { cwd: backendDir, stdio: ['ignore', 'pipe', 'inherit'] });
+const { model_port: modelPort, site_url: siteUrl } = await new Promise((resolve, reject) => {
+  servers.stdout.once('data', (d) => resolve(JSON.parse(String(d).trim())));
+  servers.once('exit', (c) => reject(new Error('test servers exited ' + c)));
 });
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw-e2e-'));
+const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw-saved-'));
 fs.writeFileSync(
   path.join(dataDir, 'settings.json'),
-  JSON.stringify({ model: { provider: 'ollama', base_url: `http://127.0.0.1:${port}`, model: 'qwen2.5:7b' } }),
+  JSON.stringify({
+    model: { provider: 'ollama', base_url: `http://127.0.0.1:${modelPort}`, model: 'qwen2.5:7b' },
+    permissions: { authorized_folders: [saveDir] },
+    browser: { channel: 'chromium', headless: true, search_engine: 'custom', custom_search_url: `${siteUrl}/search?q={query}` },
+  }),
 );
 
 const args = [desktopDir];
@@ -42,29 +49,54 @@ const app = await electron.launch({ args, env: { ...process.env, CLAW_DATA_DIR: 
 let exitCode = 0;
 try {
   const win = await app.firstWindow();
-  await win.setViewportSize({ width: 1240, height: 820 });
+  await win.setViewportSize({ width: 1240, height: 860 });
   await win.waitForSelector('#backend-pill[data-state="ready"]', { timeout: 30000 });
   check(true, 'backend started from the desktop app and reported ready');
   await win.waitForSelector('#model-pill[data-state="ready"]', { timeout: 10000 });
   check((await win.textContent('#model-pill')).includes('qwen2.5:7b'), 'model status shows configured model');
 
-  const tokenVisible = await win.evaluate(() => Object.keys(window.claw).join(','));
-  check(!/token/i.test(tokenVisible), 'renderer bridge exposes no token: ' + tokenVisible);
+  const bridge = await win.evaluate(() => Object.keys(window.claw).join(','));
+  check(!/token/i.test(bridge), 'renderer bridge exposes no token: ' + bridge);
   const blocked = await win.evaluate(() => window.claw.api('DELETE', '/settings'));
   check(blocked.status === 400, 'disallowed route refused by main process');
 
-  await win.screenshot({ path: path.join(shotDir, '1-empty.png') });
+  // 1. Plan only
   await win.fill('#task-input', 'Find the latest PDF in my Downloads folder and summarize it');
   await win.click('#plan-btn');
   await win.waitForSelector('#results:not([hidden]) .plan-step', { timeout: 20000 });
-  const steps = await win.$$eval('.plan-step', (n) => n.length);
-  check(steps === 3, `plan rendered with ${steps} steps`);
-  check((await win.textContent('#plan-status')) === 'Plan ready', 'status tag says Plan ready');
-  check((await win.textContent('.plan-step .tag-ok')).includes('without asking'), 'read-only step shows allowed permission');
-  const history = await win.$$eval('#history-list li', (n) => n.length);
-  check(history === 1, 'task saved to history');
-  await win.screenshot({ path: path.join(shotDir, '2-plan.png') });
+  check((await win.$$eval('.plan-step', (n) => n.length)) === 3, 'plan-only shows 3 proposed steps');
+  check((await win.textContent('#plan-status')) === 'Plan ready', 'plan-only status says Plan ready');
 
+  // 2. Run: search, open result, save links (needs approval), finish
+  await win.fill('#task-input', 'Search for free motion graphics templates and save the useful links');
+  await win.click('#run-btn');
+  await win.waitForSelector('#approval-card:not([hidden])', { timeout: 30000 });
+  check((await win.textContent('#approval-title')).includes('Save links to a file'), 'approval requested before saving a file');
+  check((await win.textContent('#run-status')) === 'Waiting for you', 'status shows waiting for approval');
+  await win.screenshot({ path: path.join(shotDir, '1-approval.png') });
+  await win.click('#approve-btn');
+  await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Finished', null, { timeout: 30000 });
+  const tags = await win.$$eval('#activity li:not(.act-note) .tag', (n) => n.map((x) => x.textContent));
+  check(tags.length === 3 && tags.every((t) => t === 'Done · checked'), `3 steps done and checked (${tags.join(', ')})`);
+  check((await win.textContent('#summary-counts')).includes('3 done and checked'), 'outcome counts come from recorded steps');
+  const saved = fs.readFileSync(path.join(saveDir, 'motion templates.md'), 'utf8');
+  check(saved.includes(`${siteUrl}/articles/motion-templates`), 'links file really written to the authorized folder');
+  await win.screenshot({ path: path.join(shotDir, '2-finished.png') });
+
+  // 3. Run that needs approval to click a form button; stop it instead
+  await win.fill('#task-input', 'Open the contact page and send the form');
+  await win.click('#run-btn');
+  await win.waitForSelector('#approval-card:not([hidden])', { timeout: 30000 });
+  check((await win.textContent('#approval-title')).includes('Click a button'), 'clicking a form button asks first');
+  await win.click('#stop-btn');
+  await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Stopped by you', null, { timeout: 20000 });
+  const submissions = await (await fetch(`${siteUrl}/__submissions`)).text();
+  check(submissions === '0', 'stopped task never submitted the form');
+  check(await win.isHidden('#approval-card'), 'approval card cleared after stop');
+  await win.screenshot({ path: path.join(shotDir, '3-stopped.png') });
+  check((await win.$$eval('#history-list li', (n) => n.length)) === 3, 'all three tasks in history');
+
+  // 4. Settings validation
   await win.click('#open-settings');
   await win.waitForSelector('#settings:not([hidden])');
   await win.click('#s-test');
@@ -74,25 +106,24 @@ try {
   await win.click('#save-settings');
   await win.waitForSelector('#settings-error:not([hidden])');
   check((await win.textContent('#settings-error')).includes('not on this computer'), 'remote server refused with readable message');
-  await win.screenshot({ path: path.join(shotDir, '3-settings-error.png') });
+  await win.screenshot({ path: path.join(shotDir, '4-settings.png') });
   await win.click('#cancel-settings');
 
-  // Model server goes away: the app must report it, not invent a plan.
-  fake.kill();
+  // 5. Model server goes away: report it, do not invent a result
+  servers.kill();
   await new Promise((r) => setTimeout(r, 500));
   await win.fill('#task-input', 'Open my browser and search for motion graphics templates');
-  await win.click('#plan-btn');
-  await win.waitForSelector('#error-banner:not([hidden])', { timeout: 20000 });
-  check((await win.textContent('#error-title')).includes('Could not connect'), 'model outage shown as an error');
-  await win.waitForFunction(() => document.querySelectorAll('#history-list li').length === 2);
-  check(true, 'failed task recorded in history');
-  await win.screenshot({ path: path.join(shotDir, '4-model-down.png') });
+  await win.click('#run-btn');
+  await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Failed', null, { timeout: 20000 });
+  check((await win.textContent('#summary-error')).includes('Could not connect'), 'model outage shown as a failure');
+  await win.screenshot({ path: path.join(shotDir, '5-model-down.png') });
   console.log('screenshots in', shotDir);
 } catch (err) {
   console.error(err);
+  await (await app.firstWindow()).screenshot({ path: path.join(shotDir, 'failure.png') }).catch(() => {});
   exitCode = 1;
 } finally {
   await app.close();
-  fake.kill();
+  servers.kill();
 }
 process.exit(exitCode);

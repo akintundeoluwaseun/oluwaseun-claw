@@ -4,20 +4,15 @@
 Done: repo audit, architecture decision, backend (config, health, model adapters,
 planner, permissions, SQLite, logging), Electron shell + UI, scripts, tests.
 
-## Batch 2 — Local AI and browser automation
-1. **First:** run `scripts\setup.ps1` + `scripts\check.ps1` on Windows 10 with real Ollama; record results.
-2. Measure planning time/RAM for qwen2.5:7b, qwen2.5:3b, qwen3:8b on real hardware → `docs/MODELS.md`.
-3. Tool registry (`claw/tools/`): name, JSON schema, risk level, executor; arguments validated before use.
-4. Executor loop: one step at a time, model chooses a registered tool + args per step, state recorded.
-5. Playwright (Chromium) in a dedicated profile under the data dir: open, navigate, tabs, read page, extract links.
-6. Web search via the browser (search engine results page), result collection, save links to an authorized folder.
-7. History search: read-only copy of the Chrome/Edge `History` SQLite for the time range asked, behind an explicit per-task permission; no cookies, passwords, or other profile data.
-8. Approval dialog (UI) for `ask` steps; cancel button; per-step timeout; bounded retries.
-9. Local test website for automated browser tests.
-
-Evaluate browser-use against the direct Playwright tools with real local models before adopting it.
+## Batch 2 — Local AI and browser automation ✅ (workspace-verified with scripted model)
+Done: tool registry, Playwright browser tools, history search, save_links, executor loop,
+background runner with approvals/stop, UI for running tasks, local test website, tests.
+Carried over to verification on Windows: real model, Edge channel, live search engines,
+Chrome/Edge history files. browser-use was not adopted: the direct Playwright tools cover the
+acceptance tasks and keep every action inside the permission system.
 
 ## Batch 3 — Desktop control
+0. **First:** Windows verification of Batches 1–2 with a real model (see PROJECT_STATUS.md).
 pywinauto (UIA backend) for windows/controls; screenshots (mss or PIL); pyautogui only as a
 coordinate fallback; folder picker; file inspection tool; global stop hotkey; click verification.
 

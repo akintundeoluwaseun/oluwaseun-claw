@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -51,10 +51,29 @@ class Database:
             self._conn.execute("PRAGMA foreign_keys = ON")
             self._conn.execute("PRAGMA journal_mode = WAL")
             self._conn.executescript(_SCHEMA)
-            self._conn.execute(
-                "INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', ?)", (str(SCHEMA_VERSION),)
+            self._conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '1')")
+            self._migrate()
+            self._conn.commit()
+
+    def _migrate(self) -> None:
+        version = int(self._conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()["value"])
+        if version < 2:
+            cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(tasks)")}
+            if "result_json" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN result_json TEXT")
+            version = 2
+        self._conn.execute("UPDATE meta SET value=? WHERE key='schema_version'", (str(version),))
+
+    def mark_interrupted(self) -> int:
+        """Tasks left running when the backend stopped are marked as interrupted, never as done."""
+        with self._lock:
+            cur = self._conn.execute(
+                "UPDATE tasks SET status='interrupted', updated_at=?, error=COALESCE(error, 'The agent stopped before this task finished.') "
+                "WHERE status IN ('planning','running','awaiting_approval')",
+                (_now(),),
             )
             self._conn.commit()
+            return cur.rowcount
 
     def close(self) -> None:
         with self._lock:
@@ -76,11 +95,21 @@ class Database:
             self._conn.commit()
         return task_id
 
-    def update_task(self, task_id: str, *, status: str, plan: dict | None = None, error: str | None = None) -> None:
+    def update_task(
+        self, task_id: str, *, status: str, plan: dict | None = None, error: str | None = None, result: dict | None = None
+    ) -> None:
         with self._lock:
             self._conn.execute(
-                "UPDATE tasks SET status=?, updated_at=?, plan_json=COALESCE(?, plan_json), error=? WHERE id=?",
-                (status, _now(), json.dumps(plan) if plan is not None else None, error, task_id),
+                "UPDATE tasks SET status=?, updated_at=?, plan_json=COALESCE(?, plan_json), error=?, "
+                "result_json=COALESCE(?, result_json) WHERE id=?",
+                (
+                    status,
+                    _now(),
+                    json.dumps(plan) if plan is not None else None,
+                    error,
+                    json.dumps(result, default=str) if result is not None else None,
+                    task_id,
+                ),
             )
             self._conn.commit()
 
@@ -92,16 +121,23 @@ class Database:
             )
             self._conn.commit()
 
+    def get_events(self, task_id: str, after_id: int = 0) -> list[dict[str, Any]]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, ts, kind, data_json FROM task_events WHERE task_id=? AND id>? ORDER BY id", (task_id, after_id)
+            ).fetchall()
+        return [{"id": r["id"], "ts": r["ts"], "kind": r["kind"], "data": json.loads(r["data_json"])} for r in rows]
+
     def get_task(self, task_id: str) -> dict[str, Any] | None:
         with self._lock:
             row = self._conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
             if row is None:
                 return None
             events = self._conn.execute(
-                "SELECT ts, kind, data_json FROM task_events WHERE task_id=? ORDER BY id", (task_id,)
+                "SELECT id, ts, kind, data_json FROM task_events WHERE task_id=? ORDER BY id", (task_id,)
             ).fetchall()
         task = _row_to_task(row)
-        task["events"] = [{"ts": e["ts"], "kind": e["kind"], "data": json.loads(e["data_json"])} for e in events]
+        task["events"] = [{"id": e["id"], "ts": e["ts"], "kind": e["kind"], "data": json.loads(e["data_json"])} for e in events]
         return task
 
     def list_tasks(self, limit: int = 50, query: str | None = None) -> list[dict[str, Any]]:
@@ -129,4 +165,5 @@ def _row_to_task(row: sqlite3.Row) -> dict[str, Any]:
         "model": row["model"],
         "plan": json.loads(row["plan_json"]) if row["plan_json"] else None,
         "error": row["error"],
+        "result": json.loads(row["result_json"]) if row["result_json"] else None,
     }

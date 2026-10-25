@@ -40,3 +40,58 @@ def make_client(data_dir):
         return client
 
     return _make
+
+
+# ---------- Browser fixtures (Batch 2) ----------
+import os
+from pathlib import Path
+
+from claw.browser.session import BrowserSession
+from claw.config import Settings
+from claw.permissions.policy import PermissionPolicy
+from claw.tools.base import ToolContext
+from tests.site_server import SiteServer
+
+_LOCAL_CHROMIUM = "/opt/pw-browsers/chromium-1243/chrome-linux64/chrome"
+if not os.environ.get("CLAW_BROWSER_EXECUTABLE") and Path(_LOCAL_CHROMIUM).exists():
+    # Build workspace only: Playwright's own browser download is blocked here.
+    os.environ["CLAW_BROWSER_EXECUTABLE"] = _LOCAL_CHROMIUM
+
+
+def browser_settings(site_url: str, folders: list[str] | None = None, **browser) -> Settings:
+    return Settings.model_validate(
+        {
+            "browser": {
+                "channel": "chromium",
+                "headless": True,
+                "search_engine": "custom",
+                "custom_search_url": site_url + "/search?q={query}",
+                **browser,
+            },
+            "permissions": {"authorized_folders": folders or []},
+            "agent": {"step_timeout_s": 20, "approval_timeout_s": 30},
+        }
+    )
+
+
+@pytest.fixture
+def site():
+    with SiteServer() as s:
+        yield s
+
+
+@pytest.fixture
+async def tool_ctx(tmp_path, site):
+    save_dir = tmp_path / "saved"
+    save_dir.mkdir()
+    settings = browser_settings(site.base_url, [str(save_dir)])
+    browser = BrowserSession(tmp_path / "data", lambda: settings.browser)
+    ctx = ToolContext(
+        settings=settings,
+        policy=PermissionPolicy(settings.permissions.modes, settings.permissions.authorized_folders),
+        data_dir=tmp_path / "data",
+        browser=browser,
+        task_id="t1",
+    )
+    yield ctx
+    await browser.close()

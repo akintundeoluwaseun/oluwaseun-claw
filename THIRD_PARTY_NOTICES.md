@@ -13,6 +13,7 @@ installed packages or separate programs.
 | Uvicorn | 0.54.0 | BSD-3-Clause | ASGI server |
 | Pydantic | 2.14.1 | MIT | Validation |
 | HTTPX | 0.28.1 | BSD-3-Clause | Model server client |
+| Playwright for Python | 1.64.1 | Apache-2.0 | Browser control (includes a Node.js driver; see its NOTICE) |
 | SQLite (Python stdlib) | — | Public domain | Task history |
 
 ## Development and test only
@@ -25,6 +26,8 @@ installed packages or separate programs.
 ## Separate programs the user installs
 | Program | License | Note |
 |---|---|---|
+| Microsoft Edge / Google Chrome | Proprietary | Already on the user's computer; controlled, not bundled |
+| Chromium (optional, `setup.ps1 -Chromium`) | BSD-3-Clause and others | Downloaded by Playwright; not bundled |
 | Ollama | MIT | Not bundled |
 | llama.cpp | MIT | Not bundled |
 | Model weights (e.g. Qwen) | Per model card | Not bundled — check each model card |

@@ -1,0 +1,133 @@
+"""Browser tools against a real Chromium and the local test site."""
+
+import pytest
+
+from claw.tools.base import ToolError
+from claw.tools.registry import build_registry
+
+REG = build_registry()
+
+
+async def call(ctx, name, **args):
+    spec = REG.get(name)
+    return await spec.handler(spec.parse_args(args), ctx)
+
+
+async def test_search_open_read(tool_ctx, site):
+    r = await call(tool_ctx, "web_search", query="motion graphics templates")
+    assert r.ok and r.verified
+    titles = [x["title"] for x in r.data["results"]]
+    assert "Free Motion Graphics Templates 2026" in titles
+    assert "Jollof Rice Recipe" not in titles
+    r = await call(tool_ctx, "open_search_result", number=1)
+    assert r.ok and r.verified and "/articles/" in r.data["url"]
+    page = await call(tool_ctx, "read_page")
+    assert page.verified and "motion graphics" in page.untrusted_text.lower()
+    assert "Test site footer" not in page.untrusted_text  # footer/nav stripped
+
+
+async def test_search_no_results(tool_ctx):
+    r = await call(tool_ctx, "web_search", query="zzzz qqqq")
+    assert r.ok and r.data["results"] == []
+
+
+async def test_open_url_rejects_non_web(tool_ctx):
+    for bad in ["file:///etc/passwd", "javascript:alert(1)", "chrome://settings"]:
+        with pytest.raises(ToolError):
+            await call(tool_ctx, "open_url", url=bad)
+
+
+async def test_open_url_404_reported_as_failure(tool_ctx, site):
+    r = await call(tool_ctx, "open_url", url=site.base_url + "/missing")
+    assert not r.ok and not r.verified and "404" in r.summary
+
+
+async def test_links_and_click_link(tool_ctx, site):
+    await call(tool_ctx, "open_url", url=site.base_url + "/")
+    links = await call(tool_ctx, "extract_links", contains="GSAP")
+    assert len(links.data["links"]) == 1
+    r = await call(tool_ctx, "click_link", text="GSAP Starter Pack for Motion Graphics")
+    assert r.verified and r.data["url"].endswith("/articles/gsap-starter")
+    with pytest.raises(ToolError):
+        await call(tool_ctx, "click_link", text="No such link here")
+
+
+async def test_tabs(tool_ctx, site):
+    await call(tool_ctx, "open_url", url=site.base_url + "/")
+    await call(tool_ctx, "new_tab", url=site.base_url + "/contact")
+    tabs = (await call(tool_ctx, "list_tabs")).data["tabs"]
+    assert len(tabs) == 2 and tabs[1]["active"]
+    sw = await call(tool_ctx, "switch_tab", index=0)
+    assert sw.data["title"] == "Test Site Home"
+    await call(tool_ctx, "close_tab", index=1)
+    assert len((await call(tool_ctx, "list_tabs")).data["tabs"]) == 1
+    with pytest.raises(ToolError):
+        await call(tool_ctx, "close_tab", index=0)
+
+
+async def test_click_button_submits_form(tool_ctx, site):
+    await call(tool_ctx, "open_url", url=site.base_url + "/contact")
+    r = await call(tool_ctx, "click_button", text="Send message")
+    assert r.ok and not r.verified  # effect must be checked separately
+    assert site.form_submissions == [{"name": ["Test"]}]
+    assert "Message sent" in (await call(tool_ctx, "read_page")).untrusted_text
+
+
+async def test_save_links_only_seen_urls(tool_ctx, site, tmp_path):
+    await call(tool_ctx, "web_search", query="motion graphics")
+    seen = tool_ctx.browser.last_results[0]
+    with pytest.raises(ToolError, match="not seen"):
+        await call(tool_ctx, "save_links", file_name="x", links=[{"title": "Made up", "url": "https://invented.example/x"}])
+    r = await call(tool_ctx, "save_links", file_name="motion links", links=[{"title": seen["title"], "url": seen["url"]}])
+    assert r.verified
+    saved = tmp_path / "saved" / "motion links.md"
+    assert seen["url"] in saved.read_text()
+    r2 = await call(tool_ctx, "save_links", file_name="motion links", links=[{"title": seen["title"], "url": seen["url"]}])
+    assert r2.data["path"].endswith("motion links (2).md")  # never overwrites
+
+
+async def test_save_links_name_cannot_escape_folder(tool_ctx, tmp_path):
+    await call(tool_ctx, "web_search", query="motion graphics")
+    seen = tool_ctx.browser.last_results[0]
+    r = await call(tool_ctx, "save_links", file_name="..\\..\\evil", links=[{"title": "t", "url": seen["url"]}])
+    assert r.data["path"].startswith(str(tmp_path / "saved"))
+
+
+async def test_save_links_needs_authorized_folder(tool_ctx):
+    tool_ctx.settings.permissions.authorized_folders.clear()
+    await call(tool_ctx, "web_search", query="motion graphics")
+    seen = tool_ctx.browser.last_results[0]
+    with pytest.raises(ToolError, match="No folders"):
+        await call(tool_ctx, "save_links", file_name="x", links=[{"title": "t", "url": seen["url"]}])
+
+
+async def test_history_of_agent_browser(tool_ctx, site):
+    """Real Chromium history: visit pages, close the browser so it flushes, then search."""
+    await call(tool_ctx, "open_url", url=site.base_url + "/articles/ai-video")
+    await call(tool_ctx, "open_url", url=site.base_url + "/articles/cooking")
+    await tool_ctx.browser.close()
+    tool_ctx.browser.reset_task_state()
+    r = await call(tool_ctx, "search_browser_history", phrase="AI video", days=1, source="claw")
+    urls = [e["url"] for e in r.data["entries"]]
+    assert urls == [site.base_url + "/articles/ai-video"]
+    assert set(r.data["entries"][0]) == {"url", "title", "last_visit"}  # nothing else is exposed
+    assert site.base_url + "/articles/ai-video" in tool_ctx.browser.seen_urls
+
+
+async def test_history_chrome_only_on_windows(tool_ctx):
+    import sys
+
+    if sys.platform == "win32":
+        pytest.skip("Windows path is exercised manually")
+    with pytest.raises(ToolError, match="only supported on Windows"):
+        await call(tool_ctx, "search_browser_history", phrase="ai", source="chrome")
+
+
+def test_bad_args_rejected_before_running():
+    spec = REG.get("web_search")
+    with pytest.raises(ToolError):
+        spec.parse_args({"query": ""})
+    with pytest.raises(ToolError):
+        spec.parse_args({"query": "x", "extra": 1})
+    with pytest.raises(ToolError):
+        spec.parse_args("not an object")

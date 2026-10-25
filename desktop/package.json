@@ -1,7 +1,7 @@
 {
   "name": "oluwaseun-claw",
   "productName": "Oluwaseun Claw",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local-first AI agent that operates your Windows computer",
   "main": "src/main.js",
   "license": "MIT",
