@@ -31,7 +31,9 @@ from claw.config import ConfigError, ModelSettings, Settings, SettingsStore, des
 from claw.logging_setup import log_event
 from claw.models.auto import ModelManager
 from claw.models.base import ModelAdapter, ModelError, ModelNotFound, ModelStatus
+from claw.models.gemini import KEY_PAGE, GeminiAdapter
 from claw.models.ollama import OllamaAdapter
+from claw.secrets import SecretStore, hint
 from claw.models.registry import build_adapter
 from claw.permissions.policy import PermissionPolicy
 from claw.storage.db import Database
@@ -56,6 +58,7 @@ class AppState:
     browser: BrowserSession | None = None
     runner: TaskRunner | None = None
     models: ModelManager | None = None
+    secrets: SecretStore | None = None
 
     def ensure_manager(self) -> ModelManager:
         url = self.settings.model.base_url if self.settings.model.provider == "ollama" else "http://127.0.0.1:11434"
@@ -64,28 +67,54 @@ class AppState:
         return self.models
 
     def think_adapter(self) -> ModelAdapter:
-        """The model that plans and decides steps: chosen automatically unless overridden."""
+        """The model that plans and decides steps, according to the chosen brain."""
         ms = self.settings.model
-        if not ms.auto:
+        if ms.mode == "custom":
             return build_adapter(ms)
-        mgr = self.ensure_manager()
-        tag = mgr.model_for("think")
-        if not tag:
-            message, hint = mgr.not_ready_message()
-            raise ModelNotFound(message, hint)
-        adapter = OllamaAdapter(mgr.base_url, tag, timeout_s=ms.request_timeout_s, temperature=ms.temperature)
-        adapter.num_thread = mgr.threads()
-        adapter.keep_alive = "2m"  # Ollama frees the memory two minutes after Claw goes quiet
-        return adapter
+        if ms.mode == "online":
+            key = self.secrets.get(GEMINI_KEY)
+            if not key:
+                raise ModelNotFound("No Google AI key is connected.", "Open Settings → Claw's brain and connect a free key.")
+            return GeminiAdapter(key, timeout_s=ms.request_timeout_s, temperature=ms.temperature)
+        if ms.mode == "offline":
+            mgr = self.ensure_manager()
+            tag = mgr.model_for("think")
+            if not tag:
+                message, hint_text = mgr.not_ready_message()
+                raise ModelNotFound(message, hint_text)
+            adapter = OllamaAdapter(mgr.base_url, tag, timeout_s=ms.request_timeout_s, temperature=ms.temperature)
+            adapter.num_thread = mgr.threads()
+            adapter.keep_alive = "2m"  # Ollama frees the memory two minutes after Claw goes quiet
+            return adapter
+        raise ModelNotFound("Choose how Claw thinks first.", "Pick Online or Offline on the welcome screen.")
 
     def model_label(self) -> str | None:
         ms = self.settings.model
-        if not ms.auto:
+        if ms.mode == "custom":
             return ms.model or None
-        return self.ensure_manager().model_for("think")
+        if ms.mode == "online":
+            return "Google AI"
+        if ms.mode == "offline":
+            return self.ensure_manager().model_for("think")
+        return None
 
     def policy(self) -> PermissionPolicy:
         return PermissionPolicy(self.settings.permissions.modes, self.settings.permissions.authorized_folders)
+
+    def brain(self) -> dict:
+        ms = self.settings.model
+        mgr = self.ensure_manager()
+        hw = mgr.hardware
+        strong = (hw.total_ram_gb or 0) >= 14 or (hw.gpu_vram_gb or 0) >= 7
+        return {
+            "mode": ms.mode,
+            "online": {"connected": bool(self.secrets.get(GEMINI_KEY)), "key_hint": hint(self.secrets.get(GEMINI_KEY)), "key_page": KEY_PAGE},
+            "offline": mgr.summary(),
+            "recommended": "online" if not strong else "either",
+        }
+
+
+GEMINI_KEY = "gemini_api_key"
 
 
 def error_response(status: int, code: str, message: str, hint: str = "", details: list[str] | None = None):
@@ -100,6 +129,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         raise ValueError("session token must be at least 32 characters")
     store = SettingsStore(data_dir)
     state = AppState(data_dir=data_dir, token=token, store=store, db=Database(data_dir / "claw.db"))
+    state.secrets = SecretStore(data_dir)
     try:
         state.settings = store.load()
     except ConfigError as exc:
@@ -113,7 +143,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app):
-        if state.settings.model.auto:
+        if state.settings.model.mode == "offline":
             state.ensure_manager().start()
         yield
         if state.models is not None:
@@ -187,7 +217,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         store.save(new_settings)
         state.settings = new_settings
         state.settings_error = None
-        if new_settings.model.auto:
+        if new_settings.model.mode == "offline":
             state.ensure_manager().start()
         log_event(log, "settings saved", provider=new_settings.model.provider, model=new_settings.model.model)
         return {"settings": new_settings.model_dump(mode="json"), "error": None, "data_dir": str(state.data_dir)}
@@ -195,31 +225,81 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     @app.get("/models/status")
     async def model_status():
         ms = state.settings.model
-        if not ms.auto:
-            return {**(await build_adapter(ms).status()).model_dump(), "auto": False}
-        mgr = state.ensure_manager()
-        await mgr.refresh()
-        tag = mgr.model_for("think")
-        message = f"Ready: {tag}" if tag else " ".join(mgr.not_ready_message())
-        status = ModelStatus(
-            server_reachable=bool(mgr.ollama_reachable),
-            model_available=tag is not None,
-            provider="ollama",
-            base_url=mgr.base_url,
-            model=tag or (mgr.roles["think"].tag or ""),
-            message=message,
-        )
-        return {**status.model_dump(), "auto": True, "setup": mgr.summary()}
+        if ms.mode == "offline":
+            mgr = state.ensure_manager()
+            await mgr.refresh()
+            tag = mgr.model_for("think")
+            status = ModelStatus(
+                server_reachable=bool(mgr.ollama_reachable),
+                model_available=tag is not None,
+                provider="ollama",
+                base_url=mgr.base_url,
+                model=tag or (mgr.roles["think"].tag or ""),
+                message=f"Ready: {tag}" if tag else " ".join(mgr.not_ready_message()),
+            )
+            return {**status.model_dump(), "mode": "offline", "setup": mgr.summary()}
+        try:
+            adapter = state.think_adapter()
+        except ModelError as exc:
+            status = ModelStatus(server_reachable=False, model_available=False, provider=ms.mode, base_url="", model="",
+                                 message=f"{exc.message} {exc.hint}".strip())
+            return {**status.model_dump(), "mode": ms.mode}
+        return {**(await adapter.status()).model_dump(), "mode": ms.mode}
+
+    @app.get("/brain")
+    async def get_brain():
+        return state.brain()
+
+    def _save_mode(mode: str) -> None:
+        new = state.settings.model_copy(deep=True)
+        new.model.mode = mode
+        store.save(new)
+        state.settings = new
+        if mode == "offline":
+            state.ensure_manager().start()
+
+    @app.post("/brain/online")
+    async def connect_online(request: Request):
+        try:
+            body = await request.json()
+        except ValueError:
+            return error_response(400, "bad_json", "The request was not valid JSON.")
+        key = body.get("api_key") if isinstance(body, dict) else None
+        if not isinstance(key, str) or not (20 <= len(key.strip()) <= 200) or any(c.isspace() for c in key.strip()):
+            return error_response(422, "bad_key", "That doesn't look like a Google AI key.", "Copy the whole key from the Google AI Studio page and paste it here.")
+        key = key.strip()
+        try:
+            models = await GeminiAdapter(key).list_models()
+        except ModelError as exc:
+            return error_response(422, "key_rejected", exc.message, exc.hint)
+        if not models:
+            return error_response(422, "no_models", "This key has no Google AI models available.", "Create a new key and try again.")
+        state.secrets.set(GEMINI_KEY, key)
+        _save_mode("online")
+        log_event(log, "online brain connected", models=len(models))
+        return state.brain()
+
+    @app.post("/brain/offline")
+    async def choose_offline():
+        _save_mode("offline")
+        return state.brain()
+
+    @app.post("/brain/disconnect")
+    async def disconnect_online():
+        state.secrets.set(GEMINI_KEY, None)
+        if state.settings.model.mode == "online":
+            _save_mode("unset")
+        return state.brain()
 
     @app.get("/models/auto")
     async def models_auto():
         mgr = state.ensure_manager()
-        return {"enabled": state.settings.model.auto, **mgr.summary()}
+        return {"enabled": state.settings.model.mode == "offline", **mgr.summary()}
 
     @app.post("/models/auto/retry")
     async def models_auto_retry():
-        if not state.settings.model.auto:
-            return error_response(409, "manual_models", "Automatic models are turned off in Settings → Advanced.")
+        if state.settings.model.mode != "offline":
+            return error_response(409, "not_offline", "The offline brain is not selected.")
         mgr = state.ensure_manager()
         mgr.retry()
         return {"ok": True}

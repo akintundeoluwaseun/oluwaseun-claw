@@ -67,10 +67,62 @@
         <button class="btn btn-quiet btn-sm" id="error-dismiss" type="button">Dismiss</button>
       </div>
 
+      <!-- Welcome: choose how Claw thinks (shown once) -->
+      <section class="welcome" id="welcome" hidden aria-labelledby="welcome-title">
+        <svg class="welcome-mark" aria-hidden="true"><use href="#claw-mark"/></svg>
+        <h1 id="welcome-title">Welcome to Claw</h1>
+        <p class="home-sub">Choose how Claw thinks. Both are free, and you can switch later in Settings.</p>
+        <div class="choices">
+          <article class="choice" id="choice-online">
+            <div class="choice-head">
+              <h2>Online</h2>
+              <span class="badge" id="online-badge" hidden>Best for this computer</span>
+            </div>
+            <p class="choice-lede">Uses Google's AI with your own free key. Fast, and light on your computer.</p>
+            <ol class="choice-steps">
+              <li>
+                <span>Get a free key from Google. Sign in, then press <b>Create API key</b>.</span>
+                <a class="btn btn-quiet btn-sm" id="get-key" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Open Google AI Studio</a>
+              </li>
+              <li>
+                <span>Paste the key here.</span>
+                <div class="key-row">
+                  <label class="sr-only" for="key-input">Google AI key</label>
+                  <input id="key-input" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…">
+                  <button class="btn btn-primary" id="connect-key" type="button" disabled>Connect</button>
+                </div>
+                <p class="field-note" id="key-result"></p>
+              </li>
+            </ol>
+            <p class="choice-fine">Needs internet. Google's free tier has a daily limit and may use requests to improve its products, so use Offline for private documents.</p>
+          </article>
+          <article class="choice" id="choice-offline">
+            <div class="choice-head"><h2>Offline</h2></div>
+            <p class="choice-lede">Claw thinks on this computer. Private, no limits, works without internet.</p>
+            <ul class="choice-facts">
+              <li id="offline-fit"></li>
+              <li id="offline-size"></li>
+            </ul>
+            <button class="btn btn-quiet" id="use-offline" type="button">Use the offline brain</button>
+            <p class="choice-fine">Claw picks the right model for this computer and downloads it once. Heavier on memory than Online.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Getting ready (offline brain downloading or its engine missing) -->
+      <section class="ready-card" id="ready-card" hidden aria-live="polite">
+        <div class="ready-text">
+          <h2 id="ready-title"></h2>
+          <p id="ready-detail"></p>
+        </div>
+        <div class="meter" id="ready-meter" hidden><span id="ready-bar"></span></div>
+        <div class="ready-actions" id="ready-actions"></div>
+      </section>
+
       <!-- Home: one big task box -->
       <section class="home" id="home" aria-labelledby="home-title">
         <h1 id="home-title">What should Claw take care of?</h1>
-        <p class="home-sub">Describe the result you want. Claw works through it step by step in its own browser and asks before anything that matters.</p>
+        <p class="home-sub">Describe the result you want. Claw works through it step by step and asks before anything that matters.</p>
         <div class="composer">
           <label class="sr-only" for="task-input">Task</label>
           <textarea id="task-input" rows="3" maxlength="4000"
@@ -159,33 +211,52 @@
     </header>
     <form id="settings-form" class="sheet-body" novalidate>
       <section class="set">
-        <h3>Model</h3>
-        <p class="set-note">Claw thinks with a model running on this computer. Nothing is sent to a paid service.</p>
-        <div class="field">
-          <label for="s-provider">Model server</label>
-          <select id="s-provider">
-            <option value="ollama">Ollama</option>
-            <option value="openai_compatible">llama.cpp server</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="s-base-url">Server address</label>
-          <input id="s-base-url" type="url" spellcheck="false" autocomplete="off">
-        </div>
-        <div class="field">
-          <label for="s-model">Model</label>
-          <div class="field-row">
-            <input id="s-model" list="s-model-list" spellcheck="false" autocomplete="off" placeholder="qwen2.5:7b">
-            <datalist id="s-model-list"></datalist>
-            <button class="btn btn-quiet" id="s-test" type="button">Test connection</button>
+        <h3>Claw's brain</h3>
+        <p class="set-note" id="brain-summary"></p>
+        <div class="brain-online" id="brain-online">
+          <div class="field">
+            <label for="s-key">Google AI key</label>
+            <div class="field-row">
+              <input id="s-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste a new key to replace the current one">
+              <button class="btn btn-quiet" id="s-key-save" type="button">Connect</button>
+            </div>
+            <p id="s-key-result" class="field-note"></p>
           </div>
-          <p id="s-test-result" class="field-note"></p>
         </div>
-        <div class="field-pair">
-          <div class="field"><label for="s-timeout">Wait for the model (seconds)</label><input id="s-timeout" type="number" min="5" max="900" step="5"></div>
-          <div class="field"><label for="s-temperature">Creativity</label><input id="s-temperature" type="number" min="0" max="2" step="0.1"></div>
+        <div class="brain-actions">
+          <button class="btn btn-quiet btn-sm" id="switch-online" type="button">Switch to Online</button>
+          <button class="btn btn-quiet btn-sm" id="switch-offline" type="button">Switch to Offline</button>
+          <button class="btn btn-quiet btn-sm" id="disconnect-key" type="button">Remove key</button>
         </div>
-        <label class="toggle"><input id="s-remote" type="checkbox"><span>Allow a model server on another computer</span></label>
+        <details class="dev">
+          <summary>Developer: use a custom model server</summary>
+          <label class="toggle"><input id="s-custom" type="checkbox"><span>Use the server below instead</span></label>
+          <div class="field">
+            <label for="s-provider">Server type</label>
+            <select id="s-provider">
+              <option value="ollama">Ollama</option>
+              <option value="openai_compatible">llama.cpp server</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="s-base-url">Server address</label>
+            <input id="s-base-url" type="url" spellcheck="false" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="s-model">Model</label>
+            <div class="field-row">
+              <input id="s-model" list="s-model-list" spellcheck="false" autocomplete="off" placeholder="qwen2.5:7b">
+              <datalist id="s-model-list"></datalist>
+              <button class="btn btn-quiet" id="s-test" type="button">Test connection</button>
+            </div>
+            <p id="s-test-result" class="field-note"></p>
+          </div>
+          <div class="field-pair">
+            <div class="field"><label for="s-timeout">Wait for the model (seconds)</label><input id="s-timeout" type="number" min="5" max="900" step="5"></div>
+            <div class="field"><label for="s-temperature">Creativity</label><input id="s-temperature" type="number" min="0" max="2" step="0.1"></div>
+          </div>
+          <label class="toggle"><input id="s-remote" type="checkbox"><span>Allow a server on another computer</span></label>
+        </details>
       </section>
 
       <section class="set">

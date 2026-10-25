@@ -102,7 +102,7 @@ def test_api_auto_mode_end_to_end(tmp_path, fake_server, monkeypatch):
     fake_server.models = []
     data = tmp_path / "data"
     data.mkdir()
-    (data / "settings.json").write_text(json.dumps({"model": {"base_url": fake_server.base_url}}))
+    (data / "settings.json").write_text(json.dumps({"model": {"mode": "offline", "base_url": fake_server.base_url}}))
     with TestClient(create_app(data, TOKEN), base_url="http://127.0.0.1") as c:
         c.headers["X-Claw-Token"] = TOKEN
         end = time.time() + 10
@@ -111,7 +111,7 @@ def test_api_auto_mode_end_to_end(tmp_path, fake_server, monkeypatch):
         info = c.get("/models/auto").json()
         assert info["ready"] and info["roles"]["think"]["model"] == "qwen2.5:7b"
         status = c.get("/models/status").json()
-        assert status["auto"] and status["model_available"] and status["model"] == "qwen2.5:7b"
+        assert status["mode"] == "offline" and status["model_available"] and status["model"] == "qwen2.5:7b"
         fake_server.replies.append(json.dumps(VALID_PLAN))
         r = c.post("/tasks/plan", json={"task": "Plan something useful"})
         assert r.status_code == 200, r.text
@@ -123,7 +123,7 @@ def test_api_auto_mode_end_to_end(tmp_path, fake_server, monkeypatch):
 def test_api_task_before_model_ready_is_explained(tmp_path):
     data = tmp_path / "data"
     data.mkdir()
-    (data / "settings.json").write_text(json.dumps({"model": {"base_url": "http://127.0.0.1:9"}}))
+    (data / "settings.json").write_text(json.dumps({"model": {"mode": "offline", "base_url": "http://127.0.0.1:9"}}))
     c = TestClient(create_app(data, TOKEN), base_url="http://127.0.0.1")
     c.headers["X-Claw-Token"] = TOKEN
     c.get("/models/status")

@@ -10,6 +10,7 @@ import sys
 import time
 
 from tests.conftest import VALID_PLAN
+from tests.fake_gemini_server import VALID_KEY, FakeGemini
 from tests.fake_model_server import FakeModelServer
 from tests.site_server import SiteServer
 
@@ -19,9 +20,9 @@ def act(tool, **args):
 
 
 if __name__ == "__main__":
-    with SiteServer() as site, FakeModelServer() as model:
+    with SiteServer() as site, FakeModelServer() as model, FakeGemini() as google:
         plan = json.dumps(VALID_PLAN)
-        model.replies.extend(
+        google.replies.extend(
             [
                 plan,  # 1. "Plan only"
                 plan,  # 2. Run: research and save links
@@ -37,8 +38,8 @@ if __name__ == "__main__":
                 json.dumps({"thought": "nothing needed", "action": "finish", "final_answer": "Checked: nothing needed doing."}),
             ]
         )
-        model.default_reply = plan
-        print(json.dumps({"model_port": model.port, "site_url": site.base_url}), flush=True)
+        google.default_reply = plan
+        print(json.dumps({"model_port": model.port, "site_url": site.base_url, "google_url": google.base_url, "key": VALID_KEY}), flush=True)
         try:
             while True:
                 time.sleep(1)

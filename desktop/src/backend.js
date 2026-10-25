@@ -26,6 +26,10 @@ const ALLOWED_ROUTES = [
   ['GET', /^\/approvals$/],
   ['POST', /^\/approvals\/[0-9a-f]{32}$/],
   ['GET', /^\/runner$/],
+  ['GET', /^\/brain$/],
+  ['POST', /^\/brain\/(online|offline|disconnect)$/],
+  ['GET', /^\/models\/auto$/],
+  ['POST', /^\/models\/auto\/retry$/],
 ];
 
 function isAllowedRoute(method, route) {

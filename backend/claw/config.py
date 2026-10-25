@@ -65,9 +65,11 @@ def _is_loopback_host(host: str | None) -> bool:
 class ModelSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    # Automatic: Claw measures the computer, picks models by role, and downloads them itself.
-    # Turning this off (Settings → Advanced) uses the provider/model chosen below.
-    auto: bool = True
+    # How Claw thinks. Chosen once on the welcome screen:
+    #   online  — Google AI with the user's own free key (stored encrypted, not in this file)
+    #   offline — built-in brain on this computer, models chosen and downloaded automatically
+    #   custom  — developer setting: the provider/address/model below
+    mode: Literal["unset", "online", "offline", "custom"] = "unset"
     provider: ProviderName = "ollama"
     base_url: str = DEFAULT_BASE_URLS["ollama"]
     model: str = Field(default="", max_length=200)
@@ -99,7 +101,7 @@ class ModelSettings(BaseModel):
         if not self.allow_remote_server and not _is_loopback_host(host):
             raise ValueError(
                 f"model server address '{self.base_url}' is not on this computer. "
-                "Use 127.0.0.1/localhost, or turn on 'Allow remote model server' in Settings."
+                "Use 127.0.0.1 or localhost, or turn on 'Allow a server on another computer' in Settings → Developer."
             )
         return self
 

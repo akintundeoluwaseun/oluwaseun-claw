@@ -44,6 +44,8 @@ const state = {
   currentTaskId: null,
   run: null,
   draftFolders: [],
+  brain: null,
+  brainTimer: null,
 };
 
 function el(tag, opts = {}, children = []) {
@@ -84,14 +86,16 @@ function timeAgo(iso) {
 function showView(view) {
   state.view = view;
   document.body.dataset.view = view;
+  $('welcome').hidden = view !== 'welcome';
   $('home').hidden = view !== 'home';
   $('task-view').hidden = view !== 'task';
+  renderReady();
 }
 
 function goHome() {
   stopWatching();
   state.currentTaskId = null;
-  showView('home');
+  showView(state.brain && state.brain.mode === 'unset' ? 'welcome' : 'home');
   markHistorySelection();
   $('task-input').focus();
 }
@@ -118,7 +122,7 @@ function applyBackendStatus(status) {
   updateButtons();
   if (status.state === 'ready' && was !== 'ready') {
     loadSettings();
-    refreshModelStatus();
+    loadBrain(true);
     loadHistory();
     resumeRunningTask();
   } else if (status.state === 'failed') {
@@ -130,23 +134,161 @@ function applyBackendStatus(status) {
 async function refreshModelStatus() {
   const res = await api.api('GET', '/models/status');
   if (!res.ok) {
-    setChip('model-pill', 'failed', 'Model error', res.body?.error?.message);
+    setChip('model-pill', 'failed', 'Brain unavailable', res.body?.error?.message);
     state.modelReady = false;
   } else {
     const s = res.body;
     state.modelReady = s.model_available;
-    if (s.model_available) setChip('model-pill', 'ready', s.model, s.message);
-    else if (!s.server_reachable) setChip('model-pill', 'failed', 'Model server offline', s.message);
-    else setChip('model-pill', 'missing', s.model ? `${s.model} not installed` : 'Choose a model', s.message);
+    const mode = s.mode;
+    if (mode === 'unset') setChip('model-pill', 'missing', 'Set up Claw', 'Choose Online or Offline');
+    else if (s.model_available) setChip('model-pill', 'ready', mode === 'online' ? 'Online · Google AI' : mode === 'offline' ? `Offline · ${s.model}` : s.model, s.message);
+    else if (!s.server_reachable) setChip('model-pill', 'failed', mode === 'online' ? 'Online · not connected' : 'Brain offline', s.message);
+    else setChip('model-pill', 'missing', 'Getting ready', s.message);
   }
   renderContext();
 }
 
+// ---------- Brain (online / offline) ----------
+function fmtGB(bytes) {
+  return (bytes / 1024 ** 3).toFixed(1);
+}
+
+async function loadBrain(first = false) {
+  const res = await api.api('GET', '/brain');
+  if (!res.ok) return;
+  state.brain = res.body;
+  const b = state.brain;
+  if (b.mode === 'unset') {
+    if (state.view !== 'task' || first) showView('welcome');
+    renderWelcome();
+  } else if (state.view === 'welcome') {
+    showView('home');
+    $('task-input').focus();
+  }
+  renderReady();
+  renderBrainSettings();
+  refreshModelStatus();
+  clearTimeout(state.brainTimer);
+  const offline = b.offline || {};
+  if (b.mode === 'offline' && !offline.ready) state.brainTimer = setTimeout(() => loadBrain(), 1500);
+}
+
+function renderWelcome() {
+  const b = state.brain;
+  if (!b) return;
+  $('online-badge').hidden = b.recommended !== 'online';
+  const off = b.offline || {};
+  const think = off.roles && off.roles.think;
+  $('offline-fit').textContent = off.hardware_text ? `This computer: ${off.hardware_text}.` : '';
+  $('offline-size').textContent = think && think.model
+    ? `Claw would download about ${think.download_gb} GB once.`
+    : 'This computer is below what the offline brain needs.';
+  $('use-offline').disabled = !(think && think.model);
+}
+
+function renderReady() {
+  const card = $('ready-card');
+  const b = state.brain;
+  const off = b && b.offline;
+  if (!b || b.mode !== 'offline' || !off || off.ready || state.view === 'welcome') {
+    card.hidden = true;
+    return;
+  }
+  const think = off.roles.think;
+  const actions = [];
+  $('ready-meter').hidden = true;
+  if (off.ollama_reachable === false) {
+    $('ready-title').textContent = 'The offline brain needs its engine';
+    $('ready-detail').textContent = 'Install the free engine once (Ollama). Claw then downloads and sets up everything else by itself. Or switch to Online to start right away.';
+    actions.push(el('a', { className: 'btn btn-primary btn-sm', text: 'Get the engine', attrs: { href: 'https://ollama.com/download', target: '_blank', rel: 'noopener' } }));
+  } else if (think.status === 'downloading') {
+    const pct = Math.round(think.progress * 100);
+    $('ready-title').textContent = `Downloading Claw's brain · ${pct}%`;
+    $('ready-detail').textContent = think.total_bytes
+      ? `${fmtGB(think.completed_bytes)} of ${fmtGB(think.total_bytes)} GB. This happens once. Keep Claw open.`
+      : 'Starting the download. This happens once.';
+    $('ready-meter').hidden = false;
+    $('ready-bar').style.width = `${pct}%`;
+  } else if (think.status === 'failed') {
+    $('ready-title').textContent = 'The download stopped';
+    $('ready-detail').textContent = think.error || 'Check the internet connection and try again.';
+    const retry = el('button', { className: 'btn btn-primary btn-sm', text: 'Try again', attrs: { type: 'button' } });
+    retry.addEventListener('click', async () => {
+      await api.api('POST', '/models/auto/retry');
+      loadBrain();
+    });
+    actions.push(retry);
+  } else {
+    $('ready-title').textContent = 'Getting Claw ready';
+    $('ready-detail').textContent = 'Checking this computer and preparing the offline brain.';
+  }
+  const online = el('button', { className: 'btn btn-quiet btn-sm', text: 'Use Online instead', attrs: { type: 'button' } });
+  online.addEventListener('click', () => switchMode('online'));
+  actions.push(online);
+  $('ready-actions').replaceChildren(...actions);
+  card.hidden = false;
+}
+
+async function connectKey(inputId, resultId) {
+  const key = $(inputId).value.trim();
+  const note = $(resultId);
+  note.dataset.tone = '';
+  note.textContent = 'Checking the key with Google…';
+  const res = await api.api('POST', '/brain/online', { api_key: key });
+  if (!res.ok) {
+    const e = res.body?.error || {};
+    note.dataset.tone = 'bad';
+    note.textContent = [e.message, e.hint].filter(Boolean).join(' ');
+    return false;
+  }
+  $(inputId).value = '';
+  note.dataset.tone = 'ok';
+  note.textContent = 'Connected. Claw is ready.';
+  await loadSettings();
+  await loadBrain();
+  return true;
+}
+
+async function switchMode(mode) {
+  if (mode === 'offline') {
+    await api.api('POST', '/brain/offline');
+  } else if (state.brain && state.brain.online.connected) {
+    const settings = { ...state.settings, model: { ...state.settings.model, mode: 'online' } };
+    await api.api('PUT', '/settings', settings);
+  } else {
+    // No key yet: the welcome screen walks through getting one.
+    const settings = { ...state.settings, model: { ...state.settings.model, mode: 'unset' } };
+    await api.api('PUT', '/settings', settings);
+    closeSettings();
+  }
+  await loadSettings();
+  await loadBrain();
+  renderBrainSettings();
+}
+
+function renderBrainSettings() {
+  const b = state.brain;
+  if (!b) return;
+  const off = b.offline || {};
+  const think = off.roles && off.roles.think;
+  let text = '';
+  if (b.mode === 'online') text = `Online with Google AI (key ${b.online.key_hint || 'connected'}). Claw picks the Google model itself.`;
+  else if (b.mode === 'offline') text = `Offline on this computer (${off.hardware_text || 'this computer'})${think && think.model ? `, using ${think.model}` : ''}.`;
+  else if (b.mode === 'custom') text = 'Using a custom model server (developer setting).';
+  else text = 'Not set up yet.';
+  $('brain-summary').textContent = text;
+  $('switch-online').hidden = b.mode === 'online';
+  $('switch-offline').hidden = b.mode === 'offline';
+  $('disconnect-key').hidden = !b.online.connected;
+  $('brain-online').hidden = b.mode !== 'online' && !b.online.connected;
+}
+
 function renderContext() {
-  const m = state.settings?.model?.model;
+  const mode = state.settings?.model?.mode;
+  const m = mode === 'online' ? 'Online' : mode === 'offline' ? 'Offline' : mode === 'custom' ? state.settings?.model?.model : '';
   const folders = state.settings?.permissions?.authorized_folders || [];
   const mc = $('ctx-model');
-  mc.querySelector('span').textContent = m ? m : 'No model chosen';
+  mc.querySelector('span').textContent = m ? (state.modelReady ? m : `${m} · getting ready`) : 'Not set up';
   mc.dataset.ok = String(!!m && state.modelReady);
   const fc = $('ctx-folder');
   fc.querySelector('span').textContent = folders.length ? folders[0].split(/[\\/]/).filter(Boolean).pop() + (folders.length > 1 ? ` +${folders.length - 1}` : '') : 'No folder to save in';
@@ -524,6 +666,10 @@ async function loadSettings() {
 const DEFAULT_URLS = { ollama: 'http://127.0.0.1:11434', openai_compatible: 'http://127.0.0.1:8080' };
 
 function fillSettingsForm(s) {
+  $('s-custom').checked = s.model.mode === 'custom';
+  $('s-key').value = '';
+  $('s-key-result').textContent = '';
+  renderBrainSettings();
   $('s-provider').value = s.model.provider;
   $('s-base-url').value = s.model.base_url;
   $('s-model').value = s.model.model;
@@ -554,7 +700,10 @@ function fillSettingsForm(s) {
 }
 
 function readModelForm() {
+  const current = (state.settings && state.settings.model.mode) || 'unset';
+  const mode = $('s-custom').checked ? 'custom' : current === 'custom' ? 'unset' : current;
   return {
+    mode,
     provider: $('s-provider').value,
     base_url: $('s-base-url').value.trim(),
     model: $('s-model').value.trim(),
@@ -620,7 +769,7 @@ function closeSettings() {
 }
 function defaultSettings() {
   return {
-    model: { provider: 'ollama', base_url: DEFAULT_URLS.ollama, model: '', request_timeout_s: 120, temperature: 0.2, allow_remote_server: false },
+    model: { mode: 'unset', provider: 'ollama', base_url: DEFAULT_URLS.ollama, model: '', request_timeout_s: 120, temperature: 0.2, allow_remote_server: false },
     permissions: { modes: { read_only: 'allow', local_write: 'ask', external: 'ask', destructive: 'ask' }, authorized_folders: [] },
   };
 }
@@ -629,7 +778,7 @@ async function testConnection() {
   const note = $('s-test-result');
   note.dataset.tone = '';
   note.textContent = 'Checking…';
-  const res = await api.api('POST', '/models/probe', readModelForm());
+  const res = await api.api('POST', '/models/probe', { ...readModelForm(), mode: 'custom' });
   if (!res.ok) {
     note.dataset.tone = 'bad';
     const e = res.body?.error || {};
@@ -661,7 +810,7 @@ async function saveSettings() {
   state.settings = res.body.settings;
   clearError();
   closeSettings();
-  refreshModelStatus();
+  loadBrain();
 }
 
 // ---------- Wiring ----------
@@ -688,6 +837,23 @@ function wire() {
     });
   }
   $('error-dismiss').addEventListener('click', clearError);
+  $('key-input').addEventListener('input', () => {
+    $('connect-key').disabled = $('key-input').value.trim().length < 20;
+    $('key-result').textContent = '';
+  });
+  $('key-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !$('connect-key').disabled) connectKey('key-input', 'key-result');
+  });
+  $('connect-key').addEventListener('click', () => connectKey('key-input', 'key-result'));
+  $('use-offline').addEventListener('click', () => switchMode('offline'));
+  $('s-key-save').addEventListener('click', () => connectKey('s-key', 's-key-result'));
+  $('switch-online').addEventListener('click', () => switchMode('online'));
+  $('switch-offline').addEventListener('click', () => switchMode('offline'));
+  $('disconnect-key').addEventListener('click', async () => {
+    await api.api('POST', '/brain/disconnect');
+    await loadSettings();
+    await loadBrain();
+  });
   $('open-settings').addEventListener('click', openSettings);
   $('close-settings').addEventListener('click', closeSettings);
   $('cancel-settings').addEventListener('click', closeSettings);
