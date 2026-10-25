@@ -178,6 +178,7 @@ def api(tmp_path, site, fake_server):
     data = tmp_path / "data"
     data.mkdir()
     settings = browser_settings(site.base_url, [str(save)])
+    settings.model.auto = False
     settings.model.base_url = fake_server.base_url
     settings.model.model = "qwen2.5:7b"
     (data / "settings.json").write_text(settings.model_dump_json())

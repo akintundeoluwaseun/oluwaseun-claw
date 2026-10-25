@@ -65,6 +65,9 @@ def _is_loopback_host(host: str | None) -> bool:
 class ModelSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    # Automatic: Claw measures the computer, picks models by role, and downloads them itself.
+    # Turning this off (Settings → Advanced) uses the provider/model chosen below.
+    auto: bool = True
     provider: ProviderName = "ollama"
     base_url: str = DEFAULT_BASE_URLS["ollama"]
     model: str = Field(default="", max_length=200)

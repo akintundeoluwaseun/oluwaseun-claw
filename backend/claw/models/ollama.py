@@ -19,6 +19,9 @@ from claw.models.base import (
 
 class OllamaAdapter(ModelAdapter):
     provider = "ollama"
+    # Set by the model manager: leave processor cores free, and don't hold memory forever.
+    num_thread: int | None = None
+    keep_alive: str | None = None
 
     def missing_model_hint(self) -> str:
         return f"Install it with:  ollama pull {self.model}"
@@ -44,6 +47,10 @@ class OllamaAdapter(ModelAdapter):
             "stream": False,
             "options": {"temperature": self.temperature},
         }
+        if self.num_thread:
+            body["options"]["num_thread"] = self.num_thread
+        if self.keep_alive is not None:
+            body["keep_alive"] = self.keep_alive
         if json_schema is not None:
             body["format"] = json_schema
         data = await self._request("POST", "/api/chat", json=body, timeout=self.timeout_s)
@@ -51,6 +58,38 @@ class OllamaAdapter(ModelAdapter):
         if not isinstance(message, dict) or not isinstance(message.get("content"), str):
             raise ModelResponseError("The Ollama server returned a reply without any message content.")
         return message["content"]
+
+    async def pull(self):
+        """Download the model, yielding Ollama's progress objects."""
+        import json as _json
+
+        url = f"{self.base_url}/api/pull"
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30, read=600), trust_env=False) as client:
+                async with client.stream("POST", url, json={"model": self.model, "stream": True}) as resp:
+                    if resp.status_code >= 400:
+                        await resp.aread()
+                        raise ModelError(f"Ollama could not download {self.model}: {_error_text(resp)}")
+                    async for line in resp.aiter_lines():
+                        if not line.strip():
+                            continue
+                        try:
+                            item = _json.loads(line)
+                        except ValueError:
+                            continue
+                        if "error" in item:
+                            raise ModelError(f"Ollama could not download {self.model}: {item['error']}")
+                        yield item
+        except httpx.ConnectError as exc:
+            raise ModelServerUnavailable(f"Could not connect to Ollama at {self.base_url}.") from exc
+        except httpx.TimeoutException as exc:
+            raise ModelError("The download stalled. Claw will try again.") from exc
+        except httpx.HTTPError as exc:
+            raise ModelError(f"Download interrupted: {exc}") from exc
+
+    async def unload(self) -> None:
+        """Release the model's memory now (Ollama: empty chat with keep_alive 0)."""
+        await self._request("POST", "/api/chat", json={"model": self.model, "messages": [], "keep_alive": 0}, timeout=15)
 
     async def _request(self, method: str, path: str, *, timeout: float, json: Any = None) -> dict[str, Any]:
         url = f"{self.base_url}{path}"

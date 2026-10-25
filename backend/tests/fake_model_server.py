@@ -20,6 +20,12 @@ class FakeModelServer:
         self.requests: list[dict] = []
         self.status_override: int | None = None
         self.default_reply = "{}"
+        # Downloads (/api/pull): which tags exist in the "library" (None = any), and pacing.
+        self.library: set[str] | None = None
+        self.pull_steps = 4
+        self.pull_delay = 0.0
+        self.pulls: list[str] = []
+        self.unloads: list[str] = []
         server = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -42,9 +48,40 @@ class FakeModelServer:
                 else:
                     self._send(404, {"error": "not found"})
 
+            def _pull(self, tag: str):
+                import time as _t
+
+                server.pulls.append(tag)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/x-ndjson")
+                self.end_headers()
+
+                def line(obj):
+                    self.wfile.write((json.dumps(obj) + "\n").encode())
+                    self.wfile.flush()
+
+                line({"status": "pulling manifest"})
+                if server.library is not None and tag not in server.library:
+                    line({"error": "pull model manifest: file does not exist"})
+                    return
+                total = 1000
+                for i in range(1, server.pull_steps + 1):
+                    _t.sleep(server.pull_delay)
+                    line({"status": f"pulling {tag}", "digest": "sha256:x", "total": total, "completed": total * i // server.pull_steps})
+                line({"status": "success"})
+                if tag not in server.models:
+                    server.models.append(tag)
+
             def do_POST(self):
                 length = int(self.headers.get("Content-Length", "0"))
                 body = json.loads(self.rfile.read(length) or b"{}")
+                if self.path == "/api/pull":
+                    self._pull(body.get("model", ""))
+                    return
+                if self.path == "/api/chat" and body.get("keep_alive") == 0 and not body.get("messages"):
+                    server.unloads.append(body.get("model"))
+                    self._send(200, {"model": body.get("model"), "done": True, "done_reason": "unload"})
+                    return
                 server.requests.append({"path": self.path, "body": body})
                 if server.status_override:
                     self._send(server.status_override, {"error": "scripted failure"})

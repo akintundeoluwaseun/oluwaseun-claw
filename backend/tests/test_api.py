@@ -8,7 +8,7 @@ from tests.conftest import TOKEN, VALID_PLAN
 
 
 def settings_for(server, model="qwen2.5:7b"):
-    return {"model": {"provider": "ollama", "base_url": server.base_url, "model": model}}
+    return {"model": {"auto": False, "provider": "ollama", "base_url": server.base_url, "model": model}}
 
 
 def test_health_needs_no_token(data_dir):
@@ -65,7 +65,7 @@ def test_probe_unsaved_config(make_client, fake_server):
 
 
 def test_model_status_when_server_down(make_client):
-    c = make_client({"model": {"base_url": "http://127.0.0.1:9", "model": "x"}})
+    c = make_client({"model": {"auto": False, "base_url": "http://127.0.0.1:9", "model": "x"}})
     body = c.get("/models/status").json()
     assert body["server_reachable"] is False and "Ollama" in body["message"]
 
@@ -96,7 +96,7 @@ def test_plan_failure_recorded_truthfully(make_client, fake_server):
 
 
 def test_plan_with_no_model_selected(make_client, fake_server):
-    c = make_client({"model": {"base_url": fake_server.base_url, "model": ""}})
+    c = make_client({"model": {"auto": False, "base_url": fake_server.base_url, "model": ""}})
     r = c.post("/tasks/plan", json={"task": "do something"})
     assert r.status_code == 502
     assert "No model" in r.json()["error"]["message"]

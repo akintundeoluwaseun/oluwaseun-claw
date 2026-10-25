@@ -12,7 +12,6 @@ from claw.agent.executor import run_agent
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.logging_setup import log_event
 from claw.models.base import ModelError
-from claw.models.registry import build_adapter
 from claw.tools.base import ToolContext
 
 if TYPE_CHECKING:
@@ -48,7 +47,7 @@ class TaskRunner:
         if self.busy:
             raise TaskBusy()
         db = self.state.db
-        task_id = db.create_task(task_text, self.state.settings.model.model or None)
+        task_id = db.create_task(task_text, self.state.model_label())
         db.add_event(task_id, "requested_task", {"task": task_text})
         self.current_id = task_id
         self._task = asyncio.create_task(self._run(task_id, task_text), name=f"claw-task-{task_id}")
@@ -101,10 +100,10 @@ class TaskRunner:
                 self.approvals.pop(approval_id, None)
                 db.update_task(task_id, status="running")
 
-        adapter = build_adapter(settings.model)
         state.browser.reset_task_state()
         ctx = ToolContext(settings=settings, policy=state.policy(), data_dir=state.data_dir, browser=state.browser, task_id=task_id)
         try:
+            adapter = state.think_adapter()
             db.update_task(task_id, status="planning")
             emit("model_call", {"provider": adapter.provider, "model": adapter.model, "purpose": "plan"})
             plan = await make_plan(task_text, adapter, state.policy())

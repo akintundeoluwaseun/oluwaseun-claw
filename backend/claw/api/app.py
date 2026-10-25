@@ -29,7 +29,9 @@ from claw.agent.schemas import PlanRequest, TaskStatus
 from claw.browser.session import BrowserSession
 from claw.config import ConfigError, ModelSettings, Settings, SettingsStore, describe_validation_error
 from claw.logging_setup import log_event
-from claw.models.base import ModelError
+from claw.models.auto import ModelManager
+from claw.models.base import ModelAdapter, ModelError, ModelNotFound, ModelStatus
+from claw.models.ollama import OllamaAdapter
 from claw.models.registry import build_adapter
 from claw.permissions.policy import PermissionPolicy
 from claw.storage.db import Database
@@ -53,6 +55,34 @@ class AppState:
     registry: ToolRegistry = field(default_factory=build_registry)
     browser: BrowserSession | None = None
     runner: TaskRunner | None = None
+    models: ModelManager | None = None
+
+    def ensure_manager(self) -> ModelManager:
+        url = self.settings.model.base_url if self.settings.model.provider == "ollama" else "http://127.0.0.1:11434"
+        if self.models is None or self.models.base_url != url:
+            self.models = ModelManager(url)
+        return self.models
+
+    def think_adapter(self) -> ModelAdapter:
+        """The model that plans and decides steps: chosen automatically unless overridden."""
+        ms = self.settings.model
+        if not ms.auto:
+            return build_adapter(ms)
+        mgr = self.ensure_manager()
+        tag = mgr.model_for("think")
+        if not tag:
+            message, hint = mgr.not_ready_message()
+            raise ModelNotFound(message, hint)
+        adapter = OllamaAdapter(mgr.base_url, tag, timeout_s=ms.request_timeout_s, temperature=ms.temperature)
+        adapter.num_thread = mgr.threads()
+        adapter.keep_alive = "2m"  # Ollama frees the memory two minutes after Claw goes quiet
+        return adapter
+
+    def model_label(self) -> str | None:
+        ms = self.settings.model
+        if not ms.auto:
+            return ms.model or None
+        return self.ensure_manager().model_for("think")
 
     def policy(self) -> PermissionPolicy:
         return PermissionPolicy(self.settings.permissions.modes, self.settings.permissions.authorized_folders)
@@ -83,7 +113,11 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app):
+        if state.settings.model.auto:
+            state.ensure_manager().start()
         yield
+        if state.models is not None:
+            await state.models.stop()
         if state.runner.busy:
             state.runner.cancel(state.runner.current_id)
             await state.runner.wait()
@@ -153,13 +187,42 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         store.save(new_settings)
         state.settings = new_settings
         state.settings_error = None
+        if new_settings.model.auto:
+            state.ensure_manager().start()
         log_event(log, "settings saved", provider=new_settings.model.provider, model=new_settings.model.model)
         return {"settings": new_settings.model_dump(mode="json"), "error": None, "data_dir": str(state.data_dir)}
 
     @app.get("/models/status")
     async def model_status():
-        status = await build_adapter(state.settings.model).status()
-        return status.model_dump()
+        ms = state.settings.model
+        if not ms.auto:
+            return {**(await build_adapter(ms).status()).model_dump(), "auto": False}
+        mgr = state.ensure_manager()
+        await mgr.refresh()
+        tag = mgr.model_for("think")
+        message = f"Ready: {tag}" if tag else " ".join(mgr.not_ready_message())
+        status = ModelStatus(
+            server_reachable=bool(mgr.ollama_reachable),
+            model_available=tag is not None,
+            provider="ollama",
+            base_url=mgr.base_url,
+            model=tag or (mgr.roles["think"].tag or ""),
+            message=message,
+        )
+        return {**status.model_dump(), "auto": True, "setup": mgr.summary()}
+
+    @app.get("/models/auto")
+    async def models_auto():
+        mgr = state.ensure_manager()
+        return {"enabled": state.settings.model.auto, **mgr.summary()}
+
+    @app.post("/models/auto/retry")
+    async def models_auto_retry():
+        if not state.settings.model.auto:
+            return error_response(409, "manual_models", "Automatic models are turned off in Settings → Advanced.")
+        mgr = state.ensure_manager()
+        mgr.retry()
+        return {"ok": True}
 
     @app.post("/models/probe")
     async def probe_models(request: Request):
@@ -184,12 +247,11 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         if state.settings_error:
             return error_response(409, "settings_invalid", state.settings_error.message, "Fix them in Settings.", state.settings_error.problems)
 
-        model_settings = state.settings.model
-        task_id = state.db.create_task(req.task, model_settings.model or None)
+        task_id = state.db.create_task(req.task, state.model_label())
         state.db.add_event(task_id, "requested", {"task": req.task})
         state.db.update_task(task_id, status=TaskStatus.PLANNING)
-        adapter = build_adapter(model_settings)
         try:
+            adapter = state.think_adapter()
             state.db.add_event(task_id, "model_call", {"provider": adapter.provider, "model": adapter.model})
             plan = await make_plan(req.task, adapter, state.policy())
         except ModelError as exc:
