@@ -172,6 +172,18 @@ class AgentSettings(BaseModel):
     max_consecutive_failures: int = Field(default=3, ge=1, le=10)
 
 
+class DesktopSettings(BaseModel):
+    """How the app behaves on the desktop. Read by the Electron main process."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_with_windows: bool = False
+    show_quick_bar: bool = True
+    keep_awake_while_running: bool = True
+    notifications: bool = True
+    close_to_tray: bool = True
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -180,6 +192,7 @@ class Settings(BaseModel):
     permissions: PermissionSettings = Field(default_factory=PermissionSettings)
     browser: BrowserSettings = Field(default_factory=BrowserSettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
+    desktop: DesktopSettings = Field(default_factory=DesktopSettings)
 
 
 def describe_validation_error(exc: ValidationError) -> list[str]:

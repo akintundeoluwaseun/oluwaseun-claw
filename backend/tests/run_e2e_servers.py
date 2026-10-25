@@ -33,6 +33,8 @@ if __name__ == "__main__":
                 plan,  # 3. Run that will be stopped while waiting for approval
                 act("open_url", url=site.base_url + "/contact"),
                 act("click_button", text="Send message"),
+                plan,  # 4. Task typed into the quick bar
+                json.dumps({"thought": "nothing needed", "action": "finish", "final_answer": "Checked: nothing needed doing."}),
             ]
         )
         model.default_reply = plan

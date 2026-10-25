@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.1 — 2026-10-25 (interface redesign + background mode)
+### Added
+- Redesigned main window: custom title bar, grouped task list, large task box with example
+  tasks, timeline of steps, docked approval sheet, outcome card; light and dark themes.
+- Quick bar: always-on-top pill at the top of the screen; click or press Ctrl+Shift+Space,
+  type a task, press Enter. Shows live activity, "Needs your OK", and a stop button.
+- Tray icon with status (idle / working / needs you) and menu: open, new task, stop, show
+  quick bar, start with Windows, quit. Closing the window keeps Claw running.
+- Desktop notifications when a task finishes or needs approval (click opens the task).
+- Keeps the computer awake while a task runs (setting).
+- Start with Windows (setting; launches hidden in the tray).
+- App and tray icons; bundled Manrope font.
+
 ## 0.2.0 — 2026-10-25 (Batch 2)
 ### Added
 - Tool system with schemas, risk levels, validation and pre-checks (13 tools).

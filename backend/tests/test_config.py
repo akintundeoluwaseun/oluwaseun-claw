@@ -67,3 +67,9 @@ def test_windows_style_folder_accepted():
 def test_unknown_keys_rejected():
     with pytest.raises(ConfigError):
         SettingsStore.validate({"model": {"provider": "ollama", "api_key": "x"}})
+
+
+def test_desktop_defaults_and_old_files_still_load(tmp_path):
+    (tmp_path / "settings.json").write_text('{"version": 1, "model": {"model": "qwen2.5:7b"}}')
+    s = SettingsStore(tmp_path).load()
+    assert s.desktop.show_quick_bar and s.desktop.keep_awake_while_running and not s.desktop.start_with_windows

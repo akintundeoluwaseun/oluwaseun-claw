@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Claw quick bar</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="quickbar.css">
+</head>
+<body data-mode="collapsed" data-phase="idle">
+  <button class="pill" id="pill" type="button" aria-label="Give Claw a task">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="8" class="mark-tile"/>
+      <path class="mark-claw" d="M21.5 6.5c-1.6 6.4-4.2 12.4-8.6 19M16.2 7.6c-1.3 5.3-3.4 10.3-6.8 15.6M26 8.3c-1.2 5.6-3.5 11.2-7.2 16.9"/>
+    </svg>
+    <span class="pill-text" id="pill-text">Ask Claw</span>
+    <span class="pill-meta" id="pill-meta"></span>
+  </button>
+  <button class="pill-stop" id="pill-stop" type="button" aria-label="Stop the current task" title="Stop">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5"/></svg>
+  </button>
+
+  <form class="panel" id="panel" autocomplete="off">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="8" class="mark-tile"/>
+      <path class="mark-claw" d="M21.5 6.5c-1.6 6.4-4.2 12.4-8.6 19M16.2 7.6c-1.3 5.3-3.4 10.3-6.8 15.6M26 8.3c-1.2 5.6-3.5 11.2-7.2 16.9"/>
+    </svg>
+    <label class="sr-only" for="task">Task for Claw</label>
+    <input id="task" type="text" maxlength="4000" spellcheck="true" placeholder="Give Claw a task, then get on with your day">
+    <button class="run" id="run" type="submit" disabled>Start</button>
+    <p class="panel-foot" id="panel-foot">
+      <span id="foot-text">Claw asks before it saves files or changes anything online.</span>
+      <button class="link" id="open-app" type="button">Open Claw</button>
+    </p>
+  </form>
+  <script src="quickbar.js"></script>
+</body>
+</html>

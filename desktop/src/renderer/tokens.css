@@ -1,0 +1,75 @@
+/* Oluwaseun Claw — shared design tokens.
+   Concept: "the night shift". Calm porcelain by day, deep slate by night,
+   jade means "working fine", amber means "needs you", red means "stop". */
+
+@font-face {
+  font-family: "Manrope";
+  src: url("fonts/manrope-latin-wght-normal.woff2") format("woff2-variations");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: block;
+}
+
+:root {
+  --mist: #eef2f4;
+  --porcelain: #ffffff;
+  --porcelain-2: #f6f8f9;
+  --ink: #14212b;
+  --slate: #5d6b78;
+  --slate-2: #8794a0;
+  --hairline: #dde3e8;
+  --hairline-2: #c9d2d9;
+  --jade: #0f7b6c;
+  --jade-ink: #ffffff;
+  --jade-soft: #e3f2ef;
+  --amber: #b86e0b;
+  --amber-soft: #fbf0de;
+  --amber-line: #efc983;
+  --red: #c23b3b;
+  --red-soft: #fbe9e9;
+  --shadow-1: 0 1px 2px rgba(20, 33, 43, 0.06);
+  --shadow-2: 0 2px 6px rgba(20, 33, 43, 0.05), 0 12px 32px rgba(20, 33, 43, 0.10);
+  --shadow-float: 0 4px 10px rgba(20, 33, 43, 0.08), 0 18px 48px rgba(20, 33, 43, 0.18);
+  --font: "Manrope", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mist: #0f1519;
+    --porcelain: #161e24;
+    --porcelain-2: #1b242b;
+    --ink: #e6ecef;
+    --slate: #9aa8b3;
+    --slate-2: #6f7d88;
+    --hairline: #26313a;
+    --hairline-2: #34414b;
+    --jade: #3cc2aa;
+    --jade-ink: #06201b;
+    --jade-soft: #15302b;
+    --amber: #f0b356;
+    --amber-soft: #2e2416;
+    --amber-line: #6b4d1d;
+    --red: #f07a7a;
+    --red-soft: #3a1d1f;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.25), 0 12px 32px rgba(0, 0, 0, 0.35);
+    --shadow-float: 0 4px 10px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+
+.mark-tile { fill: var(--ink); }
+.mark-claw { fill: none; stroke: #3cc2aa; stroke-width: 3.2; stroke-linecap: round; }
+@media (prefers-color-scheme: dark) {
+  .mark-tile { fill: #22303a; }
+}
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}

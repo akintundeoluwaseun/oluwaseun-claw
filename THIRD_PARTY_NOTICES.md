@@ -15,6 +15,7 @@ installed packages or separate programs.
 | HTTPX | 0.28.1 | BSD-3-Clause | Model server client |
 | Playwright for Python | 1.64.1 | Apache-2.0 | Browser control (includes a Node.js driver; see its NOTICE) |
 | SQLite (Python stdlib) | — | Public domain | Task history |
+| Manrope (font, via @fontsource-variable/manrope 5.3.0) | — | SIL OFL 1.1 (`desktop/src/renderer/fonts/OFL-Manrope.txt`) | Interface typeface, bundled locally |
 
 ## Development and test only
 | Component | Version | License |

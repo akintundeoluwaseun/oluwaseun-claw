@@ -8,7 +8,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "check": "node --check src/main.js && node --check src/preload.js && node --check src/backend.js && node --check src/renderer/app.js",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/preload-quickbar.js && node --check src/backend.js && node --check src/watcher.js && node --check src/renderer/app.js && node --check src/renderer/quickbar.js",
     "test": "node --test tests/routes.test.js"
   },
   "devDependencies": {
