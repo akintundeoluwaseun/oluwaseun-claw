@@ -1,5 +1,24 @@
 # Test results
 
+## v0.6 Phase C — TechDesk sale through the app's screen — 26 Oct 2026
+Claw operates TechDesk like a person (UI Automation), not through its code or data (user's choice).
+The TechDesk window is part of the TEST DOUBLE desktop and imitates its Sales screens as a **guess**.
+No real TechDesk and no real transaction were involved.
+
+| Command | Result |
+|---|---|
+| `scripts/check.sh` | **All checks passed**: backend **183 passed**, desktop unit 6, end-to-end 55/55 |
+
+| Test | Result | Evidence |
+|---|---|---|
+| F — prepare, cancel once, then record an authorised test sale and verify it | **PASS (stand-in)** · **BLOCKED on the real app** | `test_f_prepare_cancel_then_record_with_approval`: ₦3,500 × 2 = ₦7,000 read from screen; cancel → no sale; record asked (destructive) → INV-0001 found in the Sales list |
+| Declining the approval records nothing | PASS | `test_declining_approval_records_nothing` |
+| Ambiguous / missing product → asks, lists real names and prices | PASS | `test_ambiguous_and_missing_products_ask_instead_of_guessing` |
+| Displayed total ≠ prices × quantities → flagged; recording refused | PASS | `test_total_mismatch_blocks_recording` |
+| Record only a prepared sale with the approved total; screen changed after approval → not recorded | PASS | `test_record_needs_a_prepared_sale_and_the_same_total` |
+| PIN screen → stops, never types PINs | PASS | `test_pin_screen_stops_claw` |
+| TechDesk closed → opened from the Start menu, or explained | PASS | `test_opens_techdesk_from_start_menu_or_explains` |
+
 ## v0.6 Phase B — WhatsApp (official desktop app) — 26 Oct 2026
 The WhatsApp window is part of the TEST DOUBLE desktop and imitates WhatsApp Desktop's accessible
 layout as a **guess**; the real app has never been read. Everything else (permissions, storage, the

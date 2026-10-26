@@ -41,7 +41,7 @@ with stand-ins) · **INC** = incomplete · **NI** = not implemented.
 | OCR + PDFs (7 cases), searchable PDF, chunks with pages | WT | synthetic scans |
 | WhatsApp unread detection + notification | IU | Phase B: official app via UI Automation; stand-in tested; real app BLOCKED |
 | Email (read/draft/send as separate permissions) | **NI** | messaging-app Enter guard added; email clients not integrated |
-| TechDesk sale workflow | **NI** | TechDesk is Electron + React, data in localStorage |
+| TechDesk sale workflow | IU | Phase C: through the app's screen (UI Automation); stand-in tested; real app BLOCKED |
 | Image editing (Photoshop / alternative) | **NI** | |
 | Video creation (images + text + audio → MP4) | **NI** | |
 | Calendar + meetings, transcription | **NI** | |
@@ -72,6 +72,7 @@ heavy editors (GIMP, Blender, Kdenlive) or generative video models.
 ## Decisions (with the user, 26 Oct 2026)
 - **WhatsApp:** read unread badges in the official WhatsApp Desktop app through UI Automation. No
   unofficial libraries. Sending always needs confirmation.
-- **TechDesk:** operate `TechDesk-enterprise` (the Electron desktop app), tested against test data only.
+- **TechDesk:** operate `TechDesk-enterprise` (the Electron desktop app) through its screen, like WhatsApp —
+  not through its code or data — tested against test data only.
 - **Calendar:** calendar apps on the PC only (Windows Calendar / Outlook through UI Automation, and
   `.ics` files). No Google/Microsoft sign-in.

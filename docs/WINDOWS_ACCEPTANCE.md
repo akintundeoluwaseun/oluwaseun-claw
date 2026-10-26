@@ -41,6 +41,23 @@ These tests can't run in the Linux build workspace, so they are marked **BLOCKED
    from Claw's guesses. Run `look_at_window` with the title "WhatsApp" (type: *Look at the WhatsApp window and list its
    controls*) and send the output, so the patterns in `backend/claw/integrations/whatsapp.py` can be corrected.
 
+## Test F — TechDesk sale (test data only)
+**Never run this on your real shop records.** Use a separate Windows user account (or a spare PC) with a fresh
+TechDesk install, and add test products in TechDesk's Inventory, e.g. "Phone charger (Type-C)" ₦3,500 and
+"Phone charger (iPhone)" ₦4,500.
+1. Open TechDesk and sign in yourself if it asks for a PIN (Claw never types PINs).
+2. Type: *Open TechDesk and prepare a sale for two phone chargers.*
+   - Claw should **ask which charger** (both match), listing the real names and prices from the screen.
+3. Type: *Prepare a sale for two Type-C phone chargers, then cancel it.*
+   **Pass if** the form showed 2 × ₦3,500 = ₦7,000, Claw said the total matches, and after cancel no sale exists.
+4. Type: *Prepare a sale for two Type-C phone chargers and record it.* Deny the approval card once: nothing may be
+   recorded. Repeat and allow it. **Pass if** the sale appears in TechDesk's Sales list with ₦7,000, and any
+   invoice/receipt number Claw reports is exactly the one TechDesk shows.
+5. **If Claw says it couldn't find "the Sales page", "the New Sale button", "the product search box" or "its
+   quantity box"**, TechDesk's labels differ from Claw's guesses. Type *Look at the TechDesk window and list its
+   controls* on the New Sale screen and send the output, so the patterns in
+   `backend/claw/integrations/techdesk.py` can be matched to the real names.
+
 ## Phase A extras
 - **Form:** *Open https://httpbin.org/forms/post and fill in the customer name "Test User" and
   pizza size Medium, but don't submit.* Pass if the fields are filled and nothing was submitted.

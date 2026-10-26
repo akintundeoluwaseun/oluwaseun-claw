@@ -60,6 +60,7 @@ class TaskMemory:
     outputs: list[dict[str, Any]] = field(default_factory=list)
     read_untrusted: bool = False  # anything from the web, a file or an app has been read
     injection_seen: bool = False  # that content tried to give Claw instructions
+    app_state: dict[str, Any] = field(default_factory=dict)  # per-app working state (e.g. a prepared TechDesk sale)
 
     def corpus(self) -> str:
         return "\n".join(self.seen_text)

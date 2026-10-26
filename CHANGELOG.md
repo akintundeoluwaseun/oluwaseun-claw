@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — v0.6 Phase C
+### Added
+- **TechDesk sales through the app's screen:** "Open TechDesk and prepare a sale for two phone chargers"
+  opens Sales → New Sale, searches each product, reads the real names and prices shown, sets quantities,
+  and checks TechDesk's total against prices × quantities. Preparing never records anything.
+- Ambiguous or missing products: Claw asks, listing what TechDesk shows. PIN screens: Claw stops.
+- **Recording** is a separate step that always asks; it only goes ahead if the screen still shows the
+  approved total, then looks for the sale in the Sales list and reports a receipt/invoice number only if
+  TechDesk displays one. **Cancel** closes the form without recording.
+
 ## Unreleased — v0.6 Phase B
 ### Added
 - **WhatsApp unread check** in the official WhatsApp Desktop app (UI Automation): chat names and

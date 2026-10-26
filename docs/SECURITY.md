@@ -92,6 +92,10 @@ Added in v0.6 (Phases A–B):
   WhatsApp; message text is never stored; previews are off by default. Sending always asks and needs the
   exact chat name. Enter or a typed new line in any messaging app counts as sending.
 
+- TechDesk (Phase C): preparing a sale never records it; recording always asks, and only proceeds if the
+  screen still shows the approved total. Products, prices, totals and receipt numbers come only from the
+  screen; ambiguous products stop with a question; PIN screens stop Claw. Tests use a stand-in, never real records.
+
 Not yet implemented (planned):
 - Code signing of the app and installers (needs a certificate).
 - Evaluation of prompt-injection resistance with the real Qwen3-VL brains.

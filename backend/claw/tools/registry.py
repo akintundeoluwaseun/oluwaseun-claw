@@ -10,6 +10,7 @@ from claw.tools.file_inspect import register_file_inspect_tools
 from claw.tools.file_ops import register_file_ops
 from claw.tools.file_tools import register_file_tools
 from claw.tools.message_tools import register_message_tools
+from claw.tools.techdesk_tools import register_techdesk_tools
 from claw.tools.pdf_tools import register_pdf_tools
 
 
@@ -23,4 +24,5 @@ def build_registry() -> ToolRegistry:
     register_pdf_tools(reg)
     register_desktop_tools(reg)
     register_message_tools(reg)
+    register_techdesk_tools(reg)
     return reg

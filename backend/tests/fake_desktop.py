@@ -101,6 +101,75 @@ class FakeDesktop(DesktopDriver):
         self.active = h
         self._wa_handle = h
 
+    # ---- TechDesk stand-in (a GUESS at TechDesk's screens; the real app is unverified) ----
+    TD_PRODUCTS = [("Phone charger (Type-C)", 3500), ("Phone charger (iPhone)", 4500), ("USB cable", 1500), ("Power bank 10000mAh", 12000)]
+
+    def add_techdesk(self, pin=False, total_bug=False, shortcut=True):
+        self.td = {"page": "dashboard", "form": None, "search": "", "sales": [], "pin": pin, "bug": total_bug, "flash": ""}
+        h = self.next_handle
+        self.next_handle += 1
+        self.windows[h] = {"title": "TechDesk 2.0", "process": "TechDesk.exe", "controls": []}
+        self._td_handle = h
+        self.active = h
+        self._td_render()
+
+    def _td_render(self):
+        t = self.td
+        if t["pin"]:
+            c = [{"role": "Text", "name": "Enter your PIN"}, {"role": "Edit", "name": "PIN", "value": ""}]
+        else:
+            c = [{"role": "Button", "name": n} for n in ("Dashboard", "Sales", "Repairs", "Inventory")]
+            if t["page"] == "sales":
+                c.append({"role": "Button", "name": "New Sale"})
+                if t["flash"]:
+                    c.append({"role": "Text", "name": t["flash"]})
+                for inv, items, total in t["sales"]:
+                    c += [{"role": "ListItem", "name": inv}, {"role": "Text", "name": items}, {"role": "Text", "name": f"₦{total:,}"}]
+            if t["form"] is not None:
+                c += [{"role": "Text", "name": "New Sale"}, {"role": "Edit", "name": "Search products", "value": t["search"]}]
+                if t["search"]:
+                    for name, price in self.TD_PRODUCTS:
+                        if all(w in name.lower() for w in t["search"].lower().split()):
+                            c += [{"role": "ListItem", "name": name, "td_add": name}, {"role": "Text", "name": f"₦{price:,}"}]
+                for line in t["form"]:
+                    c += [{"role": "Text", "name": line["name"]}, {"role": "Edit", "name": "Qty", "value": str(line["qty"]), "td_qty": line["name"]}]
+                total = sum(dict(self.TD_PRODUCTS)[l["name"]] * l["qty"] for l in t["form"]) - (500 if t["bug"] and t["form"] else 0)
+                c += [{"role": "Text", "name": "Total"}, {"role": "Text", "name": f"₦{total:,}"},
+                      {"role": "Button", "name": "Complete Sale"}, {"role": "Button", "name": "Cancel"}]
+        self.windows[self._td_handle]["controls"] = c
+
+    def _td_total(self):
+        return sum(dict(self.TD_PRODUCTS)[l["name"]] * l["qty"] for l in self.td["form"]) - (500 if self.td["bug"] else 0)
+
+    def _td_invoke(self, c):
+        t = self.td
+        name = c["name"]
+        if name in ("Sales", "Dashboard", "Repairs", "Inventory") and c["role"] == "Button":
+            t["page"] = name.lower()
+        elif name == "New Sale" and c["role"] == "Button":
+            t["form"], t["search"], t["flash"] = [], "", ""
+        elif c.get("td_add"):
+            t["form"].append({"name": c["td_add"], "qty": 1})
+            t["search"] = ""
+        elif name == "Complete Sale":
+            inv = f"INV-{len(t['sales']) + 1:04d}"
+            items = ", ".join(f"{l['name']} x{l['qty']}" for l in t["form"])
+            t["sales"].append((inv, items, self._td_total()))
+            t["form"], t["flash"] = None, f"Sale recorded. Invoice No: {inv}"
+        elif name == "Cancel":
+            t["form"] = None
+        self._td_render()
+
+    def _td_set(self, c, text):
+        t = self.td
+        if c["name"] == "Search products":
+            t["search"] = text
+        elif c.get("td_qty"):
+            for line in t["form"]:
+                if line["name"] == c["td_qty"]:
+                    line["qty"] = int(text) if text.isdigit() else line["qty"]
+        self._td_render()
+
     # DesktopDriver
     def available(self):
         return (False, "Windows is locked. Desktop steps can't run on a locked screen (browser steps still can).") if self.locked else (True, "")
@@ -124,6 +193,9 @@ class FakeDesktop(DesktopDriver):
 
     def launch(self, target):
         self.launched.append(target)
+        if "techdesk" in target.lower():
+            self.add_techdesk()
+            return
         if target == "whatsapp:":
             if not self.whatsapp_installed:
                 raise OSError("No application is associated with the specified file")
@@ -183,6 +255,9 @@ class FakeDesktop(DesktopDriver):
                 del self.windows[h]
                 self.active = owner
             return
+        if w.get("process") == "TechDesk.exe":
+            self._td_invoke(c)
+            return
         if w.get("process") == "WhatsApp.Root.exe" and c.get("chat"):
             w["open_chat"] = c["chat"]
             w["controls"] = self._wa_controls(open_chat=c["chat"])
@@ -197,6 +272,9 @@ class FakeDesktop(DesktopDriver):
             raise DesktopUnavailable("That control does not accept text.")
         c["value"] = text
         w = self.windows[h]
+        if w.get("process") == "TechDesk.exe":
+            self._td_set(c, text)
+            return
         if w.get("process") == "WhatsApp.Root.exe" and c["name"].startswith("Search"):
             w["controls"] = self._wa_controls(filter_text=text)
 
