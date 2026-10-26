@@ -83,6 +83,10 @@ a linked device; WhatsApp can restrict accounts that use them, and the user chos
 WhatsApp Business Platform (Cloud API) was not used: it serves business numbers through Meta, not a person's
 own chats. Claw reads the official WhatsApp Desktop app through Windows UI Automation (pywinauto, already
 bundled). No new dependency was added.
+Phase D (images): Pillow (already bundled) renders and edits; Photoshop is driven through its own COM/ExtendScript
+interface with pywin32 (already bundled) only when the user has it installed. GIMP, Krita, ImageMagick, OpenCV and
+ComfyUI were not added: each is a large extra install or model download for what Pillow already does here.
+Fonts: the flyer uses fonts already on the computer (Segoe UI/Arial on Windows); none are bundled.
 
 OCRmyPDF (MPL-2.0, but needs Ghostscript, AGPL), PaddleOCR (Apache-2.0, heavy runtime),
 PDF-OCR (a web app), DynaLM (unverified clients).

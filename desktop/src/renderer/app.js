@@ -34,6 +34,7 @@ const TOOL_LABEL = {
   take_screenshot: 'Took a screenshot', describe_screen: 'Looked at the screen', click_at: 'Clicked on the screen',
   read_document_pages: 'Read document pages', search_document: 'Searched a document', summarize_document: 'Summarized a document',
   make_searchable_pdf: 'Saved a searchable PDF', check_whatsapp: 'Checked WhatsApp', send_whatsapp_message: 'Sent a WhatsApp message',
+  make_flyer: 'Made a flyer', edit_image: 'Edited a picture', inspect_image: 'Checked a picture',
   prepare_techdesk_sale: 'Prepared a sale in TechDesk', cancel_techdesk_sale: 'Cancelled the TechDesk sale', record_techdesk_sale: 'Recorded the sale in TechDesk',
   fill_field: 'Filled in a form field', download_file: 'Downloaded a file', copy_files: 'Copied files',
   check_file: 'Checked a file', scroll: 'Scrolled', choose_menu: 'Chose a menu item', wait_for_window: 'Waited for a window',
@@ -46,6 +47,7 @@ const TOOL_ASK = {
   write_text_file: 'Write a file', save_report: 'Save a report', create_spreadsheet: 'Make a spreadsheet',
   edit_text_file: 'Edit a file', make_searchable_pdf: 'Save a searchable copy of a PDF',
   check_whatsapp: 'Check your WhatsApp chats', send_whatsapp_message: 'Send a WhatsApp message',
+  make_flyer: 'Make a flyer', edit_image: 'Save an edited picture',
   prepare_techdesk_sale: 'Prepare a sale in TechDesk', cancel_techdesk_sale: 'Cancel the TechDesk sale', record_techdesk_sale: 'Record this sale in TechDesk',
   fill_field: 'Fill in a form field', download_file: 'Download a file', copy_files: 'Copy files', choose_menu: 'Choose a menu item',
 };

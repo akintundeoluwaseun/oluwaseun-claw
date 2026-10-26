@@ -6,8 +6,8 @@ Ollama removed as a requirement. Done and tested in the build workspace (Linux).
 guide, known issues, release checklist. **Not done, by request:** building and installing.
 **v0.6 (master prompt 2):** audit done (`docs/AUDIT_V06.md`); **Phase A done** (Windows control
 hardening, Notepad Test A logic, browser forms and downloads, file copies); **Phase B done** (WhatsApp
-unread check, notifications, send with approval); **Phase C done** (TechDesk sale through its screen). Next:
-**Phase D — image editing**, then E video,
+unread check, notifications, send with approval); **Phase C done** (TechDesk sale through its screen); **Phase D done** (flyers and image edits;
+Photoshop when installed). Next: **Phase E — video**, then E video,
 F calendar apps on the PC, G packaging and security.
 **Version:** 0.5.0 · **Last updated:** 2026-10-26
 

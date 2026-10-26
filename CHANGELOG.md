@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — v0.6 Phase D
+### Added
+- **make_flyer:** promotional flyers (headline, subtitle, up to 6 points, contact band, up to 4 pictures) in
+  square, story, A5, A4 or landscape, as PNG, JPG, PDF (or PSD with Photoshop). Uses **Photoshop when it is
+  installed** (its scripting interface), otherwise Claw's built-in editor, and always says which one made it.
+  The result is reopened, its size checked, and the headline read back with OCR.
+- **edit_image** (crop, rotate, resize, brightness, contrast, black-and-white, convert; saves a new file) and
+  **inspect_image**.
+
 ## Unreleased — v0.6 Phase C
 ### Added
 - **TechDesk sales through the app's screen:** "Open TechDesk and prepare a sale for two phone chargers"

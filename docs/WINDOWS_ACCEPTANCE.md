@@ -58,6 +58,15 @@ TechDesk install, and add test products in TechDesk's Inventory, e.g. "Phone cha
    controls* on the New Sale screen and send the output, so the patterns in
    `backend/claw/integrations/techdesk.py` can be matched to the real names.
 
+## Test D — Flyer (Photoshop, and without it)
+1. **With Photoshop installed:** put a product photo in Documents and type *Open Photoshop and create a promotional
+   flyer for my software TechDesk, using shop.jpg, with my WhatsApp number 0807 000 0000.*
+   **Pass if** the outcome says "Made the flyer with Photoshop", the file opens, and it shows the photo, the
+   headline and the number. Also try format PSD and open it in Photoshop: the text should be editable layers.
+2. **Without Photoshop** (or on another PC): the same request must say "Claw's built-in image editor (Photoshop was
+   not used)". Asking explicitly for Photoshop must be refused with an offer to use the built-in editor.
+3. Check the reported size (e.g. A5 = 1748×2480) in the file's Properties → Details.
+
 ## Phase A extras
 - **Form:** *Open https://httpbin.org/forms/post and fill in the customer name "Test User" and
   pizza size Medium, but don't submit.* Pass if the fields are filled and nothing was submitted.

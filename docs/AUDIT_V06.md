@@ -42,7 +42,7 @@ with stand-ins) · **INC** = incomplete · **NI** = not implemented.
 | WhatsApp unread detection + notification | IU | Phase B: official app via UI Automation; stand-in tested; real app BLOCKED |
 | Email (read/draft/send as separate permissions) | **NI** | messaging-app Enter guard added; email clients not integrated |
 | TechDesk sale workflow | IU | Phase C: through the app's screen (UI Automation); stand-in tested; real app BLOCKED |
-| Image editing (Photoshop / alternative) | **NI** | |
+| Image editing (Photoshop / alternative) | WT (built-in) · IU (Photoshop) | Phase D |
 | Video creation (images + text + audio → MP4) | **NI** | |
 | Calendar + meetings, transcription | **NI** | |
 | Two tasks controlling the desktop at once | WT | runner allows one task at a time |

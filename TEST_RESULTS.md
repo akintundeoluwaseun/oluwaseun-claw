@@ -1,5 +1,19 @@
 # Test results
 
+## v0.6 Phase D — Image editing — 26 Oct 2026
+Real: Pillow rendering, files, OCR read-back with Tesseract, permissions. Photoshop is not installed here.
+`scripts/check.sh`: **All checks passed** — backend **188 passed**, desktop unit 6, end-to-end 55/55.
+
+| Test | Result | Evidence |
+|---|---|---|
+| D — flyer with the built-in editor; format, size and content checked | **PASS** | `test_d_flyer_builtin_verified`: PNG 1080×1080, OCR reads the headline back, photo present in the hero area, never overwrites |
+| D — flyer in Photoshop | **BLOCKED** (no Windows/Photoshop) | steps in `docs/WINDOWS_ACCEPTANCE.md` → Test D |
+| Photoshop never faked: explicit Photoshop request refused without it; PSD needs Photoshop | PASS | `test_photoshop_is_never_faked` |
+| Photoshop script cannot be injected through user text (JSON-encoded data) | PASS | `test_photoshop_script_keeps_user_text_inside_data` |
+| JPG (A5 1748×2480) and PDF outputs | PASS | `test_flyer_formats_and_sizes` |
+| Crop, rotate, resize, black-and-white, brightness; original unchanged; bad crop / no change / damaged file / outside folder refused | PASS | `test_edit_image_operations` |
+| Visual review of rendered flyers (dark with photo, light without photo, square) | done by eye | two bugs found and fixed: bullet text over the dots; text overflowing the footer on square flyers (text now shrinks to fit) |
+
 ## v0.6 Phase C — TechDesk sale through the app's screen — 26 Oct 2026
 Claw operates TechDesk like a person (UI Automation), not through its code or data (user's choice).
 The TechDesk window is part of the TEST DOUBLE desktop and imitates its Sales screens as a **guess**.
