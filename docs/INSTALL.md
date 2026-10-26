@@ -38,6 +38,13 @@ ask Claw about it, or save a searchable copy of a scanned PDF.
 powershell -ExecutionPolicy Bypass -File scripts\check.ps1
 ```
 
+### 5a. Build the installer on GitHub (no Windows PC needed)
+GitHub → the repository → **Actions** → **Build Windows installer** → **Run workflow** → choose Standard or Pro.
+GitHub's Windows machine sets everything up, runs the backend tests on real Windows, downloads the brain
+(licence- and checksum-checked), builds the installer, and publishes it under **Releases** as
+`OluwaseunClaw-<version>-<Edition>-Setup.exe` plus `.bin` parts (each under GitHub's 2 GB file limit).
+Download all files of one edition into one folder and run the `.exe`. A Standard build takes roughly an hour.
+
 ### 5. Build the installers
 ```powershell
 winget install JRSoftware.InnoSetup

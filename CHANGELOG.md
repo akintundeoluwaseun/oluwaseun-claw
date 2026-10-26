@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Windows build on GitHub
+### Added
+- `.github/workflows/build-windows.yml`: builds the installer (with its brain) on GitHub's Windows machines,
+  runs the backend tests on real Windows, smoke-tests the frozen backend, and publishes a GitHub Release.
+- `backend/packaging/fetch_brain.py`: downloads a brain with Claw's own checked downloader for bundling.
+- The installer stores brain files uncompressed (faster builds) and can be split into parts below 2 GB.
+
 ## Unreleased — v0.6 Phase D
 ### Added
 - **make_flyer:** promotional flyers (headline, subtitle, up to 6 points, contact band, up to 4 pictures) in
