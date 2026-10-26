@@ -93,7 +93,13 @@ jobs:
             ./scripts/build-release.ps1 -Edition $env:EDITION -ModelDir $env:MODEL_DIR -SliceMB 1900 *>&1 | Tee-Object -FilePath $log
             if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
           } catch {
-            $tail = (Get-Content $log -Tail 30 -ErrorAction SilentlyContinue) -join ' | '
+            # Prefer the lines that say what went wrong: electron-builder prints dozens of
+            # harmless "signing is skipped" notes, which otherwise fill the whole annotation.
+            $all = Get-Content $log -ErrorAction SilentlyContinue
+            $errs = $all | Select-String -Pattern 'error|failed|cannot|missing' -CaseSensitive:$false |
+                    Where-Object { $_.Line -notmatch 'signing is skipped' } |
+                    Select-Object -Last 12 | ForEach-Object { $_.Line.Trim() }
+            $tail = (($errs + ($all | Select-Object -Last 5)) | Select-Object -Unique) -join ' | '
             Write-Output "::error title=build failed::$($_.Exception.Message) || $tail"
             exit 1
           }

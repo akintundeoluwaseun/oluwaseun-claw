@@ -12,6 +12,9 @@
 #ifndef Version
   #define Version "0.0.0"
 #endif
+; The installer's own file name. [Code] needs it too, and a [Setup] directive is not
+; a preprocessor variable, so it is defined once here and used in both places.
+#define BaseName "OluwaseunClaw-" + Version + "-" + Edition + "-Setup"
 
 [Setup]
 AppId={{6E7D7B4A-2D7C-4E0B-9C8F-0C1A5B7E3D21}
@@ -23,7 +26,7 @@ DefaultDirName={autopf}\Oluwaseun Claw
 DefaultGroupName=Oluwaseun Claw
 DisableProgramGroupPage=yes
 OutputDir={#OutDir}
-OutputBaseFilename=OluwaseunClaw-{#Version}-{#Edition}-Setup
+OutputBaseFilename={#BaseName}
 SetupIconFile=..\desktop\src\assets\icon.ico
 UninstallDisplayIcon={app}\Oluwaseun Claw.exe
 Compression=lzma2/normal
@@ -44,6 +47,27 @@ DiskSpanning=yes
 DiskSliceSize=max
 #endif
 
+[Files]
+; The whole unpacked app, including resources\backend, engine, tesseract and models.
+Source: "{#AppDir}\*"; Excludes: "\resources\models\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+; Brain files (GGUF) barely compress: store them as they are, which makes building much faster.
+Source: "{#AppDir}\resources\models\*"; DestDir: "{app}\resources\models"; Flags: recursesubdirs createallsubdirs ignoreversion nocompression skipifsourcedoesntexist
+Source: "..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
+
+[Icons]
+Name: "{autoprograms}\Oluwaseun Claw"; Filename: "{app}\Oluwaseun Claw.exe"
+Name: "{autodesktop}\Oluwaseun Claw"; Filename: "{app}\Oluwaseun Claw.exe"; Tasks: desktopicon
+
+[Tasks]
+Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
+
+[Run]
+Filename: "{app}\Oluwaseun Claw.exe"; Description: "Start Oluwaseun Claw"; Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+; Settings, history and downloaded brains in %APPDATA%\OluwaseunClaw are the user's and are kept.
+Type: filesandordirs; Name: "{app}\resources"
+
 #ifdef SliceBytes
 [Code]
 // A split installer is useless without all of its parts. Inno's own behaviour is to
@@ -51,7 +75,7 @@ DiskSliceSize=max
 // in the app. Check before anything is written and name the file that is missing.
 function PartName(I: Integer): String;
 begin
-  Result := '{#OutputBaseFilename}' + '-' + IntToStr(I) + '.bin';
+  Result := '{#BaseName}' + '-' + IntToStr(I) + '.bin';
 end;
 
 function InitializeSetup(): Boolean;
@@ -83,23 +107,3 @@ begin
 end;
 
 #endif
-[Files]
-; The whole unpacked app, including resources\backend, engine, tesseract and models.
-Source: "{#AppDir}\*"; Excludes: "\resources\models\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
-; Brain files (GGUF) barely compress: store them as they are, which makes building much faster.
-Source: "{#AppDir}\resources\models\*"; DestDir: "{app}\resources\models"; Flags: recursesubdirs createallsubdirs ignoreversion nocompression skipifsourcedoesntexist
-Source: "..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
-
-[Icons]
-Name: "{autoprograms}\Oluwaseun Claw"; Filename: "{app}\Oluwaseun Claw.exe"
-Name: "{autodesktop}\Oluwaseun Claw"; Filename: "{app}\Oluwaseun Claw.exe"; Tasks: desktopicon
-
-[Tasks]
-Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
-
-[Run]
-Filename: "{app}\Oluwaseun Claw.exe"; Description: "Start Oluwaseun Claw"; Flags: nowait postinstall skipifsilent
-
-[UninstallDelete]
-; Settings, history and downloaded brains in %APPDATA%\OluwaseunClaw are the user's and are kept.
-Type: filesandordirs; Name: "{app}\resources"
