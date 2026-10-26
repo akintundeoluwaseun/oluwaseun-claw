@@ -73,7 +73,7 @@ async def test_ollama_missing_is_explained():
     mgr = ModelManager("http://127.0.0.1:9", hardware=hw(16))
     await mgr.refresh()
     assert mgr.ollama_reachable is False and not mgr.ready()
-    assert "Ollama" in mgr.not_ready_message()[0]
+    assert "engine is not running" in mgr.not_ready_message()[0]
 
 
 async def test_progress_reported_while_downloading(fake_server):
@@ -82,7 +82,7 @@ async def test_progress_reported_while_downloading(fake_server):
     mgr = ModelManager(fake_server.base_url, hardware=hw(8))
     mgr.start()
     await wait_for(lambda: 0 < mgr.roles["think"].as_dict()["progress"] < 1)
-    assert "downloading" in mgr.not_ready_message()[0]
+    assert "setting up" in mgr.not_ready_message()[0]
     await wait_for(lambda: mgr.ready())
     await mgr.stop()
 
@@ -102,7 +102,7 @@ def test_api_auto_mode_end_to_end(tmp_path, fake_server, monkeypatch):
     fake_server.models = []
     data = tmp_path / "data"
     data.mkdir()
-    (data / "settings.json").write_text(json.dumps({"model": {"mode": "offline", "base_url": fake_server.base_url}}))
+    (data / "settings.json").write_text(json.dumps({"model": {"mode": "builtin", "base_url": fake_server.base_url}}))
     with TestClient(create_app(data, TOKEN), base_url="http://127.0.0.1") as c:
         c.headers["X-Claw-Token"] = TOKEN
         end = time.time() + 10
@@ -111,7 +111,7 @@ def test_api_auto_mode_end_to_end(tmp_path, fake_server, monkeypatch):
         info = c.get("/models/auto").json()
         assert info["ready"] and info["roles"]["think"]["model"] == "qwen2.5:7b"
         status = c.get("/models/status").json()
-        assert status["mode"] == "offline" and status["model_available"] and status["model"] == "qwen2.5:7b"
+        assert status["mode"] == "builtin" and status["model_available"] and status["model"] == "qwen2.5:7b"
         fake_server.replies.append(json.dumps(VALID_PLAN))
         r = c.post("/tasks/plan", json={"task": "Plan something useful"})
         assert r.status_code == 200, r.text
@@ -123,9 +123,9 @@ def test_api_auto_mode_end_to_end(tmp_path, fake_server, monkeypatch):
 def test_api_task_before_model_ready_is_explained(tmp_path):
     data = tmp_path / "data"
     data.mkdir()
-    (data / "settings.json").write_text(json.dumps({"model": {"mode": "offline", "base_url": "http://127.0.0.1:9"}}))
+    (data / "settings.json").write_text(json.dumps({"model": {"mode": "builtin", "base_url": "http://127.0.0.1:9"}}))
     c = TestClient(create_app(data, TOKEN), base_url="http://127.0.0.1")
     c.headers["X-Claw-Token"] = TOKEN
     c.get("/models/status")
     r = c.post("/tasks/plan", json={"task": "Plan something useful"})
-    assert r.status_code == 502 and "Ollama" in r.json()["error"]["message"]
+    assert r.status_code == 502 and "engine is not running" in r.json()["error"]["message"]

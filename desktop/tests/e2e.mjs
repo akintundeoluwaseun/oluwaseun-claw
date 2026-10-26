@@ -27,7 +27,7 @@ function check(cond, msg) {
 }
 
 const servers = spawn(python, ['-m', 'tests.run_e2e_servers'], { cwd: backendDir, stdio: ['ignore', 'pipe', 'inherit'] });
-const { model_port: modelPort, site_url: siteUrl, google_url: googleUrl, key: googleKey } = await new Promise((resolve, reject) => {
+const { model_port: modelPort, site_url: siteUrl } = await new Promise((resolve, reject) => {
   servers.stdout.once('data', (d) => resolve(JSON.parse(String(d).trim())));
   servers.once('exit', (c) => reject(new Error('test servers exited ' + c)));
 });
@@ -37,7 +37,8 @@ const saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw-saved-'));
 fs.writeFileSync(
   path.join(dataDir, 'settings.json'),
   JSON.stringify({
-    model: { provider: 'ollama', base_url: `http://127.0.0.1:${modelPort}`, model: 'qwen2.5:7b' }, // mode not chosen yet
+    // Developer mode pointed at the stand-in model server (the built-in brain needs real weights).
+    model: { mode: 'custom', provider: 'ollama', base_url: `http://127.0.0.1:${modelPort}`, model: 'qwen2.5:7b' },
     permissions: { authorized_folders: [saveDir] },
     browser: { channel: 'chromium', headless: true, search_engine: 'custom', custom_search_url: `${siteUrl}/search?q={query}` },
   }),
@@ -45,7 +46,7 @@ fs.writeFileSync(
 
 const args = [desktopDir];
 if (process.env.CLAW_E2E_NO_SANDBOX) args.unshift('--no-sandbox');
-const app = await electron.launch({ args, env: { ...process.env, CLAW_DATA_DIR: dataDir, CLAW_E2E: '1', CLAW_GEMINI_BASE: googleUrl } });
+const app = await electron.launch({ args, env: { ...process.env, CLAW_DATA_DIR: dataDir, CLAW_E2E: '1' } });
 let exitCode = 0;
 
 async function windowByFile(name) {
@@ -63,20 +64,10 @@ try {
   await win.setViewportSize({ width: 1240, height: 860 });
   await win.waitForSelector('#backend-pill[data-state="ready"]', { timeout: 30000 });
   check(true, 'backend started from the desktop app and reported ready');
-  // 0. First launch: choose how Claw thinks
-  await win.waitForSelector('#welcome:not([hidden])', { timeout: 10000 });
-  check(true, 'first launch shows the welcome choice');
-  await win.screenshot({ path: path.join(shotDir, '00-welcome.png') });
-  await win.fill('#key-input', 'AIza-not-a-real-key-000000000000');
-  await win.click('#connect-key');
-  await win.waitForFunction(() => document.querySelector('#key-result').dataset.tone === 'bad');
-  check((await win.textContent('#key-result')).includes('did not accept'), 'a wrong key is refused with a clear message');
-  await win.fill('#key-input', googleKey);
-  await win.click('#connect-key');
   await win.waitForSelector('#home:not([hidden])', { timeout: 10000 });
-  check(true, 'connecting a free key opens the task box');
+  check(true, 'first launch opens straight to the task box (no key or setup questions)');
   await win.waitForSelector('#model-pill[data-state="ready"]', { timeout: 10000 });
-  check((await win.textContent('#model-pill')).includes('Online'), 'brain status shows Online');
+  check((await win.textContent('#model-pill')).includes('qwen2.5:7b'), 'brain status shows ready');
 
   const bridge = await win.evaluate(() => Object.keys(window.claw).join(','));
   check(!/token/i.test(bridge), 'renderer bridge exposes no token: ' + bridge);
@@ -153,8 +144,7 @@ try {
   // 4. Settings validation
   await win.click('#open-settings');
   await win.waitForSelector('#settings:not([hidden])');
-  check((await win.textContent('#brain-summary')).includes('Online with Google AI'), 'settings describe the brain in plain words');
-  check(!(await win.content()).includes(googleKey), 'the key is never shown back in the app');
+  check((await win.textContent('#brain-summary')).includes('developer model server'), 'settings describe the brain in plain words');
   await win.click('.dev > summary');
   await win.click('#s-test');
   await win.waitForFunction(() => document.querySelector('#s-test-result').dataset.tone === 'ok');
@@ -175,7 +165,7 @@ try {
   await win.fill('#task-input', 'Open my browser and search for motion graphics templates');
   await win.click('#run-btn');
   await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Failed', null, { timeout: 20000 });
-  check((await win.textContent('#summary-error')).includes('Could not reach Google AI'), 'internet/AI outage shown as a failure');
+  check((await win.textContent('#summary-error')).includes('Could not connect'), 'brain outage shown as a failure');
   await win.waitForSelector('#model-pill[data-state="failed"]', { timeout: 10000 });
   check(true, 'model chip updates to offline after the failure');
   await win.screenshot({ path: path.join(shotDir, '5-model-down.png') });

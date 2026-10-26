@@ -125,12 +125,12 @@ class ModelManager:
     def not_ready_message(self) -> tuple[str, str]:
         think = self.roles["think"]
         if self.ollama_reachable is False:
-            return ("Claw's model runner (Ollama) is not running.", "Install Ollama from ollama.com, or start it. Claw sets up the rest itself.")
+            return ("Claw's brain engine is not running.", "Restart Claw. If this keeps happening, reinstall Claw.")
         if think.status == "downloading":
             pct = int(100 * think.completed / think.total) if think.total else 0
-            return (f"Claw is still downloading its thinking model ({pct}%).", "Tasks can start as soon as the download finishes.")
+            return (f"Claw is still setting up its brain ({pct}%).", "Tasks can start as soon as this finishes.")
         if think.status == "failed":
-            return (f"Claw could not download its model: {think.error}", "Check the internet connection; Claw will try again.")
+            return (f"Claw could not set up its brain: {think.error}", "Claw will try again.")
         return ("Claw is getting its model ready.", "This happens once, on first use.")
 
     def summary(self) -> dict[str, Any]:

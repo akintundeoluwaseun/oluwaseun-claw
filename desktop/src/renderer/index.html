@@ -67,49 +67,7 @@
         <button class="btn btn-quiet btn-sm" id="error-dismiss" type="button">Dismiss</button>
       </div>
 
-      <!-- Welcome: choose how Claw thinks (shown once) -->
-      <section class="welcome" id="welcome" hidden aria-labelledby="welcome-title">
-        <svg class="welcome-mark" aria-hidden="true"><use href="#claw-mark"/></svg>
-        <h1 id="welcome-title">Welcome to Claw</h1>
-        <p class="home-sub">Choose how Claw thinks. Both are free, and you can switch later in Settings.</p>
-        <div class="choices">
-          <article class="choice" id="choice-online">
-            <div class="choice-head">
-              <h2>Online</h2>
-              <span class="badge" id="online-badge" hidden>Best for this computer</span>
-            </div>
-            <p class="choice-lede">Uses Google's AI with your own free key. Fast, and light on your computer.</p>
-            <ol class="choice-steps">
-              <li>
-                <span>Get a free key from Google. Sign in, then press <b>Create API key</b>.</span>
-                <a class="btn btn-quiet btn-sm" id="get-key" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Open Google AI Studio</a>
-              </li>
-              <li>
-                <span>Paste the key here.</span>
-                <div class="key-row">
-                  <label class="sr-only" for="key-input">Google AI key</label>
-                  <input id="key-input" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…">
-                  <button class="btn btn-primary" id="connect-key" type="button" disabled>Connect</button>
-                </div>
-                <p class="field-note" id="key-result"></p>
-              </li>
-            </ol>
-            <p class="choice-fine">Needs internet. Google's free tier has a daily limit and may use requests to improve its products, so use Offline for private documents.</p>
-          </article>
-          <article class="choice" id="choice-offline">
-            <div class="choice-head"><h2>Offline</h2></div>
-            <p class="choice-lede">Claw thinks on this computer. Private, no limits, works without internet.</p>
-            <ul class="choice-facts">
-              <li id="offline-fit"></li>
-              <li id="offline-size"></li>
-            </ul>
-            <button class="btn btn-quiet" id="use-offline" type="button">Use the offline brain</button>
-            <p class="choice-fine">Claw picks the right model for this computer and downloads it once. Heavier on memory than Online.</p>
-          </article>
-        </div>
-      </section>
-
-      <!-- Getting ready (offline brain downloading or its engine missing) -->
+      <!-- Getting ready (built-in brain being set up, or its engine not running) -->
       <section class="ready-card" id="ready-card" hidden aria-live="polite">
         <div class="ready-text">
           <h2 id="ready-title"></h2>
@@ -213,21 +171,6 @@
       <section class="set">
         <h3>Claw's brain</h3>
         <p class="set-note" id="brain-summary"></p>
-        <div class="brain-online" id="brain-online">
-          <div class="field">
-            <label for="s-key">Google AI key</label>
-            <div class="field-row">
-              <input id="s-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste a new key to replace the current one">
-              <button class="btn btn-quiet" id="s-key-save" type="button">Connect</button>
-            </div>
-            <p id="s-key-result" class="field-note"></p>
-          </div>
-        </div>
-        <div class="brain-actions">
-          <button class="btn btn-quiet btn-sm" id="switch-online" type="button">Switch to Online</button>
-          <button class="btn btn-quiet btn-sm" id="switch-offline" type="button">Switch to Offline</button>
-          <button class="btn btn-quiet btn-sm" id="disconnect-key" type="button">Remove key</button>
-        </div>
         <details class="dev">
           <summary>Developer: use a custom model server</summary>
           <label class="toggle"><input id="s-custom" type="checkbox"><span>Use the server below instead</span></label>

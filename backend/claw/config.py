@@ -65,11 +65,17 @@ def _is_loopback_host(host: str | None) -> bool:
 class ModelSettings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    # How Claw thinks. Chosen once on the welcome screen:
-    #   online  — Google AI with the user's own free key (stored encrypted, not in this file)
-    #   offline — built-in brain on this computer, models chosen and downloaded automatically
-    #   custom  — developer setting: the provider/address/model below
-    mode: Literal["unset", "online", "offline", "custom"] = "unset"
+    # How Claw thinks:
+    #   builtin — Claw's own brain on this computer; the model is chosen and set up automatically.
+    #   custom  — developer setting: the provider/address/model below.
+    mode: Literal["builtin", "custom"] = "builtin"
+
+    @field_validator("mode", mode="before")
+    @classmethod
+    def _old_modes(cls, value):
+        # Settings files from 0.3.0 may say unset/online/offline; all of those now mean builtin.
+        return "builtin" if value in ("unset", "online", "offline") else value
+
     provider: ProviderName = "ollama"
     base_url: str = DEFAULT_BASE_URLS["ollama"]
     model: str = Field(default="", max_length=200)
