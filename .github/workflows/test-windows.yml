@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   push:
     branches: ["claude/ecstatic-ritchie-x6ao14"]
-    paths: ["backend/**", ".github/workflows/test-windows.yml"]
+    paths: ["backend/**", "packaging/**", "scripts/**", ".github/workflows/test-windows.yml"]
 
 jobs:
   tests:
@@ -33,6 +33,31 @@ jobs:
       - name: Tesseract (OCR tests)
         shell: pwsh
         run: choco install tesseract -y --no-progress
+
+      - name: Installer script compiles
+        shell: pwsh
+        run: |
+          # Compiling the real claw.iss against a stand-in app folder catches a broken
+          # directive, preprocessor expression or [Code] block in about a minute, instead
+          # of twenty minutes into a build that has already downloaded a 6 GB brain.
+          choco install innosetup -y --no-progress
+          $app = Join-Path $env:RUNNER_TEMP 'fake-app'
+          New-Item -ItemType Directory -Force $app, (Join-Path $app 'resources') | Out-Null
+          'placeholder' | Out-File (Join-Path $app 'Oluwaseun Claw.exe')
+          $out = Join-Path $env:RUNNER_TEMP 'iss-out'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          foreach ($case in @('plain', 'split')) {
+            $args = @("/DEdition=Pro", "/DAppDir=$app", "/DVersion=9.9.9", "/DOutDir=$out")
+            if ($case -eq 'split') { $args += "/DSliceBytes=1992294400" }  # exercises the missing-part guard
+            & $iscc @args packaging\claw.iss | Tee-Object iss-$case.txt | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              $err = (Get-Content iss-$case.txt | Select-String -Pattern 'error' -CaseSensitive:$false | Select-Object -Last 5 | ForEach-Object { $_.Line.Trim() }) -join ' | '
+              Write-Output "::error title=claw.iss ($case) does not compile::$err"
+              exit 1
+            }
+          }
+          Write-Output "::notice title=Installer script::claw.iss compiles, plain and split"
 
       - name: Backend tests
         shell: pwsh
