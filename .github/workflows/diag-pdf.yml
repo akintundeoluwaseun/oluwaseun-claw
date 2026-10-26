@@ -4,6 +4,9 @@ name: Diag PDF text
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["claude/ecstatic-ritchie-x6ao14"]
+    paths: [".github/workflows/diag-pdf.yml", "backend/claw/documents/**", "backend/tests/test_documents.py"]
 
 jobs:
   diag:
