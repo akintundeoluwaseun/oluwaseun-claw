@@ -128,3 +128,47 @@ def test_history_search_covers_answers_and_errors(make_client, data_dir):
     db.update_task(t2, status="failed", error="Windows is locked")
     assert [t["id"] for t in c.get("/tasks", params={"q": "ekiti grand"}).json()["tasks"]] == [t1]
     assert [t["id"] for t in c.get("/tasks", params={"q": "locked"}).json()["tasks"]] == [t2]
+
+
+# ---------- cloud mode over the API ----------
+CLOUD = {"model": {"mode": "cloud", "base_url": "https://api.example.com/v1",
+                   "model": "hosted-model", "api_key": "sk-secret-value-123"}}
+
+
+def test_api_key_is_never_sent_to_the_page(make_client):
+    c = make_client(CLOUD)
+    body = c.get("/settings").json()["settings"]
+    assert body["model"]["api_key"] != "sk-secret-value-123"
+    assert body["model"]["api_key_set"] is True
+    assert "sk-secret-value-123" not in json.dumps(body)
+
+
+def test_saving_settings_without_touching_the_key_keeps_it(make_client):
+    c = make_client(CLOUD)
+    body = c.get("/settings").json()["settings"]
+    body["model"]["temperature"] = 0.5  # change something else and send it back verbatim
+    r = c.put("/settings", json=body)
+    assert r.status_code == 200
+    assert r.json()["settings"]["model"]["api_key_set"] is True
+    # The stored key is unchanged: the page never saw it, so it cannot have overwritten it.
+    again = c.get("/settings").json()["settings"]
+    assert again["model"]["api_key_set"] is True and again["model"]["temperature"] == 0.5
+
+
+def test_the_key_can_be_replaced_and_cleared(make_client):
+    c = make_client(CLOUD)
+    body = c.get("/settings").json()["settings"]
+    body["model"]["api_key"] = "sk-a-new-one"
+    assert c.put("/settings", json=body).status_code == 200
+    body = c.get("/settings").json()["settings"]
+    assert body["model"]["api_key_set"] is True
+    body["model"]["api_key"] = ""
+    assert c.put("/settings", json=body).status_code == 200
+    assert c.get("/settings").json()["settings"]["model"]["api_key_set"] is False
+
+
+def test_cloud_mode_reports_its_model_without_a_brain(make_client):
+    c = make_client(CLOUD)
+    assert c.get("/health").json()["status"] == "ok"
+    brain = c.get("/brain").json()
+    assert brain["mode"] == "cloud"  # no brain is installed, and none is needed

@@ -72,7 +72,8 @@ class AppState:
     async def think_adapter(self) -> ModelAdapter:
         """The model that plans and decides steps."""
         ms = self.settings.model
-        if ms.mode == "custom":
+        if ms.mode in ("custom", "cloud"):
+            # Cloud: a hosted model over the internet. No brain is downloaded, started or needed.
             return build_adapter(ms)
         return await self.brain.adapter(ms.selected, ms.request_timeout_s, ms.temperature)
 
@@ -82,7 +83,7 @@ class AppState:
 
     def model_label(self) -> str | None:
         ms = self.settings.model
-        if ms.mode == "custom":
+        if ms.mode in ("custom", "cloud"):
             return ms.model or None
         m = self.brain.active_model(ms.selected)
         return m.name if m else None
@@ -217,11 +218,30 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             "settings_ok": state.settings_error is None,
         }
 
+    KEY_KEPT = "__keep__"  # the page sends this back to mean "leave the saved key alone"
+
+    def _public_settings(settings) -> dict:
+        """Settings as the page may see them: the API key is never sent out in full."""
+        data = settings.model_dump(mode="json")
+        key = settings.model.api_key
+        data["model"]["api_key"] = (KEY_KEPT if key else "")
+        data["model"]["api_key_set"] = bool(key)
+        return data
+
+    def _restore_key(raw: dict, current) -> dict:
+        """A page that did not change the key sends the placeholder back; keep what is stored."""
+        model = raw.get("model")
+        if isinstance(model, dict):
+            model.pop("api_key_set", None)
+            if model.get("api_key") == KEY_KEPT:
+                model["api_key"] = current.model.api_key
+        return raw
+
     @app.get("/settings")
     async def get_settings():
         err = state.settings_error
         return {
-            "settings": state.settings.model_dump(mode="json"),
+            "settings": _public_settings(state.settings),
             "error": {"message": err.message, "details": err.problems} if err else None,
             "data_dir": str(state.data_dir),
         }
@@ -232,6 +252,8 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             raw = await request.json()
         except ValueError:
             return error_response(400, "bad_json", "The settings sent were not valid JSON.")
+        if isinstance(raw, dict):
+            raw = _restore_key(raw, state.settings)
         try:
             new_settings = SettingsStore.validate(raw)
         except ConfigError as exc:
@@ -239,8 +261,9 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         store.save(new_settings)
         state.settings = new_settings
         state.settings_error = None
-        log_event(log, "settings saved", provider=new_settings.model.provider, model=new_settings.model.model)
-        return {"settings": new_settings.model_dump(mode="json"), "error": None, "data_dir": str(state.data_dir)}
+        # mode and model only: the key is a credential and never reaches the log.
+        log_event(log, "settings saved", mode=new_settings.model.mode, model=new_settings.model.model)
+        return {"settings": _public_settings(new_settings), "error": None, "data_dir": str(state.data_dir)}
 
     @app.get("/models/status")
     async def model_status():

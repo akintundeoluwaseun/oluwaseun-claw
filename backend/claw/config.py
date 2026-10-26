@@ -68,8 +68,11 @@ class ModelSettings(BaseModel):
 
     # How Claw thinks:
     #   builtin — Claw's own brain on this computer; the model is chosen and set up automatically.
+    #   cloud   — a hosted model over the internet: no brain is downloaded or run locally.
     #   custom  — developer setting: the provider/address/model below.
-    mode: Literal["builtin", "custom"] = "builtin"
+    # "cloud", not "online": settings files from 0.3.0 use "online" for something else and
+    # are still migrated to builtin below.
+    mode: Literal["builtin", "cloud", "custom"] = "builtin"
     selected: str | None = Field(default=None, max_length=80)  # None: Claw picks the best installed brain
     idle_unload_minutes: int = Field(default=10, ge=1, le=240)  # free memory when Claw is quiet
 
@@ -87,6 +90,17 @@ class ModelSettings(BaseModel):
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     # Remote model servers are off by default: this app is local-first.
     allow_remote_server: bool = False
+    # Cloud mode only. Kept out of logs and masked by the API; it is the user's credential.
+    api_key: str = Field(default="", max_length=400, repr=False)
+
+    @model_validator(mode="after")
+    def _cloud_needs_an_address_and_model(self) -> "ModelSettings":
+        if self.mode == "cloud":
+            if urlparse(self.base_url).scheme != "https":
+                raise ValueError("an online model needs an https address")
+            if not self.model.strip():
+                raise ValueError("choose which online model to use")
+        return self
 
     @field_validator("base_url")
     @classmethod
@@ -108,6 +122,10 @@ class ModelSettings(BaseModel):
     @model_validator(mode="after")
     def _local_only_unless_allowed(self) -> "ModelSettings":
         host = urlparse(self.base_url).hostname
+        # Choosing "cloud" is itself the decision to use a server elsewhere, so it does not
+        # also need the developer switch. Every other mode stays local unless it is turned on.
+        if self.mode == "cloud":
+            return self
         if not self.allow_remote_server and not _is_loopback_host(host):
             raise ValueError(
                 f"model server address '{self.base_url}' is not on this computer. "

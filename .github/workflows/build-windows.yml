@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       edition:
-        description: "Edition (Standard = 4B brain, ~3.6 GB; Pro = 8B brain, ~6.5 GB)"
+        description: "Standard = 4B brain (~3.4 GB, 3 files); Pro = 8B brain (~6 GB, 5 files); Lite = one file, no brain"
         type: choice
-        options: [Standard, Pro]
+        options: [Standard, Pro, Lite]
         default: Standard
   push:
     tags: ["v*"]
@@ -68,6 +68,7 @@ jobs:
           Write-Output "::notice title=Windows test results::$sum"
 
       - name: Download the brain (licence + checksum verified)
+        if: env.EDITION != 'Lite'
         run: |
           $id = if ($env:EDITION -eq 'Pro') { 'qwen3-vl-8b' } else { 'qwen3-vl-4b' }
           $log = "$env:RUNNER_TEMP\brain.log"
@@ -90,7 +91,13 @@ jobs:
           Write-Output "::notice title=Disk before build::$free"
           $log = "$env:RUNNER_TEMP\build.log"
           try {
-            ./scripts/build-release.ps1 -Edition $env:EDITION -ModelDir $env:MODEL_DIR -SliceMB 1900 *>&1 | Tee-Object -FilePath $log
+            if ($env:EDITION -eq 'Lite') {
+              # One file on purpose: no brain inside, so nothing has to be split across
+              # several .bin parts. Claw fetches a brain, or uses a hosted model, after install.
+              ./scripts/build-release.ps1 -Edition Standard -NoBrain *>&1 | Tee-Object -FilePath $log
+            } else {
+              ./scripts/build-release.ps1 -Edition $env:EDITION -ModelDir $env:MODEL_DIR -SliceMB 1900 *>&1 | Tee-Object -FilePath $log
+            }
             if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
           } catch {
             # Prefer the lines that say what went wrong: electron-builder prints dozens of
@@ -147,7 +154,8 @@ jobs:
         run: |
           $version = (Get-Content desktop\package.json | ConvertFrom-Json).version
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "v$version-build.$env:GITHUB_RUN_NUMBER" }
-          $files = Get-ChildItem build\installers | Where-Object { $_.Name -like "*$env:EDITION*" -or $_.Name -eq 'SHA256SUMS.txt' } | ForEach-Object FullName
+          $match = if ($env:EDITION -eq 'Lite') { '*Standard-NoBrain*' } else { "*$env:EDITION*" }
+          $files = Get-ChildItem build\installers | Where-Object { $_.Name -like $match -or $_.Name -eq 'SHA256SUMS.txt' } | ForEach-Object FullName
           $notes = @"
           Oluwaseun Claw $version ($env:EDITION edition), built on GitHub's Windows machines from commit $env:GITHUB_SHA.
 
