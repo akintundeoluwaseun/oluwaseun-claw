@@ -1,6 +1,7 @@
 """Browser tools against a real Chromium and the local test site."""
 
 import asyncio
+import sys
 from pathlib import Path
 
 import pytest
@@ -117,7 +118,15 @@ async def test_save_links_needs_authorized_folder(tool_ctx):
 
 
 async def test_history_of_agent_browser(tool_ctx, site):
-    """Real Chromium history: visit pages, close the browser so it flushes, then search."""
+    """Real Chromium history: visit pages, close the browser so it flushes, then search.
+
+    Headless Chromium writes no History database at all on Windows (measured on a
+    runner: headless gave 50 profile files and no History, headful 156 with one),
+    while headless on Linux does. So the browser is made visible on Windows only --
+    which is also Claw's own default, so this is the shipped configuration either way.
+    """
+    if sys.platform == "win32":
+        tool_ctx.settings.browser.headless = False
     await call(tool_ctx, "open_url", url=site.base_url + "/articles/ai-video")
     await call(tool_ctx, "open_url", url=site.base_url + "/articles/cooking")
     await tool_ctx.browser.close()

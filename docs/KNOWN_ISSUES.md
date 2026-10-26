@@ -28,3 +28,17 @@
 
 ## Fixed in this version (for reference)
 See `TEST_RESULTS.md` → "Bugs found and fixed in this cycle".
+
+## Claw's own browsing history is not kept in headless mode on Windows
+
+Chromium writes no History database at all when it runs hidden on Windows.
+Measured on a Windows runner with one persistent profile: headless produced 50
+profile files and no `Default\History`; the same run with a visible browser
+produced 156 files including it. Headless on Linux does write it, which is why
+this only ever showed up on Windows.
+
+Effect: with **Settings → Browser → run hidden** turned on, on Windows,
+`search_browser_history(source="claw")` finds nothing. Claw now says exactly
+that instead of "no browsing history was found". Reading Chrome's or Edge's own
+history is unaffected, and so is the default configuration, because Claw runs
+the browser visibly unless you change it.

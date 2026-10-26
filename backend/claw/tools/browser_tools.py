@@ -10,6 +10,8 @@ from pydantic import Field
 
 from claw.agent.schemas import Capability
 from claw.browser import extract
+import sys
+
 from claw.browser.history import HISTORY_SOURCES, history_path, search_history
 from claw.browser.session import validate_web_url
 from claw.permissions.policy import RiskLevel
@@ -210,7 +212,16 @@ class HistoryArgs(ToolArgs):
 async def search_browser_history(args: HistoryArgs, ctx: ToolContext) -> ToolResult:
     if args.source not in HISTORY_SOURCES:
         raise ToolError(f"Unknown browser '{args.source}'. Use one of: {', '.join(HISTORY_SOURCES)}.")
-    rows = search_history(history_path(args.source, ctx.data_dir), args.phrase, args.days)
+    try:
+        rows = search_history(history_path(args.source, ctx.data_dir), args.phrase, args.days)
+    except ToolError:
+        # Chromium keeps no history database in headless mode on Windows, so Claw's own
+        # history is genuinely absent there rather than merely unread. Say which it is.
+        if args.source == "claw" and ctx.settings.browser.headless and sys.platform == "win32":
+            raise ToolError(
+                "Claw keeps no browsing history while the browser is hidden on Windows.",
+            ) from None
+        raise
     _remember(ctx, [r["url"] for r in rows])
     text = "\n".join(f"- {r['last_visit']}  {r['title']} — {r['url']}" for r in rows)
     return ToolResult(
