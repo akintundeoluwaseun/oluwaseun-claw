@@ -172,3 +172,31 @@ def test_cloud_mode_reports_its_model_without_a_brain(make_client):
     assert c.get("/health").json()["status"] == "ok"
     brain = c.get("/brain").json()
     assert brain["mode"] == "cloud"  # no brain is installed, and none is needed
+
+
+def test_testing_a_connection_does_not_need_the_key_retyped(make_client, monkeypatch):
+    """The page never has the key, so 'Test connection' sends the placeholder back."""
+    seen = {}
+
+    class Probe:
+        provider = "openai_compatible"
+        api_key = ""
+
+        def __init__(self, **kw):
+            pass
+
+        async def status(self):
+            from claw.models.base import ModelStatus
+
+            seen["key"] = self.api_key
+            return ModelStatus(server_reachable=True, model_available=True, provider="openai_compatible",
+                               base_url="https://api.example.com/v1", model="hosted-model",
+                               message="", available_models=["m"])
+
+    monkeypatch.setitem(__import__("claw.models.registry", fromlist=["_ADAPTERS"])._ADAPTERS,
+                        "openai_compatible", Probe)
+    c = make_client(CLOUD)
+    body = dict(CLOUD["model"], api_key="__keep__")
+    r = c.post("/models/probe", json=body)
+    assert r.status_code == 200
+    assert seen["key"] == "sk-secret-value-123"  # resolved, not sent as the placeholder

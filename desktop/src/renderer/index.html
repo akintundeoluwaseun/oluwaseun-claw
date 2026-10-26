@@ -235,6 +235,40 @@
     <form id="settings-form" class="sheet-body" novalidate>
       <section class="set">
         <h3>Claw's brain</h3>
+        <div class="field">
+          <label for="s-think">Where Claw thinks</label>
+          <select id="s-think">
+            <option value="builtin">On this computer — Claw's own brain, works offline</option>
+            <option value="cloud">Online — a hosted model, needs the internet</option>
+          </select>
+        </div>
+
+        <div id="cloud-box" hidden>
+          <p class="set-note">Claw sends your instructions and what it reads to this service. Nothing is
+            downloaded to this computer, and the built-in brain is not used.</p>
+          <div class="field">
+            <label for="s-cloud-url">Address</label>
+            <input id="s-cloud-url" type="url" spellcheck="false" autocomplete="off"
+                   placeholder="https://api.example.com/v1">
+            <p class="field-note">Must start with https:// so your key is not sent in the clear.</p>
+          </div>
+          <div class="field">
+            <label for="s-cloud-model">Model</label>
+            <input id="s-cloud-model" spellcheck="false" autocomplete="off" placeholder="the model's name">
+          </div>
+          <div class="field">
+            <label for="s-cloud-key">API key</label>
+            <div class="field-row">
+              <input id="s-cloud-key" type="password" spellcheck="false" autocomplete="off"
+                     placeholder="paste your key">
+              <button class="btn btn-quiet" id="s-cloud-test" type="button">Test connection</button>
+            </div>
+            <p class="field-note" id="s-cloud-key-note"></p>
+          </div>
+          <p id="s-cloud-result" class="field-note" aria-live="polite"></p>
+        </div>
+
+        <div id="brain-box">
         <p class="set-note" id="brain-summary"></p>
         <div class="engine-line" id="engine-line"></div>
         <ul class="brains" id="brain-list" aria-label="Brains"></ul>
@@ -246,6 +280,7 @@
         <div class="brain-more">
           <button class="btn btn-quiet btn-sm" id="brain-import" type="button"><svg aria-hidden="true"><use href="#i-upload"/></svg>Use a GGUF file I have</button>
           <button class="btn btn-quiet btn-sm" id="brain-restart" type="button">Restart the brain</button>
+        </div>
         </div>
         <details class="dev">
           <summary>Developer: use a custom model server</summary>

@@ -162,7 +162,7 @@ async function refreshModelStatus() {
     const s = res.body;
     state.modelReady = s.model_available;
     const mode = s.mode;
-    if (s.model_available) setChip('model-pill', 'ready', mode === 'custom' ? s.model : 'Brain ready', s.message);
+    if (s.model_available) setChip('model-pill', 'ready', mode === 'builtin' ? 'Brain ready' : s.model, s.message);
     else if (!s.server_reachable) setChip('model-pill', 'failed', 'Brain not running', s.message);
     else setChip('model-pill', 'missing', 'Getting ready', s.message);
   }
@@ -278,7 +278,9 @@ function renderBrainSettings() {
   if (!b) return;
   $('brain-summary').textContent = b.mode === 'custom'
     ? 'Using a developer model server (below). Switch it off to use the built-in brain.'
-    : `Runs entirely on this computer (${b.hardware_text}). No account, no key, nothing sent online.`;
+    : b.mode === 'cloud'
+      ? 'Using a hosted model over the internet. The built-in brain is not running.'
+      : `Runs entirely on this computer (${b.hardware_text}). No account, no key, nothing sent online.`;
   const eng = b.engine;
   const line = $('engine-line');
   line.dataset.state = !eng.available ? 'failed' : eng.state;
@@ -369,7 +371,7 @@ async function importBrain() {
 
 function renderContext() {
   const mode = state.settings?.model?.mode;
-  const m = mode === 'custom' ? state.settings?.model?.model : state.brain?.active?.name || 'Built-in brain';
+  const m = mode === 'builtin' ? (state.brain?.active?.name || 'Built-in brain') : state.settings?.model?.model;
   const folders = state.settings?.permissions?.authorized_folders || [];
   const mc = $('ctx-model');
   mc.querySelector('span').textContent = state.modelReady ? m : `${m} · getting ready`;
@@ -991,8 +993,28 @@ async function loadSettings() {
 
 const DEFAULT_URLS = { ollama: 'http://127.0.0.1:11434', openai_compatible: 'http://127.0.0.1:8080' };
 
+const KEY_KEPT = '__keep__';  // the backend's placeholder: "leave the saved key alone"
+
+function applyThinkMode() {
+  const cloud = $('s-think').value === 'cloud';
+  $('cloud-box').hidden = !cloud;
+  $('brain-box').hidden = cloud;
+}
+
 function fillSettingsForm(s) {
   $('s-custom').checked = s.model.mode === 'custom';
+  $('s-think').value = s.model.mode === 'cloud' ? 'cloud' : 'builtin';
+  applyThinkMode();
+  // Cloud fields. The key is never sent to this page, so the box starts empty and
+  // says whether one is stored; leaving it empty keeps whatever is saved.
+  $('s-cloud-url').value = s.model.mode === 'cloud' ? s.model.base_url : '';
+  $('s-cloud-model').value = s.model.mode === 'cloud' ? s.model.model : '';
+  $('s-cloud-key').value = '';
+  $('s-cloud-key').placeholder = s.model.api_key_set ? 'A key is saved' : 'paste your key';
+  $('s-cloud-key-note').textContent = s.model.api_key_set
+    ? 'A key is saved. Leave this blank to keep it, or type a new one to replace it.'
+    : 'Stored on this computer only, and never shown again once saved.';
+  $('s-cloud-result').textContent = '';
   renderBrainSettings();
   $('s-provider').value = s.model.provider;
   $('s-base-url').value = s.model.base_url;
@@ -1029,11 +1051,28 @@ function fillSettingsForm(s) {
   $('settings-error').hidden = true;
 }
 
+function readCloudKey() {
+  const typed = $('s-cloud-key').value;
+  if (typed) return typed;                              // replacing it
+  return state.settings?.model?.api_key_set ? KEY_KEPT : '';  // keeping it, or none
+}
+
 function readModelForm() {
+  if ($('s-think').value === 'cloud') {
+    return {
+      ...(state.settings?.model || {}),
+      mode: 'cloud',
+      provider: 'openai_compatible',
+      base_url: $('s-cloud-url').value.trim(),
+      model: $('s-cloud-model').value.trim(),
+      api_key: readCloudKey(),
+    };
+  }
   const mode = $('s-custom').checked ? 'custom' : 'builtin';
   return {
     ...(state.settings?.model || {}),
     mode,
+    api_key: readCloudKey(),
     provider: $('s-provider').value,
     base_url: $('s-base-url').value.trim(),
     model: $('s-model').value.trim(),
@@ -1109,6 +1148,38 @@ function defaultSettings() {
     model: { mode: 'builtin', provider: 'openai_compatible', base_url: DEFAULT_URLS.openai_compatible, model: '', request_timeout_s: 120, temperature: 0.2, allow_remote_server: false },
     permissions: { modes: { read_only: 'allow', local_write: 'ask', external: 'ask', destructive: 'ask' }, authorized_folders: [] },
   };
+}
+
+async function testCloudConnection() {
+  const note = $('s-cloud-result');
+  note.dataset.tone = '';
+  const url = $('s-cloud-url').value.trim();
+  const model = $('s-cloud-model').value.trim();
+  if (!url.startsWith('https://')) {
+    note.dataset.tone = 'bad';
+    note.textContent = 'The address must start with https:// so your key is not sent in the clear.';
+    return;
+  }
+  if (!model) {
+    note.dataset.tone = 'bad';
+    note.textContent = 'Say which model to use.';
+    return;
+  }
+  note.textContent = 'Checking…';
+  $('s-cloud-test').disabled = true;
+  const res = await api.api('POST', '/models/probe', { ...readModelForm(), mode: 'cloud' });
+  $('s-cloud-test').disabled = false;
+  if (!res.ok) {
+    note.dataset.tone = 'bad';
+    const e = res.body?.error || {};
+    note.textContent = [e.message, ...(e.details || [])].filter(Boolean).join(' ');
+    return;
+  }
+  const r = res.body;
+  note.dataset.tone = r.model_available ? 'ok' : 'bad';
+  note.textContent = r.model_available
+    ? `Connected. ${model} answered.`
+    : r.message || 'Connected, but that model was not available.';
 }
 
 async function testConnection() {
@@ -1203,6 +1274,8 @@ function wire() {
     }
   });
   $('doc-ask').addEventListener('click', askAboutDoc);
+  $('s-think').addEventListener('change', applyThinkMode);
+  $('s-cloud-test').addEventListener('click', testCloudConnection);
   $('brain-import').addEventListener('click', importBrain);
   $('brain-restart').addEventListener('click', async () => {
     $('brain-restart').disabled = true;

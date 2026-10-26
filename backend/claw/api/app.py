@@ -517,7 +517,12 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     async def probe_models(request: Request):
         """Check an unsaved model configuration (used by Settings → Test connection)."""
         try:
-            candidate = ModelSettings.model_validate(await request.json())
+            raw = await request.json()
+            # Testing a connection without retyping the key: the page sends the placeholder
+            # back, exactly as it does when saving, so resolve it to the stored one.
+            if isinstance(raw, dict):
+                raw = _restore_key({"model": raw}, state.settings)["model"]
+            candidate = ModelSettings.model_validate(raw)
         except ValidationError as exc:
             return error_response(422, "invalid_settings", "Model settings are not valid.", details=describe_validation_error(exc))
         except ValueError:
