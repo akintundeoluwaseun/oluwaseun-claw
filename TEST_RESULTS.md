@@ -1,5 +1,49 @@
 # Test results
 
+## Batch 4 — 26 October 2026
+
+**Environment:** as Batch 3 (Linux workspace, Electron 45 under Xvfb, Chromium 153).
+**Stand-ins:** model replies are scripted (TEST DOUBLE). Browser, local test website (now with a
+business-directory page that contains an injection attempt), files, Word/Excel/PDF libraries,
+database, permissions and the Electron app are real.
+
+| Command | Result |
+|---|---|
+| `xvfb-run python -m pytest -q` | **123 passed** |
+| `npm run check` / `npm test` | pass / **3 passed** |
+| `scripts/check.sh` end-to-end | **39/39 checks passed** |
+
+### Batch 4 acceptance — what was demonstrated
+| Criterion | Evidence |
+|---|---|
+| Research a topic and save a report with source links | search → open 2 results → read → Word report citing both URLs (`test_research_and_save_report_with_sources`) |
+| Find selected files and produce a summary | find newest PDF → read it → write summary file (`test_find_files_and_summarize`) |
+| Extract data from a controlled page into a spreadsheet | directory page → read → xlsx with 3 rows, 12/12 values matched (`test_extract_webpage_to_spreadsheet_and_injection_guard`, e2e 3d) |
+| Navigate a supported application and save a document | Notepad flow on the stand-in desktop (Batch 3 test) |
+| Stop safely when a permission is denied | declined approvals and "Never" settings stop with nothing written (Batch 2–3 tests) |
+| No endless loops / repeated destructive actions | step limit, repeat detection, 3-failure stop after 2 re-plans (`test_failures_replan_then_stop_when_budget_spent`) |
+| No concealed failures | outcome counts from recorded steps; failed steps shown and counted |
+| Recovery after backend error | agent process killed during e2e → app restarted it, history intact |
+
+### Other checks added
+- Reading PDF (generated in the test), Word (with table) and Excel; unsupported types refused.
+- Reports refuse sources that weren't opened; Markdown and Word variants; no overwrite.
+- Spreadsheet: unseen values counted and named, formula-like cell stored as text, CSV with BOM,
+  row width checked.
+- Edit: ambiguous/missing text refused before approval, backup identical to original.
+- Injection: page text flagged; a save normally allowed without asking was asked; warning in
+  outcome. Reading web content made a non-consequential web click ask.
+- Re-planning recovered a task after two failed guesses.
+- UI: files card, "Run again", app refuses to open a file that isn't a task output.
+- History search finds words in answers and errors.
+
+### Bugs found and fixed
+- The e2e crash test's process match also matched the test runner's own shell; it now matches
+  the exact backend Python path.
+
+### Not run
+- Real model, Windows 10, Windows UI Automation, opening files with the Windows shell.
+
 ## Batch 3 + brain + interface — 25 October 2026
 
 **Environment:** Linux workspace (no Windows), Python 3.13.17, Node 22.23.4, Electron 45.0.0 under

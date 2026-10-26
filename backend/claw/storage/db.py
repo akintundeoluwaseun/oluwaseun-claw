@@ -145,9 +145,10 @@ class Database:
         sql = "SELECT * FROM tasks"
         params: list[Any] = []
         if query:
-            sql += " WHERE task_text LIKE ? ESCAPE '\\'"
+            # Search what was asked, what Claw answered, and what went wrong.
+            sql += " WHERE task_text LIKE ? ESCAPE '\\' OR result_json LIKE ? ESCAPE '\\' OR error LIKE ? ESCAPE '\\'"
             escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-            params.append(f"%{escaped}%")
+            params += [f"%{escaped}%"] * 3
         sql += " ORDER BY created_at DESC LIMIT ?"
         params.append(limit)
         with self._lock:

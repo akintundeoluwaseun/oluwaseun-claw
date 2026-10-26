@@ -8,7 +8,7 @@
 // If Playwright's own Chromium is not installed, set CLAW_BROWSER_EXECUTABLE.
 
 import { _electron as electron } from 'playwright-core';
-import { spawn } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -140,6 +140,39 @@ try {
   const deskDetail = await win.textContent('#activity .tl-item[data-tone="bad"] .tl-detail');
   check(/Windows only|locked|not available/.test(deskDetail), `desktop step failure explained: "${deskDetail}"`);
   check((await win.textContent('#summary-counts')).includes('1 failed'), 'failed desktop step counted as failed');
+
+  // 3d. Web page → spreadsheet, with an injection attempt on the page
+  await win.click('#new-task');
+  await win.fill('#task-input', 'Collect the businesses on the directory page into a spreadsheet');
+  await win.click('#run-btn');
+  await win.waitForSelector('#approval-card:not([hidden])', { timeout: 30000 });
+  check((await win.textContent('#approval-title')).includes('make a spreadsheet'), 'asks before making the spreadsheet');
+  check((await win.textContent('#activity')).includes('tried to give it orders'), 'injection attempt flagged in the timeline');
+  await win.click('#approve-btn');
+  await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Finished', null, { timeout: 30000 });
+  await win.waitForSelector('#summary-files:not([hidden]) .file-row', { timeout: 5000 });
+  check((await win.textContent('.file-name')) === 'ado ekiti businesses.xlsx', 'outcome lists the spreadsheet Claw made');
+  check((await win.textContent('.file-meta')).includes('checked'), 'file marked as checked');
+  check(!(await win.isHidden('#summary-warnings')), 'outcome warns that a page tried to give orders');
+  check(fs.existsSync(path.join(saveDir, 'ado ekiti businesses.xlsx')), 'spreadsheet exists on disk');
+  const taskId = await win.evaluate(() => document.querySelector('#history-list .history-item[aria-current="true"]').dataset.id);
+  const sneaky = await win.evaluate((id) => window.claw.openOutput(id, '/etc/passwd', 'open'), taskId);
+  check(sneaky.ok === false, 'the app refuses to open files Claw did not make');
+  check(!(await win.isHidden('#run-again')), 'finished task offers Run again');
+  await win.screenshot({ path: path.join(shotDir, '7-spreadsheet.png') });
+
+  // 3e. The agent process crashes: the app restarts it by itself (Linux/macOS test only)
+  if (!isWin) {
+    const ps = execSync('ps -eo pid=,args=').toString().split('\n');
+    const victims = ps.filter((l) => l.includes(python) && l.includes('-m claw' + '.main')).map((l) => Number(l.trim().split(/\s+/)[0]));
+    check(victims.length === 1, 'found the running agent process');
+    process.kill(victims[0], 'SIGKILL');
+    await win.waitForSelector('#backend-pill[data-state="starting"], #backend-pill[data-state="failed"]', { timeout: 10000 });
+    await win.waitForSelector('#backend-pill[data-state="ready"]', { timeout: 30000 });
+    check(true, 'crashed agent restarted automatically');
+    await win.waitForFunction(() => document.querySelectorAll('#history-list .history-item').length >= 6, null, { timeout: 10000 });
+    check(true, 'task history survives the restart');
+  }
 
   // 4. Settings validation
   await win.click('#open-settings');

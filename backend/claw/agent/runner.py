@@ -115,7 +115,8 @@ class TaskRunner:
             db.update_task(task_id, status="running", plan=plan_json)
             emit("planned", {"steps": len(plan.steps)})
             plan_text = "\n".join(f"{s.index}. {s.description}" for s in plan.steps)
-            outcome = await run_agent(task_text, plan_text, adapter, state.registry, ctx, emit, request_approval)
+            caps = {s.capability.value for s in plan.steps} - {"reasoning"}
+            outcome = await run_agent(task_text, plan_text, adapter, state.registry, ctx, emit, request_approval, caps or None)
             db.update_task(task_id, status=outcome.status, error=outcome.error, result=outcome.summary())
             emit("task_" + outcome.status, {"error": outcome.error} if outcome.error else {})
             log_event(log, "task ended", task_id=task_id, status=outcome.status, steps=len(outcome.steps))

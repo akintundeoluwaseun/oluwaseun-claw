@@ -31,7 +31,7 @@ def files(tool_ctx, tmp_path):
 async def test_list_and_read(tool_ctx, files):
     listing = await call(tool_ctx, "list_folder")
     assert "Downloads/" in listing.untrusted_text and "notes.txt" in listing.untrusted_text
-    r = await call(tool_ctx, "read_text_file", path=str(files / "notes.txt"))
+    r = await call(tool_ctx, "read_file", path=str(files / "notes.txt"))
     assert r.untrusted_text == "Call Mr. Ade at 4pm"
 
 
@@ -42,8 +42,8 @@ async def test_find_newest_pdf_first(tool_ctx, files):
 
 async def test_refuses_outside_and_binary(tool_ctx, files, tmp_path):
     with pytest.raises(ToolError, match="not allowed"):
-        await call(tool_ctx, "read_text_file", path=str(tmp_path / "secret.txt"))
-    with pytest.raises(ToolError, match="text files only"):
-        await call(tool_ctx, "read_text_file", path=str(files / "photo.jpg"))
+        await call(tool_ctx, "read_file", path=str(tmp_path / "secret.txt"))
+    with pytest.raises(ToolError, match="isn't supported"):
+        await call(tool_ctx, "read_file", path=str(files / "photo.jpg"))
     with pytest.raises(ToolError, match="not allowed"):
         await call(tool_ctx, "list_folder", folder=str(files / ".." ))

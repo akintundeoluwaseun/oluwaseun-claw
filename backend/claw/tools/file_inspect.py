@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from datetime import datetime
 from pathlib import Path
@@ -9,14 +10,10 @@ from pathlib import Path
 from pydantic import Field
 
 from claw.agent.schemas import Capability
+from claw.documents.readers import read_document
 from claw.permissions.policy import PathNotAuthorized, RiskLevel
 from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec
 
-TEXT_TYPES = {
-    ".txt", ".md", ".csv", ".tsv", ".json", ".log", ".xml", ".html", ".htm", ".css", ".js", ".ts", ".py",
-    ".ini", ".cfg", ".yaml", ".yml", ".toml", ".sql", ".srt", ".vtt", ".rtf",
-}
-MAX_READ_BYTES = 2_000_000
 SKIP_DIRS = {"node_modules", ".git", "__pycache__", "$recycle.bin", "system volume information", "appdata"}
 
 
@@ -65,24 +62,12 @@ class ReadArgs(ToolArgs):
     max_chars: int = Field(default=20000, ge=100, le=100000)
 
 
-async def read_text_file(args: ReadArgs, ctx: ToolContext) -> ToolResult:
+async def read_file(args: ReadArgs, ctx: ToolContext) -> ToolResult:
     path = _authorized(ctx, args.path)
     if not path.is_file():
         raise ToolError(f"'{path}' is not a file.")
-    if path.suffix.lower() not in TEXT_TYPES:
-        raise ToolError(f"Claw can read text files only for now; '{path.suffix or 'no extension'}' is not supported yet.")
-    size = path.stat().st_size
-    if size > MAX_READ_BYTES:
-        raise ToolError(f"The file is too large to read ({size:,} bytes).")
-    raw = path.read_bytes()
-    for enc in ("utf-8-sig", "utf-16", "cp1252"):
-        try:
-            text = raw.decode(enc)
-            break
-        except UnicodeDecodeError:
-            continue
-    else:
-        raise ToolError("The file's text encoding could not be read.")
+    text = await asyncio.to_thread(read_document, path)
+    ctx.memory.seen_files.add(str(path))
     cut = len(text) > args.max_chars
     return ToolResult(True, f"Read {path.name} ({len(text):,} characters{', first part only' if cut else ''}).",
                       {"path": str(path), "chars": len(text), "truncated": cut}, True, untrusted_text=text[: args.max_chars])
@@ -131,5 +116,5 @@ async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:
 def register_file_inspect_tools(reg: ToolRegistry) -> None:
     F, R = Capability.FILES, RiskLevel.READ_ONLY
     reg.register(ToolSpec("list_folder", "List what is in an authorized folder.", F, R, FolderArgs, list_folder))
-    reg.register(ToolSpec("read_text_file", "Read a text file (txt, md, csv, json, html…) in an authorized folder.", F, R, ReadArgs, read_text_file))
+    reg.register(ToolSpec("read_file", "Read a file in an authorized folder: text, PDF, Word (.docx) or Excel (.xlsx).", F, R, ReadArgs, read_file))
     reg.register(ToolSpec("find_files", "Find files by name or type inside authorized folders, newest first.", F, R, FindArgs, find_files))

@@ -19,10 +19,23 @@ Also done in this stage at the user's request: premium redesign, quick bar, tray
 background mode, Online/Offline brain with automatic model choice.
 Carried over: run docs/DESKTOP.md checklist on Windows 10.
 
-## Batch 4 — Multi-step autonomy
+## Batch 4 — Multi-step autonomy ✅ (scripted model; real browser, files, app)
+Done: re-planning, document readers/writers, spreadsheet provenance, edit with backup, taint +
+injection guard, crash auto-restart, run again, files card, wider history search. Online
+mode removed at the user's request. Task history, settings, permissions, progress and
+cancellation already existed from Batches 1–2.
+
+### (original Batch 4 notes)
 Replanning, verification after key actions, searchable logs, file/doc/spreadsheet tools,
 untrusted-content isolation, recovery after backend restart, multi-step task tests.
 
 ## Batch 5 — Security, packaging, release
-Dependency/model license audit, IPC review, path/overwrite safeguards, PyInstaller-built backend
-bundled with electron-builder NSIS installer, clean-VM install test, manuals, release checklist.
+Decided with the user: **the brain ships inside the installer**; no keys, no downloads.
+1. Bundle llama.cpp `llama-server` (Windows x64 builds: CPU AVX2, and CUDA/Vulkan if feasible) and
+   start it from the backend on 127.0.0.1 with a random port; replace the Ollama dependency.
+2. Choose model files whose licence allows redistribution; decide installer sizes (per-size
+   installers or one large installer). Measure speed/memory on real 8 GB and 16 GB laptops.
+3. Package the Python backend (embedded Python or PyInstaller) and Electron with electron-builder
+   (NSIS). Test install, upgrade, uninstall, settings persistence on a clean Windows 10.
+4. Full dependency licence scan; notices in the installer. Code signing if a certificate exists.
+5. Manuals (user, developer, limitations), release checklist, known defects.

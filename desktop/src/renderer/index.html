@@ -136,9 +136,17 @@
           <h3 id="outcome-title">Outcome</h3>
           <p id="summary-counts" class="outcome-counts"></p>
           <p id="summary-error" class="outcome-error"></p>
+          <div id="summary-warnings" class="outcome-warnings" hidden></div>
+          <div id="summary-files" class="outcome-files" hidden>
+            <h4>Files Claw made</h4>
+            <ul id="files-list" class="files-list"></ul>
+          </div>
           <div id="summary-answer-wrap" class="outcome-answer">
             <p class="outcome-note">Claw's summary, in its own words. Check it against the steps above.</p>
             <p id="summary-answer"></p>
+          </div>
+          <div class="outcome-actions">
+            <button class="btn btn-quiet btn-sm" id="run-again" type="button" hidden>Run this task again</button>
           </div>
         </section>
 

@@ -1,6 +1,6 @@
 [project]
 name = "oluwaseun-claw-backend"
-version = "0.3.0"
+version = "0.4.0"
 description = "Local agent runtime for Oluwaseun Claw, a local-first Windows computer-control agent"
 requires-python = ">=3.11"
 license = { text = "MIT" }

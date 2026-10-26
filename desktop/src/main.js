@@ -289,6 +289,22 @@ ipcMain.handle('claw:restart-backend', async (event) => {
   await startBackend(true);
   return backend.status;
 });
+// Open a file Claw made, or show it in File Explorer. Only paths recorded as outputs of
+// that task are accepted, so the page can't ask the main process to open arbitrary files.
+ipcMain.handle('claw:open-output', async (event, taskId, filePath, how) => {
+  if (!senderIs(event, mainWindow)) return { ok: false };
+  if (typeof taskId !== 'string' || !/^[0-9a-f]{32}$/.test(taskId) || typeof filePath !== 'string') return { ok: false };
+  const res = await backend.request('GET', `/tasks/${taskId}`);
+  const files = (res.ok && res.body.result && res.body.result.files) || [];
+  if (!files.some((f) => f.path === filePath)) return { ok: false, message: 'That file is not one Claw made in this task.' };
+  if (!require('node:fs').existsSync(filePath)) return { ok: false, message: 'The file is no longer there.' };
+  if (how === 'show') {
+    shell.showItemInFolder(filePath);
+    return { ok: true };
+  }
+  const err = await shell.openPath(filePath);
+  return err ? { ok: false, message: err } : { ok: true };
+});
 ipcMain.handle('claw:shortcut', (event) => (fromOurWindows(event) ? QUICK_SHORTCUT.replace('CommandOrControl', 'Ctrl') : ''));
 ipcMain.handle('claw:stop-shortcut', (event) => (fromOurWindows(event) ? STOP_SHORTCUT.replace('CommandOrControl', 'Ctrl') : ''));
 
@@ -319,11 +335,32 @@ ipcMain.on('quickbar:stop', (event) => {
 });
 
 // ---------- Startup ----------
+// Automatic recovery: if the agent process dies unexpectedly, restart it (at most 3 times in 5 minutes).
+const crashTimes = [];
+let restartTimer = null;
+
+function onBackendStatus(s, instance) {
+  broadcast('claw:backend-status', s);
+  if (instance !== backend || s.state !== 'failed' || !/stopped unexpectedly/.test(s.message) || quitting) return;
+  const now = Date.now();
+  while (crashTimes.length && now - crashTimes[0] > 5 * 60 * 1000) crashTimes.shift();
+  crashTimes.push(now);
+  if (crashTimes.length > 3) {
+    notify('Claw stopped working', 'It crashed several times. Open Claw to see what happened.', () => showMain());
+    return;
+  }
+  const delay = 1000 * 2 ** (crashTimes.length - 1);
+  broadcast('claw:backend-status', { state: 'starting', message: 'Restarting after a problem', detail: s.detail });
+  clearTimeout(restartTimer);
+  restartTimer = setTimeout(() => startBackend(true), delay);
+}
+
 async function startBackend(restart = false) {
   if (restart && backend) backend.stop();
-  backend = new Backend({ backendDir: BACKEND_DIR, onStatus: (s) => broadcast('claw:backend-status', s) });
-  await backend.start();
-  if (backend.status.state === 'ready') await loadDesktopSettings();
+  const instance = new Backend({ backendDir: BACKEND_DIR, onStatus: (s) => onBackendStatus(s, instance) });
+  backend = instance;
+  await instance.start();
+  if (instance.status.state === 'ready') await loadDesktopSettings();
 }
 
 app.whenReady().then(async () => {
@@ -343,7 +380,8 @@ app.whenReady().then(async () => {
       const parts = [];
       if (t.counts.verified) parts.push(`${t.counts.verified} done`);
       if (t.counts.failed) parts.push(`${t.counts.failed} failed`);
-      const body = t.status === 'completed' ? (t.answer || parts.join(', ') || 'Done.') : t.error || parts.join(', ');
+      let body = t.status === 'completed' ? (t.answer || parts.join(', ') || 'Done.') : t.error || parts.join(', ');
+      if (t.files && t.files.length) body = `${t.files.length} file(s) ready. ${body}`;
       notify(`${t.label}: ${t.title.slice(0, 60)}`, String(body).slice(0, 200), () => showMain({ taskId: t.id }));
     },
   });

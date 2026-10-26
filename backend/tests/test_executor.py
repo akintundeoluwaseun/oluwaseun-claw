@@ -25,6 +25,10 @@ def finish(text):
     return json.dumps({"thought": "done", "action": "finish", "final_answer": text})
 
 
+def replan(*steps):
+    return json.dumps({"diagnosis": "The last steps did not work.", "new_plan": list(steps) or ["Try another way"]})
+
+
 class Recorder:
     def __init__(self, answer=True):
         self.events, self.approvals, self.answer = [], [], answer
@@ -133,15 +137,20 @@ async def test_invented_url_is_refused(tool_ctx, fake_server):
 async def test_unknown_tool_and_bad_args_are_rejected(tool_ctx, fake_server):
     out, _ = await run(
         tool_ctx, fake_server,
-        [act("delete_everything"), act("web_search", wrong="x"), finish("Could not do it.")],
+        [act("delete_everything"), act("web_search", wrong="x"), replan(), finish("Could not do it.")],
     )
     assert [s["outcome"] for s in out.steps] == ["rejected", "rejected"]
-    assert out.status == "completed"
+    assert out.status == "completed" and out.replans == 1
 
 
-async def test_three_consecutive_failures_stop(tool_ctx, fake_server):
-    out, _ = await run(tool_ctx, fake_server, [act("nope1"), act("nope2"), act("nope3"), finish("x")])
-    assert out.status == "failed" and "in a row" in out.error
+async def test_failures_replan_then_stop_when_budget_spent(tool_ctx, fake_server):
+    out, rec = await run(
+        tool_ctx, fake_server,
+        [act("nope1"), act("nope2"), replan("a"), act("nope3"), act("nope4"), replan("b"),
+         act("nope5"), act("nope6"), act("nope7"), finish("x")],
+    )
+    assert out.replans == 2 and rec.kinds().count("replanned") == 2
+    assert out.status == "failed" and "3 steps failed in a row" in out.error
 
 
 async def test_repeated_action_is_stopped(tool_ctx, fake_server):

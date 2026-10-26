@@ -25,7 +25,9 @@ const TOOL_LABEL = {
   read_page: 'Read the page', extract_links: 'Collected links', click_link: 'Followed a link', click_button: 'Clicked a button',
   list_tabs: 'Checked tabs', new_tab: 'Opened a tab', switch_tab: 'Switched tab', close_tab: 'Closed a tab',
   search_browser_history: 'Searched your history', save_links: 'Saved links to a file',
-  list_folder: 'Looked in a folder', read_text_file: 'Read a file', find_files: 'Found files',
+  list_folder: 'Looked in a folder', read_file: 'Read a file', find_files: 'Found files',
+  write_text_file: 'Wrote a file', save_report: 'Saved a report', create_spreadsheet: 'Made a spreadsheet',
+  edit_text_file: 'Edited a file',
   list_windows: 'Checked open windows', focus_window: 'Switched window', launch_app: 'Opened an app',
   look_at_window: 'Looked at a window', click_control: 'Clicked in an app', type_into: 'Typed in an app',
   type_text: 'Typed in an app', press_keys: 'Pressed keys', read_control: 'Read from an app',
@@ -36,6 +38,8 @@ const TOOL_ASK = {
   search_browser_history: 'Search your browsing history',
   launch_app: 'Open an app', click_control: 'Click in an app', type_into: 'Type in an app', type_text: 'Type in an app',
   press_keys: 'Press keys', click_at: 'Click on the screen',
+  write_text_file: 'Write a file', save_report: 'Save a report', create_spreadsheet: 'Make a spreadsheet',
+  edit_text_file: 'Edit a file',
 };
 const OUTCOME = {
   verified: ['Done', 'ok', 'check'], done_unverified: ['Done, not checked', 'warn-done', 'check'],
@@ -405,6 +409,8 @@ function collectSteps(events) {
     const d = e.data || {};
     if (e.kind === 'planned') notes.push({ at: e.id, text: `Made a plan with ${d.steps} step(s)` });
     if (e.kind === 'model_reply_rejected') notes.push({ at: e.id, text: "Claw's reply wasn't usable, so it tried again" });
+    if (e.kind === 'replanned') notes.push({ at: e.id, text: `Changed approach: ${d.diagnosis}` });
+    if (e.kind === 'injection_warning') notes.push({ at: e.id, text: 'Something Claw read tried to give it orders. Claw ignored it and will ask before any change.', warn: true });
     if (d.step === undefined) continue;
     const row = steps.get(d.step) || { at: e.id, step: d.step, tool: d.tool, args: null, outcome: null, detail: '', waiting: false, attempts: 0 };
     if (e.kind === 'requested') Object.assign(row, { tool: d.tool, args: d.args });
@@ -433,7 +439,7 @@ function renderRun(body) {
 
   const items = collectSteps(run.events).map((row) => {
     if (row.note) {
-      return el('li', { className: 'tl-item', attrs: { 'data-kind': 'note' } }, [
+      return el('li', { className: 'tl-item', attrs: { 'data-kind': 'note', 'data-tone': row.warn ? 'warn-note' : '' } }, [
         el('span', { className: 'tl-node' }),
         el('div', {}, [el('p', { className: 'tl-title', text: row.text })]),
       ]);
@@ -467,7 +473,7 @@ function renderRun(body) {
         .filter(([, v]) => v !== null && v !== undefined && v !== '')
         .flatMap(([k, v]) => [el('dt', { text: k.replace(/_/g, ' ') }), el('dd', { text: formatArgValue(v) })]),
     );
-    $('approval-reason').textContent = appr.reason ? `Why: ${appr.reason}` : '';
+    $('approval-reason').textContent = [appr.caution, appr.reason ? `Why: ${appr.reason}` : ''].filter(Boolean).join(' ');
     card.hidden = false;
     $('approve-btn').disabled = false;
     $('deny-btn').disabled = false;
@@ -497,7 +503,39 @@ function renderRun(body) {
     const answer = body.result && body.result.final_answer;
     $('summary-answer-wrap').hidden = !answer;
     $('summary-answer').textContent = answer || '';
+    renderFiles(run.id, (body.result && body.result.files) || []);
+    const warnings = (body.result && body.result.warnings) || [];
+    $('summary-warnings').hidden = warnings.length === 0;
+    $('summary-warnings').replaceChildren(...warnings.map((w) => el('p', { text: w })));
   }
+  $('run-again').hidden = !done;
+}
+
+const FILE_KIND = { report: 'Report', spreadsheet: 'Spreadsheet', text: 'File', links: 'Saved links', edited: 'Edited file' };
+
+function renderFiles(taskId, files) {
+  const box = $('summary-files');
+  box.hidden = files.length === 0;
+  const items = files.map((f) => {
+    const name = f.path.split(/[\\/]/).pop();
+    const open = el('button', { className: 'btn btn-quiet btn-sm', text: 'Open', attrs: { type: 'button' } });
+    const show = el('button', { className: 'btn btn-quiet btn-sm', text: 'Show in folder', attrs: { type: 'button' } });
+    const say = async (how) => {
+      const r = await api.openOutput(taskId, f.path, how);
+      if (!r || !r.ok) showError({ message: (r && r.message) || 'The file could not be opened.' });
+    };
+    open.addEventListener('click', () => say('open'));
+    show.addEventListener('click', () => say('show'));
+    return el('li', { className: 'file-row' }, [
+      el('div', { className: 'file-text' }, [
+        el('p', { className: 'file-name', text: name, attrs: { title: f.path } }),
+        el('p', { className: 'file-meta', text: `${FILE_KIND[f.kind] || 'File'}${f.verified ? ' · checked' : ' · not checked'}` }),
+        f.note ? el('p', { className: 'file-note', text: f.note }) : null,
+      ]),
+      el('div', { className: 'file-actions' }, [open, show]),
+    ]);
+  });
+  $('files-list').replaceChildren(...items);
 }
 
 async function answerApproval(approve) {
@@ -757,6 +795,9 @@ function wire() {
   $('plan-btn').addEventListener('click', planTask);
   $('run-btn').addEventListener('click', () => runTask());
   $('stop-btn').addEventListener('click', stopRun);
+  $('run-again').addEventListener('click', () => {
+    if (state.run && !isRunning()) runTask(state.run.title);
+  });
   $('approve-btn').addEventListener('click', () => answerApproval(true));
   $('deny-btn').addEventListener('click', () => answerApproval(false));
   $('new-task').addEventListener('click', goHome);

@@ -329,3 +329,22 @@ input:focus, select:focus { outline: none; border-color: var(--jade); background
 .dev[open] { display: grid; gap: 12px; }
 a.btn { color: var(--ink); }
 a.btn-primary { color: var(--jade-ink); }
+
+/* ---------- Outcome: files, warnings ---------- */
+.outcome-warnings { padding: 10px 12px; border-radius: 12px; background: var(--amber-soft); border: 1px solid var(--amber-line); font-size: 13px; }
+.outcome-files { border-top: 1px solid var(--hairline); padding-top: 12px; display: grid; gap: 8px; }
+.outcome-files h4 { font-size: 13px; color: var(--slate); font-weight: 700; }
+.files-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.file-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px;
+  border: 1px solid var(--hairline); border-radius: 12px; background: var(--porcelain-2);
+}
+.file-text { min-width: 0; }
+.file-name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-meta { font-size: 12px; color: var(--slate); }
+.file-note { font-size: 12px; color: var(--amber); margin-top: 2px; }
+.file-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.outcome-actions { display: flex; justify-content: flex-end; }
+.outcome-actions:has(> [hidden]:only-child) { display: none; }
+.tl-item[data-tone="warn-note"] .tl-node { background: var(--amber); }
+.tl-item[data-tone="warn-note"] .tl-title { color: var(--amber); font-weight: 600; }

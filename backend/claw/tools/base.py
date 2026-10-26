@@ -52,6 +52,20 @@ class ToolError(Exception):
 
 
 @dataclass
+class TaskMemory:
+    """What Claw has actually seen and made during one task (used to stop invented facts)."""
+
+    seen_text: list[str] = field(default_factory=list)
+    seen_files: set[str] = field(default_factory=set)
+    outputs: list[dict[str, Any]] = field(default_factory=list)
+    read_untrusted: bool = False  # anything from the web, a file or an app has been read
+    injection_seen: bool = False  # that content tried to give Claw instructions
+
+    def corpus(self) -> str:
+        return "\n".join(self.seen_text)
+
+
+@dataclass
 class ToolContext:
     settings: Settings
     policy: PermissionPolicy
@@ -62,6 +76,7 @@ class ToolContext:
     # Reads an image with a model that can see (online Google AI, or the offline seeing model).
     vision: Callable[[bytes, str], Awaitable[str]] | None = None
     start_menu_dirs: list[Path] | None = None  # tests only; None = the real Start menu
+    memory: TaskMemory = field(default_factory=TaskMemory)
 
 
 Handler = Callable[[ToolArgs, ToolContext], Awaitable[ToolResult]]

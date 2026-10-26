@@ -11,7 +11,7 @@ import time
 
 from tests.conftest import VALID_PLAN
 from tests.fake_model_server import FakeModelServer
-from tests.site_server import SiteServer
+from tests.site_server import DIRECTORY, SiteServer
 
 
 def act(tool, **args):
@@ -38,6 +38,12 @@ if __name__ == "__main__":
                 plan,  # 5. Desktop task (the build workspace has no Windows desktop)
                 act("list_windows"),
                 json.dumps({"thought": "could not", "action": "finish", "final_answer": "I could not see the open windows."}),
+                plan,  # 6. Web page → spreadsheet (page contains an injection attempt)
+                act("open_url", url=site.base_url + "/directory"),
+                act("read_page"),
+                act("create_spreadsheet", file_name="ado ekiti businesses", columns=["Name", "Type", "Phone", "Email"],
+                    rows=[list(r) for r in DIRECTORY]),
+                json.dumps({"thought": "done", "action": "finish", "final_answer": "Saved 3 businesses to a spreadsheet."}),
             ]
         )
         model.default_reply = plan

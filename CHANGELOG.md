@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.0 — 2026-10-26 (Batch 4)
+### Added
+- **Re-planning:** after two failed steps Claw works out why and makes a new plan (max 2 per task).
+- **Documents:** read PDF, Word and Excel files; write text files; save reports (Word or Markdown)
+  that may only cite pages/files Claw opened; create spreadsheets (Excel or CSV) with a check of
+  how many values match what Claw read; edit text files with an automatic backup.
+- **Prompt-injection guard:** content that tries to instruct Claw is flagged in the timeline and
+  outcome; after it, every change needs your OK. After reading any web/file content, changes
+  outside the computer need your OK even if allowed in Settings.
+- **Recovery:** the app restarts the agent if it crashes (up to 3 times in 5 minutes); interrupted
+  tasks are marked; "Run this task again" on finished tasks.
+- **Outcome card:** files Claw made, with Open and Show in folder (only files from that task).
+- History search also finds words in Claw's answers and errors.
+- Shorter prompts: full tool details only for the capabilities a plan needs.
+### Removed
+- Online mode and the Google key screen. Claw uses its built-in brain only.
+
 ## 0.3.0 — 2026-10-25 (Batch 3 + brain choice)
 ### Added
 - **Claw's brain, chosen once on a welcome screen:** Online (Google Gemini with the user's own

@@ -6,9 +6,9 @@
 
 End users will get a single installer in Batch 5; nothing else to install for Online mode.
 
-## 2. Brain
-Nothing to do here. On first launch Claw asks Online or Offline (see `docs/MODELS.md`).
-Online needs a free Google AI key; Offline currently also needs the free Ollama engine.
+## 2. Brain (development builds)
+Install Ollama from https://ollama.com/download. Claw picks and fetches its model by itself on
+first run. Release builds will ship with the brain inside the installer (Batch 5).
 
 ## 3. Set up the project
 From the project folder:
@@ -24,7 +24,7 @@ powershell -ExecutionPolicy Bypass -File scripts\start.ps1
 ```
 The window opens, starts the backend automatically, and shows two status
 pills: **Agent** and **Model**. Open **Settings**, click **Test connection**,
-connect a brain on the welcome screen, then in Settings add a folder under **Folders Claw may
+then in Settings add a folder under **Folders Claw may
 use** (needed for saving and reading files). Type a task and press **Start task**, or press
 **Ctrl+Shift+Space** anywhere to use the quick bar. **Ctrl+Alt+X** stops a running task.
 
@@ -54,9 +54,7 @@ A development token is printed once; send it as the `X-Claw-Token` header.
 | What you see | What to do |
 |---|---|
 | "Python was not found" | Install Python 3.12 and rerun setup, or set `CLAW_PYTHON`. |
-| "Google did not accept this AI key" | Create a new key at aistudio.google.com/apikey and connect it in Settings. |
-| "Today's free Google AI limit has been reached" | Wait until about 8–9 AM Lagos time, or switch to Offline. |
-| "The offline brain needs its engine" | Install Ollama from ollama.com; Claw downloads the model itself. |
+| "Claw's brain isn't running" | Development builds: start Ollama. Release builds: restart Claw. |
 | "Windows is locked" | Desktop steps need an unlocked screen; browser steps still run. |
 | "Some settings are not valid" | Open Settings and correct the listed fields, or delete `settings.json` in the data folder. |
 | Planning times out | Use a smaller model or raise the timeout in Settings. |

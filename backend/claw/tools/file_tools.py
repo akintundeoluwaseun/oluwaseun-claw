@@ -88,6 +88,7 @@ async def save_links(args: SaveLinksArgs, ctx: ToolContext) -> ToolResult:
         raise ToolError(f"The file could not be written: {exc.strerror}") from exc
     written = path.read_text(encoding="utf-8")
     saved = sum(1 for l in args.links if l.url in written)
+    ctx.memory.outputs.append({"path": str(path), "kind": "links", "verified": saved == len(args.links), "note": ""})
     return ToolResult(
         saved == len(args.links),
         f"Saved {saved} link(s) to {path}",

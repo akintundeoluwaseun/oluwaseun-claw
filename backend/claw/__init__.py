@@ -1,3 +1,3 @@
 """Oluwaseun Claw — local-first Windows computer-control agent (backend runtime)."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

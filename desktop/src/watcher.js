@@ -17,7 +17,7 @@ const TOOL_ACTIVITY = {
   search_browser_history: 'Searching your history',
   save_links: 'Saving links',
   list_folder: 'Looking in a folder',
-  read_text_file: 'Reading a file',
+  read_file: 'Reading a file',
   find_files: 'Finding files',
   list_windows: 'Checking open windows',
   focus_window: 'Switching windows',
@@ -31,6 +31,11 @@ const TOOL_ACTIVITY = {
   take_screenshot: 'Taking a screenshot',
   describe_screen: 'Looking at the screen',
   click_at: 'Clicking on screen',
+  read_file: 'Reading a file',
+  write_text_file: 'Writing a file',
+  save_report: 'Writing a report',
+  create_spreadsheet: 'Making a spreadsheet',
+  edit_text_file: 'Editing a file',
 };
 const USES_INPUT = new Set(['focus_window', 'launch_app', 'click_control', 'type_into', 'type_text', 'press_keys', 'click_at']);
 
@@ -101,7 +106,9 @@ class AgentWatcher {
         const res = await backend.request('GET', `/tasks/${ended}`);
         if (res.ok) {
           const t = res.body;
-          this.onTaskEnded({
+          const files = (res.ok && res.body.result && res.body.result.files) || [];
+        this.onTaskEnded({
+          files,
             id: ended,
             title: t.task_text,
             status: t.status,
@@ -130,6 +137,7 @@ class AgentWatcher {
       const d = e.data || {};
       if (e.kind === 'model_call') activity = 'Planning';
       if (e.kind === 'planned') activity = 'Thinking';
+      if (e.kind === 'replanned') activity = 'Trying another way';
       if (e.kind === 'requested' || e.kind === 'attempted') {
         activity = TOOL_ACTIVITY[d.tool] || 'Working';
         step = d.step || step;

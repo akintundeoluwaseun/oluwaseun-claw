@@ -46,8 +46,18 @@ Added in Batch 3 (implemented; logic tested against a stand-in desktop):
 - Clicking at coordinates requires a screenshot first and on-screen coordinates.
 - Global stop: Ctrl+Alt+X. Window/control text is passed to the model as untrusted data.
 - File reading is read-only, text types only, under authorized folders, size-capped.
-- The Google key is DPAPI-encrypted (Windows), never in settings.json, never logged or returned.
-  A test-only address override accepts only localhost, so it cannot redirect the key.
+
+Added in Batch 4 (implemented and tested):
+- Taint tracking per task: once web/file/app content has been read, "changes outside this
+  computer" always ask; if the content contained instruction-like text (ignore previous
+  instructions, send passwords, system prompt…), every non-read-only action asks. The warning
+  is shown in the timeline, the approval card and the outcome.
+- Reports may cite only addresses/files opened in the task; spreadsheets report how many values
+  were not found in anything Claw read; formula-like cells (=, +, -, @) are stored as text.
+- New files never overwrite (exclusive create, unique names); edits keep a backup in the data
+  folder and are read back to confirm.
+- The UI can open only files recorded as outputs of that task (checked in the main process).
+- No online AI service is used; nothing leaves the computer except the web pages the browser visits.
 
 Not yet implemented (planned):
 - Stronger prompt-injection defences and evaluation with real models (Batch 4).

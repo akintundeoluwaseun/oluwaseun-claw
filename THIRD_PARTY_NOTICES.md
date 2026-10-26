@@ -20,6 +20,11 @@ installed packages or separate programs.
 | comtypes (Windows only) | 1.4.17 | MIT | COM access for pywinauto |
 | pywin32 (Windows only) | 312 | PSF-2.0 | Windows APIs for pywinauto |
 | six (Windows only) | 1.17.0 | MIT | pywinauto dependency |
+| openpyxl | 3.1.5 | MIT | Excel files |
+| et-xmlfile | 2.0.0 | MIT | openpyxl dependency |
+| python-docx | 1.2.0 | MIT | Word files |
+| lxml | 6.1.3 | BSD-3-Clause | python-docx dependency |
+| pypdf | 6.21.2 | BSD-3-Clause | Reading PDFs |
 | Manrope (font, via @fontsource-variable/manrope 5.3.0) | — | SIL OFL 1.1 (`desktop/src/renderer/fonts/OFL-Manrope.txt`) | Interface typeface, bundled locally |
 
 ## Development and test only
@@ -34,8 +39,7 @@ installed packages or separate programs.
 |---|---|---|
 | Microsoft Edge / Google Chrome | Proprietary | Already on the user's computer; controlled, not bundled |
 | Chromium (optional, `setup.ps1 -Chromium`) | BSD-3-Clause and others | Downloaded by Playwright; not bundled |
-| Ollama | MIT | Needed only for Offline mode; not bundled yet (Batch 5) |
-| Google Gemini API | Google API Terms of Service | Online mode, with the user's own key |
+| Ollama | MIT | Development builds only; release builds will bundle llama.cpp instead (Batch 5) |
 | llama.cpp | MIT | Not bundled |
 | Model weights (e.g. Qwen) | Per model card | Not bundled — check each model card |
 
