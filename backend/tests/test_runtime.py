@@ -76,7 +76,7 @@ async def test_engine_restarts_after_crash(tiny, monkeypatch):
     monkeypatch.setattr(engine_mod, "detect", lambda: hw())
     eng = LlamaServer()
     await eng.ensure("tiny", tiny)
-    eng._proc.send_signal(signal.SIGKILL)
+    eng._proc.kill()  # SIGKILL on POSIX, TerminateProcess on Windows (there is no SIGKILL there)
     eng._proc.wait()
     assert await eng.check_alive() is True
     assert eng.status.state == "ready" and eng.status.restarts == 1

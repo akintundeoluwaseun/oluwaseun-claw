@@ -1,0 +1,49 @@
+# The backend test suite on real Windows, without building an installer.
+# The full build takes ~25 minutes and publishes a release; this takes a few
+# minutes and is what you want when checking a fix on Windows.
+name: Windows tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/ecstatic-ritchie-x6ao14"]
+    paths: ["backend/**", ".github/workflows/test-windows.yml"]
+
+jobs:
+  tests:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        shell: pwsh
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          python -m playwright install chromium
+
+      - name: Tesseract (OCR tests)
+        shell: pwsh
+        run: choco install tesseract -y --no-progress
+
+      - name: Backend tests
+        shell: pwsh
+        working-directory: backend
+        run: |
+          $env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
+          python -m pytest -q -p no:cacheprovider -rfE 2>&1 | Tee-Object out.txt
+          $code = $LASTEXITCODE
+          # Keep the summary readable through the API; annotations cap at ~4 KB, so the
+          # count comes first and the failing names after it.
+          $tail = (Get-Content out.txt | Select-String -Pattern '\d+ (passed|failed)' | Select-Object -Last 1).Line
+          $fails = (Get-Content out.txt | Select-String -Pattern '^(FAILED|ERROR) ' | ForEach-Object { ($_.Line -split ' - ')[0] }) -join ' | '
+          Write-Output "::notice title=Windows tests::$tail || $fails"
+          exit $code

@@ -1,6 +1,11 @@
 """Browser tools against a real Chromium and the local test site."""
 
+import asyncio
+from pathlib import Path
+
 import pytest
+
+from claw.permissions.policy import canonical_path
 
 from claw.tools.base import ToolError
 from claw.tools.registry import build_registry
@@ -86,11 +91,21 @@ async def test_save_links_only_seen_urls(tool_ctx, site, tmp_path):
     assert r2.data["path"].endswith("motion links (2).md")  # never overwrites
 
 
-async def test_save_links_name_cannot_escape_folder(tool_ctx, tmp_path):
+@pytest.mark.parametrize("sneaky", ["..\\..\\evil", "../../evil", "..\\..\\..\\Windows\\System32\\evil", "C:\\Windows\\evil"])
+async def test_save_links_name_cannot_escape_folder(tool_ctx, tmp_path, sneaky):
     await call(tool_ctx, "web_search", query="motion graphics")
     seen = tool_ctx.browser.last_results[0]
-    r = await call(tool_ctx, "save_links", file_name="..\\..\\evil", links=[{"title": "t", "url": seen["url"]}])
-    assert r.data["path"].startswith(str(tmp_path / "saved"))
+    r = await call(tool_ctx, "save_links", file_name=sneaky, links=[{"title": "t", "url": seen["url"]}])
+    written = Path(r.data["path"])
+    # Compare canonical paths: save_links returns the path the policy canonicalised,
+    # which on Windows is case-folded, so matching the raw spelling would fail there
+    # even though the file is exactly where it should be.
+    saved_root = canonical_path(tmp_path / "saved")
+    assert canonical_path(written) != saved_root
+    assert saved_root in canonical_path(written).parents, f"{written} escaped {saved_root}"
+    assert written.is_file()
+    # The separators are gone from the name itself, not merely resolved away.
+    assert "/" not in written.name and "\\" not in written.name and ".." not in written.name
 
 
 async def test_save_links_needs_authorized_folder(tool_ctx):
@@ -107,6 +122,12 @@ async def test_history_of_agent_browser(tool_ctx, site):
     await call(tool_ctx, "open_url", url=site.base_url + "/articles/cooking")
     await tool_ctx.browser.close()
     tool_ctx.browser.reset_task_state()
+    history = Path(tool_ctx.data_dir) / "browser-profile" / "Default" / "History"
+    for _ in range(100):  # the write is asynchronous and slower on Windows
+        if history.is_file() and history.stat().st_size:
+            break
+        await asyncio.sleep(0.1)
+    assert history.is_file(), "Chromium never wrote its history database"
     r = await call(tool_ctx, "search_browser_history", phrase="AI video", days=1, source="claw")
     urls = [e["url"] for e in r.data["entries"]]
     assert urls == [site.base_url + "/articles/ai-video"]
