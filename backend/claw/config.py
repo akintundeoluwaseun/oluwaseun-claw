@@ -10,6 +10,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -216,6 +217,29 @@ class MessagesSettings(BaseModel):
     # Sending a message is always a "Deleting, sending, buying" action: it always asks.
 
 
+class VoiceSettings(BaseModel):
+    """The offline command bar. Recognition is local; nothing is uploaded."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False  # off until the user installs a model: no surprise downloads
+    model: str | None = Field(default=None, max_length=80)  # None: the one installed model
+    # Click-to-record by default. Claw never listens in the background.
+    mode: Literal["click", "push_to_talk"] = "click"
+    push_to_talk: str = Field(default="Ctrl+Shift+V", max_length=60)
+    auto_submit: bool = False  # run the recognised text without a second look
+    keep_recordings: bool = False  # opt-in only; off means audio is never written to disk
+    input_device: str = Field(default="", max_length=200)  # "" = the system default microphone
+
+    @field_validator("push_to_talk")
+    @classmethod
+    def _shortcut_shape(cls, v: str) -> str:
+        v = v.strip()
+        if v and not re.fullmatch(r"(?:(?:Ctrl|Alt|Shift|Super|CommandOrControl)\+){1,3}[A-Za-z0-9]+", v):
+            raise ValueError("must look like 'Ctrl+Shift+V'")
+        return v
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -227,6 +251,7 @@ class Settings(BaseModel):
     desktop: DesktopSettings = Field(default_factory=DesktopSettings)
     documents: DocumentSettings = Field(default_factory=DocumentSettings)
     messages: MessagesSettings = Field(default_factory=MessagesSettings)
+    voice: VoiceSettings = Field(default_factory=VoiceSettings)
 
 
 def describe_validation_error(exc: ValidationError) -> list[str]:

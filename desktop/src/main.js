@@ -2,7 +2,7 @@
 
 const {
   app, BrowserWindow, Menu, Notification, Tray, dialog, globalShortcut, ipcMain,
-  nativeImage, nativeTheme, powerSaveBlocker, screen, shell,
+  nativeImage, nativeTheme, powerSaveBlocker, screen, session, shell,
 } = require('electron');
 const path = require('node:path');
 const { Backend } = require('./backend');
@@ -392,6 +392,42 @@ ipcMain.handle('claw:confirm', async (event, title, detail, okLabel) => {
 });
 
 // ---------- IPC: quick bar (narrower) ----------
+let voiceEnabled = false;
+
+// Electron allows permission requests by default. Claw refuses everything except
+// the microphone, only for its own two windows, and only while voice input is on.
+// Nothing here grants camera, location, screen capture or notifications-by-request.
+function lockDownPermissions() {
+  const ours = (contents) =>
+    (quickBar && !quickBar.isDestroyed() && contents === quickBar.webContents) ||
+    (mainWindow && !mainWindow.isDestroyed() && contents === mainWindow.webContents);
+  const allow = (contents, permission) => ours(contents) && permission === 'media' && voiceEnabled;
+  session.defaultSession.setPermissionRequestHandler((contents, permission, callback) => {
+    callback(allow(contents, permission));
+  });
+  session.defaultSession.setPermissionCheckHandler((contents, permission) => allow(contents, permission));
+}
+
+// ---------- IPC: voice ----------
+// The bar may ask whether voice is ready, and hand over one finished recording.
+// It cannot start a download, change settings, or reach the network.
+ipcMain.handle('voice:status', async (event) => {
+  if (!fromOurWindows(event)) return null;
+  const res = await backend.request('GET', '/speech');
+  return res.ok ? res.body : { enabled: false, ready: false, reason: 'Claw is still starting.' };
+});
+
+ipcMain.handle('voice:transcribe', async (event, wav) => {
+  if (!fromOurWindows(event)) return { ok: false, message: 'Not allowed.' };
+  const bytes = wav instanceof Uint8Array ? wav : new Uint8Array(wav || []);
+  const res = await backend.sendAudio(bytes);
+  if (!res.ok) {
+    const err = (res.body && res.body.error) || {};
+    return { ok: false, message: [err.message, err.hint].filter(Boolean).join(' ') || 'Recognition failed.' };
+  }
+  return { ok: true, text: String((res.body && res.body.text) || '') };
+});
+
 ipcMain.handle('quickbar:run', async (event, task) => {
   if (!senderIs(event, quickBar)) return { ok: false };
   if (typeof task !== 'string' || task.trim().length < 3 || task.length > 4000) {
@@ -481,8 +517,19 @@ app.whenReady().then(async () => {
     const c = overlayColors();
     if (mainWindow && IS_WIN) mainWindow.setTitleBarOverlay({ color: c.overlay, symbolColor: c.symbols });
   });
+  lockDownPermissions();
   await startBackend();
   watcher.start();
+  // Push-to-talk only exists when the user has turned voice on and picked that mode.
+  try {
+    const v = await backend.request('GET', '/speech');
+    voiceEnabled = !!(v.ok && v.body && v.body.enabled);
+    if (v.ok && v.body && v.body.enabled && v.body.push_to_talk) {
+      registerPushToTalk(String(v.body.push_to_talk).replace('Ctrl', 'CommandOrControl'));
+    }
+  } catch {
+    /* voice is optional: the bar still types */
+  }
   // WhatsApp: a Windows notification when a check (manual or background) finds chats with new messages.
   let waSeq = null;
   setInterval(async () => {
@@ -510,4 +557,27 @@ app.on('before-quit', () => {
   if (awakeBlocker !== null) powerSaveBlocker.stop(awakeBlocker);
   if (backend) backend.stop();
 });
+let pttHeld = false;
+let pttTimer = null;
+
+function registerPushToTalk(accelerator) {
+  if (!accelerator) return;
+  const ok = globalShortcut.register(accelerator, () => {
+    if (!quickBar || quickBar.isDestroyed()) return;
+    if (!pttHeld) {
+      pttHeld = true;
+      openQuickBar();
+      quickBar.webContents.send('voice:push-to-talk', true);
+    }
+    clearTimeout(pttTimer);
+    // No key-up event exists for a global shortcut: the gap between auto-repeats
+    // ending is what tells us the key was let go.
+    pttTimer = setTimeout(() => {
+      pttHeld = false;
+      if (quickBar && !quickBar.isDestroyed()) quickBar.webContents.send('voice:push-to-talk', false);
+    }, 400);
+  });
+  if (!ok) console.warn(`Could not register the push-to-talk shortcut ${accelerator}.`);
+}
+
 app.on('will-quit', () => globalShortcut.unregisterAll());

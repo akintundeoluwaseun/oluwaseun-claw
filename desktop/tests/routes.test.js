@@ -56,3 +56,18 @@ test('whatsapp routes', () => {
   assert.ok(isAllowedRoute('POST', '/messages/whatsapp/check'));
   assert.ok(!isAllowedRoute('POST', '/messages/whatsapp/send'));
 });
+
+test('speech routes', () => {
+  // The bar may read status and manage models…
+  assert.ok(isAllowedRoute('GET', '/speech'));
+  assert.ok(isAllowedRoute('POST', '/speech/models/download'));
+  assert.ok(isAllowedRoute('POST', '/speech/models/download/cancel'));
+  assert.ok(isAllowedRoute('POST', '/speech/models/remove'));
+  // …but audio never goes through the generic JSON route: sendAudio() is the only way in.
+  assert.ok(!isAllowedRoute('POST', '/speech/transcribe'));
+  assert.ok(!isAllowedRoute('POST', '/speech/transcribe', true));
+  // No traversal or lookalikes.
+  assert.ok(!isAllowedRoute('GET', '/speech/../settings'));
+  assert.ok(!isAllowedRoute('DELETE', '/speech'));
+  assert.ok(!isAllowedRoute('GET', '/speechx'));
+});

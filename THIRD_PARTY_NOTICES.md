@@ -90,3 +90,36 @@ Fonts: the flyer uses fonts already on the computer (Segoe UI/Arial on Windows);
 
 OCRmyPDF (MPL-2.0, but needs Ghostscript, AGPL), PaddleOCR (Apache-2.0, heavy runtime),
 PDF-OCR (a web app), DynaLM (unverified clients).
+
+## Voice input (offline speech recognition)
+
+**sherpa-onnx** (https://github.com/k2-fsa/sherpa-onnx, Apache-2.0) — chosen and added as a
+dependency. It installs as an ordinary Python wheel on Windows, so it needs no second native binary
+beside llama-server, and it runs Whisper exports on CPU through ONNX Runtime (MIT). The engine sits
+behind `claw/speech/base.py`, so it can be replaced without touching the command bar.
+
+**Speech model weights** are Whisper exports (MIT, https://github.com/openai/whisper), downloaded on
+request from Hugging Face. Nothing is bundled in the installer: file names, sizes, SHA-256 checksums
+and the licence are read from the public API at download time and the licence is checked against an
+allow-list before anything is written, exactly as for the brain.
+
+Evaluated and **not** used:
+
+- **whisper.cpp** (MIT) — the obvious alternative and a close call. It would mirror the existing
+  llama-server runtime management, but it means shipping and updating a second compiled binary per
+  platform for no accuracy gain over the same weights. Kept as the first candidate if sherpa-onnx
+  proves unsuitable; the engine interface exists for that.
+- **faster-whisper** (MIT) — pulls in CTranslate2 and, in practice, a CUDA/cuDNN story that makes a
+  Windows installer considerably larger for a CPU-only use case.
+- **Vosk** (Apache-2.0) — smaller and faster, but its English models are noticeably weaker on
+  accented speech and proper nouns, which is the case that matters most here.
+- **Windows Offline Transcribe**, **AuraScribe**, **Whisper Local** — useful as reference
+  implementations; all are applications rather than libraries, and none is a maintained dependency
+  suitable for redistribution.
+- **Silero VAD** (MIT) — not added separately: sherpa-onnx already bundles voice-activity detection,
+  and the bar records only while the user holds or clicks the microphone, so endpointing is not what
+  decides when recording stops.
+- **NAudio** (MIT) — a .NET library; Claw captures audio in the Electron renderer through the Web
+  Audio API, so it has nothing to add.
+- **WhisperX, pyannote** — speaker diarisation and alignment are not needed for single-speaker
+  commands, and pyannote's models carry gated licences.

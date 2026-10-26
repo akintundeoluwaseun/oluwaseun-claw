@@ -37,6 +37,10 @@ from claw.documents.service import DocumentService
 from claw.models.base import ModelAdapter, ModelError, ModelNotFound, ModelStatus
 from claw.models.registry import build_adapter
 from claw.runtime.brain import Brain
+from claw.runtime.hub import DownloadError
+from claw.speech.audio import AudioError
+from claw.speech.base import SpeechUnavailable
+from claw.speech.service import SpeechService, default_store
 from claw.runtime.store import ModelStore
 from claw.permissions.policy import PermissionPolicy
 from claw.storage.db import Database
@@ -61,6 +65,7 @@ class AppState:
     browser: BrowserSession | None = None
     runner: TaskRunner | None = None
     brain: Brain | None = None
+    speech: SpeechService | None = None
     desktop: DesktopSession | None = None
     docs: DocumentService | None = None
 
@@ -103,6 +108,8 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     state = AppState(data_dir=data_dir, token=token, store=store, db=Database(data_dir / "claw.db"))
     state.desktop = DesktopSession(default_driver())
     state.brain = Brain(ModelStore(data_dir))
+    state.speech = SpeechService(default_store(data_dir),
+                                 hardware_ram_gb=getattr(state.brain.hardware, "total_ram_gb", None))
     try:
         state.settings = store.load()
     except ConfigError as exc:
@@ -262,6 +269,47 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     @app.get("/brain")
     async def get_brain():
         return {"mode": state.settings.model.mode, **state.brain.summary(state.settings.model.selected)}
+
+    # ---------- voice (offline speech recognition) ----------
+    @app.get("/speech")
+    async def speech_status():
+        return state.speech.status(state.settings)
+
+    @app.post("/speech/transcribe")
+    async def speech_transcribe(request: Request):
+        """WAV bytes in, recognised words out. The audio is not stored."""
+        wav = await request.body()
+        try:
+            result = await state.speech.transcribe(wav, state.settings)
+        except AudioError as exc:
+            return error_response(400, "audio", str(exc))
+        except SpeechUnavailable as exc:
+            return error_response(409, "speech_unavailable", exc.message, hint=exc.hint)
+        # The words are the user's, not an instruction to act on: the bar shows them
+        # and the user submits. Marked untrusted for anything downstream.
+        return {"text": result.text, "untrusted": True, **result.as_dict()}
+
+    @app.post("/speech/models/download")
+    async def speech_download(request: Request):
+        model_id = (await _body(request)).get("id")
+        try:
+            state.speech.models.start_download(str(model_id))
+        except DownloadError as exc:
+            return error_response(409, "download", str(exc.args[0] if exc.args else exc))
+        return state.speech.status(state.settings)
+
+    @app.post("/speech/models/download/cancel")
+    async def speech_download_cancel():
+        state.speech.models.cancel()
+        return state.speech.status(state.settings)
+
+    @app.post("/speech/models/remove")
+    async def speech_remove(request: Request):
+        model_id = str((await _body(request)).get("id") or "")
+        if state.speech.models.get_installed(model_id) is None and state.speech.models.store.load(model_id) is None:
+            return error_response(404, "not_found", "That voice model is not installed.")
+        state.speech.unload()
+        return {"removed": state.speech.models.remove(model_id), **state.speech.status(state.settings)}
 
     async def _body(request: Request) -> dict:
         try:

@@ -35,6 +35,10 @@ const ALLOWED_ROUTES = [
   ['POST', /^\/brain\/restart$/],
   ['GET', /^\/messages\/whatsapp$/],
   ['POST', /^\/messages\/whatsapp\/check$/],
+  ['GET', /^\/speech$/],
+  ['POST', /^\/speech\/models\/download$/],
+  ['POST', /^\/speech\/models\/download\/cancel$/],
+  ['POST', /^\/speech\/models\/remove$/],
   ['GET', new RegExp(`^/documents/${ID}(\\?pages=1)?$`)],
   ['GET', new RegExp(`^/documents/${ID}/search\\?q=[\\w%.+~*'()!-]{1,600}$`)],
   ['POST', new RegExp(`^/documents/${ID}/cancel$`)],
@@ -202,6 +206,37 @@ class Backend {
         ok: false,
         status: 0,
         body: { error: { code: timedOut ? 'timeout' : 'network', message: timedOut ? 'The agent took too long to answer.' : 'Could not reach the agent.' } },
+      };
+    }
+  }
+
+  async sendAudio(wav) {
+    if (this.status.state !== 'ready') {
+      return { ok: false, status: 503, body: { error: { code: 'backend_unavailable', message: this.status.message } } };
+    }
+    if (!(wav instanceof Uint8Array) || wav.length === 0 || wav.length > 40 * 1024 * 1024) {
+      return { ok: false, status: 400, body: { error: { code: 'audio', message: 'That recording could not be read.' } } };
+    }
+    try {
+      const res = await fetch(`http://127.0.0.1:${this.port}/speech/transcribe`, {
+        method: 'POST',
+        headers: { 'X-Claw-Token': this.token, 'Content-Type': 'audio/wav' },
+        body: wav,
+        signal: AbortSignal.timeout(120000),
+      });
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = { error: { code: 'bad_reply', message: 'The agent sent a reply that could not be read.' } };
+      }
+      return { ok: res.ok, status: res.status, body: data };
+    } catch (err) {
+      const timedOut = err && err.name === 'TimeoutError';
+      return {
+        ok: false,
+        status: 0,
+        body: { error: { code: timedOut ? 'timeout' : 'network', message: timedOut ? 'Recognition took too long.' : 'Could not reach the agent.' } },
       };
     }
   }
