@@ -1,0 +1,109 @@
+# Builds the Windows installer on GitHub's Windows machines and publishes it as a GitHub Release.
+# Run it from the Actions tab ("Build Windows installer" → Run workflow), or push a tag like v0.6.0.
+name: Build Windows installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: "Edition (Standard = 4B brain, ~3.6 GB; Pro = 8B brain, ~6.5 GB)"
+        type: choice
+        options: [Standard, Pro]
+        default: Standard
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write   # to create the release with the installer files
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 240
+    env:
+      EDITION: ${{ inputs.edition || 'Standard' }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PYTHONUTF8: "1"
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up (Python env, Electron, llama.cpp engine)
+        run: ./scripts/setup.ps1 -SkipOcr
+
+      - name: Install Tesseract OCR and Inno Setup
+        run: |
+          choco install tesseract innosetup -y --no-progress
+          & "C:\Program Files\Tesseract-OCR\tesseract.exe" --version
+          Get-ChildItem "C:\Program Files\Tesseract-OCR\tessdata" | Select-Object -First 20 Name
+
+      - name: Backend tests on real Windows (results kept, build continues)
+        continue-on-error: true
+        run: |
+          cd backend
+          $env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
+          .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider --junitxml=..\build-test-results.xml 2>&1 | Tee-Object ..\build-test-output.txt
+
+      - name: Download the brain (licence + checksum verified)
+        run: |
+          $id = if ($env:EDITION -eq 'Pro') { 'qwen3-vl-8b' } else { 'qwen3-vl-4b' }
+          backend\.venv\Scripts\python.exe backend\packaging\fetch_brain.py $id --data-dir "$env:RUNNER_TEMP\brain"
+          if ($LASTEXITCODE -ne 0) { throw "Brain download failed or was not checksum-verified ($LASTEXITCODE)" }
+          "MODEL_DIR=$env:RUNNER_TEMP\brain\models\$id" | Out-File -Append $env:GITHUB_ENV
+
+      - name: Build the installer
+        run: |
+          Get-PSDrive C, D -ErrorAction SilentlyContinue | Format-Table Name, Used, Free
+          ./scripts/build-release.ps1 -Edition $env:EDITION -ModelDir $env:MODEL_DIR -SliceMB 1900
+          Get-ChildItem build\installers | Format-Table Name, Length
+
+      - name: Smoke-test the built app (starts, frozen backend answers)
+        continue-on-error: true
+        run: |
+          $exe = Get-ChildItem "build\app-$($env:EDITION.ToLower())\win-unpacked\resources\backend\claw-backend.exe"
+          $env:CLAW_SESSION_TOKEN = "smoke-test-token-0123456789abcdef"
+          $env:CLAW_RESOURCES = (Resolve-Path "build\app-$($env:EDITION.ToLower())\win-unpacked\resources").Path
+          $env:CLAW_DATA_DIR = "$env:RUNNER_TEMP\smoke"
+          $p = Start-Process $exe.FullName -ArgumentList "--port", "18765" -PassThru
+          Start-Sleep 15
+          $h = @{ "X-Claw-Token" = $env:CLAW_SESSION_TOKEN }
+          Invoke-RestMethod http://127.0.0.1:18765/health | ConvertTo-Json | Tee-Object build\smoke.txt
+          Invoke-RestMethod http://127.0.0.1:18765/brain -Headers $h | ConvertTo-Json -Depth 4 | Tee-Object -Append build\smoke.txt
+          Stop-Process $p -Force
+
+      - name: Upload test results and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-reports
+          path: |
+            build-test-results.xml
+            build-test-output.txt
+            build/smoke.txt
+            build/installers/SHA256SUMS.txt
+          if-no-files-found: ignore
+
+      - name: Publish as a GitHub Release
+        run: |
+          $version = (Get-Content desktop\package.json | ConvertFrom-Json).version
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "v$version-build.$env:GITHUB_RUN_NUMBER" }
+          $files = Get-ChildItem build\installers | Where-Object { $_.Name -like "*$env:EDITION*" -or $_.Name -eq 'SHA256SUMS.txt' } | ForEach-Object FullName
+          $notes = @"
+          Oluwaseun Claw $version ($env:EDITION edition), built on GitHub's Windows machines from commit $env:GITHUB_SHA.
+
+          Download **all** files of this edition into one folder and run the Setup .exe (the .bin files are parts of the same installer).
+          Not code-signed yet: Windows SmartScreen may warn (More info -> Run anyway).
+          Test status: see TEST_RESULTS.md and the windows-build-reports artifact of this run.
+          "@
+          gh release create $tag $files --prerelease --title "Oluwaseun Claw $version $env:EDITION (build $env:GITHUB_RUN_NUMBER)" --notes $notes

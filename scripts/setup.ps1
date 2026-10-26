@@ -53,8 +53,9 @@ Pop-Location
 if (-not $SkipEngine) {
   # The file name is looked up in GitHub's release list at run time: no build number is hard-coded.
   Write-Host "== Fetching llama.cpp (llama-server, $Gpu build) from github.com/ggml-org/llama.cpp"
-  $rel = Invoke-RestMethod -UseBasicParsing -Headers @{ 'User-Agent' = 'oluwaseun-claw-setup' } `
-    'https://api.github.com/repos/ggml-org/llama.cpp/releases/latest'
+  $headers = @{ 'User-Agent' = 'oluwaseun-claw-setup' }
+  if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }  # build machines: avoids API rate limits
+  $rel = Invoke-RestMethod -UseBasicParsing -Headers $headers 'https://api.github.com/repos/ggml-org/llama.cpp/releases/latest'
   $patterns = @{ cpu = '-bin-win-cpu-x64\.zip$'; vulkan = '-bin-win-vulkan-x64\.zip$'; cuda = '-bin-win-cuda[\d.-]*-x64\.zip$' }
   $asset = $rel.assets | Where-Object { $_.name -match $patterns[$Gpu] -and $_.name -notmatch '^cudart' } | Select-Object -First 1
   if (-not $asset) {

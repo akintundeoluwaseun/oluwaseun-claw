@@ -10,7 +10,8 @@ param(
   [ValidateSet('Standard', 'Pro')][string]$Edition = 'Standard',
   [string]$ModelDir = '',
   [string]$TesseractDir = (Join-Path $env:ProgramFiles 'Tesseract-OCR'),
-  [switch]$NoBrain   # build the small installer that downloads the brain on first run
+  [switch]$NoBrain,  # build the small installer that downloads the brain on first run
+  [int]$SliceMB = 0   # >0: split the installer into parts of this size (GitHub releases allow 2 GB per file)
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -72,6 +73,8 @@ npx electron-builder --config electron-builder.config.js --win dir
 if ($LASTEXITCODE -ne 0) { Pop-Location; throw 'electron-builder failed.' }
 Pop-Location
 $appDir = Join-Path $root "build\app-$($Edition.ToLower())\win-unpacked"
+# The app folder now holds its own copy of the brain; free the staging copy (disk space on build machines).
+Remove-Item -Recurse -Force (Join-Path $stage 'models') -ErrorAction SilentlyContinue
 
 Step 'Making the installer (Inno Setup)'
 $iscc = @((Get-Command 'iscc' -ErrorAction SilentlyContinue).Source,
@@ -79,7 +82,9 @@ $iscc = @((Get-Command 'iscc' -ErrorAction SilentlyContinue).Source,
           (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe')) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 if (-not $iscc) { throw 'Inno Setup 6 not found. Install it: winget install JRSoftware.InnoSetup' }
 $label = if ($NoBrain) { "$Edition-NoBrain" } else { $Edition }
-& $iscc "/DEdition=$label" "/DAppDir=$appDir" "/DVersion=$version" "/DOutDir=$out" (Join-Path $root 'packaging\claw.iss')
+$isccArgs = @("/DEdition=$label", "/DAppDir=$appDir", "/DVersion=$version", "/DOutDir=$out")
+if ($SliceMB -gt 0) { $isccArgs += "/DSliceBytes=$([int64]$SliceMB * 1024 * 1024)" }
+& $iscc @isccArgs (Join-Path $root 'packaging\claw.iss')
 if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed.' }
 
 Get-ChildItem $out | Where-Object { $_.Name -like "*$label*" } | ForEach-Object {

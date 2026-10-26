@@ -32,6 +32,9 @@ def main() -> int:
         "--collect-data", "docx", "--collect-data", "openpyxl",
         *[x for m in ("uvicorn.logging", "uvicorn.loops.auto", "uvicorn.protocols.http.auto",
                       "uvicorn.protocols.websockets.auto", "uvicorn.lifespan.on") for x in ("--hidden-import", m)],
+        # Windows desktop control: pywinauto + comtypes (COM) + pywin32 pieces loaded at run time.
+        *(["--collect-submodules", "pywinauto", "--collect-submodules", "comtypes", "--hidden-import", "win32timezone",
+           "--hidden-import", "win32job", "--hidden-import", "win32com.client"] if sys.platform == "win32" else []),
         *(["--console"] if sys.platform != "win32" else ["--noconsole"]),
         str(HERE / "entry.py"),
     ])

@@ -35,14 +35,20 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 WizardStyle=modern
 LicenseFile=..\LICENSE
-#if Edition == "Pro"
+#ifdef SliceBytes
+; Release builds: split into parts below GitHub's 2 GB per-file limit (Setup.exe + Setup-N.bin, keep together).
+DiskSpanning=yes
+DiskSliceSize={#SliceBytes}
+#elif Edition == "Pro"
 DiskSpanning=yes
 DiskSliceSize=max
 #endif
 
 [Files]
 ; The whole unpacked app, including resources\backend, engine, tesseract and models.
-Source: "{#AppDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "{#AppDir}\*"; Excludes: "\resources\models\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+; Brain files (GGUF) barely compress: store them as they are, which makes building much faster.
+Source: "{#AppDir}\resources\models\*"; DestDir: "{app}\resources\models"; Flags: recursesubdirs createallsubdirs ignoreversion nocompression skipifsourcedoesntexist
 Source: "..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
