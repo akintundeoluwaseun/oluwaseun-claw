@@ -133,6 +133,7 @@ class VoiceModels:
                 id=entry.id,
                 name=entry.name,
                 engine=entry.engine,
+                kind=entry.kind,
                 folder=folder,
                 files=names,
                 sizes=sizes,

@@ -71,3 +71,12 @@ test('speech routes', () => {
   assert.ok(!isAllowedRoute('DELETE', '/speech'));
   assert.ok(!isAllowedRoute('GET', '/speechx'));
 });
+
+test('live speech routes', () => {
+  assert.ok(isAllowedRoute('POST', '/speech/stream/start'));
+  assert.ok(isAllowedRoute('POST', '/speech/stream/cancel'));
+  // Audio chunks are bytes: they go through postBytes, never the JSON allowlist.
+  assert.ok(!isAllowedRoute('POST', '/speech/stream/abc123/chunk'));
+  assert.ok(!isAllowedRoute('POST', '/speech/stream/abc123/finish'));
+  assert.ok(!isAllowedRoute('POST', '/speech/stream/../settings'));
+});

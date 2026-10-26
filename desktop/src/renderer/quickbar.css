@@ -136,3 +136,10 @@ body[data-listening='yes'] .mic-dot { opacity: 1; transform: scale(1); }
   .listening-dot { animation: none; }
   .mic, .mic-dot { transition: none; }
 }
+
+/* Words still being decoded: shown, but visibly provisional. */
+#task[data-partial='yes'] {
+  color: var(--text-dim, #8a8f98);
+  font-style: italic;
+}
+.listening #listening-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

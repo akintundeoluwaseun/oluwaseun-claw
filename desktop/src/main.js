@@ -417,6 +417,42 @@ ipcMain.handle('voice:status', async (event) => {
   return res.ok ? res.body : { enabled: false, ready: false, reason: 'Claw is still starting.' };
 });
 
+ipcMain.handle('voice:stream-start', async (event, sampleRate) => {
+  if (!fromOurWindows(event)) return { ok: false, message: 'Not allowed.' };
+  const res = await backend.request('POST', '/speech/stream/start', { sample_rate: Number(sampleRate) || 16000 });
+  if (!res.ok) {
+    const err = (res.body && res.body.error) || {};
+    return { ok: false, message: [err.message, err.hint].filter(Boolean).join(' ') || 'Could not start listening.' };
+  }
+  return { ok: true, streamId: String(res.body.stream_id || '') };
+});
+
+ipcMain.handle('voice:stream-chunk', async (event, streamId, pcm) => {
+  if (!fromOurWindows(event)) return { ok: false, message: 'Not allowed.' };
+  const res = await backend.sendAudioChunk(streamId, pcm instanceof Uint8Array ? pcm : new Uint8Array(pcm || []));
+  if (!res.ok) {
+    const err = (res.body && res.body.error) || {};
+    return { ok: false, message: err.message || 'Lost the recording.' };
+  }
+  return { ok: true, text: String((res.body && res.body.text) || '') };
+});
+
+ipcMain.handle('voice:stream-finish', async (event, streamId) => {
+  if (!fromOurWindows(event)) return { ok: false, message: 'Not allowed.' };
+  const res = await backend.finishStream(streamId);
+  if (!res.ok) {
+    const err = (res.body && res.body.error) || {};
+    return { ok: false, message: err.message || 'Recognition failed.' };
+  }
+  return { ok: true, text: String((res.body && res.body.text) || '') };
+});
+
+ipcMain.handle('voice:stream-cancel', async (event) => {
+  if (!fromOurWindows(event)) return { ok: false };
+  await backend.request('POST', '/speech/stream/cancel', {});
+  return { ok: true };
+});
+
 ipcMain.handle('voice:transcribe', async (event, wav) => {
   if (!fromOurWindows(event)) return { ok: false, message: 'Not allowed.' };
   const bytes = wav instanceof Uint8Array ? wav : new Uint8Array(wav || []);

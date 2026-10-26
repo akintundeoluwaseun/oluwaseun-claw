@@ -33,17 +33,27 @@ Voice is **off** until you switch it on — the app never downloads a model by i
 2. Pick a model and press Download. This needs the internet **once**.
 3. The microphone button appears in the quick bar.
 
-| Model | Download | Memory | Speed |
-|---|---|---|---|
-| Quick (English) | ~120 MB | 2 GB | Fastest, least accurate |
-| **Balanced** (default) | ~250 MB | 4 GB | Fast |
-| Most accurate | ~900 MB | 6 GB | A second or two per command |
+| Model | Live? | Download | Memory | Speed |
+|---|---|---|---|---|
+| Quick (English) | no | ~120 MB | 2 GB | Fastest, least accurate |
+| **Balanced** (default) | no | ~250 MB | 4 GB | Fast |
+| Most accurate | no | ~900 MB | 6 GB | A second or two per command |
+| **Live (English)** | **yes** | ~330 MB | 3 GB | Words appear as you speak |
+
+**Live transcription needs the "Live (English)" model.** Whisper cannot stream: it
+needs the whole utterance before it can decode anything, so the three Whisper
+models show the words after you stop. The Live model is a streaming transducer
+that decodes continuously. It is English-only and weaker on names than Whisper —
+a real trade, not a free upgrade. Settings shows which model does which, and the
+bar adapts automatically.
 
 After the download, recognition works with Wi-Fi and Ethernet switched off.
 
 ## Using it
 
 - **Click** the microphone, speak, click again to stop.
+- With the Live model the words appear **while you are still talking**, in grey
+  italic to show they are provisional. They settle into normal text when you stop.
 - Or hold the **push-to-talk** shortcut (default `Ctrl+Shift+V`).
 - **Cancel** throws the recording away without recognising it.
 - The words land in the task field. Edit them, then press **Start**.
@@ -96,12 +106,24 @@ been spoken into this build. See `docs/VOICE_NIGERIAN_ENGLISH.md`.
 | 16 | Emergency stop and confirmations | **PASS (inherited)** | voice text enters the same planner: `test_declined_approval_stops_without_writing`, `test_cancel_while_waiting`, `test_destructive_floor_enforced` |
 | 17 | Local AI unavailable, separately from speech | **PASS** | `test_recognition_works_with_no_brain_installed`, `test_voice_status_is_separate_from_the_brain` |
 | 18 | No disk space; download interrupted | **PASS** | `test_no_disk_space_is_reported_before_downloading`, `test_cancelling_removes_the_partial_model` |
+| 19 | Live partials grow while speaking | **PASS** (fake engine) | `test_words_appear_while_speaking` |
+| 20 | Live audio resampled without seams | **PASS** | `test_stream_resampler_matches_whole_file_resampling` — chunked output is bit-identical to resampling the whole recording |
+| 21 | Cancel a live recording | **PASS** | `test_cancelling_a_live_recording_stops_it_dead` |
+| 22 | One live recording at a time; no leaks | **PASS** | `test_only_one_live_recording_at_a_time`, `test_an_abandoned_recording_does_not_pin_the_model` |
+| 23 | A non-streaming model says so | **PASS** | `test_a_model_that_cannot_stream_says_so` |
 
-**7 PASS, 1 PARTIAL, 10 BLOCKED.** Backend suite: 57 voice tests, 249 overall,
-0 failures. Audio conversion, the model manager (checksums, corruption, resume,
+**12 PASS, 1 PARTIAL, 10 BLOCKED.** Backend suite: 70 voice tests, 262 overall,
+0 failures; 8 desktop tests.
+
+`sherpa-onnx` 2.0.1 **is now installed in the build workspace**, so the adapter is
+written against the library's real API rather than remembered names:
+`OfflineRecognizer.from_whisper(encoder, decoder, tokens)` and
+`OnlineRecognizer.from_transducer(tokens, encoder, decoder, joiner, …)` were both
+checked by introspection. What is still missing here is a model and a microphone. Audio conversion, the model manager (checksums, corruption, resume,
 cancellation, licence refusal, disk space), the service, settings and the API are
-all covered by real tests. **Microphone capture, the floating bar on screen, and
-every accuracy question are untested.**
+all covered by real tests, as is the live streaming path end to end with a fake
+engine. **Microphone capture, the floating bar on screen, real streaming
+recognition and every accuracy question are untested.**
 
 ## Running the blocked tests on Windows
 

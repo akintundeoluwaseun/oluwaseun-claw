@@ -16,6 +16,11 @@ contextBridge.exposeInMainWorld('quick', {
   voiceStatus: () => ipcRenderer.invoke('voice:status'),
   // wav is a Uint8Array of one finished recording; the reply is the recognised text.
   transcribe: (wav) => ipcRenderer.invoke('voice:transcribe', wav),
+  // Live: open a recording, push raw PCM as it arrives, close it.
+  streamStart: (rate) => ipcRenderer.invoke('voice:stream-start', rate),
+  streamChunk: (id, pcm) => ipcRenderer.invoke('voice:stream-chunk', id, pcm),
+  streamFinish: (id) => ipcRenderer.invoke('voice:stream-finish', id),
+  streamCancel: () => ipcRenderer.invoke('voice:stream-cancel'),
   onPushToTalk: (cb) => {
     const l = (_e, down) => cb(down);
     ipcRenderer.on('voice:push-to-talk', l);

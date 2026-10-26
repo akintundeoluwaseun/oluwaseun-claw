@@ -36,6 +36,8 @@ const ALLOWED_ROUTES = [
   ['GET', /^\/messages\/whatsapp$/],
   ['POST', /^\/messages\/whatsapp\/check$/],
   ['GET', /^\/speech$/],
+  ['POST', /^\/speech\/stream\/start$/],
+  ['POST', /^\/speech\/stream\/cancel$/],
   ['POST', /^\/speech\/models\/download$/],
   ['POST', /^\/speech\/models\/download\/cancel$/],
   ['POST', /^\/speech\/models\/remove$/],
@@ -210,6 +212,20 @@ class Backend {
     }
   }
 
+  async sendAudioChunk(streamId, pcm) {
+    if (typeof streamId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(streamId)) {
+      return { ok: false, status: 400, body: { error: { code: 'audio', message: 'That recording is no longer open.' } } };
+    }
+    return this.postBytes(`/speech/stream/${streamId}/chunk`, pcm, 20000);
+  }
+
+  async finishStream(streamId) {
+    if (typeof streamId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(streamId)) {
+      return { ok: false, status: 400, body: { error: { code: 'audio', message: 'That recording is no longer open.' } } };
+    }
+    return this.postBytes(`/speech/stream/${streamId}/finish`, new Uint8Array(0), 120000);
+  }
+
   async sendAudio(wav) {
     if (this.status.state !== 'ready') {
       return { ok: false, status: 503, body: { error: { code: 'backend_unavailable', message: this.status.message } } };
@@ -217,12 +233,24 @@ class Backend {
     if (!(wav instanceof Uint8Array) || wav.length === 0 || wav.length > 40 * 1024 * 1024) {
       return { ok: false, status: 400, body: { error: { code: 'audio', message: 'That recording could not be read.' } } };
     }
+    return this.postBytes('/speech/transcribe', wav, 120000);
+  }
+
+  // Audio is bytes, so it never goes through the JSON route or its allowlist.
+  // Only the three speech paths below can be reached this way.
+  async postBytes(route, bytes, timeoutMs) {
+    if (!/^\/speech\/(transcribe|stream\/[A-Za-z0-9_-]{1,64}\/(chunk|finish))$/.test(route)) {
+      return { ok: false, status: 400, body: { error: { code: 'blocked_route', message: 'That request is not allowed.' } } };
+    }
+    if (this.status.state !== 'ready') {
+      return { ok: false, status: 503, body: { error: { code: 'backend_unavailable', message: this.status.message } } };
+    }
     try {
-      const res = await fetch(`http://127.0.0.1:${this.port}/speech/transcribe`, {
+      const res = await fetch(`http://127.0.0.1:${this.port}${route}`, {
         method: 'POST',
-        headers: { 'X-Claw-Token': this.token, 'Content-Type': 'audio/wav' },
-        body: wav,
-        signal: AbortSignal.timeout(120000),
+        headers: { 'X-Claw-Token': this.token, 'Content-Type': 'application/octet-stream' },
+        body: bytes,
+        signal: AbortSignal.timeout(timeoutMs),
       });
       let data = null;
       try {

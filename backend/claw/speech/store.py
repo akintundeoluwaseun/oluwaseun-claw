@@ -22,6 +22,7 @@ class InstalledVoiceModel:
     name: str
     engine: str
     folder: Path
+    kind: str = "offline"  # "streaming" = decodes while you speak
     files: dict[str, str] = field(default_factory=dict)  # role -> file name inside folder
     sizes: dict[str, int] = field(default_factory=dict)  # role -> expected bytes
     languages: list[str] = field(default_factory=list)
@@ -57,6 +58,8 @@ class InstalledVoiceModel:
             "id": self.id,
             "name": self.name,
             "engine": self.engine,
+            "kind": self.kind,
+            "streaming": self.kind == "streaming",
             "languages": list(self.languages),
             "license": self.license,
             "source": self.source,
@@ -101,6 +104,7 @@ class VoiceModelStore:
             id=model_id,
             name=str(data.get("name") or model_id),
             engine=str(data.get("engine") or ""),
+            kind=str(data.get("kind") or "offline"),
             folder=self.folder_for(model_id),
             files={str(k): str(v) for k, v in (data.get("files") or {}).items()},
             sizes={str(k): int(v) for k, v in (data.get("sizes") or {}).items()},
@@ -117,6 +121,7 @@ class VoiceModelStore:
                 {
                     "name": model.name,
                     "engine": model.engine,
+                    "kind": model.kind,
                     "files": model.files,
                     "sizes": model.sizes,
                     "languages": model.languages,

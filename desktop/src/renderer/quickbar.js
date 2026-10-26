@@ -98,6 +98,10 @@ const voice = {
   recording: false,
   busy: false,
   enabled: false,
+  live: false,        // the active model decodes while you speak
+  streamId: null,
+  sending: false,     // one chunk in flight at a time, so they stay in order
+  queue: [],
 };
 
 function setListening(on, text) {
@@ -128,11 +132,67 @@ async function startRecording() {
   // one mono buffer of raw samples is all we collect.
   voice.node = voice.ctx.createScriptProcessor(4096, 1, 1);
   voice.node.onaudioprocess = (e) => {
-    if (voice.recording) voice.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    if (!voice.recording) return;
+    const slice = new Float32Array(e.inputBuffer.getChannelData(0));
+    if (voice.live) sendLive(slice);
+    else voice.chunks.push(slice);
   };
   src.connect(voice.node);
   voice.node.connect(voice.ctx.destination);
+
+  if (voice.live) {
+    const res = await q.streamStart(voice.rate);
+    if (!res || !res.ok) {
+      releaseMic();
+      foot((res && res.message) || 'Could not start listening.', 'bad');
+      return;
+    }
+    voice.streamId = res.streamId;
+  }
   setListening(true);
+}
+
+function toPcm16(floats) {
+  const pcm = new Int16Array(floats.length);
+  for (let i = 0; i < floats.length; i += 1) {
+    const v = Math.max(-1, Math.min(1, floats[i]));
+    pcm[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
+  }
+  return new Uint8Array(pcm.buffer);
+}
+
+// Chunks are sent one at a time: the recogniser needs them in order, and a slow
+// machine must drop behind rather than interleave. Audio keeps being captured
+// while a send is in flight, so nothing is lost.
+async function sendLive(slice) {
+  voice.queue.push(slice);
+  if (voice.sending || !voice.streamId) return;
+  voice.sending = true;
+  try {
+    while (voice.queue.length && voice.streamId) {
+      const next = voice.queue.shift();
+      const res = await q.streamChunk(voice.streamId, toPcm16(next));
+      if (!res || !res.ok) {
+        // The recording is gone; stop sending and let the user know once.
+        voice.streamId = null;
+        voice.queue.length = 0;
+        foot((res && res.message) || 'Lost the recording.', 'bad');
+        return;
+      }
+      if (voice.recording) showPartial(res.text);
+    }
+  } finally {
+    voice.sending = false;
+  }
+}
+
+// Partial words go in the task field so they can be edited the moment you stop.
+// The field is marked provisional until the final text replaces it.
+function showPartial(text) {
+  $('task').value = text || '';
+  $('task').dataset.partial = 'yes';
+  $('run').disabled = ($('task').value.trim().length < 3);
+  $('listening-text').textContent = text ? text : 'Listening…';
 }
 
 function releaseMic() {
@@ -167,9 +227,36 @@ async function stopRecording(cancelled) {
   if (!voice.recording) return;
   const chunks = voice.chunks;
   const rate = voice.rate;
+  const streamId = voice.streamId;
   voice.chunks = [];
+  voice.streamId = null;
   setListening(false);
   releaseMic();                       // the microphone is freed before recognition runs
+
+  if (voice.live) {
+    voice.queue.length = 0;
+    delete $('task').dataset.partial;
+    if (cancelled || !streamId) {
+      await q.streamCancel();
+      $('task').value = '';
+      $('run').disabled = true;
+      $('listening').hidden = true;
+      return;
+    }
+    $('listening-text').textContent = 'Finishing…';
+    const res = await q.streamFinish(streamId);
+    $('listening').hidden = true;
+    if (res && res.ok && res.text) {
+      $('task').value = res.text;
+      $('task').focus();
+      $('run').disabled = $('task').value.trim().length < 3;
+      foot('Check the words, then press Start.');
+    } else {
+      foot((res && res.message) || 'Claw could not make out any words.', 'bad');
+    }
+    return;
+  }
+
   if (cancelled || !chunks.length) { $('listening').hidden = true; return; }
 
   voice.busy = true;
@@ -201,6 +288,7 @@ q.onPushToTalk((down) => {
 
 q.voiceStatus().then((s) => {
   voice.enabled = !!(s && s.ready);
+  voice.live = !!(s && s.streaming);
   $('mic').hidden = !(s && s.enabled);
   if (s && s.enabled && !s.ready) {
     $('mic').disabled = true;

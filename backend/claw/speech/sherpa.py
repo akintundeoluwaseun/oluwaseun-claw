@@ -38,6 +38,8 @@ class SherpaEngine:
     def __init__(self) -> None:
         self._recognizer = None
         self._model_id: str | None = None
+        self._online = None
+        self._online_id: str | None = None
 
     # ---------- state ----------
     def available(self) -> tuple[bool, str]:
@@ -89,6 +91,46 @@ class SherpaEngine:
     def unload(self) -> None:
         self._recognizer = None
         self._model_id = None
+        self._online = None
+        self._online_id = None
+
+    # ---------- live recognition ----------
+    def supports_streaming(self, model: InstalledVoiceModel) -> bool:
+        """Only a transducer decodes as you speak. Whisper needs the whole utterance."""
+        return model.kind == "streaming" and "joiner" in model.files
+
+    def open_stream(self, model: InstalledVoiceModel):
+        if not self.supports_streaming(model):
+            raise SpeechUnavailable(
+                f"The '{model.name}' voice model shows the words after you stop speaking, not while you talk.",
+                "Settings → Voice → choose a model marked 'Live' for that.",
+            )
+        sherpa_onnx = _import()
+        missing = model.missing()
+        if missing:
+            raise SpeechUnavailable(
+                f"The '{model.name}' voice model is incomplete ({', '.join(missing)}).",
+                "Repair or download it again in Settings.",
+            )
+        if self._online is None or self._online_id != model.id:
+            try:
+                self._online = sherpa_onnx.OnlineRecognizer.from_transducer(
+                    tokens=str(model.path("tokens")),
+                    encoder=str(model.path("encoder")),
+                    decoder=str(model.path("decoder")),
+                    joiner=str(model.path("joiner")),
+                    num_threads=2,
+                    enable_endpoint_detection=True,
+                )
+            except Exception as exc:  # noqa: BLE001
+                self._online = None
+                self._online_id = None
+                raise SpeechUnavailable(
+                    f"The '{model.name}' voice model could not be loaded.",
+                    "It may be damaged. Repair it in Settings.",
+                ) from exc
+            self._online_id = model.id
+        return SherpaStream(self._online, self._online.create_stream())
 
     # ---------- recognition ----------
     def transcribe(self, audio: Audio) -> Transcript:
@@ -108,3 +150,53 @@ class SherpaEngine:
             audio_seconds=round(audio.seconds, 2),
             took_seconds=round(time.monotonic() - started, 2),
         )
+
+
+class SherpaStream:
+    """A live utterance against a streaming transducer.
+
+    sherpa-onnx resets its hypothesis at each endpoint (a pause long enough to end
+    a sentence), so the text so far is kept here and the current hypothesis is
+    added to it. Without that, a pause mid-command would wipe what was already said.
+    """
+
+    def __init__(self, recognizer, stream):
+        self._rec = recognizer
+        self._stream = stream
+        self._committed: list[str] = []
+        self._closed = False
+
+    def accept(self, samples) -> None:
+        if self._closed:
+            return
+        self._stream.accept_waveform(TARGET_RATE, list(samples))
+        while self._rec.is_ready(self._stream):
+            self._rec.decode_stream(self._stream)
+        if self._rec.is_endpoint(self._stream):
+            text = (self._rec.get_result(self._stream) or "").strip()
+            if text:
+                self._committed.append(text)
+            self._rec.reset(self._stream)
+
+    def partial(self) -> str:
+        if self._closed:
+            return " ".join(self._committed).strip()
+        current = (self._rec.get_result(self._stream) or "").strip()
+        return " ".join([*self._committed, current]).strip()
+
+    def final(self) -> str:
+        if self._closed:
+            return " ".join(self._committed).strip()
+        self._stream.input_finished()
+        while self._rec.is_ready(self._stream):
+            self._rec.decode_stream(self._stream)
+        text = (self._rec.get_result(self._stream) or "").strip()
+        if text:
+            self._committed.append(text)
+        self._closed = True
+        return " ".join(self._committed).strip()
+
+    def close(self) -> None:
+        self._closed = True
+        self._stream = None
+        self._rec = None

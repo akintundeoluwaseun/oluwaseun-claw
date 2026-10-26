@@ -28,12 +28,23 @@ WHISPER_FILES = {
     "tokens": r"tokens\.txt$",
 }
 
+# A streaming transducer also has a joiner. These models decode as you speak, so
+# the bar can show words while they are still being said; Whisper cannot, and asks
+# for the whole utterance first.
+TRANSDUCER_FILES = {
+    "encoder": r"encoder.*\.onnx$",
+    "decoder": r"decoder.*\.onnx$",
+    "joiner": r"joiner.*\.onnx$",
+    "tokens": r"tokens\.txt$",
+}
+
 
 @dataclass(frozen=True)
 class VoiceModel:
     id: str
     name: str
     engine: str  # which SpeechEngine can run it
+    kind: str  # "streaming" = words appear while you speak; "offline" = after you stop
     repo: str
     files: dict[str, str]  # role -> regex on file names
     languages: list[str]
@@ -51,6 +62,7 @@ CATALOG: list[VoiceModel] = [
         id="whisper-tiny-en",
         name="Quick (English)",
         engine="sherpa-onnx",
+        kind="offline",
         repo="csukuangfj/sherpa-onnx-whisper-tiny.en",
         files=WHISPER_FILES,
         languages=["en"],
@@ -63,6 +75,7 @@ CATALOG: list[VoiceModel] = [
         id="whisper-base",
         name="Balanced",
         engine="sherpa-onnx",
+        kind="offline",
         repo="csukuangfj/sherpa-onnx-whisper-base",
         files=WHISPER_FILES,
         languages=["en", "multilingual"],
@@ -75,6 +88,7 @@ CATALOG: list[VoiceModel] = [
         id="whisper-small",
         name="Most accurate",
         engine="sherpa-onnx",
+        kind="offline",
         repo="csukuangfj/sherpa-onnx-whisper-small",
         files=WHISPER_FILES,
         languages=["en", "multilingual"],
@@ -82,6 +96,20 @@ CATALOG: list[VoiceModel] = [
         min_ram_gb=6,
         speed="Slower, a second or two per command",
         description="Best with accents, product names and background noise. Needs more memory.",
+    ),
+    VoiceModel(
+        id="zipformer-en-stream",
+        name="Live (English)",
+        engine="sherpa-onnx",
+        kind="streaming",
+        repo="csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26",
+        files=TRANSDUCER_FILES,
+        languages=["en"],
+        approx_download_mb=330,
+        min_ram_gb=3,
+        speed="Words appear as you speak",
+        description="Shows the words while you are still talking. English only, and less accurate "
+                    "with names than the Whisper models.",
     ),
 ]
 

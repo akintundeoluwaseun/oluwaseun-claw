@@ -90,6 +90,12 @@ class FakeEngine:
     def unload(self):
         self.loaded_model = None
 
+    def supports_streaming(self, model):
+        return False  # a plain offline engine; StreamingEngine below overrides this
+
+    def open_stream(self, model):
+        raise SpeechUnavailable("This engine shows the words after you stop speaking.")
+
 
 def install(store: VoiceModelStore, model_id="whisper-base", *, damaged=False) -> InstalledVoiceModel:
     folder = store.folder_for(model_id)
@@ -102,7 +108,7 @@ def install(store: VoiceModelStore, model_id="whisper-base", *, damaged=False) -
         sizes[role] = len(blob)
     if damaged:
         (folder / "encoder.onnx").write_bytes(b"short")  # wrong size = damaged, not missing
-    m = InstalledVoiceModel(id=model_id, name="Balanced", engine="sherpa-onnx", folder=folder,
+    m = InstalledVoiceModel(id=model_id, name="Balanced", engine="sherpa-onnx", folder=folder, kind="offline",
                             files=files, sizes=sizes, languages=["en"], license="mit",
                             source="huggingface.co/test", verified=True)
     store.save_meta(m)
@@ -561,3 +567,224 @@ def test_voice_status_is_separate_from_the_brain(make_client):
     body = make_client().get("/speech").json()
     assert "brain" not in repr(body).lower()
     assert set(body) >= {"runtime_ready", "ready", "reason", "model", "catalog"}
+
+
+# ---------- live transcription ----------
+from claw.speech.audio import StreamResampler, pcm16_to_floats  # noqa: E402
+from claw.speech.stream import IDLE_TIMEOUT_S, StreamRegistry  # noqa: E402
+
+
+class FakeStream:
+    """Emits one word per ~0.2 s of audio, and commits across a simulated pause."""
+
+    def __init__(self, words):
+        self.words = list(words)
+        self.samples = 0
+        self.closed = False
+        self.committed = []
+
+    def accept(self, samples):
+        assert not self.closed, "audio after close"
+        self.samples += len(samples)
+
+    def _heard(self):
+        n = min(len(self.words), int(self.samples / (TARGET_RATE * 0.2)))
+        return self.words[:n]
+
+    def partial(self):
+        return " ".join(self._heard())
+
+    def final(self):
+        self.closed = True
+        return " ".join(self.words[: max(1, len(self._heard()))])
+
+    def close(self):
+        self.closed = True
+
+
+class StreamingEngine(FakeEngine):
+    name = "fake-stream"
+
+    def __init__(self, words=("open", "notepad", "and", "write"), can_stream=True):
+        super().__init__()
+        self.words = words
+        self.can_stream = can_stream
+        self.streams = []
+
+    def supports_streaming(self, model):
+        return self.can_stream and model.kind == "streaming"
+
+    def open_stream(self, model):
+        if not self.supports_streaming(model):
+            raise SpeechUnavailable(f"The '{model.name}' voice model shows the words after you stop speaking.")
+        s = FakeStream(self.words)
+        self.streams.append(s)
+        return s
+
+
+def install_streaming(store, model_id="zipformer-en-stream"):
+    m = install(store, model_id)
+    m.kind = "streaming"
+    m.files["joiner"] = "joiner.onnx"
+    (m.folder / "joiner.onnx").write_bytes(b"x" * 64)
+    m.sizes["joiner"] = 64
+    store.save_meta(m)
+    return store.load(model_id)
+
+
+def pcm(seconds=0.2, rate=TARGET_RATE):
+    frames = int(seconds * rate)
+    return array("h", [int(3000 * math.sin(2 * math.pi * 300 * i / rate)) for i in range(frames)]).tobytes()
+
+
+def test_store_remembers_that_a_model_streams(tmp_path):
+    store = VoiceModelStore(tmp_path / "voice-models")
+    m = install_streaming(store)
+    assert m.kind == "streaming" and m.as_dict()["streaming"] is True
+    assert install(store, "whisper-base").as_dict()["streaming"] is False
+
+
+def test_catalogue_offers_a_live_model():
+    live = [m for m in catalog.CATALOG if m.kind == "streaming"]
+    assert live, "no streaming model offered"
+    for m in live:
+        assert "joiner" in m.files  # a transducer, not Whisper
+    for m in catalog.CATALOG:
+        assert m.kind in ("streaming", "offline")
+
+
+async def test_words_appear_while_speaking(tmp_path):
+    store = VoiceModelStore(tmp_path / "voice-models")
+    install_streaming(store)
+    svc = SpeechService(store, engine=StreamingEngine())
+    s = voice_settings(model="zipformer-en-stream")
+
+    started = await svc.start_stream(s, TARGET_RATE)
+    seen = []
+    for _ in range(4):
+        got = await svc.feed_stream(started["stream_id"], pcm(0.2))
+        seen.append(got["text"])
+        assert got["partial"] is True and got["untrusted"] is True
+    # The text grows as the audio arrives: that is what "live" means.
+    assert seen[0] and len(seen[0].split()) < len(seen[-1].split())
+    assert seen == sorted(seen, key=lambda t: len(t.split()))
+    final = await svc.finish_stream(started["stream_id"])
+    assert final.text == "open notepad and write" and final.partial is False
+    assert final.audio_seconds > 0.5
+
+
+async def test_a_microphone_at_another_rate_is_resampled_live(tmp_path):
+    store = VoiceModelStore(tmp_path / "voice-models")
+    install_streaming(store)
+    engine = StreamingEngine()
+    svc = SpeechService(store, engine=engine)
+    s = voice_settings(model="zipformer-en-stream")
+    started = await svc.start_stream(s, 48000)
+    for _ in range(5):
+        await svc.feed_stream(started["stream_id"], pcm(0.2, rate=48000))
+    await svc.finish_stream(started["stream_id"])
+    # 1.0 s in at 48 kHz must be ~1.0 s of 16 kHz samples, not three times as many.
+    assert abs(engine.streams[0].samples - TARGET_RATE) < TARGET_RATE * 0.05
+
+
+async def test_cancelling_a_live_recording_stops_it_dead(tmp_path):
+    store = VoiceModelStore(tmp_path / "voice-models")
+    install_streaming(store)
+    engine = StreamingEngine()
+    svc = SpeechService(store, engine=engine)
+    s = voice_settings(model="zipformer-en-stream")
+    started = await svc.start_stream(s, TARGET_RATE)
+    await svc.feed_stream(started["stream_id"], pcm())
+    svc.cancel_stream()
+    assert engine.streams[0].closed
+    with pytest.raises(SpeechUnavailable, match="no longer open"):
+        await svc.feed_stream(started["stream_id"], pcm())
+
+
+async def test_only_one_live_recording_at_a_time(tmp_path):
+    store = VoiceModelStore(tmp_path / "voice-models")
+    install_streaming(store)
+    engine = StreamingEngine()
+    svc = SpeechService(store, engine=engine)
+    s = voice_settings(model="zipformer-en-stream")
+    first = await svc.start_stream(s, TARGET_RATE)
+    second = await svc.start_stream(s, TARGET_RATE)
+    assert first["stream_id"] != second["stream_id"]
+    assert engine.streams[0].closed  # the first was released, not leaked
+    with pytest.raises(SpeechUnavailable, match="no longer open"):
+        await svc.feed_stream(first["stream_id"], pcm())
+
+
+async def test_a_model_that_cannot_stream_says_so(tmp_path):
+    store = VoiceModelStore(tmp_path / "voice-models")
+    install(store)  # Whisper: offline only
+    svc = SpeechService(store, engine=StreamingEngine())
+    with pytest.raises(SpeechUnavailable, match="after you stop speaking"):
+        await svc.start_stream(voice_settings(), TARGET_RATE)
+
+
+async def test_status_says_whether_the_active_model_is_live(tmp_path):
+    store = VoiceModelStore(tmp_path / "voice-models")
+    install(store)
+    svc = SpeechService(store, engine=StreamingEngine())
+    assert svc.status(voice_settings())["streaming"] is False
+    install_streaming(store)
+    assert svc.status(voice_settings(model="zipformer-en-stream"))["streaming"] is True
+
+
+async def test_an_overlong_live_recording_is_stopped(tmp_path, monkeypatch):
+    import claw.speech.stream as stream_mod
+
+    monkeypatch.setattr(stream_mod, "MAX_SECONDS", 0.5)
+    store = VoiceModelStore(tmp_path / "voice-models")
+    install_streaming(store)
+    svc = SpeechService(store, engine=StreamingEngine())
+    s = voice_settings(model="zipformer-en-stream")
+    started = await svc.start_stream(s, TARGET_RATE)
+    with pytest.raises(AudioError, match="was stopped"):
+        for _ in range(6):
+            await svc.feed_stream(started["stream_id"], pcm(0.2))
+
+
+async def test_rubbish_chunks_are_refused(tmp_path):
+    store = VoiceModelStore(tmp_path / "voice-models")
+    install_streaming(store)
+    svc = SpeechService(store, engine=StreamingEngine())
+    started = await svc.start_stream(voice_settings(model="zipformer-en-stream"), TARGET_RATE)
+    with pytest.raises(AudioError, match="empty"):
+        await svc.feed_stream(started["stream_id"], b"")
+    with pytest.raises(AudioError, match="too large"):
+        await svc.feed_stream(started["stream_id"], b"\x00" * (3 * 1024 * 1024))
+
+
+def test_an_abandoned_recording_does_not_pin_the_model(monkeypatch):
+    """A bar that crashes mid-recording must not hold the model open for ever."""
+    reg = StreamRegistry()
+    handle = FakeStream(["hello"])
+    session = reg.open("m", handle, TARGET_RATE)
+    assert reg.active is session
+    now = [0.0]
+    monkeypatch.setattr("claw.speech.stream.time.monotonic", lambda: now[0])
+    session.last_seen = 0.0
+    now[0] = IDLE_TIMEOUT_S + 1
+    assert reg.active is None
+    assert handle.closed
+
+
+def test_pcm16_decoding_round_trips():
+    a = Audio(array("f", [0.0, 0.5, -0.5]), TARGET_RATE)
+    back = pcm16_to_floats(to_pcm16(a))
+    assert len(back) == 3 and abs(back[1] - 0.5) < 0.001
+    assert len(pcm16_to_floats(b"\x01")) == 0  # an odd trailing byte is dropped, not a crash
+
+
+def test_stream_resampler_matches_whole_file_resampling():
+    src = array("f", [math.sin(2 * math.pi * 220 * i / 48000) for i in range(48000)])
+    want = resample(Audio(src, 48000), TARGET_RATE).samples
+    r = StreamResampler(48000, TARGET_RATE)
+    got = array("f")
+    for i in range(0, len(src), 1024):
+        got.extend(r.feed(array("f", src[i:i + 1024])))
+    got.extend(r.flush())
+    assert len(got) == len(want)
+    assert max(abs(a - b) for a, b in zip(got, want)) < 1e-6

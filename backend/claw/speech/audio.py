@@ -159,3 +159,75 @@ def write_wav(audio: Audio, width: int = 2) -> bytes:
         w.setframerate(audio.rate)
         w.writeframes(to_pcm16(audio))
     return buf.getvalue()
+
+
+def pcm16_to_floats(data: bytes) -> array:
+    """Little-endian 16-bit PCM -> floats in -1.0..1.0."""
+    if len(data) % 2:
+        data = data[:-1]
+    ints = array("h")
+    ints.frombytes(data)
+    if sys_is_big_endian():  # pragma: no cover
+        ints.byteswap()
+    out = array("f")
+    out.extend(v / 32768.0 for v in ints)
+    return out
+
+
+class StreamResampler:
+    """Resamples a microphone stream chunk by chunk.
+
+    Resampling each chunk on its own would put a seam at every boundary, because
+    the output grid restarts and the window at the edge has nothing to average
+    with. This keeps the leftover tail and the fractional position between calls,
+    so the result is the same as resampling the whole recording at once.
+    """
+
+    def __init__(self, src_rate: int, dst_rate: int = TARGET_RATE):
+        if src_rate <= 0 or dst_rate <= 0:
+            raise AudioError("The recording has no usable audio.")
+        self.src_rate = src_rate
+        self.dst_rate = dst_rate
+        self.ratio = src_rate / dst_rate
+        self._tail = array("f")  # samples not yet consumed
+        self._pos = 0.0  # where the next output sample falls inside _tail
+
+    @property
+    def passthrough(self) -> bool:
+        return self.src_rate == self.dst_rate
+
+    def feed(self, samples: array) -> array:
+        """Give it source samples, get back however many output samples are ready."""
+        if self.passthrough:
+            return samples
+        self._tail.extend(samples)
+        out = array("f")
+        if self.ratio > 1:  # downsample: average each window, as resample() does
+            while True:
+                a = int(self._pos)
+                b = int(self._pos + self.ratio)
+                if b + 1 > len(self._tail):
+                    break
+                b = max(a + 1, b)
+                out.append(sum(self._tail[a:b]) / (b - a))
+                self._pos += self.ratio
+        else:  # upsample: interpolate between neighbours
+            while int(self._pos) + 1 < len(self._tail):
+                a = int(self._pos)
+                frac = self._pos - a
+                out.append(self._tail[a] * (1.0 - frac) + self._tail[a + 1] * frac)
+                self._pos += self.ratio
+        drop = int(self._pos)
+        if drop:
+            del self._tail[:drop]
+            self._pos -= drop
+        return out
+
+    def flush(self) -> array:
+        """Whatever is left at the end of the recording."""
+        if self.passthrough or not self._tail:
+            return array("f")
+        out = array("f", [sum(self._tail) / len(self._tail)]) if self.ratio > 1 else array("f", self._tail)
+        self._tail = array("f")
+        self._pos = 0.0
+        return out

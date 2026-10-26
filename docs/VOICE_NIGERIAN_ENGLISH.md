@@ -89,7 +89,13 @@ Compare at least two before concluding anything:
 
 1. **sherpa-onnx + Whisper base** — what Claw ships by default.
 2. **sherpa-onnx + Whisper small** — the accuracy option in the catalogue.
-3. Optionally whisper.cpp with the same weights, to separate the runtime from
+3. **sherpa-onnx + streaming zipformer** — the Live model. Expect it to be the
+   weakest on names: it is an English-only transducer and it decides words before
+   hearing the end of the sentence. Measure it anyway, because live feedback may
+   be worth a few points of WER when the user can see and fix the text as they
+   speak. Record **both** its partial text and its final text — a model whose
+   partials thrash about is unpleasant to use even when the final answer is right.
+4. Optionally whisper.cpp with the same weights, to separate the runtime from
    the model.
 
 Run every engine over the identical files. Record model version, quantisation,

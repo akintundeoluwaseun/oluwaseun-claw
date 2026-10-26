@@ -289,6 +289,41 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         # and the user submits. Marked untrusted for anything downstream.
         return {"text": result.text, "untrusted": True, **result.as_dict()}
 
+    @app.post("/speech/stream/start")
+    async def speech_stream_start(request: Request):
+        rate = (await _body(request)).get("sample_rate")
+        try:
+            return await state.speech.start_stream(state.settings, int(rate or 16000))
+        except (TypeError, ValueError):
+            return error_response(400, "audio", "The microphone's sample rate was not understood.")
+        except AudioError as exc:
+            return error_response(400, "audio", str(exc))
+        except SpeechUnavailable as exc:
+            return error_response(409, "speech_unavailable", exc.message, hint=exc.hint)
+
+    @app.post("/speech/stream/{stream_id}/chunk")
+    async def speech_stream_chunk(stream_id: str, request: Request):
+        """Raw 16-bit PCM in, the words so far out. Called every few hundred milliseconds."""
+        try:
+            return await state.speech.feed_stream(stream_id, await request.body())
+        except AudioError as exc:
+            return error_response(400, "audio", str(exc))
+        except SpeechUnavailable as exc:
+            return error_response(409, "speech_unavailable", exc.message, hint=exc.hint)
+
+    @app.post("/speech/stream/{stream_id}/finish")
+    async def speech_stream_finish(stream_id: str):
+        try:
+            result = await state.speech.finish_stream(stream_id)
+        except SpeechUnavailable as exc:
+            return error_response(409, "speech_unavailable", exc.message, hint=exc.hint)
+        return {"text": result.text, "untrusted": True, **result.as_dict()}
+
+    @app.post("/speech/stream/cancel")
+    async def speech_stream_cancel():
+        state.speech.cancel_stream()
+        return {"cancelled": True}
+
     @app.post("/speech/models/download")
     async def speech_download(request: Request):
         model_id = (await _body(request)).get("id")

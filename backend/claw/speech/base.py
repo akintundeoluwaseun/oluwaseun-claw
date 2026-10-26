@@ -68,6 +68,29 @@ class SpeechEngine(Protocol):
     def unload(self) -> None:
         """Release the model and its memory."""
 
+    def supports_streaming(self, model: InstalledVoiceModel) -> bool:
+        """True when this model can show words while the user is still speaking."""
+
+    def open_stream(self, model: InstalledVoiceModel) -> StreamHandle:
+        """Begin a live utterance. Raises SpeechUnavailable if the model cannot stream."""
+
+
+@runtime_checkable
+class StreamHandle(Protocol):
+    """One live utterance. Created by SpeechEngine.open_stream()."""
+
+    def accept(self, samples) -> None:
+        """Feed the next slice of 16 kHz mono audio."""
+
+    def partial(self) -> str:
+        """Everything heard so far. May change as more audio arrives."""
+
+    def final(self) -> str:
+        """Flush and return the finished text."""
+
+    def close(self) -> None:
+        """Release the stream. Safe to call twice."""
+
 
 @dataclass
 class EngineState:
