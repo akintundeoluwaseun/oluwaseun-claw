@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from claw.agent.schemas import Capability
 from claw.config import Settings, describe_validation_error
+from claw.permissions.policy import canonical_path
 from claw.permissions.policy import PermissionPolicy, RiskLevel
 
 if TYPE_CHECKING:
@@ -64,6 +65,19 @@ class TaskMemory:
 
     def corpus(self) -> str:
         return "\n".join(self.seen_text)
+
+    def note_file(self, path: str | Path) -> None:
+        """Record that Claw really opened this file."""
+        self.seen_files.add(str(canonical_path(path)))
+
+    def saw_file(self, location: str) -> bool:
+        """Was this file opened in this task, however the path is spelled?"""
+        if location in self.seen_files:
+            return True
+        try:
+            return str(canonical_path(location)) in self.seen_files
+        except (OSError, ValueError):  # not a usable path (e.g. a URL, or too long)
+            return False
 
 
 @dataclass

@@ -93,9 +93,25 @@ class ReportArgs(ToolArgs):
     folder: str | None = Field(default=None, max_length=500)
 
 
+_URL = re.compile(r"^[a-z][a-z0-9+.\-]*://", re.I)
+
+
+def _source_was_opened(location: str, ctx: ToolContext) -> bool:
+    """A source may be cited only if Claw really opened it in this task.
+
+    A file is matched on its canonical path, not the spelling the model used:
+    on Windows the recorded path is case-folded, so a raw string match would
+    reject a file Claw had just read.
+    """
+    if location in ctx.browser.seen_urls:
+        return True
+    if _URL.match(location):
+        return False
+    return ctx.memory.saw_file(location)
+
+
 def check_report(args: ReportArgs, ctx: ToolContext) -> None:
-    seen = ctx.browser.seen_urls | ctx.memory.seen_files
-    unseen = [s.location for s in args.sources if s.location not in seen]
+    unseen = [s.location for s in args.sources if not _source_was_opened(s.location, ctx)]
     if unseen:
         raise ToolError("These sources were not opened during this task, so they can't be cited: " + ", ".join(unseen[:5]))
     resolve_folder(ctx, args.folder)

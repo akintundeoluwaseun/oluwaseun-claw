@@ -66,7 +66,7 @@ async def read_file(args: ReadArgs, ctx: ToolContext) -> ToolResult:
     path = _authorized(ctx, args.path)
     if not path.is_file():
         raise ToolError(f"'{path}' is not a file.")
-    ctx.memory.seen_files.add(str(path))
+    ctx.memory.note_file(path)
     if path.suffix.lower() == ".pdf":
         from claw.tools.pdf_tools import read_pdf_overview
 

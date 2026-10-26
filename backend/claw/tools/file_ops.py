@@ -149,7 +149,7 @@ async def check_file(args: CheckFileArgs, ctx: ToolContext) -> ToolResult:
     body = text.lstrip("﻿").replace("\r\n", "\n")
     want = args.expected_text.replace("\r\n", "\n")
     match = body.rstrip("\n") == want.rstrip("\n") if args.exact else want in body
-    ctx.memory.seen_files.add(str(path))
+    ctx.memory.note_file(path)
     if match:
         return ToolResult(True, f"Checked {path.name}: its contents match exactly." if args.exact else f"Checked {path.name}: it contains the text.",
                           {"path": str(path), "match": True}, verified=True)

@@ -34,7 +34,7 @@ def _pdf(ctx: ToolContext, raw: str) -> Path:
         raise ToolError(str(exc)) from exc
     if not path.is_file() or path.suffix.lower() != ".pdf":
         raise ToolError(f"'{path.name}' is not a PDF file.")
-    ctx.memory.seen_files.add(str(path))
+    ctx.memory.note_file(path)
     return path
 
 

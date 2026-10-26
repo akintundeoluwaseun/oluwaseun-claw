@@ -35,7 +35,7 @@ def _input_image(ctx: ToolContext, raw: str) -> Path:
                 raise ToolError(f"{p.name} is too large ({probe.width}×{probe.height}).")
     except (OSError, Image.DecompressionBombError) as exc:
         raise ToolError(f"{p.name} could not be opened as a picture (it may be damaged).") from exc
-    ctx.memory.seen_files.add(str(p))
+    ctx.memory.note_file(p)
     return p
 
 

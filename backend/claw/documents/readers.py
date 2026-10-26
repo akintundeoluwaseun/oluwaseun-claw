@@ -93,6 +93,16 @@ def _xlsx(path: Path) -> str:
     return "\n".join(out)
 
 
+def _one_newline(text: str) -> str:
+    """CRLF and lone CR become LF.
+
+    A file written on Windows otherwise carries its '\\r' into reports, the model's
+    context and any comparison, which then differs by the platform the file came
+    from. Only line endings change: spaces, tabs and the text itself are untouched.
+    """
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def read_document(path: Path) -> str:
     ext = path.suffix.lower()
     if ext not in READABLE:
@@ -102,9 +112,9 @@ def read_document(path: Path) -> str:
     if size > MAX_BYTES:
         raise ToolError(f"The file is too large to read ({size:,} bytes).")
     if ext == ".pdf":
-        return _pdf(path)
+        return _one_newline(_pdf(path))
     if ext == ".docx":
-        return _docx(path)
+        return _one_newline(_docx(path))
     if ext in (".xlsx", ".xlsm"):
-        return _xlsx(path)
-    return _decode(path.read_bytes())
+        return _one_newline(_xlsx(path))
+    return _one_newline(_decode(path.read_bytes()))
