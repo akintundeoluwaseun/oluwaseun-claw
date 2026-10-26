@@ -55,12 +55,27 @@ if (-not $SkipEngine) {
   Write-Host "== Fetching llama.cpp (llama-server, $Gpu build) from github.com/ggml-org/llama.cpp"
   $headers = @{ 'User-Agent' = 'oluwaseun-claw-setup' }
   if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }  # build machines: avoids API rate limits
-  $rel = Invoke-RestMethod -UseBasicParsing -Headers $headers 'https://api.github.com/repos/ggml-org/llama.cpp/releases/latest'
   $patterns = @{ cpu = '-bin-win-cpu-x64\.zip$'; vulkan = '-bin-win-vulkan-x64\.zip$'; cuda = '-bin-win-cuda[\d.-]*-x64\.zip$' }
-  $asset = $rel.assets | Where-Object { $_.name -match $patterns[$Gpu] -and $_.name -notmatch '^cudart' } | Select-Object -First 1
-  if (-not $asset) {
-    throw "No Windows $Gpu build in llama.cpp release $($rel.tag_name). Download one from https://github.com/ggml-org/llama.cpp/releases and unzip it into backend\runtime\llama."
+  # llama.cpp publishes two kinds of release: version tags (v0.7.0) that carry only the source
+  # archives, and per-commit build tags (b11900) that carry the Windows binaries. GitHub's
+  # "latest" is often one of the source-only ones, so walk the list newest-first and take the
+  # first release that really has the build we want.
+  $rel = $null
+  $asset = $null
+  foreach ($page in 1..3) {
+    $url = "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=30&page=$page"
+    $releases = @(Invoke-RestMethod -UseBasicParsing -Headers $headers $url)
+    if ($releases.Count -eq 0) { break }
+    foreach ($r in $releases) {
+      $candidate = $r.assets | Where-Object { $_.name -match $patterns[$Gpu] -and $_.name -notmatch '^cudart' } | Select-Object -First 1
+      if ($candidate) { $rel = $r; $asset = $candidate; break }
+    }
+    if ($asset) { break }
   }
+  if (-not $asset) {
+    throw "No Windows $Gpu build in the 90 most recent llama.cpp releases. Download one from https://github.com/ggml-org/llama.cpp/releases and unzip it into backend\runtime\llama, then run setup again with -SkipEngine."
+  }
+  Write-Host "   using llama.cpp release $($rel.tag_name)"
   $zip = Join-Path $env:TEMP $asset.name
   Invoke-WebRequest -UseBasicParsing $asset.browser_download_url -OutFile $zip
   if ($asset.digest -and $asset.digest -like 'sha256:*') {
