@@ -114,11 +114,14 @@ jobs:
           Write-Output "::notice title=Installer files::$sizes"
 
       - name: Smoke-test the built app (starts, frozen backend answers)
-        continue-on-error: true
         run: |
-          $exe = Get-ChildItem "build\app-$($env:EDITION.ToLower())\win-unpacked\resources\backend\claw-backend.exe"
+          # Lite is built by build-release.ps1 as "Standard -NoBrain", so its unpacked app
+          # is under app-standard. Deriving this from EDITION silently skipped the whole
+          # smoke test for Lite, while continue-on-error kept the build green regardless.
+          $appEdition = if ($env:EDITION -eq 'Lite') { 'standard' } else { $env:EDITION.ToLower() }
+          $exe = Get-ChildItem "build\app-$appEdition\win-unpacked\resources\backend\claw-backend.exe"
           $env:CLAW_SESSION_TOKEN = "smoke-test-token-0123456789abcdef"
-          $env:CLAW_RESOURCES = (Resolve-Path "build\app-$($env:EDITION.ToLower())\win-unpacked\resources").Path
+          $env:CLAW_RESOURCES = (Resolve-Path "build\app-$appEdition\win-unpacked\resources").Path
           $env:CLAW_DATA_DIR = "$env:RUNNER_TEMP\smoke"
           $p = Start-Process $exe.FullName -ArgumentList "--port", "18765" -PassThru
           Start-Sleep 15
@@ -156,10 +159,15 @@ jobs:
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "v$version-build.$env:GITHUB_RUN_NUMBER" }
           $match = if ($env:EDITION -eq 'Lite') { '*Standard-NoBrain*' } else { "*$env:EDITION*" }
           $files = Get-ChildItem build\installers | Where-Object { $_.Name -like $match -or $_.Name -eq 'SHA256SUMS.txt' } | ForEach-Object FullName
+          $howto = if ($env:EDITION -eq 'Lite') {
+            "One file. Run the Setup .exe. No brain is included: pick an online model in Settings, or download a brain from inside the app."
+          } else {
+            "Download **all** files of this release into one folder, then run the Setup .exe. The .bin files are parts of the same installer, and Setup now refuses to start if one is missing instead of asking for a disk halfway through."
+          }
           $notes = @"
           Oluwaseun Claw $version ($env:EDITION edition), built on GitHub's Windows machines from commit $env:GITHUB_SHA.
 
-          Download **all** files of this edition into one folder and run the Setup .exe (the .bin files are parts of the same installer).
+          $howto
           Not code-signed yet: Windows SmartScreen may warn (More info -> Run anyway).
           Test status: see TEST_RESULTS.md and the windows-build-reports artifact of this run.
           "@
