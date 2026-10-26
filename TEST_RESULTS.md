@@ -1,5 +1,15 @@
 # Test results
 
+## Batch 5 (part 1) — tests, security review, guides — 26 October 2026
+No build or install was done (by request).
+
+| Command | Result |
+|---|---|
+| `scripts/check.sh` | **All checks passed**: backend 151, desktop unit 5, end-to-end 52/52 |
+| Static scan: `0.0.0.0` binds, `shell=True`/`os.system`/`eval`/`exec`/`pickle`, `innerHTML`, TLS disabled | none found; both windows use `contextIsolation`, `sandbox`, no Node integration |
+| `pip-audit 2.9.0 -r requirements.txt` | No known vulnerabilities found |
+| `npm audit` (all and `--omit=dev`) | found 0 vulnerabilities |
+
 ## v0.5 — Scanned documents and the built-in engine (no Ollama) — 26 October 2026
 
 **Environment:** Linux workspace (no Windows), Python 3.13 venv, Electron 45 under Xvfb,

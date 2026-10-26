@@ -2,8 +2,9 @@
 
 **Current stage:** v0.5.0: scanned-document reading (OCR) and the built-in llama.cpp engine, with
 Ollama removed as a requirement. Done and tested in the build workspace (Linux).
-**Next:** Batch 5 remainder: first Windows build and installer test, real-brain measurements,
-manuals, release checklist.
+**Batch 5 (part 1) done:** full tests, security review, dependency audit, user guide, developer
+guide, known issues, release checklist. **Not done, by request:** building and installing.
+**Next:** Batch 5 (part 2) on Windows: build, clean-machine install, real-brain tests.
 **Version:** 0.5.0 · **Last updated:** 2026-10-26
 
 ## Completed
@@ -47,6 +48,9 @@ powershell -ExecutionPolicy Bypass -File scripts\start.ps1
 # then in the app: Settings > Claw's brain > Download (once)
 powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1 -Edition Standard   # installer
 ```
+
+## Guides
+`docs/USER_GUIDE.md` · `docs/DEVELOPER_GUIDE.md` · `docs/KNOWN_ISSUES.md` · `docs/RELEASE_CHECKLIST.md`
 
 ## Next action
 Run `setup.ps1`, the app and `build-release.ps1 -Edition Standard` on a Windows 10 PC; install

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Batch 5 (part 1)
+### Added
+- User guide, developer guide, known issues list and release checklist.
+- Security review and dependency audit (no known vulnerabilities).
+
 ## 0.5.0 — 2026-10-26 (scanned documents + built-in engine)
 ### Added
 - **Documents view:** open PDF, Word, Excel or text files; live progress; each page shows whether

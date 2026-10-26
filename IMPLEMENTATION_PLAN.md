@@ -47,4 +47,5 @@ Decided with the user: two installers, **Standard** and **Pro**, each with the b
    settings and downloaded brains survive an upgrade, and SmartScreen/Defender behaviour.
 4. ~~Licence scan~~ ✅ (THIRD_PARTY_NOTICES.md); still to do: list the DLLs in the Windows Tesseract
    and llama.cpp builds and copy their notices; code signing if a certificate exists.
-5. Manuals (user, developer, limitations), release checklist, known defects.
+5. ~~Manuals (user, developer, limitations), release checklist, known defects~~ ✅ (docs/USER_GUIDE, DEVELOPER_GUIDE, KNOWN_ISSUES, RELEASE_CHECKLIST).
+6. Security review ✅ (static scan, pip-audit, npm audit); repeat on the Windows build.

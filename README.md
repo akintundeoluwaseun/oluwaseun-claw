@@ -20,7 +20,7 @@ bar, tray icon and notifications. Not yet run on Windows or with the real Qwen3-
 4. In the app, download the recommended brain once (Settings → Claw's brain).
 5. Installers: `scripts\build-release.ps1 -Edition Standard` / `-Edition Pro`.
 
-Full guide: `docs/INSTALL.md` · Models: `docs/MODELS.md` · Security: `docs/SECURITY.md`
+User guide: `docs/USER_GUIDE.md` · Install: `docs/INSTALL.md` · Developers: `docs/DEVELOPER_GUIDE.md` · Models: `docs/MODELS.md` · Security: `docs/SECURITY.md`
 
 ## Layout
 ```

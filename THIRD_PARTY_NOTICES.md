@@ -64,6 +64,7 @@ via `importlib.metadata`; npm: `package.json`) on 2026-10-26, plus the model car
 | gguf (writes the tiny random test model) | 0.19.0 | MIT |
 | numpy (gguf dependency) | as resolved | BSD-3-Clause |
 | pip-licenses (licence scan) | 5.0.0 | MIT |
+| pip-audit (vulnerability scan) | 2.9.0 | Apache-2.0 |
 
 ## Optional, not shipped
 | Program | Licence | Note |
