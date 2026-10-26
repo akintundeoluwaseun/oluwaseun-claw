@@ -1,5 +1,27 @@
 # Test results
 
+## v0.6 Phase B — WhatsApp (official desktop app) — 26 Oct 2026
+The WhatsApp window is part of the TEST DOUBLE desktop and imitates WhatsApp Desktop's accessible
+layout as a **guess**; the real app has never been read. Everything else (permissions, storage, the
+API, the settings page, notifications logic) is real.
+
+| Command | Result |
+|---|---|
+| `scripts/check.sh` | **All checks passed**: backend **175 passed**, desktop unit 6, end-to-end **55/55** |
+
+| Test | Result | Evidence |
+|---|---|---|
+| C — check unread chats in an authorised live WhatsApp session | **BLOCKED** (no Windows, no WhatsApp account here) | Steps: `docs/WINDOWS_ACCEPTANCE.md` → Test C |
+| Unread names and counts, "marked unread", previews off by default | PASS (stand-in) | `test_check_lists_unread_chats_and_new_since_last`, `test_previews_only_when_turned_on` |
+| New since last check (count went up or newly unread); first check marks nothing new | PASS | same, `test_check_store_first_check_marks_nothing_new` |
+| Message text never stored | PASS | stored file contains names and counts only |
+| Not installed / not open (opens via `whatsapp:`) / not linked / locked screen / unreadable layout | PASS (stand-in) | honest messages; "unreadable" never reported as "no unread" |
+| Reading is a separate permission: Ask by default, Never, Go ahead | PASS | `test_reading_messages_asks_by_default_and_never_when_denied` |
+| Sending always asks (even with everything else on Go ahead), exact chat name only, verified after | PASS (stand-in) | `test_send_always_asks_then_verifies`, `test_send_refuses_unknown_or_partial_names` |
+| Enter / typed new line in any messaging app counts as sending | PASS | `test_enter_in_a_messaging_app_counts_as_sending` |
+| Check-now route, deny → 403, status endpoint | PASS | `test_check_now_route_and_status` |
+| Settings page: honest failure off Windows; failed check not shown as successful; safe defaults | PASS (e2e) | screenshot `4b-messages.png` |
+
 ## v0.6 Phase A — Windows control, Notepad, browser forms/downloads, file copies — 26 Oct 2026
 Environment as v0.5 (Linux workspace). The Windows desktop is the TEST DOUBLE `tests/fake_desktop.py`;
 the browser (Chromium + local test website), files and permissions are real; the model's replies are scripted.

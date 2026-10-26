@@ -5,8 +5,8 @@ Ollama removed as a requirement. Done and tested in the build workspace (Linux).
 **Batch 5 (part 1) done:** full tests, security review, dependency audit, user guide, developer
 guide, known issues, release checklist. **Not done, by request:** building and installing.
 **v0.6 (master prompt 2):** audit done (`docs/AUDIT_V06.md`); **Phase A done** (Windows control
-hardening, Notepad Test A logic, browser forms and downloads, file copies). Next: **Phase B — WhatsApp**
-(official desktop app via UI Automation), then C TechDesk-enterprise, D images, E video,
+hardening, Notepad Test A logic, browser forms and downloads, file copies); **Phase B done** (WhatsApp
+unread check, notifications, send with approval). Next: **Phase C — TechDesk-enterprise**, then D images, E video,
 F calendar apps on the PC, G packaging and security.
 **Version:** 0.5.0 · **Last updated:** 2026-10-26
 

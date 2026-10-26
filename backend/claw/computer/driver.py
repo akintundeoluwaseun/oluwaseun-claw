@@ -165,11 +165,13 @@ class DesktopSession:
         self.driver = driver
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="claw-desktop", initializer=_com_init)
         self.last_window: int | None = None
+        self.last_process: str = ""  # program of the window Claw last worked in (for messaging-app rules)
         self.last_controls: list[ControlInfo] = []
         self.screenshot_taken = False
 
     def reset_task_state(self) -> None:
         self.last_window = None
+        self.last_process = ""
         self.last_controls = []
         self.screenshot_taken = False
 

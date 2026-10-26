@@ -50,3 +50,9 @@ test('routes that take a file path are main-process only', () => {
     assert.ok(isAllowedRoute(m, r, true), `main process may reach ${r}`);
   }
 });
+
+test('whatsapp routes', () => {
+  assert.ok(isAllowedRoute('GET', '/messages/whatsapp'));
+  assert.ok(isAllowedRoute('POST', '/messages/whatsapp/check'));
+  assert.ok(!isAllowedRoute('POST', '/messages/whatsapp/send'));
+});

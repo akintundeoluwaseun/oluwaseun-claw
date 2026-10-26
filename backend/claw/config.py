@@ -204,6 +204,18 @@ class DocumentSettings(BaseModel):
     ocr_language: str = Field(default="eng", pattern=r"^[a-z_]{3,10}(\+[a-z_]{3,10}){0,3}$")
 
 
+class MessagesSettings(BaseModel):
+    """Reading, notifying and sending are separate permissions."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    whatsapp_read: Literal["ask", "allow", "deny"] = "ask"  # tasks that check unread chats
+    show_previews: bool = False  # short previews of the last message in unread chats
+    check_every_minutes: Literal[0, 15, 30, 60] = 0  # background check (needs whatsapp_read = allow)
+    notify: bool = True  # Windows notification when new unread chats appear
+    # Sending a message is always a "Deleting, sending, buying" action: it always asks.
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -214,6 +226,7 @@ class Settings(BaseModel):
     agent: AgentSettings = Field(default_factory=AgentSettings)
     desktop: DesktopSettings = Field(default_factory=DesktopSettings)
     documents: DocumentSettings = Field(default_factory=DocumentSettings)
+    messages: MessagesSettings = Field(default_factory=MessagesSettings)
 
 
 def describe_validation_error(exc: ValidationError) -> list[str]:

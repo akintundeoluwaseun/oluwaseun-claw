@@ -26,6 +26,20 @@ These tests can't run in the Linux build workspace, so they are marked **BLOCKED
    - the browser visibly opened a result page;
    - the saved `.md` file in Documents has that page's real title and address.
 
+## Test C — WhatsApp (official app)
+**Preconditions:** WhatsApp Desktop from the Microsoft Store, linked to your phone, with a few unread chats.
+1. Settings → Messages: leave "Checking WhatsApp in tasks" on **Ask me**.
+2. Type: *Open WhatsApp and tell me which conversations have new messages.* Approve the "Private data" card.
+3. **Pass only if** the chats and counts Claw lists match what WhatsApp shows, and none are invented.
+4. Read one chat on your phone, have someone send you a message, then press **Settings → Check WhatsApp now**.
+   Only the new chat should be marked **New**, and a Windows notification should name it.
+5. Close WhatsApp, and in its place lock the screen, or unlink WhatsApp. Each case must be explained, never reported as "no unread".
+6. **Sending:** *Send "Claw test" to <a test chat> on WhatsApp.* The approval card must show the exact chat and
+   text; deny it once (nothing is sent), then allow it (the message appears and Claw says it confirmed it).
+7. **If the counts are wrong or Claw says it "couldn't read the chat list"**, WhatsApp's accessible names differ
+   from Claw's guesses. Run `look_at_window` with the title "WhatsApp" (type: *Look at the WhatsApp window and list its
+   controls*) and send the output, so the patterns in `backend/claw/integrations/whatsapp.py` can be corrected.
+
 ## Phase A extras
 - **Form:** *Open https://httpbin.org/forms/post and fill in the customer name "Test User" and
   pizza size Medium, but don't submit.* Pass if the fields are filled and nothing was submitted.

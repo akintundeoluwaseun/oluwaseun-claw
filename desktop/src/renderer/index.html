@@ -288,6 +288,29 @@
         <p class="set-note" id="shortcut-note"></p>
       </section>
 
+      <section class="set" id="messages-set">
+        <h3>Messages (WhatsApp)</h3>
+        <p class="set-note">Claw reads which chats have unread messages in the WhatsApp app on this computer. It doesn't read your
+          conversations or store message text, and sending a message always asks you first.</p>
+        <div class="perm-grid">
+          <label for="m-read">Checking WhatsApp in tasks</label>
+          <select id="m-read"><option value="ask">Ask me</option><option value="allow">Go ahead</option><option value="deny">Never</option></select>
+          <label for="m-every">Check in the background</label>
+          <select id="m-every"><option value="0">Off</option><option value="15">Every 15 minutes</option><option value="30">Every 30 minutes</option><option value="60">Every hour</option></select>
+        </div>
+        <label class="toggle"><input id="m-notify" type="checkbox"><span>Notify me when chats get new messages</span></label>
+        <label class="toggle"><input id="m-previews" type="checkbox"><span>Show a short preview of the last message</span></label>
+        <p class="set-note" id="m-every-note">Background checks need "Checking WhatsApp in tasks" set to Go ahead, and WhatsApp open. Claw never opens it by itself.</p>
+        <div class="wa-box">
+          <div class="wa-top">
+            <span id="wa-when" class="set-note">Not checked yet.</span>
+            <button class="btn btn-quiet btn-sm" id="wa-check" type="button">Check WhatsApp now</button>
+          </div>
+          <p class="field-note" id="wa-result" aria-live="polite"></p>
+          <ul class="wa-list" id="wa-list"></ul>
+        </div>
+      </section>
+
       <section class="set">
         <h3>What Claw may do without asking</h3>
         <div class="perm-grid">

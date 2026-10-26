@@ -33,6 +33,8 @@ const ALLOWED_ROUTES = [
   ['POST', /^\/brain\/select$/],
   ['POST', /^\/brain\/remove$/],
   ['POST', /^\/brain\/restart$/],
+  ['GET', /^\/messages\/whatsapp$/],
+  ['POST', /^\/messages\/whatsapp\/check$/],
   ['GET', new RegExp(`^/documents/${ID}(\\?pages=1)?$`)],
   ['GET', new RegExp(`^/documents/${ID}/search\\?q=[\\w%.+~*'()!-]{1,600}$`)],
   ['POST', new RegExp(`^/documents/${ID}/cancel$`)],
@@ -178,7 +180,7 @@ class Backend {
     if (this.status.state !== 'ready') {
       return { ok: false, status: 503, body: { error: { code: 'backend_unavailable', message: this.status.message, hint: this.status.detail } } };
     }
-    const slow = route.startsWith('/tasks/plan') || route.startsWith('/brain/restart') || route.startsWith('/brain/import') || route.endsWith('/searchable');
+    const slow = route.startsWith('/messages/whatsapp/check') || route.startsWith('/tasks/plan') || route.startsWith('/brain/restart') || route.startsWith('/brain/import') || route.endsWith('/searchable');
     const timeoutMs = slow ? 15 * 60 * 1000 : 30000;
     try {
       const res = await fetch(`http://127.0.0.1:${this.port}${route}`, {

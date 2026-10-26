@@ -155,6 +155,8 @@ def decide(spec: ToolSpec, ctx: ToolContext, risk=None) -> tuple[Decision, str]:
     """The permission for this action, and why it was raised above the user's setting (if it was)."""
     if spec.sensitive_scope == "browser_history":
         return Decision(ctx.settings.browser.history_access), ""
+    if spec.sensitive_scope == "messages_read":
+        return Decision(ctx.settings.messages.whatsapp_read), ""
     risk = risk or spec.risk
     decision = ctx.policy.decide(risk)
     if decision == Decision.ALLOW and risk != RiskLevel.READ_ONLY:

@@ -81,6 +81,17 @@ Added with scanned-document reading and the built-in engine (implemented and tes
   only be overridden to a localhost test server. Imported GGUF files are checked for the GGUF
   header and are never deleted by Claw.
 
+Added in v0.6 (Phases A–B):
+- Web forms: Claw never types into password, card, PIN or one-time-code fields, never uploads files, and
+  never submits by itself ("Submit"/"Send"-type buttons always ask). Downloads go only into authorized
+  folders; programs and scripts are refused; nothing is overwritten.
+- File copies never move, rename or delete originals; each copy is checked by SHA-256.
+- Error-like dialogs after a desktop action are reported and the step is not counted as done.
+- Long typing is split into short bursts so Stop / Ctrl+Alt+X takes effect within about half a second.
+- WhatsApp: reading is its own permission (default Ask); background checks need "Go ahead" and never open
+  WhatsApp; message text is never stored; previews are off by default. Sending always asks and needs the
+  exact chat name. Enter or a typed new line in any messaging app counts as sending.
+
 Not yet implemented (planned):
 - Code signing of the app and installers (needs a certificate).
 - Evaluation of prompt-injection resistance with the real Qwen3-VL brains.

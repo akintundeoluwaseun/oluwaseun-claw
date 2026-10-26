@@ -10,11 +10,13 @@ Security model:
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import logging
 from contextlib import asynccontextmanager
 import platform
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -30,8 +32,6 @@ from claw.browser.session import BrowserSession
 from claw.computer.driver import DesktopSession, default_driver
 from claw.config import ConfigError, ModelSettings, Settings, SettingsStore, describe_validation_error
 from claw.logging_setup import log_event
-import asyncio
-
 from claw.documents.pdf_pipeline import PdfPipeline
 from claw.documents.service import DocumentService
 from claw.models.base import ModelAdapter, ModelError, ModelNotFound, ModelStatus
@@ -115,6 +115,36 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     if interrupted:
         log_event(log, "marked unfinished tasks as interrupted", count=interrupted)
 
+    from claw.integrations.whatsapp import CheckStore, check_whatsapp
+
+    wa = {"seq": 0, "result": None, "lock": asyncio.Lock(), "next_auto": 0.0}
+
+    async def run_whatsapp_check(manual: bool) -> dict:
+        async with wa["lock"]:
+            ms = state.settings.messages
+            result = await check_whatsapp(state.desktop.call, state.desktop.driver, CheckStore(state.data_dir),
+                                          with_previews=ms.show_previews, open_if_needed=manual)
+            wa["seq"] += 1
+            wa["result"] = {**result.as_dict(), "manual": manual}
+            log_event(log, "whatsapp checked", state=result.state, unread=len(result.unread), manual=manual)
+            return wa["result"]
+
+    async def whatsapp_watch():
+        """Optional background check. Only when the user chose "Go ahead" for reading messages and an
+        interval; never while a task is using the desktop; never opens WhatsApp by itself."""
+        while True:
+            await asyncio.sleep(30)
+            ms = state.settings.messages
+            if not ms.check_every_minutes or ms.whatsapp_read != "allow" or state.runner.busy:
+                continue
+            if time.time() < wa["next_auto"]:
+                continue
+            wa["next_auto"] = time.time() + ms.check_every_minutes * 60
+            try:
+                await run_whatsapp_check(manual=False)
+            except Exception:  # noqa: BLE001 — a failed background check must never stop the loop
+                log.warning("background WhatsApp check failed", exc_info=True)
+
     async def idle_watch():
         """Stop the engine when Claw has been quiet for a while, to give the memory back."""
         while True:
@@ -127,8 +157,10 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app):
         watcher = asyncio.create_task(idle_watch())
+        wa_task = asyncio.create_task(whatsapp_watch())
         yield
         watcher.cancel()
+        wa_task.cancel()
         await state.brain.shutdown()
         if state.runner.busy:
             state.runner.cancel(state.runner.current_id)
@@ -303,6 +335,22 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         except ModelError as exc:
             return error_response(502, "engine", exc.message, exc.hint)
         return state.brain.summary(state.settings.model.selected)
+
+    # ---------- Messages ----------
+    @app.get("/messages/whatsapp")
+    async def whatsapp_status():
+        stored = CheckStore(state.data_dir).load()
+        return {"seq": wa["seq"], "result": wa["result"], "last_check_at": stored.get("checked_at"),
+                "last_attempt_at": stored.get("last_attempt"), "last_state": stored.get("last_state")}
+
+    @app.post("/messages/whatsapp/check")
+    async def whatsapp_check_now():
+        """The user pressed "Check WhatsApp now": that click is their consent for this one check."""
+        if state.settings.messages.whatsapp_read == "deny":
+            return error_response(403, "denied", "Reading WhatsApp is set to Never in Settings.")
+        if state.runner.busy:
+            return error_response(409, "busy", "Claw is using the computer for a task. Check again when it finishes.")
+        return await run_whatsapp_check(manual=True)
 
     # ---------- Documents ----------
     @app.post("/documents/open")

@@ -78,6 +78,11 @@ Phase A: Selenium, Browser Use, Stagehand, Puppeteer (Playwright already covers 
 PyAutoGUI, FlaUI, AutoHotkey, WinAppDriver, SikuliX, RobotJS, Nut.js (pywinauto + UI Automation already
 cover launch, menus, scroll and typing; WinAppDriver is unmaintained; FlaUI is .NET; AutoHotkey would add
 a second scripting runtime). No new dependency was added in Phase A.
+Phase B (WhatsApp): whatsapp-web.js and Baileys were **not used** — both are unofficial clients that log in as
+a linked device; WhatsApp can restrict accounts that use them, and the user chose the official app. The
+WhatsApp Business Platform (Cloud API) was not used: it serves business numbers through Meta, not a person's
+own chats. Claw reads the official WhatsApp Desktop app through Windows UI Automation (pywinauto, already
+bundled). No new dependency was added.
 
 OCRmyPDF (MPL-2.0, but needs Ghostscript, AGPL), PaddleOCR (Apache-2.0, heavy runtime),
 PDF-OCR (a web app), DynaLM (unverified clients).

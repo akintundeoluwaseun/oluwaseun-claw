@@ -39,8 +39,8 @@ with stand-ins) · **INC** = incomplete · **NI** = not implemented.
 | Files: find, read, write, report, spreadsheet, edit with backup | WT | |
 | Files: copy / organise into a new folder | WT | Phase A: `copy_files`, `check_file` |
 | OCR + PDFs (7 cases), searchable PDF, chunks with pages | WT | synthetic scans |
-| WhatsApp unread detection + notification | **NI** | |
-| Email (read/draft/send as separate permissions) | **NI** | |
+| WhatsApp unread detection + notification | IU | Phase B: official app via UI Automation; stand-in tested; real app BLOCKED |
+| Email (read/draft/send as separate permissions) | **NI** | messaging-app Enter guard added; email clients not integrated |
 | TechDesk sale workflow | **NI** | TechDesk is Electron + React, data in localStorage |
 | Image editing (Photoshop / alternative) | **NI** | |
 | Video creation (images + text + audio → MP4) | **NI** | |

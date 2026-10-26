@@ -97,6 +97,28 @@ def _match_window(windows: list[WindowInfo], title: str | None) -> WindowInfo:
     return hits[0]
 
 
+# In these apps, Enter (or a typed new line) sends a message: that always needs the user's OK.
+MESSAGING_APPS = {"whatsapp.exe", "whatsapp.root.exe", "telegram.exe", "teams.exe", "ms-teams.exe", "outlook.exe", "olk.exe",
+                  "slack.exe", "discord.exe", "signal.exe", "skype.exe", "zoom.exe", "messenger.exe"}
+
+
+def _use(ctx: ToolContext, win: WindowInfo) -> None:
+    ctx.desktop.last_window = win.handle
+    ctx.desktop.last_process = (win.process or "").lower()
+
+
+def _in_messaging_app(ctx: ToolContext) -> bool:
+    return ctx is not None and ctx.desktop is not None and ctx.desktop.last_process in MESSAGING_APPS
+
+
+def keys_risk(args, ctx: ToolContext) -> RiskLevel:
+    return RiskLevel.DESTRUCTIVE if "enter" in args.keys and _in_messaging_app(ctx) else RiskLevel.LOCAL_WRITE
+
+
+def typing_risk(args, ctx: ToolContext) -> RiskLevel:
+    return RiskLevel.DESTRUCTIVE if ("\n" in args.text or "\r" in args.text) and _in_messaging_app(ctx) else RiskLevel.LOCAL_WRITE
+
+
 def _control(ctx: ToolContext, number: int) -> ControlInfo:
     controls = ctx.desktop.last_controls if ctx.desktop else []
     if not controls:
@@ -128,7 +150,7 @@ async def focus_window(args: WindowArgs, ctx: ToolContext) -> ToolResult:
     await asyncio.sleep(SETTLE_S)
     active = await _d(ctx, "active_window")
     ok = active is not None and active.handle == target.handle
-    ctx.desktop.last_window = target.handle
+    _use(ctx, target)
     return ToolResult(ok, f"Switched to '{target.title}'." if ok else f"Tried to switch to '{target.title}' but another window stayed in front.",
                       {"title": target.title}, verified=ok)
 
@@ -156,7 +178,7 @@ async def launch_app(args: LaunchArgs, ctx: ToolContext) -> ToolResult:
     if not new:
         return ToolResult(False, f"Started {app.name}, but no new window appeared within 15 seconds.", {"app": app.name}, False)
     win = new[0]
-    ctx.desktop.last_window = win.handle
+    _use(ctx, win)
     return ToolResult(True, f"Opened {app.name}: window '{win.title}'.", {"app": app.name, "title": win.title}, True)
 
 
@@ -168,7 +190,7 @@ class LookArgs(ToolArgs):
 async def look_at_window(args: LookArgs, ctx: ToolContext) -> ToolResult:
     target = _match_window(await _d(ctx, "list_windows"), args.title)
     controls: list[ControlInfo] = await _d(ctx, "controls", target.handle, 120)
-    ctx.desktop.last_window = target.handle
+    _use(ctx, target)
     ctx.desktop.last_controls = controls
     text = f"Window: {target.title}\n" + "\n".join(c.line() for c in controls)
     return ToolResult(True, f"Found {len(controls)} controls in '{target.title}'.",
@@ -372,7 +394,7 @@ async def scroll(args: ScrollArgs, ctx: ToolContext) -> ToolResult:
     moved = after.control_names != before.control_names
     if moved:
         ctx.desktop.last_controls = []
-    ctx.desktop.last_window = target.handle
+    _use(ctx, target)
     return ToolResult(True, f"Scrolled {args.direction} in '{target.title}'." + ("" if moved else " Nothing changed (maybe already at the end)."),
                       {"moved": moved}, verified=moved)
 
@@ -395,7 +417,7 @@ async def choose_menu(args: MenuArgs, ctx: ToolContext) -> ToolResult:
     after = await _d(ctx, "snapshot", target.handle)
     notes, trouble = _changed(before, after), _trouble(before, after)
     ctx.desktop.last_controls = []
-    ctx.desktop.last_window = target.handle
+    _use(ctx, target)
     label = " > ".join(args.path)
     if trouble:
         return ToolResult(False, f"Chose {label}; an error-like dialog appeared: " + ", ".join(trouble) + ".",
@@ -416,7 +438,7 @@ async def wait_for_window(args: WaitArgs, ctx: ToolContext) -> ToolResult:
     while True:
         hits = [w for w in await _d(ctx, "list_windows") if needle in w.title.lower()]
         if hits:
-            ctx.desktop.last_window = hits[0].handle
+            _use(ctx, hits[0])
             kind = "dialog" if hits[0].dialog else "window"
             return ToolResult(True, f"The {kind} '{hits[0].title}' is open.", {"title": hits[0].title, "dialog": hits[0].dialog}, verified=True)
         if time.monotonic() >= deadline:
@@ -434,9 +456,9 @@ def register_desktop_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("click_control", "Click a control by its number from look_at_window.", D, W, ControlArgs, click_control,
                           precheck=check_control, risk_for=click_risk))
     reg.register(ToolSpec("type_into", "Put text into a field by its number from look_at_window.", D, W, TypeIntoArgs, type_into,
-                          precheck=lambda a, c: _control(c, a.number)))
-    reg.register(ToolSpec("type_text", "Type text into whatever has keyboard focus.", D, W, TypeArgs, type_text))
-    reg.register(ToolSpec("press_keys", 'Press a key or shortcut, e.g. ["ctrl", "s"].', D, W, KeysArgs, press_keys))
+                          precheck=lambda a, c: _control(c, a.number), risk_for=typing_risk))
+    reg.register(ToolSpec("type_text", "Type text into whatever has keyboard focus.", D, W, TypeArgs, type_text, risk_for=typing_risk))
+    reg.register(ToolSpec("press_keys", 'Press a key or shortcut, e.g. ["ctrl", "s"].', D, W, KeysArgs, press_keys, risk_for=keys_risk))
     reg.register(ToolSpec("read_control", "Read the text in a control by its number.", D, R, ControlArgs, read_control,
                           precheck=lambda a, c: _control(c, a.number)))
     reg.register(ToolSpec("scroll", "Scroll a window up or down.", D, R, ScrollArgs, scroll))

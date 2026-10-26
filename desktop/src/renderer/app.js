@@ -33,7 +33,7 @@ const TOOL_LABEL = {
   type_text: 'Typed in an app', press_keys: 'Pressed keys', read_control: 'Read from an app',
   take_screenshot: 'Took a screenshot', describe_screen: 'Looked at the screen', click_at: 'Clicked on the screen',
   read_document_pages: 'Read document pages', search_document: 'Searched a document', summarize_document: 'Summarized a document',
-  make_searchable_pdf: 'Saved a searchable PDF',
+  make_searchable_pdf: 'Saved a searchable PDF', check_whatsapp: 'Checked WhatsApp', send_whatsapp_message: 'Sent a WhatsApp message',
   fill_field: 'Filled in a form field', download_file: 'Downloaded a file', copy_files: 'Copied files',
   check_file: 'Checked a file', scroll: 'Scrolled', choose_menu: 'Chose a menu item', wait_for_window: 'Waited for a window',
 };
@@ -44,6 +44,7 @@ const TOOL_ASK = {
   press_keys: 'Press keys', click_at: 'Click on the screen',
   write_text_file: 'Write a file', save_report: 'Save a report', create_spreadsheet: 'Make a spreadsheet',
   edit_text_file: 'Edit a file', make_searchable_pdf: 'Save a searchable copy of a PDF',
+  check_whatsapp: 'Check your WhatsApp chats', send_whatsapp_message: 'Send a WhatsApp message',
   fill_field: 'Fill in a form field', download_file: 'Download a file', copy_files: 'Copy files', choose_menu: 'Choose a menu item',
 };
 const OUTCOME = {
@@ -607,7 +608,7 @@ function renderRun(body) {
     const firstShow = card.hidden || card.dataset.id !== appr.id;
     card.dataset.id = appr.id;
     $('approval-title').textContent = `Allow Claw to ${(TOOL_ASK[appr.tool] || appr.tool).toLowerCase()}?`;
-    $('approval-risk').textContent = appr.sensitive_scope === 'browser_history' ? 'Private data' : RISK_LABEL[appr.risk] || appr.risk;
+    $('approval-risk').textContent = appr.sensitive_scope ? 'Private data' : RISK_LABEL[appr.risk] || appr.risk;
     $('approval-desc').textContent = appr.description;
     $('approval-args').replaceChildren(
       ...Object.entries(appr.args || {})
@@ -930,6 +931,48 @@ async function askAboutDoc() {
   await runTask(`About the document "${doc.job.path}" (I opened it in Claw): ${q}`);
 }
 
+
+// ---------- WhatsApp ----------
+function renderWhatsApp(status) {
+  const r = status && status.result;
+  const when = status && status.last_check_at; // successful checks only
+  $('wa-when').textContent = when ? `Last successful check ${timeAgo(new Date(when * 1000).toISOString())}` : 'No successful check yet.';
+  const note = $('wa-result');
+  if (!r) {
+    note.textContent = '';
+    $('wa-list').replaceChildren();
+    return;
+  }
+  note.dataset.tone = r.state === 'ok' ? 'ok' : 'bad';
+  note.textContent = r.message;
+  $('wa-list').replaceChildren(...(r.unread || []).map((c) => el('li', { className: 'wa-chat' }, [
+    el('span', { className: 'wa-name', text: c.name }),
+    c.new_since_last_check ? el('span', { className: 'tag tag-live', text: 'New' }) : null,
+    el('span', { className: 'wa-count', text: c.unread == null ? 'Marked unread' : `${c.unread} unread` }),
+    c.preview ? el('span', { className: 'wa-preview', text: c.preview }) : null,
+  ].filter(Boolean))));
+}
+
+async function loadWhatsApp() {
+  const res = await api.api('GET', '/messages/whatsapp');
+  if (res.ok) renderWhatsApp(res.body);
+}
+
+async function checkWhatsAppNow() {
+  const btn = $('wa-check');
+  btn.disabled = true;
+  $('wa-result').dataset.tone = '';
+  $('wa-result').textContent = 'Checking WhatsApp…';
+  const res = await api.api('POST', '/messages/whatsapp/check');
+  btn.disabled = false;
+  if (!res.ok) {
+    $('wa-result').dataset.tone = 'bad';
+    $('wa-result').textContent = res.body?.error?.message || 'The check did not work.';
+    return;
+  }
+  loadWhatsApp();
+}
+
 // ---------- Settings ----------
 async function loadSettings() {
   const res = await api.api('GET', '/settings');
@@ -964,6 +1007,12 @@ function fillSettingsForm(s) {
   const a = s.agent || {};
   $('a-max-steps').value = a.max_steps ?? 20;
   $('a-step-timeout').value = a.step_timeout_s ?? 60;
+  const m = s.messages || {};
+  $('m-read').value = m.whatsapp_read || 'ask';
+  $('m-every').value = String(m.check_every_minutes || 0);
+  $('m-notify').checked = m.notify !== false;
+  $('m-previews').checked = !!m.show_previews;
+  loadWhatsApp();
   const d = s.desktop || {};
   $('d-quickbar').checked = d.show_quick_bar !== false;
   $('d-startup').checked = !!d.start_with_windows;
@@ -1008,6 +1057,12 @@ function readSettingsForm() {
       history_access: $('b-history').value,
     },
     documents: { ...(prev.documents || {}) },
+    messages: {
+      whatsapp_read: $('m-read').value,
+      check_every_minutes: Number($('m-every').value),
+      notify: $('m-notify').checked,
+      show_previews: $('m-previews').checked,
+    },
     agent: { ...(prev.agent || {}), max_steps: Number($('a-max-steps').value), step_timeout_s: Number($('a-step-timeout').value) },
     desktop: {
       show_quick_bar: $('d-quickbar').checked,
@@ -1118,6 +1173,7 @@ function wire() {
     });
   }
   $('error-dismiss').addEventListener('click', clearError);
+  $('wa-check').addEventListener('click', checkWhatsAppNow);
   $('open-docs').addEventListener('click', openDocsView);
   $('doc-open').addEventListener('click', openDocument);
   $('doc-cancel').addEventListener('click', () => doc.job && api.api('POST', `/documents/${doc.job.id}/cancel`));

@@ -431,3 +431,13 @@ a.btn-primary { color: var(--jade-ink); }
 .brain-dl-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; }
 .brain-more { display: flex; gap: 8px; flex-wrap: wrap; }
 input[type="search"]#doc-q { border: 0; background: transparent; height: auto; padding: 0; }
+
+/* ---------- Messages ---------- */
+.wa-box { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 14px; background: var(--porcelain-2); }
+.wa-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.wa-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wa-list:empty { display: none; }
+.wa-chat { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; }
+.wa-name { font-weight: 700; }
+.wa-count { color: var(--jade); font-weight: 700; font-size: 12px; }
+.wa-preview { flex-basis: 100%; color: var(--slate); font-size: 12px; }

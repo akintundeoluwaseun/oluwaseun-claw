@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — v0.6 Phase B
+### Added
+- **WhatsApp unread check** in the official WhatsApp Desktop app (UI Automation): chat names and
+  unread counts, "new since the last check", optional short previews (off by default). It opens
+  WhatsApp if needed and says clearly when WhatsApp isn't installed, isn't linked, is still loading,
+  or can't be read. Message text is never stored.
+- **Settings → Messages (WhatsApp):** reading permission (Ask me / Go ahead / Never), optional
+  background check every 15/30/60 minutes (only with Go ahead, never opens WhatsApp itself), a
+  notification when chats get new messages, and a "Check WhatsApp now" button.
+- **Send a WhatsApp message:** always asks, exact chat name only, checks the message appeared.
+- In WhatsApp, Telegram, Teams, Outlook, Slack, Discord, Signal and other messaging apps, pressing
+  Enter or typing a new line counts as sending and always needs your OK.
+
 ## Unreleased — v0.6 Phase A
 ### Added
 - Browser: **fill_field** (text, dropdowns, checkboxes; never passwords, cards or codes; never submits)

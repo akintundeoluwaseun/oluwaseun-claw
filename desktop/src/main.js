@@ -483,6 +483,22 @@ app.whenReady().then(async () => {
   });
   await startBackend();
   watcher.start();
+  // WhatsApp: a Windows notification when a check (manual or background) finds chats with new messages.
+  let waSeq = null;
+  setInterval(async () => {
+    if (!backend || backend.status.state !== 'ready') return;
+    const res = await backend.request('GET', '/messages/whatsapp');
+    if (!res.ok) return;
+    const { seq, result } = res.body;
+    if (waSeq === null) waSeq = seq;
+    if (seq === waSeq) return;
+    waSeq = seq;
+    if (!result || result.state !== 'ok' || !result.new_count) return;
+    const settings = await backend.request('GET', '/settings');
+    if (settings.ok && settings.body.settings.messages && settings.body.settings.messages.notify === false) return;
+    const names = result.unread.filter((c) => c.new_since_last_check).map((c) => c.name);
+    notify('New WhatsApp messages', `${names.slice(0, 4).join(', ')}${names.length > 4 ? ` and ${names.length - 4} more` : ''}`, () => showMain());
+  }, 20000);
 });
 
 app.on('window-all-closed', () => {
