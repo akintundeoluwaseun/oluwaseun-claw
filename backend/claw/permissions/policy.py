@@ -41,17 +41,19 @@ class PathNotAuthorized(Exception):
 
 
 class PermissionPolicy:
-    def __init__(self, modes: dict[RiskLevel, Decision], authorized_folders: list[str]):
+    def __init__(self, modes: dict[RiskLevel, Decision], authorized_folders: list[str], extra_files: set[str] | None = None):
         self.modes = {level: modes.get(level, DEFAULT_MODES[level]) for level in RiskLevel}
         # Safety floor, enforced here as well as in settings validation.
         if self.modes[RiskLevel.DESTRUCTIVE] == Decision.ALLOW:
             self.modes[RiskLevel.DESTRUCTIVE] = Decision.ASK
         self.authorized_roots = [_canonical(Path(p)) for p in authorized_folders]
+        # Individual files the user opened through Claw's file dialog (read access only).
+        self.extra_files = {_canonical(Path(p)) for p in (extra_files or set())}
 
     def decide(self, risk: RiskLevel) -> Decision:
         return self.modes[risk]
 
-    def check_path(self, candidate: str | os.PathLike[str]) -> Path:
+    def check_path(self, candidate: str | os.PathLike[str], write: bool = False) -> Path:
         """Return the canonical path if it lies inside an authorized folder.
 
         Symlinks and '..' segments are resolved before the check, so a path
@@ -60,9 +62,11 @@ class PermissionPolicy:
         raw = str(candidate)
         if not raw or "\x00" in raw:
             raise PathNotAuthorized(raw, "the path is empty or contains invalid characters")
+        resolved = _canonical(Path(raw))
+        if resolved in self.extra_files and not write:
+            return resolved
         if not self.authorized_roots:
             raise PathNotAuthorized(raw, "no folders have been authorized in Settings")
-        resolved = _canonical(Path(raw))
         for root in self.authorized_roots:
             if _is_within(resolved, root):
                 return resolved

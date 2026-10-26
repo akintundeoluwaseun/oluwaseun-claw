@@ -51,7 +51,12 @@ async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy) 
     ]
     last_problems: list[str] = []
     for attempt in range(1, MAX_ATTEMPTS + 1):
-        raw = await adapter.chat(messages, json_schema=schema)
+        try:
+            raw = await adapter.chat(messages, json_schema=schema)
+        except ModelResponseError as exc:
+            last_problems = [exc.message]
+            log_event(log, "plan reply unusable", attempt=attempt, problem=exc.message)
+            continue
         log_event(log, "model replied", attempt=attempt, chars=len(raw))
         try:
             parsed = ModelPlan.model_validate(json.loads(_strip_fences(raw)))

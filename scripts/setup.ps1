@@ -1,8 +1,19 @@
 # Oluwaseun Claw - one-time developer setup on Windows 10 (PowerShell 5.1+)
 # Run from the project root:   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
-# Add -Chromium to also download Playwright's Chromium (only needed if you choose
-# "Chromium" in Settings; the default browser is the Microsoft Edge built into Windows).
-param([switch]$Chromium)
+#
+# Besides Python and Electron, this fetches the two local engines Claw uses (no Ollama):
+#   - llama.cpp's llama-server (MIT): the newest official Windows build, into backend\runtime\llama
+#   - Tesseract OCR (Apache-2.0): the UB Mannheim Windows build, via winget
+# Switches:
+#   -Chromium               also download Playwright's Chromium (only if you pick "Chromium" in Settings)
+#   -Gpu vulkan|cuda        use a GPU build of llama.cpp instead of the CPU build
+#   -SkipEngine, -SkipOcr   leave those out
+param(
+  [switch]$Chromium,
+  [ValidateSet('cpu', 'vulkan', 'cuda')][string]$Gpu = 'cpu',
+  [switch]$SkipEngine,
+  [switch]$SkipOcr
+)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $backend = Join-Path $root 'backend'
@@ -39,6 +50,53 @@ if ($Chromium) {
 }
 Pop-Location
 
+if (-not $SkipEngine) {
+  # The file name is looked up in GitHub's release list at run time: no build number is hard-coded.
+  Write-Host "== Fetching llama.cpp (llama-server, $Gpu build) from github.com/ggml-org/llama.cpp"
+  $rel = Invoke-RestMethod -UseBasicParsing -Headers @{ 'User-Agent' = 'oluwaseun-claw-setup' } `
+    'https://api.github.com/repos/ggml-org/llama.cpp/releases/latest'
+  $patterns = @{ cpu = '-bin-win-cpu-x64\.zip$'; vulkan = '-bin-win-vulkan-x64\.zip$'; cuda = '-bin-win-cuda[\d.-]*-x64\.zip$' }
+  $asset = $rel.assets | Where-Object { $_.name -match $patterns[$Gpu] -and $_.name -notmatch '^cudart' } | Select-Object -First 1
+  if (-not $asset) {
+    throw "No Windows $Gpu build in llama.cpp release $($rel.tag_name). Download one from https://github.com/ggml-org/llama.cpp/releases and unzip it into backend\runtime\llama."
+  }
+  $zip = Join-Path $env:TEMP $asset.name
+  Invoke-WebRequest -UseBasicParsing $asset.browser_download_url -OutFile $zip
+  if ($asset.digest -and $asset.digest -like 'sha256:*') {
+    $want = $asset.digest.Substring(7).ToLower()
+    $got = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
+    if ($want -ne $got) { Remove-Item $zip; throw 'The llama.cpp download was damaged (checksum mismatch). Run setup again.' }
+    Write-Host '   checksum verified'
+  } else {
+    Write-Host '   (GitHub listed no checksum for this file)'
+  }
+  $dest = Join-Path $backend 'runtime\llama'
+  if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+  Expand-Archive $zip -DestinationPath $dest
+  Remove-Item $zip
+  # Some builds unzip into a sub-folder: flatten so llama-server.exe sits directly in runtime\llama.
+  $exe = Get-ChildItem $dest -Recurse -Filter 'llama-server.exe' | Select-Object -First 1
+  if (-not $exe) { throw 'llama-server.exe was not in the downloaded build.' }
+  if ($exe.DirectoryName -ne $dest) { Get-ChildItem $exe.DirectoryName | Move-Item -Destination $dest -Force }
+  Set-Content (Join-Path $dest 'VERSION.txt') "llama.cpp $($rel.tag_name) $($asset.name)"
+  & (Join-Path $dest 'llama-server.exe') --version
+  Write-Host "   llama-server $($rel.tag_name) installed"
+}
+
+if (-not $SkipOcr) {
+  $tessDefault = Join-Path $env:ProgramFiles 'Tesseract-OCR\tesseract.exe'
+  if ((Get-Command 'tesseract' -ErrorAction SilentlyContinue) -or (Test-Path $tessDefault)) {
+    Write-Host '== Tesseract OCR is already installed'
+  } elseif (Get-Command 'winget' -ErrorAction SilentlyContinue) {
+    Write-Host '== Installing Tesseract OCR (UB Mannheim build) with winget'
+    winget install --id UB-Mannheim.TesseractOCR -e --accept-package-agreements --accept-source-agreements
+  } else {
+    Write-Host '!! Tesseract OCR is not installed and winget is not available.'
+    Write-Host '   Install it from https://github.com/UB-Mannheim/tesseract/wiki'
+    Write-Host '   (only scanned pages need it; everything else works without it).'
+  }
+}
+
 Write-Host '== Installing desktop dependencies (Electron)'
 Push-Location $desktop
 npm install --no-audit --no-fund
@@ -46,5 +104,6 @@ Pop-Location
 
 Write-Host ''
 Write-Host 'Setup complete. Next:'
-Write-Host '  1. Install Ollama from https://ollama.com/download and run:  ollama pull qwen2.5:7b'
-Write-Host '  2. Start the app:  powershell -ExecutionPolicy Bypass -File scripts\start.ps1'
+Write-Host '  1. Start the app:  powershell -ExecutionPolicy Bypass -File scripts\start.ps1'
+Write-Host '  2. In Settings > Claw''s brain, download the recommended brain once,'
+Write-Host '     or choose "Use a GGUF file I have".'

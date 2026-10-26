@@ -38,15 +38,29 @@ fs.writeFileSync(
   path.join(dataDir, 'settings.json'),
   JSON.stringify({
     // Developer mode pointed at the stand-in model server (the built-in brain needs real weights).
-    model: { mode: 'custom', provider: 'ollama', base_url: `http://127.0.0.1:${modelPort}`, model: 'qwen2.5:7b' },
+    model: { mode: 'custom', provider: 'openai_compatible', base_url: `http://127.0.0.1:${modelPort}`, model: 'qwen2.5:7b' },
     permissions: { authorized_folders: [saveDir] },
     browser: { channel: 'chromium', headless: true, search_engine: 'custom', custom_search_url: `${siteUrl}/search?q={query}` },
   }),
 );
 
+// A two-page scanned PDF (images only), made here so no third-party document is used.
+const docDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw-docs-'));
+const scanPath = path.join(docDir, 'Scanned invoice.pdf');
+const searchablePath = path.join(docDir, 'Scanned invoice (searchable).pdf');
+execSync(
+  `"${python}" -c "import sys; from pathlib import Path; from tests.pdf_fixtures import page_image, scanned_pdf; ` +
+    `scanned_pdf(Path(sys.argv[1]), [page_image(['INVOICE 2041', 'Customer: Ekiti Grand Hotel', 'Total due: 48,500 naira']), ` +
+    `page_image(['Delivery note', 'Twelve boxes of printer paper', 'Signed at Ado Ekiti'], rotate=90)])" "${scanPath}"`,
+  { cwd: backendDir },
+);
+
 const args = [desktopDir];
 if (process.env.CLAW_E2E_NO_SANDBOX) args.unshift('--no-sandbox');
-const app = await electron.launch({ args, env: { ...process.env, CLAW_DATA_DIR: dataDir, CLAW_E2E: '1' } });
+const app = await electron.launch({
+  args,
+  env: { ...process.env, CLAW_DATA_DIR: dataDir, CLAW_E2E: '1', CLAW_E2E_OPEN_DOC: scanPath, CLAW_E2E_SAVE_PDF: searchablePath },
+});
 let exitCode = 0;
 
 async function windowByFile(name) {
@@ -164,7 +178,9 @@ try {
   // 3e. The agent process crashes: the app restarts it by itself (Linux/macOS test only)
   if (!isWin) {
     const ps = execSync('ps -eo pid=,args=').toString().split('\n');
-    const victims = ps.filter((l) => l.includes(python) && l.includes('-m claw' + '.main')).map((l) => Number(l.trim().split(/\s+/)[0]));
+    const frozenExe = process.env.CLAW_BACKEND_DIR ? path.join(process.env.CLAW_BACKEND_DIR, 'claw-backend') : null;
+    const isAgent = (l) => (l.includes(python) && l.includes('-m claw' + '.main')) || (frozenExe && l.includes(frozenExe + ' --port'));
+    const victims = ps.filter(isAgent).map((l) => Number(l.trim().split(/\s+/)[0]));
     check(victims.length === 1, 'found the running agent process');
     process.kill(victims[0], 'SIGKILL');
     await win.waitForSelector('#backend-pill[data-state="starting"], #backend-pill[data-state="failed"]', { timeout: 10000 });
@@ -174,10 +190,46 @@ try {
     check(true, 'task history survives the restart');
   }
 
+  // 3f. Documents: open a scanned PDF, OCR with progress, page labels, search, save a searchable copy
+  await win.click('#open-docs');
+  await win.waitForSelector('#docs-view:not([hidden])');
+  check(await win.isVisible('#doc-empty'), 'Documents view starts empty with an Open button');
+  const sneakyOpen = await win.evaluate(() => window.claw.api('POST', '/documents/open', { path: '/etc/passwd' }));
+  check(sneakyOpen.status === 400, 'the page cannot open a file path itself (main process only)');
+  await win.click('#doc-open');
+  await win.waitForSelector('#doc-status[data-tone="live"], #doc-status[data-tone="ok"]', { timeout: 10000 });
+  check(true, 'reading starts and shows a status line');
+  await win.waitForSelector('#doc-status[data-tone="ok"]', { timeout: 120000 });
+  const docSummary = await win.textContent('#doc-status');
+  check(/2 page/.test(docSummary) && /scan|OCR/i.test(docSummary), `summary says what was read: "${docSummary}"`);
+  const badges = await win.$$eval('.page-badge', (n) => n.map((x) => x.textContent));
+  check(badges.length === 2 && badges.every((b) => b.startsWith('Read from the scan')), `each page labelled with its source: ${badges.join(' | ')}`);
+  check(/turned 90/.test(badges[1]), 'the sideways page was turned and says so');
+  const page1 = await win.textContent('#page-1 .page-text');
+  check(/INVOICE 2041/.test(page1) && /48,500/.test(page1), 'page 1 text really recognised');
+  await win.fill('#doc-q', 'printer paper');
+  await win.waitForSelector('#doc-hits:not([hidden]) .hit', { timeout: 5000 });
+  check((await win.textContent('.hit-page')).startsWith('Page 2'), 'search finds the right page');
+  await win.fill('#doc-question', 'What is the total due?');
+  check(!(await win.isDisabled('#doc-ask')), 'Ask Claw is available once the document is read');
+  await win.screenshot({ path: path.join(shotDir, '8-document.png') });
+  await win.click('#doc-save');
+  await win.waitForFunction(() => /Saved:/.test(document.querySelector('#doc-ask-note').textContent), null, { timeout: 60000 });
+  check(fs.existsSync(searchablePath), 'searchable copy written where the user chose');
+  await win.click('#doc-save');
+  await win.waitForFunction(() => /already exists/.test(document.querySelector('#doc-ask-note').textContent), null, { timeout: 30000 });
+  check(true, 'saving again does not overwrite the existing file');
+
   // 4. Settings validation
+  await win.click('#new-task');
   await win.click('#open-settings');
   await win.waitForSelector('#settings:not([hidden])');
   check((await win.textContent('#brain-summary')).includes('developer model server'), 'settings describe the brain in plain words');
+  const brainNames = await win.$$eval('#brain-list .brain-name', (n) => n.map((x) => x.textContent));
+  check(brainNames.length === 2 && brainNames[0].startsWith('Standard brain') && brainNames[1].startsWith('Pro brain'), `brain manager lists Standard and Pro: ${brainNames.join(' | ')}`);
+  const engineText = await win.textContent('#engine-line');
+  check(/^Engine: |engine is missing/.test(engineText), `engine status shown: "${engineText}"`);
+  await win.screenshot({ path: path.join(shotDir, '4a-brain.png') });
   await win.click('.dev > summary');
   await win.click('#s-test');
   await win.waitForFunction(() => document.querySelector('#s-test-result').dataset.tone === 'ok');

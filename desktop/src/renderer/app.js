@@ -32,6 +32,8 @@ const TOOL_LABEL = {
   look_at_window: 'Looked at a window', click_control: 'Clicked in an app', type_into: 'Typed in an app',
   type_text: 'Typed in an app', press_keys: 'Pressed keys', read_control: 'Read from an app',
   take_screenshot: 'Took a screenshot', describe_screen: 'Looked at the screen', click_at: 'Clicked on the screen',
+  read_document_pages: 'Read document pages', search_document: 'Searched a document', summarize_document: 'Summarized a document',
+  make_searchable_pdf: 'Saved a searchable PDF',
 };
 const TOOL_ASK = {
   web_search: 'Search the web', open_url: 'Open a page', save_links: 'Save links to a file', click_button: 'Click a button',
@@ -39,7 +41,7 @@ const TOOL_ASK = {
   launch_app: 'Open an app', click_control: 'Click in an app', type_into: 'Type in an app', type_text: 'Type in an app',
   press_keys: 'Press keys', click_at: 'Click on the screen',
   write_text_file: 'Write a file', save_report: 'Save a report', create_spreadsheet: 'Make a spreadsheet',
-  edit_text_file: 'Edit a file',
+  edit_text_file: 'Edit a file', make_searchable_pdf: 'Save a searchable copy of a PDF',
 };
 const OUTCOME = {
   verified: ['Done', 'ok', 'check'], done_unverified: ['Done, not checked', 'warn-done', 'check'],
@@ -99,6 +101,8 @@ function showView(view) {
   document.body.dataset.view = view;
   $('home').hidden = view !== 'home';
   $('task-view').hidden = view !== 'task';
+  $('docs-view').hidden = view !== 'docs';
+  $('open-docs').setAttribute('aria-current', view === 'docs' ? 'true' : 'false');
   renderReady();
 }
 
@@ -157,10 +161,12 @@ async function refreshModelStatus() {
   renderContext();
 }
 
-// ---------- Brain (built-in) ----------
+// ---------- Brain (built-in, runs on this computer with llama.cpp) ----------
 function fmtGB(bytes) {
   return (bytes / 1024 ** 3).toFixed(1);
 }
+
+const DL_BUSY = new Set(['resolving', 'downloading', 'verifying']);
 
 async function loadBrain() {
   const res = await api.api('GET', '/brain');
@@ -171,59 +177,191 @@ async function loadBrain() {
   refreshModelStatus();
   clearTimeout(state.brainTimer);
   const b = state.brain;
-  if (b.mode === 'builtin' && !b.builtin.ready) state.brainTimer = setTimeout(loadBrain, 1500);
+  const loading = b.engine && b.engine.state === 'starting';
+  if (b.mode === 'builtin' && (DL_BUSY.has(b.download.status) || loading)) state.brainTimer = setTimeout(loadBrain, 1000);
+}
+
+function brainAction(label, primary, fn) {
+  const btn = el('button', { className: `btn ${primary ? 'btn-primary' : 'btn-quiet'} btn-sm`, text: label, attrs: { type: 'button' } });
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      await fn();
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  return btn;
+}
+
+async function brainCall(route, body, okNote) {
+  const res = await api.api('POST', route, body);
+  const note = $('brain-note');
+  if (!res.ok) {
+    const e = res.body?.error || {};
+    note.dataset.tone = 'bad';
+    note.textContent = [e.message || 'That did not work.', e.hint].filter(Boolean).join(' ');
+    showBrainProblem(e);
+  } else {
+    note.dataset.tone = 'ok';
+    note.textContent = res.body.message || okNote || '';
+  }
+  await loadBrain();
+  return res;
+}
+
+function showBrainProblem(e) {
+  if (state.view !== 'home') return;
+  showError({ message: e.message || "Claw's brain had a problem.", hint: e.hint });
+}
+
+function startDownload(entry) {
+  return brainCall('/brain/download', { id: entry.id }, `Downloading the ${entry.name}…`);
 }
 
 function renderReady() {
   const card = $('ready-card');
   const b = state.brain;
-  const info = b && b.builtin;
-  if (!b || b.mode !== 'builtin' || !info || info.ready) {
-    card.hidden = true;
+  if (!b || b.mode !== 'builtin' || b.ready || state.view === 'docs') {
+    card.hidden = !b || b.mode !== 'builtin' || !DL_BUSY.has(b?.download?.status) || state.view === 'docs';
+    if (!card.hidden) fillDownloadCard(b);
     return;
   }
-  const think = info.roles.think;
   const actions = [];
   $('ready-meter').hidden = true;
-  if (info.ollama_reachable === false) {
-    $('ready-title').textContent = "Claw's brain isn't running";
-    $('ready-detail').textContent = 'Close Claw from the tray and open it again. If this keeps happening, reinstall Claw.';
-  } else if (think.status === 'downloading') {
-    const pct = Math.round(think.progress * 100);
-    $('ready-title').textContent = `Setting up Claw's brain · ${pct}%`;
-    $('ready-detail').textContent = 'This happens once. Keep Claw open.';
-    $('ready-meter').hidden = false;
-    $('ready-bar').style.width = `${pct}%`;
-  } else if (think.status === 'failed') {
-    $('ready-title').textContent = "Claw's brain could not be set up";
-    $('ready-detail').textContent = think.error || 'Try again.';
-    const retry = el('button', { className: 'btn btn-primary btn-sm', text: 'Try again', attrs: { type: 'button' } });
-    retry.addEventListener('click', async () => {
-      await api.api('POST', '/models/auto/retry');
-      loadBrain();
-    });
-    actions.push(retry);
+  const rec = b.catalog.find((e) => e.id === b.recommended) || b.catalog[0];
+  if (!b.engine.available) {
+    $('ready-title').textContent = "Claw's AI engine is missing";
+    $('ready-detail').textContent = `${b.engine.message} Reinstall Claw to repair it.`;
+  } else if (DL_BUSY.has(b.download.status)) {
+    fillDownloadCard(b);
+    return;
   } else {
-    $('ready-title').textContent = 'Getting Claw ready';
-    $('ready-detail').textContent = 'Checking this computer and starting the brain.';
+    const failed = b.download.status === 'failed' ? `${b.download.message} ` : '';
+    $('ready-title').textContent = failed ? "The brain download didn't finish" : 'Give Claw a brain';
+    $('ready-detail').textContent = failed
+      ? `${failed}You can try again; it continues where it stopped.`
+      : `Claw thinks on this computer, so it needs its brain once: the ${rec.name} (about ${rec.approx_download_gb} GB from Hugging Face; its licence is checked before downloading). After that, nothing you do is sent anywhere.`;
+    actions.push(brainAction(failed ? 'Try again' : `Download ${rec.name} · ${rec.approx_download_gb} GB`, true, () => startDownload(rec)));
+    actions.push(brainAction('Use a GGUF file I have', false, importBrain));
   }
   $('ready-actions').replaceChildren(...actions);
   card.hidden = false;
 }
 
+function fillDownloadCard(b) {
+  const d = b.download;
+  const entry = b.catalog.find((e) => e.id === d.id);
+  const pct = Math.floor(d.progress * 100);
+  $('ready-title').textContent = d.status === 'verifying' ? 'Checking the download…' : d.status === 'resolving' ? 'Preparing the download…' : `Downloading ${entry ? entry.name : 'the brain'} · ${pct}%`;
+  $('ready-detail').textContent = d.total_bytes
+    ? `${fmtGB(d.done_bytes)} of ${fmtGB(d.total_bytes)} GB. This happens once. You can keep using your computer; if it stops, it continues where it left off.`
+    : d.message || 'Contacting Hugging Face…';
+  $('ready-meter').hidden = !d.total_bytes;
+  $('ready-bar').style.width = `${pct}%`;
+  $('ready-actions').replaceChildren(brainAction('Cancel', false, () => brainCall('/brain/download/cancel', {}, 'Download cancelled. It continues where it stopped next time.')));
+  $('ready-card').hidden = false;
+}
+
+const ENGINE_TEXT = { stopped: 'Sleeping — starts when a task needs it', starting: 'Loading…', ready: 'Running', failed: 'Stopped with a problem' };
+
 function renderBrainSettings() {
   const b = state.brain;
   if (!b) return;
-  const info = b.builtin || {};
-  const think = info.roles && info.roles.think;
   $('brain-summary').textContent = b.mode === 'custom'
-    ? 'Using a developer model server.'
-    : `Claw's built-in brain, sized for this computer (${info.hardware_text || 'this computer'})${think && think.model ? `: ${think.model}` : ''}. It runs entirely on this computer.`;
+    ? 'Using a developer model server (below). Switch it off to use the built-in brain.'
+    : `Runs entirely on this computer (${b.hardware_text}). No account, no key, nothing sent online.`;
+  const eng = b.engine;
+  const line = $('engine-line');
+  line.dataset.state = !eng.available ? 'failed' : eng.state;
+  line.textContent = !eng.available
+    ? eng.message
+    : `Engine: ${ENGINE_TEXT[eng.state] || eng.state}${eng.state === 'failed' && eng.message ? ` — ${eng.message}` : ''}`;
+
+  const activeId = b.active && b.active.id;
+  const rows = [];
+  for (const e of b.catalog) {
+    const installed = b.installed.find((m) => m.id === e.id && m.present);
+    const tags = [
+      e.recommended ? el('span', { className: 'tag tag-ok', text: 'Best for this computer' }) : null,
+      !e.fits ? el('span', { className: 'tag tag-warn', text: `Needs ${e.min_ram_gb} GB memory` }) : null,
+      activeId === e.id ? el('span', { className: 'tag tag-live', text: 'In use' }) : null,
+    ];
+    const meta = installed
+      ? `${installed.kind === 'bundled' ? 'Came with Claw' : 'Downloaded'} · ${installed.size_gb} GB${installed.vision ? ' · can see screenshots' : ''}`
+      : `About ${e.approx_download_gb} GB to download · ${e.repo} · licence checked before download`;
+    const actions = [];
+    if (installed && activeId !== e.id) actions.push(brainAction('Use this', true, () => brainCall('/brain/select', { id: e.id }, `Claw will use the ${e.name}.`)));
+    if (!installed && !DL_BUSY.has(b.download.status)) {
+      actions.push(brainAction('Download', !!e.recommended, async () => {
+        if (!e.fits && !(await api.confirm(`The ${e.name} may be too big for this computer`, `It needs about ${e.min_ram_gb} GB of memory; this computer has ${b.hardware.total_ram_gb ?? '?'} GB. It may be very slow or fail to load.`, 'Download anyway'))) return;
+        await startDownload(e);
+      }));
+    }
+    if (installed && installed.kind === 'downloaded') {
+      actions.push(brainAction('Remove', false, async () => {
+        if (!(await api.confirm(`Remove the ${e.name}?`, `This deletes ${installed.size_gb} GB of brain files from this computer. You can download it again later.`, 'Remove'))) return;
+        await brainCall('/brain/remove', { id: e.id });
+      }));
+    }
+    rows.push(el('li', { className: 'brain', attrs: { 'data-active': String(activeId === e.id) } }, [
+      el('div', { className: 'brain-text' }, [
+        el('p', { className: 'brain-name' }, [document.createTextNode(e.name), ...tags.filter(Boolean)]),
+        el('p', { className: 'brain-desc', text: e.description }),
+        el('p', { className: 'brain-meta', text: meta }),
+      ]),
+      el('div', { className: 'brain-actions' }, actions),
+    ]));
+  }
+  for (const m of b.installed.filter((m) => m.kind === 'imported')) {
+    const actions = [];
+    if (activeId !== m.id) actions.push(brainAction('Use this', true, () => brainCall('/brain/select', { id: m.id }, `Claw will use ${m.name}.`)));
+    actions.push(brainAction('Forget', false, async () => {
+      if (!(await api.confirm(`Stop using ${m.name}?`, 'Claw forgets this brain. Your file is not deleted.', 'Forget'))) return;
+      await brainCall('/brain/remove', { id: m.id });
+    }));
+    rows.push(el('li', { className: 'brain', attrs: { 'data-active': String(activeId === m.id) } }, [
+      el('div', { className: 'brain-text' }, [
+        el('p', { className: 'brain-name' }, [document.createTextNode(m.name), activeId === m.id ? el('span', { className: 'tag tag-live', text: 'In use' }) : null].filter(Boolean)),
+        el('p', { className: 'brain-meta', text: `Your file · ${m.size_gb} GB${m.present ? '' : ' · file is missing'}${m.vision ? ' · can see screenshots' : ''}`, attrs: { title: m.model_path } }),
+      ]),
+      el('div', { className: 'brain-actions' }, actions),
+    ]));
+  }
+  $('brain-list').replaceChildren(...rows);
+
+  const d = b.download;
+  $('brain-dl').hidden = !DL_BUSY.has(d.status);
+  if (DL_BUSY.has(d.status)) {
+    const pct = Math.floor(d.progress * 100);
+    $('brain-dl-text').textContent = d.total_bytes ? `Downloading · ${pct}% · ${fmtGB(d.done_bytes)} of ${fmtGB(d.total_bytes)} GB` : d.status === 'verifying' ? 'Checking the download…' : 'Preparing…';
+    $('brain-dl-bar').style.width = `${pct}%`;
+  } else if (d.status === 'failed' && !$('brain-note').textContent) {
+    $('brain-note').dataset.tone = 'bad';
+    $('brain-note').textContent = d.message;
+  }
+  $('brain-restart').disabled = !b.active || !eng.available;
+}
+
+async function importBrain() {
+  const res = await api.importBrain();
+  if (!res || res.cancelled) return;
+  const note = $('brain-note');
+  if (!res.ok) {
+    const e = res.body?.error || {};
+    note.dataset.tone = 'bad';
+    note.textContent = e.message || 'That file could not be used.';
+    showBrainProblem(e);
+  } else {
+    note.dataset.tone = 'ok';
+    note.textContent = 'Claw will use your file. It starts the next time a task needs it.';
+  }
+  loadBrain();
 }
 
 function renderContext() {
   const mode = state.settings?.model?.mode;
-  const m = mode === 'custom' ? state.settings?.model?.model : 'Built-in brain';
+  const m = mode === 'custom' ? state.settings?.model?.model : state.brain?.active?.name || 'Built-in brain';
   const folders = state.settings?.permissions?.authorized_folders || [];
   const mc = $('ctx-model');
   mc.querySelector('span').textContent = state.modelReady ? m : `${m} · getting ready`;
@@ -623,6 +761,172 @@ async function openTask(id) {
   }
 }
 
+// ---------- Documents ----------
+const doc = { job: null, timer: null, pagesLoaded: false };
+const SOURCE_TEXT = { text: "From the file's text", ocr: 'Read from the scan', empty: 'No text' };
+const STAGE_TEXT = { checking: 'Checking pages', ocr: 'Reading scanned pages', done: 'Finishing', searchable: 'Making the searchable copy' };
+
+function openDocsView() {
+  stopWatching();
+  state.currentTaskId = null;
+  markHistorySelection();
+  showView('docs');
+  clearError();
+}
+
+async function openDocument() {
+  const res = await api.openDocument();
+  if (!res || res.cancelled) return;
+  if (!res.ok) return showDocError(res.body?.error?.message || 'That document could not be opened.');
+  showDocJob(res.body);
+}
+
+function showDocError(message) {
+  $('doc-card').hidden = false;
+  $('doc-empty').hidden = true;
+  $('doc-error').textContent = message;
+}
+
+function showDocJob(job) {
+  clearTimeout(doc.timer);
+  doc.job = job;
+  doc.pagesLoaded = false;
+  $('doc-empty').hidden = true;
+  $('doc-card').hidden = false;
+  $('doc-error').textContent = '';
+  $('doc-pages').replaceChildren();
+  $('doc-hits').replaceChildren();
+  $('doc-hits').hidden = true;
+  $('doc-q').value = '';
+  $('doc-question').value = '';
+  $('doc-ask-note').textContent = '';
+  renderDoc();
+  pollDoc();
+}
+
+async function pollDoc() {
+  const job = doc.job;
+  if (!job) return;
+  const done = job.status !== 'reading';
+  const res = await api.api('GET', `/documents/${job.id}${done ? '?pages=1' : ''}`);
+  if (doc.job !== job) return;
+  if (res.ok) {
+    doc.job = res.body;
+    if (res.body.pages) doc.pagesLoaded = true;
+    renderDoc();
+  }
+  if (doc.job.status === 'reading' || (doc.job.status === 'done' && !doc.pagesLoaded)) doc.timer = setTimeout(pollDoc, doc.job.status === 'reading' ? 500 : 0);
+}
+
+function renderDoc() {
+  const j = doc.job;
+  $('doc-name').textContent = j.name;
+  $('doc-name').title = j.path;
+  const reading = j.status === 'reading';
+  $('doc-cancel').hidden = !reading;
+  $('doc-meter').hidden = !reading || !j.total;
+  const pct = j.total ? Math.floor((100 * j.done) / j.total) : 0;
+  $('doc-bar').style.width = `${pct}%`;
+  const status = $('doc-status');
+  status.dataset.tone = { done: 'ok', failed: 'bad', cancelled: 'muted', reading: 'live' }[j.status];
+  if (reading) status.textContent = j.total ? `${STAGE_TEXT[j.stage] || 'Reading'} · ${j.done} of ${j.total}` : 'Opening…';
+  else if (j.status === 'done') status.textContent = j.summary || 'Ready';
+  else if (j.status === 'cancelled') status.textContent = 'Stopped. Open it again to read the rest.';
+  else status.textContent = 'Could not be read';
+  $('doc-error').textContent = j.status === 'failed' ? j.error : '';
+
+  const ready = j.status === 'done';
+  $('doc-tools').hidden = !ready;
+  const isPdf = /\.pdf$/i.test(j.name);
+  $('doc-save').hidden = !(ready && isPdf && j.counts && j.counts.ocr > 0);
+  const flags = [];
+  if (ready && j.ocr_available === false && j.ocr_note) flags.push(j.ocr_note);
+  if (ready && j.problem_pages && j.problem_pages.length) {
+    const n = j.problem_pages;
+    flags.push(`Check ${n.length === 1 ? 'page' : 'pages'} ${n.join(', ')} yourself: the scan was unclear or could not be read, so the text there may be wrong or missing.`);
+  }
+  $('doc-flags').hidden = flags.length === 0;
+  $('doc-flags').replaceChildren(...flags.map((f) => el('p', { text: f })));
+  updateAskButton();
+  if (ready && j.pages && !$('doc-pages').childElementCount) renderPages(j.pages);
+}
+
+function pageBadge(p) {
+  if (p.source === 'ocr') {
+    const conf = p.confidence != null ? ` · ${Math.round(p.confidence)}% sure` : '';
+    return [`${SOURCE_TEXT.ocr}${conf}${p.rotation ? ` · turned ${p.rotation}°` : ''}`, p.status === 'low_confidence' ? 'warn' : p.status === 'failed' ? 'bad' : 'ocr'];
+  }
+  if (p.source === 'text') return [SOURCE_TEXT.text, 'ok'];
+  return [p.status === 'failed' ? 'Could not be read' : SOURCE_TEXT.empty, p.status === 'failed' ? 'bad' : 'muted'];
+}
+
+function renderPages(pages) {
+  $('doc-pages').replaceChildren(...pages.map((p) => {
+    const [label, tone] = pageBadge(p);
+    const body = p.text
+      ? el('p', { className: 'page-text', text: p.text })
+      : el('p', { className: 'page-text page-none', text: p.note || 'No text was found on this page.' });
+    return el('li', { className: 'page', attrs: { id: `page-${p.number}`, 'data-tone': tone } }, [
+      el('header', { className: 'page-head' }, [
+        el('span', { className: 'page-no', text: `Page ${p.number}` }),
+        el('span', { className: 'page-badge', text: label }),
+      ]),
+      p.note && p.text ? el('p', { className: 'page-note', text: p.note }) : null,
+      body,
+    ]);
+  }));
+}
+
+let docSearchTimer = null;
+async function searchDoc() {
+  const q = $('doc-q').value.trim();
+  const box = $('doc-hits');
+  if (!doc.job || doc.job.status !== 'done' || q.length < 2) {
+    box.hidden = true;
+    return;
+  }
+  const res = await api.api('GET', `/documents/${doc.job.id}/search?q=${encodeQuery(q.slice(0, 120))}`);
+  if (!res.ok) return;
+  const hits = res.body.hits;
+  box.hidden = false;
+  if (!hits.length) {
+    box.replaceChildren(el('li', { className: 'hit-none', text: 'Not found in this document.' }));
+    return;
+  }
+  box.replaceChildren(...hits.slice(0, 30).map((h) => {
+    const btn = el('button', { className: 'hit', attrs: { type: 'button' } }, [
+      el('span', { className: 'hit-page', text: `Page ${h.page}${h.source === 'ocr' ? ' · scan' : ''}` }),
+      el('span', { className: 'hit-snippet', text: h.snippet }),
+    ]);
+    btn.addEventListener('click', () => {
+      const target = document.getElementById(`page-${h.page}`);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.classList.add('page-flash');
+        setTimeout(() => target.classList.remove('page-flash'), 1200);
+      }
+    });
+    return el('li', {}, [btn]);
+  }));
+}
+
+function updateAskButton() {
+  const q = $('doc-question').value.trim();
+  $('doc-ask').disabled = !(doc.job && doc.job.status === 'done') || q.length < 3 || state.backend.state !== 'ready';
+}
+
+async function askAboutDoc() {
+  const q = $('doc-question').value.trim();
+  if (!doc.job || q.length < 3) return;
+  const note = $('doc-ask-note');
+  if (!state.modelReady) {
+    note.textContent = "Claw's brain isn't ready yet, so it can't answer questions. Searching and reading still work.";
+    return;
+  }
+  note.textContent = '';
+  await runTask(`About the document "${doc.job.path}" (I opened it in Claw): ${q}`);
+}
+
 // ---------- Settings ----------
 async function loadSettings() {
   const res = await api.api('GET', '/settings');
@@ -672,6 +976,7 @@ function fillSettingsForm(s) {
 function readModelForm() {
   const mode = $('s-custom').checked ? 'custom' : 'builtin';
   return {
+    ...(state.settings?.model || {}),
     mode,
     provider: $('s-provider').value,
     base_url: $('s-base-url').value.trim(),
@@ -699,6 +1004,7 @@ function readSettingsForm() {
       custom_search_url: $('b-custom').value.trim(),
       history_access: $('b-history').value,
     },
+    documents: { ...(prev.documents || {}) },
     agent: { ...(prev.agent || {}), max_steps: Number($('a-max-steps').value), step_timeout_s: Number($('a-step-timeout').value) },
     desktop: {
       show_quick_bar: $('d-quickbar').checked,
@@ -738,7 +1044,7 @@ function closeSettings() {
 }
 function defaultSettings() {
   return {
-    model: { mode: 'builtin', provider: 'ollama', base_url: DEFAULT_URLS.ollama, model: '', request_timeout_s: 120, temperature: 0.2, allow_remote_server: false },
+    model: { mode: 'builtin', provider: 'openai_compatible', base_url: DEFAULT_URLS.openai_compatible, model: '', request_timeout_s: 120, temperature: 0.2, allow_remote_server: false },
     permissions: { modes: { read_only: 'allow', local_write: 'ask', external: 'ask', destructive: 'ask' }, authorized_folders: [] },
   };
 }
@@ -809,6 +1115,39 @@ function wire() {
     });
   }
   $('error-dismiss').addEventListener('click', clearError);
+  $('open-docs').addEventListener('click', openDocsView);
+  $('doc-open').addEventListener('click', openDocument);
+  $('doc-cancel').addEventListener('click', () => doc.job && api.api('POST', `/documents/${doc.job.id}/cancel`));
+  $('doc-show').addEventListener('click', () => doc.job && api.showDocument(doc.job.id));
+  $('doc-save').addEventListener('click', async () => {
+    if (!doc.job) return;
+    $('doc-save').disabled = true;
+    $('doc-ask-note').textContent = 'Making the searchable copy…';
+    const r = await api.saveSearchable(doc.job.id, doc.job.name);
+    $('doc-save').disabled = false;
+    if (!r || r.cancelled) return void ($('doc-ask-note').textContent = '');
+    $('doc-ask-note').textContent = r.ok ? `Saved: ${r.body.path}` : r.body?.error?.message || 'The copy could not be saved.';
+  });
+  $('doc-q').addEventListener('input', () => {
+    clearTimeout(docSearchTimer);
+    docSearchTimer = setTimeout(searchDoc, 200);
+  });
+  $('doc-question').addEventListener('input', updateAskButton);
+  $('doc-question').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.isComposing) {
+      e.preventDefault();
+      askAboutDoc();
+    }
+  });
+  $('doc-ask').addEventListener('click', askAboutDoc);
+  $('brain-import').addEventListener('click', importBrain);
+  $('brain-restart').addEventListener('click', async () => {
+    $('brain-restart').disabled = true;
+    $('brain-note').dataset.tone = '';
+    $('brain-note').textContent = 'Restarting the brain…';
+    await brainCall('/brain/restart', {}, 'The brain restarted and is ready.');
+  });
+  $('brain-dl-cancel').addEventListener('click', () => brainCall('/brain/download/cancel', {}, 'Download cancelled.'));
   $('open-settings').addEventListener('click', openSettings);
   $('close-settings').addEventListener('click', closeSettings);
   $('cancel-settings').addEventListener('click', closeSettings);

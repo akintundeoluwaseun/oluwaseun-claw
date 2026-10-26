@@ -67,7 +67,7 @@ def test_probe_unsaved_config(make_client, fake_server):
 def test_model_status_when_server_down(make_client):
     c = make_client({"model": {"mode": "custom", "base_url": "http://127.0.0.1:9", "model": "x"}})
     body = c.get("/models/status").json()
-    assert body["server_reachable"] is False and "Ollama" in body["message"]
+    assert body["server_reachable"] is False and "Could not connect" in body["message"]
 
 
 def test_plan_end_to_end_and_history(make_client, fake_server):

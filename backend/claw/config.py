@@ -69,6 +69,8 @@ class ModelSettings(BaseModel):
     #   builtin — Claw's own brain on this computer; the model is chosen and set up automatically.
     #   custom  — developer setting: the provider/address/model below.
     mode: Literal["builtin", "custom"] = "builtin"
+    selected: str | None = Field(default=None, max_length=80)  # None: Claw picks the best installed brain
+    idle_unload_minutes: int = Field(default=10, ge=1, le=240)  # free memory when Claw is quiet
 
     @field_validator("mode", mode="before")
     @classmethod
@@ -76,8 +78,9 @@ class ModelSettings(BaseModel):
         # Settings files from 0.3.0 may say unset/online/offline; all of those now mean builtin.
         return "builtin" if value in ("unset", "online", "offline") else value
 
-    provider: ProviderName = "ollama"
-    base_url: str = DEFAULT_BASE_URLS["ollama"]
+    # Developer ("custom") settings only. Ollama is an optional adapter, never required.
+    provider: ProviderName = "openai_compatible"
+    base_url: str = DEFAULT_BASE_URLS["openai_compatible"]
     model: str = Field(default="", max_length=200)
     request_timeout_s: float = Field(default=120.0, ge=5, le=900)
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
@@ -195,6 +198,12 @@ class DesktopSettings(BaseModel):
     close_to_tray: bool = True
 
 
+class DocumentSettings(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ocr_language: str = Field(default="eng", pattern=r"^[a-z_]{3,10}(\+[a-z_]{3,10}){0,3}$")
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -204,6 +213,7 @@ class Settings(BaseModel):
     browser: BrowserSettings = Field(default_factory=BrowserSettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
     desktop: DesktopSettings = Field(default_factory=DesktopSettings)
+    documents: DocumentSettings = Field(default_factory=DocumentSettings)
 
 
 def describe_validation_error(exc: ValidationError) -> list[str]:

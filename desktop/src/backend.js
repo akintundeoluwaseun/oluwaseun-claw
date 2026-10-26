@@ -11,6 +11,7 @@ const IS_WIN = process.platform === 'win32';
 
 // Only these routes may be called from the UI. Anything else is refused here,
 // before it ever reaches the backend.
+const ID = '[0-9a-f]{32}';
 const ALLOWED_ROUTES = [
   ['GET', /^\/health$/],
   ['GET', /^\/settings$/],
@@ -19,21 +20,36 @@ const ALLOWED_ROUTES = [
   ['POST', /^\/models\/probe$/],
   ['POST', /^\/tasks\/plan$/],
   ['GET', /^\/tasks(\?[\w=&%.+-]*)?$/],
-  ['GET', /^\/tasks\/[0-9a-f]{32}$/],
+  ['GET', new RegExp(`^/tasks/${ID}$`)],
   ['POST', /^\/tasks\/run$/],
-  ['POST', /^\/tasks\/[0-9a-f]{32}\/cancel$/],
-  ['GET', /^\/tasks\/[0-9a-f]{32}\/events(\?after=\d{1,9})?$/],
+  ['POST', new RegExp(`^/tasks/${ID}/cancel$`)],
+  ['GET', new RegExp(`^/tasks/${ID}/events(\\?after=\\d{1,9})?$`)],
   ['GET', /^\/approvals$/],
-  ['POST', /^\/approvals\/[0-9a-f]{32}$/],
+  ['POST', new RegExp(`^/approvals/${ID}$`)],
   ['GET', /^\/runner$/],
   ['GET', /^\/brain$/],
-  ['GET', /^\/models\/auto$/],
-  ['POST', /^\/models\/auto\/retry$/],
+  ['POST', /^\/brain\/download$/],
+  ['POST', /^\/brain\/download\/cancel$/],
+  ['POST', /^\/brain\/select$/],
+  ['POST', /^\/brain\/remove$/],
+  ['POST', /^\/brain\/restart$/],
+  ['GET', new RegExp(`^/documents/${ID}(\\?pages=1)?$`)],
+  ['GET', new RegExp(`^/documents/${ID}/search\\?q=[\\w%.+~*'()!-]{1,600}$`)],
+  ['POST', new RegExp(`^/documents/${ID}/cancel$`)],
 ];
 
-function isAllowedRoute(method, route) {
-  if (typeof method !== 'string' || typeof route !== 'string' || route.length > 300) return false;
-  return ALLOWED_ROUTES.some(([m, re]) => m === method && re.test(route));
+// These take a file path, so only the main process may call them, with a path the
+// user picked in a Windows file dialog. The page can never send its own path.
+const MAIN_ONLY_ROUTES = [
+  ['POST', /^\/brain\/import$/],
+  ['POST', /^\/documents\/open$/],
+  ['POST', new RegExp(`^/documents/${ID}/searchable$`)],
+];
+
+function isAllowedRoute(method, route, internal = false) {
+  if (typeof method !== 'string' || typeof route !== 'string' || route.length > 700) return false;
+  const lists = internal ? [ALLOWED_ROUTES, MAIN_ONLY_ROUTES] : [ALLOWED_ROUTES];
+  return lists.some((list) => list.some(([m, re]) => m === method && re.test(route)));
 }
 
 function findFreePort() {
@@ -57,9 +73,16 @@ function resolvePython(backendDir) {
   return IS_WIN ? { cmd: 'py', args: ['-3'] } : { cmd: 'python3', args: [] };
 }
 
+// Installed app: the backend is frozen into one program (PyInstaller), so no Python is needed.
+function frozenBackend(backendDir) {
+  const exe = path.join(backendDir, IS_WIN ? 'claw-backend.exe' : 'claw-backend');
+  return fs.existsSync(exe) ? exe : null;
+}
+
 class Backend {
-  constructor({ backendDir, onStatus }) {
+  constructor({ backendDir, resourcesDir, onStatus }) {
     this.backendDir = backendDir;
+    this.resourcesDir = resourcesDir || null; // installed app: engine, OCR and bundled brain live here
     this.onStatus = onStatus || (() => {});
     this.token = crypto.randomBytes(32).toString('base64url');
     this.child = null;
@@ -75,17 +98,25 @@ class Backend {
   }
 
   async start() {
-    if (!fs.existsSync(path.join(this.backendDir, 'claw', 'main.py'))) {
+    const frozen = frozenBackend(this.backendDir);
+    if (!frozen && !fs.existsSync(path.join(this.backendDir, 'claw', 'main.py'))) {
       this.setStatus('failed', 'The agent files are missing.', `Expected them in ${this.backendDir}`);
       return;
     }
     this.port = await findFreePort();
-    const py = resolvePython(this.backendDir);
+    const py = frozen ? { cmd: frozen, args: [] } : resolvePython(this.backendDir);
+    const entry = frozen ? [] : ['-m', 'claw.main'];
     this.setStatus('starting', 'Starting the agent…');
     try {
-      this.child = spawn(py.cmd, [...py.args, '-m', 'claw.main', '--port', String(this.port)], {
+      this.child = spawn(py.cmd, [...py.args, ...entry, '--port', String(this.port)], {
         cwd: this.backendDir,
-        env: { ...process.env, CLAW_SESSION_TOKEN: this.token, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' },
+        env: {
+          ...process.env,
+          CLAW_SESSION_TOKEN: this.token,
+          PYTHONUNBUFFERED: '1',
+          PYTHONIOENCODING: 'utf-8',
+          ...(this.resourcesDir ? { CLAW_RESOURCES: this.resourcesDir } : {}),
+        },
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       });
@@ -139,14 +170,16 @@ class Backend {
     this.setStatus('failed', 'The agent did not start in time.', this.lastErrors());
   }
 
-  async request(method, route, body) {
-    if (!isAllowedRoute(method, route)) {
+  // `internal` is only ever set by main-process code, never from the page's IPC call.
+  async request(method, route, body, { internal = false } = {}) {
+    if (!isAllowedRoute(method, route, internal)) {
       return { ok: false, status: 400, body: { error: { code: 'blocked_route', message: 'That request is not allowed.' } } };
     }
     if (this.status.state !== 'ready') {
       return { ok: false, status: 503, body: { error: { code: 'backend_unavailable', message: this.status.message, hint: this.status.detail } } };
     }
-    const timeoutMs = route.startsWith('/tasks/plan') ? 15 * 60 * 1000 : 30000;
+    const slow = route.startsWith('/tasks/plan') || route.startsWith('/brain/restart') || route.startsWith('/brain/import') || route.endsWith('/searchable');
+    const timeoutMs = slow ? 15 * 60 * 1000 : 30000;
     try {
       const res = await fetch(`http://127.0.0.1:${this.port}${route}`, {
         method,
@@ -180,4 +213,4 @@ class Backend {
   }
 }
 
-module.exports = { Backend, isAllowedRoute, resolvePython };
+module.exports = { Backend, isAllowedRoute, resolvePython, frozenBackend };

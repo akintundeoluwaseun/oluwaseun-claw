@@ -6,7 +6,7 @@ from claw.permissions.policy import Decision, RiskLevel
 
 def test_defaults_are_local_and_safe():
     s = Settings()
-    assert s.model.base_url == "http://127.0.0.1:11434"
+    assert s.model.mode == "builtin" and s.model.base_url == "http://127.0.0.1:8080"
     assert s.permissions.modes[RiskLevel.DESTRUCTIVE] == Decision.ASK
     assert s.permissions.modes[RiskLevel.READ_ONLY] == Decision.ALLOW
 

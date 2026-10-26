@@ -8,7 +8,8 @@ const path = require('node:path');
 const { Backend } = require('./backend');
 const { AgentWatcher } = require('./watcher');
 
-const BACKEND_DIR = process.env.CLAW_BACKEND_DIR || path.resolve(__dirname, '..', '..', 'backend');
+const BACKEND_DIR = process.env.CLAW_BACKEND_DIR || (app.isPackaged ? path.join(process.resourcesPath, 'backend') : path.resolve(__dirname, '..', '..', 'backend'));
+const RESOURCES_DIR = process.env.CLAW_RESOURCES || (app.isPackaged ? process.resourcesPath : null);
 const ASSETS = path.join(__dirname, 'assets');
 const QUICK_SHORTCUT = 'CommandOrControl+Shift+Space';
 const STOP_SHORTCUT = 'CommandOrControl+Alt+X'; // works even while Claw is using the mouse and keyboard
@@ -308,6 +309,88 @@ ipcMain.handle('claw:open-output', async (event, taskId, filePath, how) => {
 ipcMain.handle('claw:shortcut', (event) => (fromOurWindows(event) ? QUICK_SHORTCUT.replace('CommandOrControl', 'Ctrl') : ''));
 ipcMain.handle('claw:stop-shortcut', (event) => (fromOurWindows(event) ? STOP_SHORTCUT.replace('CommandOrControl', 'Ctrl') : ''));
 
+// ---------- IPC: documents and brain files (paths only ever come from Windows dialogs) ----------
+const DOC_FILTERS = [
+  { name: 'Documents', extensions: ['pdf', 'docx', 'xlsx', 'xlsm', 'txt', 'md', 'csv'] },
+  { name: 'PDF', extensions: ['pdf'] },
+];
+// E2E tests can't click a native dialog, so they may pre-answer it (only when CLAW_E2E is set).
+function e2eDialogAnswer(kind) {
+  if (!process.env.CLAW_E2E) return undefined;
+  const v = process.env[`CLAW_E2E_${kind}`];
+  return v === undefined ? undefined : v ? v.split('|') : [];
+}
+
+async function pickFiles(kind, options) {
+  const canned = e2eDialogAnswer(kind);
+  if (canned !== undefined) return canned;
+  const res = await dialog.showOpenDialog(mainWindow, options);
+  return res.canceled ? [] : res.filePaths;
+}
+
+ipcMain.handle('claw:open-document', async (event) => {
+  if (!senderIs(event, mainWindow)) return { ok: false };
+  const [file] = await pickFiles('OPEN_DOC', { title: 'Open a document for Claw to read', properties: ['openFile'], filters: DOC_FILTERS });
+  if (!file) return { ok: false, cancelled: true };
+  return backend.request('POST', '/documents/open', { path: file }, { internal: true });
+});
+
+ipcMain.handle('claw:save-searchable', async (event, docId, suggestedName) => {
+  if (!senderIs(event, mainWindow) || typeof docId !== 'string' || !/^[0-9a-f]{32}$/.test(docId)) return { ok: false };
+  const base = String(suggestedName || 'document').replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|]/g, '_').slice(0, 120);
+  let out = (e2eDialogAnswer('SAVE_PDF') || [])[0];
+  if (!out) {
+    const res = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save a searchable copy',
+      defaultPath: `${base} (searchable).pdf`,
+      filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      properties: ['showOverwriteConfirmation'],
+    });
+    if (res.canceled || !res.filePath) return { ok: false, cancelled: true };
+    out = res.filePath;
+  }
+  return backend.request('POST', `/documents/${docId}/searchable`, { out }, { internal: true });
+});
+
+ipcMain.handle('claw:show-file', async (event, docId) => {
+  // Show a document the user opened in Claw (only paths of open documents are accepted).
+  if (!senderIs(event, mainWindow) || typeof docId !== 'string' || !/^[0-9a-f]{32}$/.test(docId)) return { ok: false };
+  const res = await backend.request('GET', `/documents/${docId}`);
+  if (!res.ok) return { ok: false };
+  shell.showItemInFolder(res.body.path);
+  return { ok: true };
+});
+
+ipcMain.handle('claw:import-brain', async (event) => {
+  if (!senderIs(event, mainWindow)) return { ok: false };
+  const files = await pickFiles('IMPORT_BRAIN', {
+    title: 'Choose a GGUF brain file (and its mmproj vision file, if it has one)',
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'GGUF model', extensions: ['gguf'] }],
+  });
+  if (!files.length) return { ok: false, cancelled: true };
+  const mmproj = files.find((f) => /mmproj/i.test(path.basename(f)));
+  const model = files.find((f) => f !== mmproj);
+  if (!model) return { ok: false, status: 422, body: { error: { message: 'Choose the brain file itself, not only its vision file.' } } };
+  return backend.request('POST', '/brain/import', { path: model, mmproj: mmproj || null }, { internal: true });
+});
+
+ipcMain.handle('claw:confirm', async (event, title, detail, okLabel) => {
+  if (!senderIs(event, mainWindow)) return false;
+  if (process.env.CLAW_E2E) return process.env.CLAW_E2E_CONFIRM !== 'no';
+  const res = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Oluwaseun Claw',
+    message: String(title).slice(0, 200),
+    detail: String(detail || '').slice(0, 600),
+    buttons: [String(okLabel || 'OK').slice(0, 40), 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  });
+  return res.response === 0;
+});
+
 // ---------- IPC: quick bar (narrower) ----------
 ipcMain.handle('quickbar:run', async (event, task) => {
   if (!senderIs(event, quickBar)) return { ok: false };
@@ -357,7 +440,7 @@ function onBackendStatus(s, instance) {
 
 async function startBackend(restart = false) {
   if (restart && backend) backend.stop();
-  const instance = new Backend({ backendDir: BACKEND_DIR, onStatus: (s) => onBackendStatus(s, instance) });
+  const instance = new Backend({ backendDir: BACKEND_DIR, resourcesDir: RESOURCES_DIR, onStatus: (s) => onBackendStatus(s, instance) });
   backend = instance;
   await instance.start();
   if (instance.status.state === 'ready') await loadDesktopSettings();

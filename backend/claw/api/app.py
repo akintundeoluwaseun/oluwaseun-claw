@@ -30,13 +30,17 @@ from claw.browser.session import BrowserSession
 from claw.computer.driver import DesktopSession, default_driver
 from claw.config import ConfigError, ModelSettings, Settings, SettingsStore, describe_validation_error
 from claw.logging_setup import log_event
-from claw.models.auto import ModelManager
+import asyncio
+
+from claw.documents.pdf_pipeline import PdfPipeline
+from claw.documents.service import DocumentService
 from claw.models.base import ModelAdapter, ModelError, ModelNotFound, ModelStatus
-from claw.models.ollama import OllamaAdapter
 from claw.models.registry import build_adapter
+from claw.runtime.brain import Brain
+from claw.runtime.store import ModelStore
 from claw.permissions.policy import PermissionPolicy
 from claw.storage.db import Database
-from claw.tools.base import ToolRegistry
+from claw.tools.base import ToolError, ToolRegistry
 from claw.tools.registry import build_registry
 
 log = logging.getLogger("claw.api")
@@ -56,67 +60,33 @@ class AppState:
     registry: ToolRegistry = field(default_factory=build_registry)
     browser: BrowserSession | None = None
     runner: TaskRunner | None = None
-    models: ModelManager | None = None
+    brain: Brain | None = None
     desktop: DesktopSession | None = None
+    docs: DocumentService | None = None
 
-    def ensure_manager(self) -> ModelManager:
-        url = self.settings.model.base_url if self.settings.model.provider == "ollama" else "http://127.0.0.1:11434"
-        if self.models is None or self.models.base_url != url:
-            self.models = ModelManager(url)
-        return self.models
-
-    def think_adapter(self) -> ModelAdapter:
-        """The model that plans and decides steps, according to the chosen brain."""
+    async def think_adapter(self) -> ModelAdapter:
+        """The model that plans and decides steps."""
         ms = self.settings.model
         if ms.mode == "custom":
             return build_adapter(ms)
-        mgr = self.ensure_manager()
-        tag = mgr.model_for("think")
-        if not tag:
-            message, hint_text = mgr.not_ready_message()
-            raise ModelNotFound(message, hint_text)
-        adapter = OllamaAdapter(mgr.base_url, tag, timeout_s=ms.request_timeout_s, temperature=ms.temperature)
-        adapter.num_thread = mgr.threads()
-        adapter.keep_alive = "2m"  # the engine frees the memory two minutes after Claw goes quiet
-        return adapter
+        return await self.brain.adapter(ms.selected, ms.request_timeout_s, ms.temperature)
 
-    def vision_fn(self):
-        """A function that answers questions about screenshots, or None if this brain can't see."""
-        ms = self.settings.model
-        if ms.mode == "builtin":
-            mgr = self.ensure_manager()
-            tag = mgr.model_for("see")
-            if not tag:
-                return None
-
-            async def see(png: bytes, question: str) -> str:
-                ram = mgr.hardware.total_ram_gb or 8
-                if ram < 24:  # keep only one model in memory on ordinary laptops
-                    think = mgr.model_for("think")
-                    if think:
-                        try:
-                            await OllamaAdapter(mgr.base_url, think, 15, 0).unload()
-                        except ModelError:
-                            pass
-                adapter = OllamaAdapter(mgr.base_url, tag, timeout_s=ms.request_timeout_s, temperature=0.1)
-                adapter.num_thread = mgr.threads()
-                adapter.keep_alive = "1m"
-                return await adapter.see(png, question)
-
-            return see
-        return None
+    def vision_fn(self, adapter: ModelAdapter):
+        """Reads screenshots with the same brain when it has a vision file; otherwise None."""
+        return adapter.see if getattr(adapter, "vision", False) else None
 
     def model_label(self) -> str | None:
         ms = self.settings.model
         if ms.mode == "custom":
             return ms.model or None
-        return self.ensure_manager().model_for("think")
+        m = self.brain.active_model(ms.selected)
+        return m.name if m else None
 
     def policy(self) -> PermissionPolicy:
-        return PermissionPolicy(self.settings.permissions.modes, self.settings.permissions.authorized_folders)
-
-    def brain(self) -> dict:
-        return {"mode": self.settings.model.mode, "builtin": self.ensure_manager().summary()}
+        return PermissionPolicy(
+            self.settings.permissions.modes, self.settings.permissions.authorized_folders,
+            self.docs.opened_paths if self.docs else None,
+        )
 
 
 def error_response(status: int, code: str, message: str, hint: str = "", details: list[str] | None = None):
@@ -132,24 +102,34 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     store = SettingsStore(data_dir)
     state = AppState(data_dir=data_dir, token=token, store=store, db=Database(data_dir / "claw.db"))
     state.desktop = DesktopSession(default_driver())
+    state.brain = Brain(ModelStore(data_dir))
     try:
         state.settings = store.load()
     except ConfigError as exc:
         state.settings_error = exc
         log.warning("settings invalid; running with defaults until fixed", extra={"fields": {"problems": exc.problems}})
     state.browser = BrowserSession(data_dir, lambda: state.settings.browser)
+    state.docs = DocumentService(PdfPipeline(data_dir / "documents", language=state.settings.documents.ocr_language))
     state.runner = TaskRunner(state)
     interrupted = state.db.mark_interrupted()
     if interrupted:
         log_event(log, "marked unfinished tasks as interrupted", count=interrupted)
 
+    async def idle_watch():
+        """Stop the engine when Claw has been quiet for a while, to give the memory back."""
+        while True:
+            await asyncio.sleep(30)
+            if state.runner.busy:
+                state.brain.touch()
+                continue
+            await state.brain.engine.stop_if_idle(state.settings.model.idle_unload_minutes * 60)
+
     @asynccontextmanager
     async def lifespan(_app):
-        if state.settings.model.mode == "builtin":
-            state.ensure_manager().start()
+        watcher = asyncio.create_task(idle_watch())
         yield
-        if state.models is not None:
-            await state.models.stop()
+        watcher.cancel()
+        await state.brain.shutdown()
         if state.runner.busy:
             state.runner.cancel(state.runner.current_id)
             await state.runner.wait()
@@ -220,8 +200,6 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         store.save(new_settings)
         state.settings = new_settings
         state.settings_error = None
-        if new_settings.model.mode == "builtin":
-            state.ensure_manager().start()
         log_event(log, "settings saved", provider=new_settings.model.provider, model=new_settings.model.model)
         return {"settings": new_settings.model_dump(mode="json"), "error": None, "data_dir": str(state.data_dir)}
 
@@ -229,20 +207,20 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     async def model_status():
         ms = state.settings.model
         if ms.mode == "builtin":
-            mgr = state.ensure_manager()
-            await mgr.refresh()
-            tag = mgr.model_for("think")
-            status = ModelStatus(
-                server_reachable=bool(mgr.ollama_reachable),
-                model_available=tag is not None,
-                provider="ollama",
-                base_url=mgr.base_url,
-                model=tag or (mgr.roles["think"].tag or ""),
-                message=f"Ready: {tag}" if tag else " ".join(mgr.not_ready_message()),
+            info = state.brain.summary(ms.selected)
+            active = info["active"]
+            eng = info["engine"]
+            message = (
+                ("Ready" if eng["state"] == "ready" else "Ready (starts when needed)") if info["ready"]
+                else " ".join(state.brain.not_ready(ms.selected))
             )
-            return {**status.model_dump(), "mode": "builtin", "setup": mgr.summary()}
+            status = ModelStatus(
+                server_reachable=info["engine"]["available"], model_available=info["ready"], provider="builtin",
+                base_url="", model=active["name"] if active else "", message=message,
+            )
+            return {**status.model_dump(), "mode": "builtin"}
         try:
-            adapter = state.think_adapter()
+            adapter = await state.think_adapter()
         except ModelError as exc:
             status = ModelStatus(server_reachable=False, model_available=False, provider=ms.mode, base_url="", model="",
                                  message=f"{exc.message} {exc.hint}".strip())
@@ -251,20 +229,135 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
 
     @app.get("/brain")
     async def get_brain():
-        return state.brain()
+        return {"mode": state.settings.model.mode, **state.brain.summary(state.settings.model.selected)}
 
-    @app.get("/models/auto")
-    async def models_auto():
-        mgr = state.ensure_manager()
-        return {"enabled": state.settings.model.mode == "builtin", **mgr.summary()}
+    async def _body(request: Request) -> dict:
+        try:
+            body = await request.json()
+        except ValueError:
+            return {}
+        return body if isinstance(body, dict) else {}
 
-    @app.post("/models/auto/retry")
-    async def models_auto_retry():
-        if state.settings.model.mode != "builtin":
-            return error_response(409, "not_builtin", "A developer model server is selected.")
-        mgr = state.ensure_manager()
-        mgr.retry()
+    def _save_model_settings(**changes) -> None:
+        new = state.settings.model_copy(deep=True)
+        for k, v in changes.items():
+            setattr(new.model, k, v)
+        store.save(new)
+        state.settings = new
+
+    @app.post("/brain/download")
+    async def brain_download(request: Request):
+        entry_id = (await _body(request)).get("id")
+        try:
+            state.brain.start_download(str(entry_id))
+        except ValueError as exc:
+            return error_response(409, "download", str(exc))
+        return state.brain.summary(state.settings.model.selected)
+
+    @app.post("/brain/download/cancel")
+    async def brain_download_cancel():
+        return {"cancelled": state.brain.cancel_download()}
+
+    @app.post("/brain/select")
+    async def brain_select(request: Request):
+        model_id = (await _body(request)).get("id")
+        if model_id is not None and state.brain.store.get(str(model_id)) is None:
+            return error_response(404, "not_found", "That brain is not installed.")
+        _save_model_settings(selected=model_id, mode="builtin")
+        await state.brain.engine.stop()  # next task starts the chosen brain
+        return state.brain.summary(model_id)
+
+    @app.post("/brain/remove")
+    async def brain_remove(request: Request):
+        model_id = str((await _body(request)).get("id") or "")
+        active = state.brain.active_model(state.settings.model.selected)
+        if active and active.id == model_id and state.runner.busy:
+            return error_response(409, "busy", "Wait for the current task to finish first.")
+        if active and active.id == model_id:
+            await state.brain.engine.stop()
+        try:
+            note = state.brain.store.remove(model_id)
+        except ValueError as exc:
+            return error_response(409, "remove", str(exc))
+        if state.settings.model.selected == model_id:
+            _save_model_settings(selected=None)
+        return {"message": note, **state.brain.summary(state.settings.model.selected)}
+
+    @app.post("/brain/import")
+    async def brain_import(request: Request):
+        """Main-process only (path comes from the file dialog); not in the UI route allowlist."""
+        body = await _body(request)
+        try:
+            m = state.brain.store.import_file(Path(str(body.get("path"))), Path(body["mmproj"]) if body.get("mmproj") else None)
+        except ValueError as exc:
+            return error_response(422, "import", str(exc))
+        _save_model_settings(selected=m.id, mode="builtin")
+        await state.brain.engine.stop()
+        return state.brain.summary(m.id)
+
+    @app.post("/brain/restart")
+    async def brain_restart():
+        await state.brain.engine.stop()
+        try:
+            await state.think_adapter()
+        except ModelError as exc:
+            return error_response(502, "engine", exc.message, exc.hint)
+        return state.brain.summary(state.settings.model.selected)
+
+    # ---------- Documents ----------
+    @app.post("/documents/open")
+    async def documents_open(request: Request):
+        """Main-process only (path comes from the file dialog); not in the UI route allowlist."""
+        raw = (await _body(request)).get("path")
+        if not isinstance(raw, str) or not raw:
+            return error_response(422, "path", "No file was given.")
+        path = Path(raw)
+        if path.suffix.lower() not in (".pdf", ".docx", ".xlsx", ".xlsm", ".txt", ".md", ".csv"):
+            return error_response(422, "type", "Claw can open PDF, Word, Excel and text files.")
+        try:
+            job = state.docs.open(path)
+        except ToolError as exc:
+            return error_response(422, "open", exc.message)
+        return job.status_dict()
+
+    @app.get("/documents/{doc_id}")
+    async def documents_get(doc_id: str, pages: int = 0):
+        job = state.docs.get(doc_id)
+        if job is None:
+            return error_response(404, "not_found", "That document is not open.")
+        return job.status_dict(with_pages=bool(pages))
+
+    @app.get("/documents/{doc_id}/search")
+    async def documents_search(doc_id: str, q: str = ""):
+        job = state.docs.get(doc_id)
+        if job is None or job.status != "done":
+            return error_response(409, "not_ready", "The document isn't ready yet.")
+        return {"hits": state.docs.search(job, q[:200])}
+
+    @app.post("/documents/{doc_id}/cancel")
+    async def documents_cancel(doc_id: str):
+        job = state.docs.get(doc_id)
+        if job is None:
+            return error_response(404, "not_found", "That document is not open.")
+        job.cancel.set()
         return {"ok": True}
+
+    @app.post("/documents/{doc_id}/searchable")
+    async def documents_searchable(doc_id: str, request: Request):
+        """Main-process only: the output path comes from the Save dialog."""
+        job = state.docs.get(doc_id)
+        out = (await _body(request)).get("out")
+        if job is None or job.result is None:
+            return error_response(409, "not_ready", "Only a PDF that has finished reading can be saved as searchable.")
+        if not isinstance(out, str) or not out.lower().endswith(".pdf"):
+            return error_response(422, "out", "Choose where to save the PDF.")
+        try:
+            path = await asyncio.to_thread(state.docs.pipeline.searchable_pdf, Path(job.path), Path(out))
+        except FileExistsError:
+            return error_response(409, "exists", "A file with that name already exists. Choose another name.")
+        except ToolError as exc:
+            return error_response(422, "searchable", exc.message)
+        return {"path": str(path)}
 
     @app.post("/models/probe")
     async def probe_models(request: Request):
@@ -293,7 +386,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         state.db.add_event(task_id, "requested", {"task": req.task})
         state.db.update_task(task_id, status=TaskStatus.PLANNING)
         try:
-            adapter = state.think_adapter()
+            adapter = await state.think_adapter()
             state.db.add_event(task_id, "model_call", {"provider": adapter.provider, "model": adapter.model})
             plan = await make_plan(req.task, adapter, state.policy())
         except ModelError as exc:

@@ -56,7 +56,21 @@ added as validated tools in Batches 2–3 using Playwright and pywinauto, which
 the custom loop calls directly. Code from Workstation/UI-TARS may be studied
 for ideas; none has been copied.
 
+## Scanned documents and the local engine (audit added for v0.5)
+Reviewed from each repository's README, licence and build requirements
+(no code copied).
+
+| Repository | Licence | What it is | Decision |
+|---|---|---|---|
+| ocrmypdf/OCRmyPDF | MPL-2.0 | Adds an OCR text layer to PDFs, using Tesseract, Ghostscript, qpdf, img2pdf | **Not used.** Needs Ghostscript (AGPL-3.0) for most inputs and several separate Windows installs; its useful idea (keep text pages, OCR only image pages, write a hidden text layer) is implemented directly with pypdfium2 + Tesseract's own PDF renderer. |
+| tesseract-ocr/tesseract | Apache-2.0 | OCR engine with TSV (word confidence), OSD (orientation) and PDF (searchable) output; official Windows builds by UB Mannheim | **Used** as a separate program (subprocess). Tested here with 5.3.4. |
+| PaddlePaddle/PaddleOCR | Apache-2.0 | Deep-learning OCR, very accurate on hard scans | **Not the default.** Needs the PaddlePaddle runtime (hundreds of MB, heavy CPU/RAM), which conflicts with "must not lag the PC". Could be an optional language/quality pack later. |
+| "PDF-OCR" (repository given in the task) | per repository | A web application around OCR | **Not used.** It is a hosted/web app, not a local library; would send documents off the computer. |
+| ggml-org/llama.cpp | MIT | Local inference engine; `llama-server` speaks an OpenAI-compatible API, supports GGUF, vision projectors (mmproj) and JSON-schema constrained output | **Used** as Claw's managed engine. Built from source here at d854d98 (0.7.0-dev; Qwen3-VL supported) and run in tests. |
+| DynaLM (repository given in the task) | per repository | A wrapper/launcher around local model servers | **Not used.** Its own README says only its own client is verified; adds a layer without removing any need. |
+| pypdfium2-team/pypdfium2 | BSD-3-Clause / Apache-2.0 (PDFium BSD-3-Clause) | Python binding to PDFium; text extraction and page rendering; Windows wheels include PDFium | **Used** for reading text pages and rendering scans at 300 DPI. |
+
 ## Not verified
 - Latest GitHub release tags (API blocked in workspace).
-- Model-weight licenses on Hugging Face model cards (site blocked in workspace).
+- Model-weight licences: Qwen3-VL-4B-Instruct-GGUF's Hugging Face page states Apache-2.0 (read via a fetch on 2026-10-26); the app re-checks the licence through the Hugging Face API before every download. The 8B card was not opened here; the same runtime check applies.
 - Any component actually running on Windows 10 (no Windows machine in workspace).

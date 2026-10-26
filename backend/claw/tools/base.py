@@ -77,6 +77,8 @@ class ToolContext:
     vision: Callable[[bytes, str], Awaitable[str]] | None = None
     start_menu_dirs: list[Path] | None = None  # tests only; None = the real Start menu
     memory: TaskMemory = field(default_factory=TaskMemory)
+    llm: Any = None  # the brain adapter, for tools that summarise long documents in chunks
+    docs: Any = None  # PdfPipeline (OCR-aware PDF reading with a cache)
 
 
 Handler = Callable[[ToolArgs, ToolContext], Awaitable[ToolResult]]

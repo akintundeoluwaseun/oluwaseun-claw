@@ -102,12 +102,12 @@ class TaskRunner:
 
         state.browser.reset_task_state()
         state.desktop.reset_task_state()
-        ctx = ToolContext(
-            settings=settings, policy=state.policy(), data_dir=state.data_dir, browser=state.browser, task_id=task_id,
-            desktop=state.desktop, vision=state.vision_fn(),
-        )
         try:
-            adapter = state.think_adapter()
+            adapter = await state.think_adapter()
+            ctx = ToolContext(
+                settings=settings, policy=state.policy(), data_dir=state.data_dir, browser=state.browser, task_id=task_id,
+                desktop=state.desktop, vision=state.vision_fn(adapter), llm=adapter, docs=state.docs.pipeline,
+            )
             db.update_task(task_id, status="planning")
             emit("model_call", {"provider": adapter.provider, "model": adapter.model, "purpose": "plan"})
             plan = await make_plan(task_text, adapter, state.policy())

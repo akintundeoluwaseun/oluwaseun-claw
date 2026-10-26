@@ -31,3 +31,22 @@ test('everything else is refused', () => {
   assert.ok(!isAllowedRoute(undefined, '/health'));
   assert.ok(!isAllowedRoute('GET', '/health' + 'x'.repeat(400)));
 });
+
+const DOC = '0123456789abcdef0123456789abcdef';
+
+test('brain and document routes the page may use', () => {
+  for (const r of ['/brain/download', '/brain/download/cancel', '/brain/select', '/brain/remove', '/brain/restart']) assert.ok(isAllowedRoute('POST', r), r);
+  assert.ok(isAllowedRoute('GET', `/documents/${DOC}`));
+  assert.ok(isAllowedRoute('GET', `/documents/${DOC}?pages=1`));
+  assert.ok(isAllowedRoute('GET', `/documents/${DOC}/search?q=invoice%20total`));
+  assert.ok(isAllowedRoute('POST', `/documents/${DOC}/cancel`));
+  assert.ok(!isAllowedRoute('GET', `/documents/${DOC}/search?q=a&x=1`));
+  assert.ok(!isAllowedRoute('GET', '/models/auto'));
+});
+
+test('routes that take a file path are main-process only', () => {
+  for (const [m, r] of [['POST', '/brain/import'], ['POST', '/documents/open'], ['POST', `/documents/${DOC}/searchable`]]) {
+    assert.ok(!isAllowedRoute(m, r), `page must not reach ${r}`);
+    assert.ok(isAllowedRoute(m, r, true), `main process may reach ${r}`);
+  }
+});

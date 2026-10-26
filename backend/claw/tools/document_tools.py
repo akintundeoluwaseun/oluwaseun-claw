@@ -40,7 +40,7 @@ def _record_output(ctx: ToolContext, path: Path, kind: str, verified: bool, note
 def _new_path(ctx: ToolContext, folder: str | None, name: str, ext: str) -> Path:
     target_dir = resolve_folder(ctx, folder)
     path = unique_path(target_dir / safe_file_name(name, ext))
-    ctx.policy.check_path(path)
+    ctx.policy.check_path(path, write=True)
     return path
 
 
@@ -284,7 +284,7 @@ class EditArgs(ToolArgs):
 
 def _edit_target(ctx: ToolContext, raw: str) -> Path:
     try:
-        path = ctx.policy.check_path(raw)
+        path = ctx.policy.check_path(raw, write=True)
     except PathNotAuthorized as exc:
         raise ToolError(str(exc)) from exc
     if not path.is_file():

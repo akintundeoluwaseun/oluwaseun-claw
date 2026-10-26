@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.5.0 — 2026-10-26 (scanned documents + built-in engine)
+### Added
+- **Documents view:** open PDF, Word, Excel or text files; live progress; each page shows whether
+  its text came from the file or from a scan, with OCR confidence and rotation; unclear or unread
+  pages flagged; search with jump-to-page; "Ask Claw about this document"; save a searchable copy
+  of a scanned PDF (never overwrites).
+- **OCR (Tesseract):** only pages without real text are OCR'd, at 300 DPI; sideways pages turned
+  upright; results cached; English built in, other languages can be added; works without the brain.
+- **Agent document tools:** read pages with labels, search, summarise in bounded chunks with page
+  references, make a searchable PDF (asks first). Text from documents is treated as untrusted.
+- **Claw's own engine:** llama.cpp `llama-server`, started and stopped by Claw on 127.0.0.1 with a
+  per-launch key; memory check, load wait, crash restart, idle unload; stops if Claw is killed.
+- **Brains:** Standard (Qwen3-VL 4B) and Pro (Qwen3-VL 8B), with screenshot vision. Settings shows
+  engine status and lets you download (size, progress, cancel, resume; licence and checksum
+  checked), switch, remove (with confirmation), use your own GGUF file, or restart the brain.
+- **Packaging:** frozen backend (PyInstaller), electron-builder layout, Inno Setup script for the
+  Standard and Pro installers, `build-release.ps1`; `setup.ps1` now fetches llama.cpp and Tesseract.
+- Tests: OCR (16), agent + documents (3), engine/runtime (19), e2e +13 checks (52 total), packaged-app smoke (9).
+### Changed
+- Developer custom server defaults to an OpenAI-compatible (llama.cpp) server on port 8080.
+- Malformed or cut-off brain replies are retried instead of failing the task as a server error.
+### Removed
+- **Ollama is no longer required** (kept only as an optional developer adapter). The automatic
+  Ollama model manager was removed.
+
 ## 0.4.0 — 2026-10-26 (Batch 4)
 ### Added
 - **Re-planning:** after two failed steps Claw works out why and makes a new plan (max 2 per task).

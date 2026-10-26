@@ -1,51 +1,53 @@
 # Project status — Oluwaseun Claw
 
-**Current batch:** Batch 4 complete in the build workspace (Linux, scripted model).
-**Next batch:** Batch 5 — security, packaging (brain inside the installer), release.
-**Version:** 0.4.0 · **Last updated:** 2026-10-26
+**Current stage:** v0.5.0: scanned-document reading (OCR) and the built-in llama.cpp engine, with
+Ollama removed as a requirement. Done and tested in the build workspace (Linux).
+**Next:** Batch 5 remainder: first Windows build and installer test, real-brain measurements,
+manuals, release checklist.
+**Version:** 0.5.0 · **Last updated:** 2026-10-26
 
 ## Completed
-- **Batch 1:** audit, architecture, backend foundation, Electron shell, scripts, tests.
-- **Batch 2:** tool system, browser control, history search, save links, executor with
-  approvals/stop/limits, background runner.
-- **Interface + background mode:** premium redesign, quick bar (Ctrl+Shift+Space), tray,
-  notifications, start with Windows, keep awake, close to tray.
-- **Batch 3:** Windows UI Automation desktop control, app launcher, screenshots, screen reading,
-  file inspection, consequential-label escalation, stop shortcut Ctrl+Alt+X.
-- **Batch 4:** re-planning after failures; read PDF/Word/Excel; write text, reports with opened
-  sources only, spreadsheets with value checks, edits with backups; injection guard and taint
-  escalation; crash auto-restart; files card with Open/Show in folder; Run again; wider search.
-- **Brain:** built-in only, sized to the computer; no keys, no model choice (online mode removed).
+- **Batches 1–4:** foundation, browser control, desktop control, multi-step autonomy (see CHANGELOG).
+- **Interface + background mode:** premium design, quick bar, tray, notifications.
+- **Scanned documents (v0.5):** Documents view, text-vs-scan detection per page, Tesseract OCR with
+  confidence, auto-rotation, problem-page flags, search, ask Claw, searchable PDF copies, OCR cache,
+  page-aware chunks with page citations, agent tools (`read_document_pages`, `search_document`,
+  `summarize_document`, `make_searchable_pdf`). OCR works without the brain.
+- **Built-in engine (v0.5):** llama.cpp `llama-server` managed by Claw (start/stop, memory check,
+  load wait, crash restart, idle unload, localhost + per-launch key, dies with the backend).
+  Standard (Qwen3-VL 4B) and Pro (Qwen3-VL 8B) brains with licence/size/checksum-checked
+  download, import of your own GGUF, remove with confirmation. **Ollama is no longer needed**;
+  it stays only as an optional developer adapter.
+- **Packaging pipeline (v0.5, partly verified):** PyInstaller-frozen backend, electron-builder
+  layout, Inno Setup script for the two editions, `build-release.ps1`, `setup.ps1` that fetches
+  llama.cpp and Tesseract. The frozen backend and the packaged layout were tested on Linux;
+  the Windows scripts and installers have not been run.
 
 ## What the app can do today
-Take a task (main window or quick bar), plan it, and carry it out across the browser, Windows
-apps and files in allowed folders: research and save a sourced report, turn a web page into a
-spreadsheet, summarise the newest PDF, edit a text file safely. It asks before changes, recovers
-from failures by re-planning, flags hidden instructions in pages, and reports exactly what was
-done, checked and produced.
-
-## Remaining work
-Batch 5 (see `IMPLEMENTATION_PLAN.md`): bundle engine + brain into a Windows installer, licence
-audit, clean-machine install tests, manuals.
+Everything from Batch 4, plus: open a PDF (text or scanned), Word, Excel or text file; see each
+page's text with where it came from and how sure Claw is; search it; ask Claw about it; save a
+searchable copy of a scanned PDF; and run with its own engine and brain — no Ollama, no keys.
 
 ## Known issues / limits
-- **Not yet run on Windows 10 and never driven by a real model** — all task runs used scripted
-  stand-ins. How well a small local model follows the action format is the biggest open risk.
-- Development builds still need Ollama; release builds will bundle llama.cpp (Batch 5).
-- Windows UI Automation driver unexecuted (checklist in `docs/DESKTOP.md`).
-- Scanned PDFs (images only) can't be read; no OCR.
-- Spreadsheet checks catch values not seen in the text; they can't catch a real value put in the
-  wrong row.
+- **Never run on Windows, and never with the real Qwen3-VL weights.** All engine runs used a tiny
+  random test model; how well a 4B/8B local brain follows the action format is the biggest open risk.
+- Windows-only code untested: job object (engine killed with backend), UI Automation driver,
+  setup.ps1 downloads, build-release.ps1, Inno Setup installers.
+- The Pro installer is `Setup.exe` + `.bin` parts (Inno Setup's single-file limit is ~4.2 GB).
+- OCR tested on synthetic pages only; English only (more language packs are possible later).
+- Handwriting, tables and multi-column layouts are read as plain text, not structured.
 - Injection detection is pattern-based; the real protection is that changes need approval.
 - Desktop steps can't run on a locked screen; "Plan only" can't be cancelled; one task at a time.
+- Not code-signed (Windows SmartScreen will warn) until a certificate is available.
 
-## Exact startup commands (Windows 10, developers)
+## Exact startup commands (Windows 10/11, developers)
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\setup.ps1   # once
-# install Ollama (development builds only)
+powershell -ExecutionPolicy Bypass -File scripts\setup.ps1        # once: Python env, Electron, llama.cpp, Tesseract
 powershell -ExecutionPolicy Bypass -File scripts\start.ps1
+# then in the app: Settings > Claw's brain > Download (once)
+powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1 -Edition Standard   # installer
 ```
 
 ## Next action
-Batch 5, step 1: replace the Ollama dependency with a bundled llama.cpp `llama-server` started
-by the backend, then build the Windows installer.
+Run `setup.ps1`, the app and `build-release.ps1 -Edition Standard` on a Windows 10 PC; install
+the result on a clean Windows 10 machine and go through `docs/DESKTOP.md` and the Batch 5 checklist.

@@ -4,3 +4,6 @@ backend/.venv/
 desktop/node_modules/
 desktop/dist/
 *.log
+build/
+backend/dist/
+backend/runtime/

@@ -59,6 +59,29 @@ Added in Batch 4 (implemented and tested):
 - The UI can open only files recorded as outputs of that task (checked in the main process).
 - No online AI service is used; nothing leaves the computer except the web pages the browser visits.
 
+Added with scanned-document reading and the built-in engine (implemented and tested on Linux):
+- Documents are read on this computer only (pypdfium2 + Tesseract). Nothing is uploaded.
+  Text recognised by OCR is labelled per page with its confidence; low-confidence and unread
+  pages are flagged; no text is ever shown that the engine did not actually recognise.
+- Text from documents is untrusted: it reaches the model inside `<untrusted>` tags, injection-like
+  text taints the task (tested with a scanned page telling the assistant to delete files: flagged,
+  not obeyed, and the save still asked), and summaries are made in bounded chunks.
+- A file opened through the Documents dialog becomes readable (never writable) by the agent even
+  outside authorized folders, because the user chose it. Paths for opening documents, importing a
+  brain and saving a searchable PDF are only accepted from the main process, which takes them from
+  Windows file dialogs; the page cannot send its own path (tested).
+- Searchable copies never overwrite an existing file (exclusive create; tested).
+- OCR runs Tesseract with a minimal environment, one thread, a time limit and no console window;
+  PDFs are capped at 500 pages.
+- The llama.cpp engine listens on 127.0.0.1 on a random port and needs a random per-launch API
+  key (tested: 401 without it); the key is registered for log redaction. If the backend is killed,
+  the engine is killed too (Linux tested; Windows job object untested).
+- Brain downloads: licence allowlist (Apache-2.0, MIT), disk-space check, resume, SHA-256 check
+  against the Hugging Face API when provided (mismatch → file deleted). The download address can
+  only be overridden to a localhost test server. Imported GGUF files are checked for the GGUF
+  header and are never deleted by Claw.
+
 Not yet implemented (planned):
-- Stronger prompt-injection defences and evaluation with real models (Batch 4).
-- Packaging, code signing, and installer review (Batch 5).
+- Code signing of the app and installers (needs a certificate).
+- Evaluation of prompt-injection resistance with the real Qwen3-VL brains.
+- Windows-specific review of the packaged app (job object, installer permissions, Defender).

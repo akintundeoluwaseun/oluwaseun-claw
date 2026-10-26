@@ -40,7 +40,7 @@ def resolve_folder(ctx: ToolContext, folder: str | None) -> Path:
     if not roots:
         raise ToolError("No folders are authorized. Add a folder in Settings so the agent can save files.")
     try:
-        target = ctx.policy.check_path(folder or roots[0])
+        target = ctx.policy.check_path(folder or roots[0], write=True)
     except PathNotAuthorized as exc:
         raise ToolError(str(exc)) from exc
     if not target.is_dir():
@@ -74,7 +74,7 @@ async def save_links(args: SaveLinksArgs, ctx: ToolContext) -> ToolResult:
     check_save_links(args, ctx)
     folder = resolve_folder(ctx, args.folder)
     path = unique_path(folder / safe_file_name(args.file_name, ".md"))
-    ctx.policy.check_path(path)  # re-check the final path
+    ctx.policy.check_path(path, write=True)  # re-check the final path
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     lines = [f"# {args.heading}", "", f"_Saved by Oluwaseun Claw on {stamp}_", ""]
     for l in args.links:

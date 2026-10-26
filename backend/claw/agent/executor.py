@@ -27,7 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from claw.config import describe_validation_error
 from claw.logging_setup import log_event
-from claw.models.base import ChatMessage, ModelAdapter, ModelError
+from claw.models.base import ChatMessage, ModelAdapter, ModelError, ModelResponseError
 from claw.permissions.policy import Decision, RiskLevel
 from claw.tools.base import ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec
 
@@ -353,6 +353,9 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
     for attempt in (1, 2):
         try:
             raw = await adapter.chat(messages, json_schema=ACTION_SCHEMA)
+        except ModelResponseError as exc:
+            emit("model_reply_rejected", {"step": step_no, "problem": exc.message})
+            continue
         except ModelError:
             raise
         try:

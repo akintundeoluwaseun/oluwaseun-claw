@@ -19,7 +19,7 @@ SKIP_DIRS = {"node_modules", ".git", "__pycache__", "$recycle.bin", "system volu
 
 def _authorized(ctx: ToolContext, path: str | None) -> Path:
     roots = ctx.settings.permissions.authorized_folders
-    if not roots:
+    if path is None and not roots:
         raise ToolError("No folders are authorized. Add one in Settings → Folders Claw may use.")
     try:
         return ctx.policy.check_path(path or roots[0])
@@ -66,8 +66,12 @@ async def read_file(args: ReadArgs, ctx: ToolContext) -> ToolResult:
     path = _authorized(ctx, args.path)
     if not path.is_file():
         raise ToolError(f"'{path}' is not a file.")
-    text = await asyncio.to_thread(read_document, path)
     ctx.memory.seen_files.add(str(path))
+    if path.suffix.lower() == ".pdf":
+        from claw.tools.pdf_tools import read_pdf_overview
+
+        return await read_pdf_overview(path, ctx, args.max_chars)
+    text = await asyncio.to_thread(read_document, path)
     cut = len(text) > args.max_chars
     return ToolResult(True, f"Read {path.name} ({len(text):,} characters{', first part only' if cut else ''}).",
                       {"path": str(path), "chars": len(text), "truncated": cut}, True, untrusted_text=text[: args.max_chars])
@@ -116,5 +120,5 @@ async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:
 def register_file_inspect_tools(reg: ToolRegistry) -> None:
     F, R = Capability.FILES, RiskLevel.READ_ONLY
     reg.register(ToolSpec("list_folder", "List what is in an authorized folder.", F, R, FolderArgs, list_folder))
-    reg.register(ToolSpec("read_file", "Read a file in an authorized folder: text, PDF, Word (.docx) or Excel (.xlsx).", F, R, ReadArgs, read_file))
+    reg.register(ToolSpec("read_file", "Read a file: text, PDF (scanned pages are read with OCR), Word (.docx) or Excel (.xlsx).", F, R, ReadArgs, read_file))
     reg.register(ToolSpec("find_files", "Find files by name or type inside authorized folders, newest first.", F, R, FindArgs, find_files))
