@@ -73,7 +73,10 @@ def test_read_pdf_docx_xlsx(tmp_path):
 async def test_read_file_tool_records_seen(tool_ctx, folder):
     make_pdf(folder / "report.pdf", "Quarterly sales grew 12 percent")
     r = await call(tool_ctx, "read_file", path=str(folder / "report.pdf"))
-    assert "12 percent" in r.untrusted_text and str(folder / "report.pdf") in tool_ctx.memory.seen_files
+    # saw_file, not `in seen_files`: the recorded path is canonical, so on Windows the set
+    # holds a case-folded path and a raw string match would miss the file Claw just read.
+    assert "12 percent" in r.untrusted_text
+    assert tool_ctx.memory.saw_file(str(folder / "report.pdf"))
 
 
 async def test_write_text_file_never_overwrites(tool_ctx, folder):

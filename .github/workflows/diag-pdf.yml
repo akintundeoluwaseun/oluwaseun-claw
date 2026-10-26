@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: ["claude/ecstatic-ritchie-x6ao14"]
-    paths: [".github/workflows/diag-pdf.yml", "backend/claw/documents/**", "backend/tests/test_documents.py"]
+    paths: [".github/workflows/diag-pdf.yml", "backend/claw/**", "backend/tests/test_documents.py"]
 
 jobs:
   diag:
@@ -26,6 +26,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r backend/requirements-dev.txt
+          python -m playwright install chromium
 
       - name: Raw pdfium extraction on Windows
         shell: python
