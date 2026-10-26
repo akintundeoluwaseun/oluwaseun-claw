@@ -278,6 +278,7 @@ def test_missing_engine_is_explained_in_summary(tmp_path):
     assert eng["available"] is False and "missing" in eng["message"]
 
 
+@needs_engine
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux parent-death signal")
 def test_engine_dies_if_backend_is_killed(tmp_path):
     """If the backend is killed outright (no clean shutdown), the engine must not linger."""
