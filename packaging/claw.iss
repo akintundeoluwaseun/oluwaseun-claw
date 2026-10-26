@@ -44,6 +44,45 @@ DiskSpanning=yes
 DiskSliceSize=max
 #endif
 
+#ifdef SliceBytes
+[Code]
+// A split installer is useless without all of its parts. Inno's own behaviour is to
+// start installing and then ask for a "disk" halfway through, which looks like a fault
+// in the app. Check before anything is written and name the file that is missing.
+function PartName(I: Integer): String;
+begin
+  Result := '{#OutputBaseFilename}' + '-' + IntToStr(I) + '.bin';
+end;
+
+function InitializeSetup(): Boolean;
+var
+  Dir, Missing: String;
+  I, Highest: Integer;
+begin
+  Result := True;
+  Dir := ExpandConstant('{src}');
+  Highest := 0;
+  for I := 1 to 99 do
+    if FileExists(Dir + '\' + PartName(I)) then
+      Highest := I;
+  Missing := '';
+  if Highest = 0 then
+    Missing := #13#10 + '    ' + PartName(1)
+  else
+    for I := 1 to Highest do
+      if not FileExists(Dir + '\' + PartName(I)) then
+        Missing := Missing + #13#10 + '    ' + PartName(I);
+  if Missing <> '' then
+  begin
+    MsgBox('Setup cannot start: these files are missing from this folder:' + #13#10 + Missing + #13#10 + #13#10 +
+           'This installer comes in several files. Download all of them from the release into the same folder as ' +
+           'Setup.exe, then run Setup.exe again.' + #13#10 + #13#10 +
+           'Folder: ' + Dir, mbCriticalError, MB_OK);
+    Result := False;
+  end;
+end;
+
+#endif
 [Files]
 ; The whole unpacked app, including resources\backend, engine, tesseract and models.
 Source: "{#AppDir}\*"; Excludes: "\resources\models\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion

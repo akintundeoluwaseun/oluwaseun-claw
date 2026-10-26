@@ -72,18 +72,22 @@ jobs:
           $id = if ($env:EDITION -eq 'Pro') { 'qwen3-vl-8b' } else { 'qwen3-vl-4b' }
           $log = "$env:RUNNER_TEMP\brain.log"
           try {
-            backend\.venv\Scripts\python.exe backend\packaging\fetch_brain.py $id --data-dir "$env:RUNNER_TEMP\brain" *>&1 | Tee-Object -FilePath $log
+            # C: on purpose. The workspace, the staging copy, the unpacked app and the
+            # installer all live on D:, and the Pro brain is ~6.5 GB; keeping the download
+            # off that drive is the difference between fitting and running out.
+            backend\.venv\Scripts\python.exe backend\packaging\fetch_brain.py $id --data-dir "$env:USERPROFILE\claw-brain" *>&1 | Tee-Object -FilePath $log
             if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
           } catch {
             $tail = (Get-Content $log -Tail 30 -ErrorAction SilentlyContinue) -join ' | '
             Write-Output "::error title=brain failed::$($_.Exception.Message) || $tail"
             exit 1
           }
-          "MODEL_DIR=$env:RUNNER_TEMP\brain\models\$id" | Out-File -Append $env:GITHUB_ENV
+          "MODEL_DIR=$env:USERPROFILE\claw-brain\models\$id" | Out-File -Append $env:GITHUB_ENV
 
       - name: Build the installer
         run: |
-          Get-PSDrive C, D -ErrorAction SilentlyContinue | Format-Table Name, Used, Free
+          $free = (Get-PSDrive C, D -ErrorAction SilentlyContinue | ForEach-Object { "$($_.Name): $([math]::Round($_.Free/1GB,1)) GB free" }) -join ' | '
+          Write-Output "::notice title=Disk before build::$free"
           $log = "$env:RUNNER_TEMP\build.log"
           try {
             ./scripts/build-release.ps1 -Edition $env:EDITION -ModelDir $env:MODEL_DIR -SliceMB 1900 *>&1 | Tee-Object -FilePath $log
