@@ -131,3 +131,41 @@ def test_bad_args_rejected_before_running():
         spec.parse_args({"query": "x", "extra": 1})
     with pytest.raises(ToolError):
         spec.parse_args("not an object")
+
+
+@pytest.fixture
+def hanging_port():
+    """A server that accepts the connection and then never answers."""
+    import socket
+    import threading
+
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(5)
+    stop = threading.Event()
+
+    def accept_and_hang():
+        held = []  # keep the sockets open so the browser keeps waiting
+        while not stop.is_set():
+            try:
+                srv.settimeout(0.5)
+                conn, _ = srv.accept()
+                held.append(conn)
+            except OSError:
+                pass
+
+    threading.Thread(target=accept_and_hang, daemon=True).start()
+    yield srv.getsockname()[1]
+    stop.set()
+    srv.close()
+
+
+async def test_navigation_timeout_is_reported_not_treated_as_a_visit(tool_ctx, hanging_port):
+    """A page that never loads must fail readably, and must not count as opened."""
+    tool_ctx.settings.browser.navigation_timeout_s = 3
+    url = f"http://127.0.0.1:{hanging_port}/slow"
+    with pytest.raises(ToolError) as got:
+        await call(tool_ctx, "open_url", url=url)
+    assert "too long to load" in str(got.value)
+    assert got.value.transient  # the executor may retry a timeout
+    assert url not in tool_ctx.browser.seen_urls  # never citable as a source
