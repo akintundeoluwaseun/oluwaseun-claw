@@ -40,7 +40,16 @@ jobs:
           node-version: "22"
 
       - name: Set up (Python env, Electron, llama.cpp engine)
-        run: ./scripts/setup.ps1 -SkipOcr
+        run: |
+          $log = "$env:RUNNER_TEMP\setup.log"
+          try {
+            ./scripts/setup.ps1 -SkipOcr *>&1 | Tee-Object -FilePath $log
+            if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
+          } catch {
+            $tail = (Get-Content $log -Tail 30 -ErrorAction SilentlyContinue) -join ' | '
+            Write-Output "::error title=setup failed::$($_.Exception.Message) || $tail"
+            exit 1
+          }
 
       - name: Install Tesseract OCR and Inno Setup
         run: |
@@ -53,20 +62,39 @@ jobs:
         run: |
           cd backend
           $env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
-          .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider --junitxml=..\build-test-results.xml 2>&1 | Tee-Object ..\build-test-output.txt
+          .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider -rfE --junitxml=..\build-test-results.xml 2>&1 | Tee-Object ..\build-test-output.txt
+          # Make the summary readable through the API (annotations): result line + failing tests.
+          $sum = (Get-Content ..\build-test-output.txt | Select-String -Pattern '^(FAILED|ERROR) |passed|failed' | Select-Object -Last 40 | ForEach-Object { $_.Line }) -join ' | '
+          Write-Output "::notice title=Windows test results::$sum"
 
       - name: Download the brain (licence + checksum verified)
         run: |
           $id = if ($env:EDITION -eq 'Pro') { 'qwen3-vl-8b' } else { 'qwen3-vl-4b' }
-          backend\.venv\Scripts\python.exe backend\packaging\fetch_brain.py $id --data-dir "$env:RUNNER_TEMP\brain"
-          if ($LASTEXITCODE -ne 0) { throw "Brain download failed or was not checksum-verified ($LASTEXITCODE)" }
+          $log = "$env:RUNNER_TEMP\brain.log"
+          try {
+            backend\.venv\Scripts\python.exe backend\packaging\fetch_brain.py $id --data-dir "$env:RUNNER_TEMP\brain" *>&1 | Tee-Object -FilePath $log
+            if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
+          } catch {
+            $tail = (Get-Content $log -Tail 30 -ErrorAction SilentlyContinue) -join ' | '
+            Write-Output "::error title=brain failed::$($_.Exception.Message) || $tail"
+            exit 1
+          }
           "MODEL_DIR=$env:RUNNER_TEMP\brain\models\$id" | Out-File -Append $env:GITHUB_ENV
 
       - name: Build the installer
         run: |
           Get-PSDrive C, D -ErrorAction SilentlyContinue | Format-Table Name, Used, Free
-          ./scripts/build-release.ps1 -Edition $env:EDITION -ModelDir $env:MODEL_DIR -SliceMB 1900
-          Get-ChildItem build\installers | Format-Table Name, Length
+          $log = "$env:RUNNER_TEMP\build.log"
+          try {
+            ./scripts/build-release.ps1 -Edition $env:EDITION -ModelDir $env:MODEL_DIR -SliceMB 1900 *>&1 | Tee-Object -FilePath $log
+            if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
+          } catch {
+            $tail = (Get-Content $log -Tail 30 -ErrorAction SilentlyContinue) -join ' | '
+            Write-Output "::error title=build failed::$($_.Exception.Message) || $tail"
+            exit 1
+          }
+          $sizes = (Get-ChildItem build\installers | ForEach-Object { "$($_.Name) $([math]::Round($_.Length/1MB)) MB" }) -join ' | '
+          Write-Output "::notice title=Installer files::$sizes"
 
       - name: Smoke-test the built app (starts, frozen backend answers)
         continue-on-error: true
@@ -81,6 +109,7 @@ jobs:
           Invoke-RestMethod http://127.0.0.1:18765/health | ConvertTo-Json | Tee-Object build\smoke.txt
           Invoke-RestMethod http://127.0.0.1:18765/brain -Headers $h | ConvertTo-Json -Depth 4 | Tee-Object -Append build\smoke.txt
           Stop-Process $p -Force
+          Write-Output "::notice title=Smoke test::$((Get-Content build\smoke.txt -Raw) -replace '\s+', ' ')"
 
       - name: Upload test results and logs
         if: always()
