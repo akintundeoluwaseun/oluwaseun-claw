@@ -45,19 +45,22 @@ jobs:
           sys.path.insert(0, '.')
           from playwright.async_api import async_playwright
 
-          async def main():
+          async def one(headless):
               d = Path(tempfile.mkdtemp()) / 'browser-profile'
               async with async_playwright() as p:
-                  ctx = await p.chromium.launch_persistent_context(str(d), headless=False)
+                  ctx = await p.chromium.launch_persistent_context(str(d), headless=headless)
                   pg = ctx.pages[0] if ctx.pages else await ctx.new_page()
                   await pg.goto('data:text/html,<title>one</title>hello')
                   await asyncio.sleep(1)
                   await ctx.close()
               await asyncio.sleep(2)
               names = sorted(str(f.relative_to(d)) for f in d.rglob('*') if f.is_file())
-              hist = [n for n in names if 'istory' in n]
-              print('::notice title=Chromium profile::files=%d history=%s sample=%s' % (
-                  len(names), hist, names[:25]))
+              hist = [n for n in names if n.endswith('History')]
+              return 'headless=%s files=%d history=%s' % (headless, len(names), hist or 'NONE')
+
+          async def main():
+              lines = [await one(True), await one(False)]
+              print('::notice title=Chromium history by mode::' + ' || '.join(lines))
           asyncio.run(main())
           "@
 
