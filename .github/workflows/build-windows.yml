@@ -108,6 +108,16 @@ jobs:
           $h = @{ "X-Claw-Token" = $env:CLAW_SESSION_TOKEN }
           Invoke-RestMethod http://127.0.0.1:18765/health | ConvertTo-Json | Tee-Object build\smoke.txt
           Invoke-RestMethod http://127.0.0.1:18765/brain -Headers $h | ConvertTo-Json -Depth 4 | Tee-Object -Append build\smoke.txt
+          # Voice: does the FROZEN backend load sherpa-onnx and its bundled onnxruntime?
+          # This is the one thing about packaging voice that cannot be checked off Windows.
+          $voice = Invoke-RestMethod http://127.0.0.1:18765/speech -Headers $h
+          $live = ($voice.catalog | Where-Object { $_.kind -eq 'streaming' }).id -join ','
+          $line = "engine=$($voice.engine) runtime_ready=$($voice.runtime_ready) reason='$($voice.reason)' models=$($voice.catalog.Count) live=$live"
+          $line | Tee-Object -Append build\smoke.txt
+          Write-Output "::notice title=Voice in the frozen app::$line"
+          if (-not $voice.runtime_ready) {
+            Write-Output "::error title=Voice runtime missing::The packaged backend could not load sherpa-onnx: $($voice.reason)"
+          }
           Stop-Process $p -Force
           Write-Output "::notice title=Smoke test::$((Get-Content build\smoke.txt -Raw) -replace '\s+', ' ')"
 

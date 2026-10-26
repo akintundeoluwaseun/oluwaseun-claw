@@ -29,6 +29,10 @@ def main() -> int:
         "--paths", str(BACKEND),
         "--collect-submodules", "claw",
         "--collect-all", "playwright", "--collect-all", "pypdfium2", "--collect-all", "pypdfium2_raw",
+        # Voice: sherpa_onnx imports its extension as sherpa_onnx.lib._sherpa_onnx and loads
+        # onnxruntime from the same folder, so the whole package (submodules, data and the
+        # native libraries beside them) has to come across with its layout intact.
+        "--collect-all", "sherpa_onnx", "--collect-binaries", "sherpa_onnx",
         "--collect-data", "docx", "--collect-data", "openpyxl",
         *[x for m in ("uvicorn.logging", "uvicorn.loops.auto", "uvicorn.protocols.http.auto",
                       "uvicorn.protocols.websockets.auto", "uvicorn.lifespan.on") for x in ("--hidden-import", m)],

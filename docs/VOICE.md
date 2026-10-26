@@ -125,6 +125,24 @@ all covered by real tests, as is the live streaming path end to end with a fake
 engine. **Microphone capture, the floating bar on screen, real streaming
 recognition and every accuracy question are untested.**
 
+## What the installer contains
+
+The speech **runtime** ships with the app: `sherpa-onnx` and its bundled
+onnxruntime are frozen into the backend by PyInstaller, about **37 MB**, which is
+why no separate install step is needed on the user's machine.
+
+**No voice model is bundled.** The smallest is 120 MB and the Live model 330 MB,
+and most users want one of them, not all four — so the installer stays the size it
+was and the model is downloaded once, on request, from Settings. If you want a
+fully offline installer for machines that will never have internet, bundle the
+model folder under `resources/voice-models/<id>/` with its `meta.json` and Claw
+will find it already installed.
+
+The packaged backend is checked at build time: the Windows build's smoke test asks
+the frozen app `/speech` and fails the build with an error annotation if
+`runtime_ready` is false, because a frozen binary that cannot load its native
+libraries is the most likely way voice breaks in a release.
+
 ## Running the blocked tests on Windows
 
 ```powershell

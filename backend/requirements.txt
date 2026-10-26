@@ -20,3 +20,4 @@ pypdf==6.21.2
 pypdfium2==5.14.0
 pillow==13.0.0
 sherpa-onnx==2.0.1  # offline speech recognition (Apache-2.0); optional at runtime
+sherpa-onnx-core==2.0.1  # its native libraries, including a bundled onnxruntime (MIT)
