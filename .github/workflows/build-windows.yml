@@ -43,7 +43,7 @@ jobs:
         run: |
           $log = "$env:RUNNER_TEMP\setup.log"
           try {
-            ./scripts/setup.ps1 -SkipOcr *>&1 | Tee-Object -FilePath $log
+            ./scripts/setup.ps1 -SkipOcr -Chromium *>&1 | Tee-Object -FilePath $log
             if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
           } catch {
             $tail = (Get-Content $log -Tail 30 -ErrorAction SilentlyContinue) -join ' | '
