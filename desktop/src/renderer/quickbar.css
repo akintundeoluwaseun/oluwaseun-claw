@@ -45,7 +45,8 @@ body[data-phase="working"] .pill, body[data-phase="attention"] .pill { max-width
 .panel {
   display: none;
   width: 660px; box-sizing: border-box;
-  grid-template-columns: 30px 1fr auto; align-items: center; gap: 14px;
+  /* mark | task field | microphone | Start */
+  grid-template-columns: 30px 1fr auto auto; align-items: center; gap: 14px;
   padding: 12px 12px 10px 18px; border-radius: 22px;
   border: 1px solid var(--hairline); background: var(--porcelain);
   box-shadow: var(--shadow-float);
@@ -79,6 +80,7 @@ body[data-mode="expanded"] .panel { display: grid; }
 /* ---------- voice ---------- */
 .mic {
   display: grid;
+  margin-right: -4px;
   place-items: center;
   position: relative;
   width: 32px;
