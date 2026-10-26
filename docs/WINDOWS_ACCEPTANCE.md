@@ -33,7 +33,8 @@ These tests can't run in the Linux build workspace, so they are marked **BLOCKED
 3. **Pass only if** the chats and counts Claw lists match what WhatsApp shows, and none are invented.
 4. Read one chat on your phone, have someone send you a message, then press **Settings → Check WhatsApp now**.
    Only the new chat should be marked **New**, and a Windows notification should name it.
-5. Close WhatsApp, and in its place lock the screen, or unlink WhatsApp. Each case must be explained, never reported as "no unread".
+5. Try these one at a time: WhatsApp closed (Claw should open it), the screen locked, and WhatsApp unlinked
+   from the phone. Each case must be explained, never reported as "no unread".
 6. **Sending:** *Send "Claw test" to <a test chat> on WhatsApp.* The approval card must show the exact chat and
    text; deny it once (nothing is sent), then allow it (the message appears and Claw says it confirmed it).
 7. **If the counts are wrong or Claw says it "couldn't read the chat list"**, WhatsApp's accessible names differ
