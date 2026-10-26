@@ -34,6 +34,33 @@ jobs:
         shell: pwsh
         run: choco install tesseract -y --no-progress
 
+      - name: Where does Chromium put its history on Windows?
+        shell: pwsh
+        working-directory: backend
+        continue-on-error: true
+        run: |
+          python -c @"
+          import asyncio, sys, tempfile
+          from pathlib import Path
+          sys.path.insert(0, '.')
+          from playwright.async_api import async_playwright
+
+          async def main():
+              d = Path(tempfile.mkdtemp()) / 'browser-profile'
+              async with async_playwright() as p:
+                  ctx = await p.chromium.launch_persistent_context(str(d), headless=False)
+                  pg = ctx.pages[0] if ctx.pages else await ctx.new_page()
+                  await pg.goto('data:text/html,<title>one</title>hello')
+                  await asyncio.sleep(1)
+                  await ctx.close()
+              await asyncio.sleep(2)
+              names = sorted(str(f.relative_to(d)) for f in d.rglob('*') if f.is_file())
+              hist = [n for n in names if 'istory' in n]
+              print('::notice title=Chromium profile::files=%d history=%s sample=%s' % (
+                  len(names), hist, names[:25]))
+          asyncio.run(main())
+          "@
+
       - name: Backend tests
         shell: pwsh
         working-directory: backend
