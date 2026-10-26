@@ -57,15 +57,25 @@ jobs:
           & "C:\Program Files\Tesseract-OCR\tesseract.exe" --version
           Get-ChildItem "C:\Program Files\Tesseract-OCR\tessdata" | Select-Object -First 20 Name
 
-      - name: Backend tests on real Windows (results kept, build continues)
-        continue-on-error: true
+      - name: Backend tests on real Windows
         run: |
           cd backend
           $env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
           .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider -rfE --junitxml=..\build-test-results.xml 2>&1 | Tee-Object ..\build-test-output.txt
-          # Make the summary readable through the API (annotations): result line + failing tests.
-          $sum = (Get-Content ..\build-test-output.txt | Select-String -Pattern '^(FAILED|ERROR) |passed|failed' | Select-Object -Last 40 | ForEach-Object { $_.Line }) -join ' | '
-          Write-Output "::notice title=Windows test results::$sum"
+          $code = $LASTEXITCODE
+          # Readable through the API: the count first (annotations cap at ~4 KB and the
+          # count is what gets cut off when a long list of failures comes first), then
+          # the failing test names.
+          $count = (Get-Content ..\build-test-output.txt | Select-String -Pattern '\d+ (passed|failed)' | Select-Object -Last 1).Line
+          $fails = (Get-Content ..\build-test-output.txt | Select-String -Pattern '^(FAILED|ERROR) ' | ForEach-Object { ($_.Line -split ' - ')[0] } | Select-Object -First 25) -join ' | '
+          Write-Output "::notice title=Windows test results::$count || $fails"
+          # A failing suite must not produce an installer. This step used to carry
+          # continue-on-error, which let a build publish a release while 17 tests were
+          # red and nobody looking at the green tick would have known.
+          if ($code -ne 0) {
+            Write-Output "::error title=Windows tests failed::$count || $fails"
+            exit $code
+          }
 
       - name: Download the brain (licence + checksum verified)
         if: env.EDITION != 'Lite'

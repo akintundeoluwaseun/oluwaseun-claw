@@ -153,6 +153,24 @@ function applyBackendStatus(status) {
   }
 }
 
+// One place decides what the status chip says, from the backend's single answer.
+// The wording follows the mode: "Brain not running" is nonsense when the user chose a
+// hosted model and their key was refused, and it sent people to look at the wrong thing.
+function describeModelStatus(s) {
+  const online = s.mode !== 'builtin';
+  if (s.model_available) return ['ready', online ? (s.model || 'Online model ready') : 'Brain ready'];
+  switch (s.reason) {
+    case 'auth_failed':    return ['failed', 'API key refused'];
+    case 'rate_limited':   return ['missing', 'Rate limited'];
+    case 'model_missing':  return ['failed', online ? 'Model not available' : 'Brain not installed'];
+    case 'not_configured': return ['missing', online ? 'No model chosen' : 'No brain chosen'];
+    case 'unreachable':    return ['failed', online ? 'Service unreachable' : 'Brain not running'];
+    default:
+      if (!s.server_reachable) return ['failed', online ? 'Service unreachable' : 'Brain not running'];
+      return ['missing', online ? 'Not ready' : 'Getting ready'];
+  }
+}
+
 async function refreshModelStatus() {
   const res = await api.api('GET', '/models/status');
   if (!res.ok) {
@@ -161,10 +179,8 @@ async function refreshModelStatus() {
   } else {
     const s = res.body;
     state.modelReady = s.model_available;
-    const mode = s.mode;
-    if (s.model_available) setChip('model-pill', 'ready', mode === 'builtin' ? 'Brain ready' : s.model, s.message);
-    else if (!s.server_reachable) setChip('model-pill', 'failed', 'Brain not running', s.message);
-    else setChip('model-pill', 'missing', 'Getting ready', s.message);
+    const [chipState, label] = describeModelStatus(s);
+    setChip('model-pill', chipState, label, s.message);
   }
   renderContext();
 }
