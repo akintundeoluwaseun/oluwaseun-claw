@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — v0.6 Phase A
+### Added
+- Browser: **fill_field** (text, dropdowns, checkboxes; never passwords, cards or codes; never submits)
+  and **download_file** (into an authorized folder; programs and scripts refused; never overwrites).
+- Files: **copy_files** (by pattern or "only screenshots", into a new folder; checked by checksum;
+  originals untouched) and **check_file** (reopen a file and compare its exact contents).
+- Windows: **scroll**, **choose_menu** (File > Save As…; "Delete"-type items need your OK),
+  **wait_for_window**; pop-up dialogs are reported after every action, and error-like dialogs mark
+  the step as not done.
+- Typing runs in short bursts, so Stop / Ctrl+Alt+X interrupts long typing quickly.
+- `docs/AUDIT_V06.md` (feature matrix and plan) and `docs/WINDOWS_ACCEPTANCE.md` (real-Windows test steps).
+
 ## Unreleased — Batch 5 (part 1)
 ### Added
 - User guide, developer guide, known issues list and release checklist.

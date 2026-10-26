@@ -8,6 +8,7 @@ real; Windows itself is not.
 
 from __future__ import annotations
 
+import os
 import struct
 import zlib
 
@@ -51,7 +52,7 @@ class FakeDesktop(DesktopDriver):
         h = self.next_handle
         self.next_handle += 1
         self.windows[h] = {
-            "title": "Save As", "process": "notepad.exe", "owner": owner,
+            "title": "Save As", "process": "notepad.exe", "owner": owner, "dialog": True,
             "controls": [
                 {"role": "Edit", "name": "File name:", "value": "*.txt"},
                 {"role": "Button", "name": "Save"},
@@ -66,7 +67,8 @@ class FakeDesktop(DesktopDriver):
 
     def _info(self, h):
         w = self.windows[h]
-        return WindowInfo(handle=h, title=w["title"], process=w["process"], active=h == self.active, rect=(0, 0, 800, 600))
+        return WindowInfo(handle=h, title=w["title"], process=w["process"], active=h == self.active, rect=(0, 0, 800, 600),
+                          dialog=w.get("dialog", False))
 
     def list_windows(self):
         return [self._info(h) for h in self.windows]
@@ -116,8 +118,19 @@ class FakeDesktop(DesktopDriver):
             if c["name"] == "Save":
                 name = w["controls"][0]["value"]
                 owner = w["owner"]
-                self.saved[name] = self.windows[owner]["controls"][0]["value"]
-                self.windows[owner]["title"] = f"{name} - Notepad"
+                if "forbidden" in name.lower():  # a folder the app can't write to: Windows shows an error box
+                    eh = self.next_handle
+                    self.next_handle += 1
+                    self.windows[eh] = {"title": "Save As - Error", "process": "notepad.exe", "dialog": True,
+                                        "controls": [{"role": "Text", "name": "Access is denied."}, {"role": "Button", "name": "OK"}]}
+                    self.active = eh
+                    return
+                content = self.windows[owner]["controls"][0]["value"]
+                self.saved[name] = content
+                if os.path.isabs(name) and os.path.isdir(os.path.dirname(name)):
+                    with open(name, "w", encoding="utf-8", newline="") as fh:  # like Notepad: UTF-8, as typed
+                        fh.write(content)
+                self.windows[owner]["title"] = f"{os.path.basename(name)} - Notepad"
                 del self.windows[h]
                 self.active = owner
             elif c["name"] == "Cancel":
@@ -156,3 +169,17 @@ class FakeDesktop(DesktopDriver):
 
     def screen_size(self):
         return (1920, 1080)
+
+    def scroll(self, handle, down, clicks):
+        w = self.windows[handle]
+        w["scroll"] = max(0, w.get("scroll", 0) + (clicks if down else -clicks))
+        # long documents show different lines after scrolling
+        for c in w["controls"]:
+            if c["role"] == "Document":
+                c["name"] = f"Text editor (line {w['scroll'] + 1})"
+
+    def menu_select(self, handle, path):
+        if [p.lower().rstrip(".") for p in path] in (["file", "save as"], ["file", "save"]) and self.windows[handle]["process"] == "notepad.exe":
+            self._save(handle)
+            return
+        raise DesktopUnavailable(f"There is no menu item {' > '.join(path)}.")

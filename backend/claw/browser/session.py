@@ -72,7 +72,9 @@ class BrowserSession:
         kwargs: dict = {
             "user_data_dir": str(self.profile_dir),
             "headless": s.headless,
-            "accept_downloads": False,
+            # Downloads are only kept when the download_file tool saves them into an authorized folder;
+            # anything else stays in Playwright's temporary folder and is deleted when the browser closes.
+            "accept_downloads": True,
             "no_viewport": not s.headless,
         }
         override = os.environ.get("CLAW_BROWSER_EXECUTABLE")

@@ -25,6 +25,7 @@ class WindowInfo:
     process: str = ""
     active: bool = False
     rect: tuple[int, int, int, int] = (0, 0, 0, 0)
+    dialog: bool = False  # a dialog box (Save As, an error message…) rather than a main window
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -58,6 +59,7 @@ class Snapshot:
     active_title: str
     window_titles: list[str] = field(default_factory=list)
     control_names: list[str] = field(default_factory=list)
+    dialog_titles: list[str] = field(default_factory=list)
 
 
 class DesktopUnavailable(Exception):
@@ -115,6 +117,14 @@ class DesktopDriver(ABC):
     @abstractmethod
     def screen_size(self) -> tuple[int, int]: ...
 
+    def scroll(self, handle: int, down: bool, clicks: int) -> None:
+        """Scroll the window's content with the mouse wheel over its centre."""
+        raise DesktopUnavailable("Scrolling is not supported here.")
+
+    def menu_select(self, handle: int, path: list[str]) -> None:
+        """Choose a menu item by its path, e.g. ["File", "Save As..."]."""
+        raise DesktopUnavailable("Menus are not supported here.")
+
     def snapshot(self, handle: int | None) -> Snapshot:
         active = self.active_window()
         names: list[str] = []
@@ -123,10 +133,12 @@ class DesktopDriver(ABC):
                 names = [f"{c.role}:{c.name}:{c.value[:40]}" for c in self.controls(handle, 150)]
             except Exception:  # noqa: BLE001 — the window may have closed, which is itself a change
                 names = ["<gone>"]
+        windows = self.list_windows()
         return Snapshot(
             active_title=active.title if active else "",
-            window_titles=sorted(w.title for w in self.list_windows()),
+            window_titles=sorted(w.title for w in windows),
             control_names=names,
+            dialog_titles=sorted(w.title for w in windows if w.dialog),
         )
 
 
@@ -143,7 +155,7 @@ class UnsupportedDriver(DesktopDriver):
         raise DesktopUnavailable(self.reason)
 
     list_windows = active_window = focus_window = launch = controls = invoke = _no  # type: ignore[assignment]
-    set_text = type_keys = send_keys = read = screenshot = click_at = screen_size = _no  # type: ignore[assignment]
+    set_text = type_keys = send_keys = read = screenshot = click_at = screen_size = scroll = menu_select = _no  # type: ignore[assignment]
 
 
 class DesktopSession:

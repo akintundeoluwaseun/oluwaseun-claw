@@ -87,9 +87,13 @@ class WindowsUIADriver(DesktopDriver):
             pid = w.process_id()
         except Exception:  # noqa: BLE001
             pid = 0
+        try:
+            dialog = bool(w.is_dialog())
+        except Exception:  # noqa: BLE001 — not every wrapper knows
+            dialog = False
         return WindowInfo(
             handle=int(w.handle or 0), title=w.window_text(), process=_process_name(pid) if pid else "",
-            active=int(w.handle or 0) == active_handle, rect=_rect(w),
+            active=int(w.handle or 0) == active_handle, rect=_rect(w), dialog=dialog,
         )
 
     def list_windows(self) -> list[WindowInfo]:
@@ -246,6 +250,19 @@ class WindowsUIADriver(DesktopDriver):
         from pywinauto import mouse  # noqa: PLC0415
 
         mouse.click(button="left", coords=(int(x), int(y)))
+
+    def scroll(self, handle: int, down: bool, clicks: int) -> None:
+        self._check()
+        from pywinauto import mouse  # noqa: PLC0415
+
+        left, top, right, bottom = _rect(self._window(handle))
+        if right <= left or bottom <= top:
+            raise DesktopUnavailable("That window has no visible area to scroll.")
+        mouse.scroll(coords=((left + right) // 2, (top + bottom) // 2), wheel_dist=-clicks if down else clicks)
+
+    def menu_select(self, handle: int, path: list[str]) -> None:
+        self._check()
+        self._d().window(handle=handle).menu_select("->".join(path))
 
     def screen_size(self) -> tuple[int, int]:
         return int(_user32.GetSystemMetrics(0)), int(_user32.GetSystemMetrics(1))

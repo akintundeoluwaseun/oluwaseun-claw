@@ -1,5 +1,24 @@
 # Test results
 
+## v0.6 Phase A — Windows control, Notepad, browser forms/downloads, file copies — 26 Oct 2026
+Environment as v0.5 (Linux workspace). The Windows desktop is the TEST DOUBLE `tests/fake_desktop.py`;
+the browser (Chromium + local test website), files and permissions are real; the model's replies are scripted.
+
+| Command | Result |
+|---|---|
+| `scripts/check.sh` | **All checks passed**: backend **162 passed**, desktop unit 5, end-to-end 52/52 |
+
+| Test | Result | Evidence |
+|---|---|---|
+| A — Notepad type → File > Save As → reopen → exact check | **PASS (logic, stand-in desktop)** · **BLOCKED on real Windows** | `test_a_notepad_save_reopen_verify`: 8/8 steps verified; the real file on disk equals the text. Steps to run on Windows: `docs/WINDOWS_ACCEPTANCE.md` |
+| B — search → open result → save title + URL | **PASS (Chromium, local test site)** · Chrome on Windows BLOCKED | `test_b_search_open_and_save_title_url` |
+| Unexpected error dialog | PASS (stand-in) | Saving to a forbidden folder → "error-like dialog appeared", step not counted as done |
+| Scroll / menus / wait for a window | PASS (stand-in) | at-the-top scroll reported as "nothing changed" |
+| Form filling | PASS (real browser) | text, email, dropdown, checkbox filled and read back; password field refused; nothing submitted; "Submit…" button needs OK |
+| Download | PASS (real browser) | CSV saved into the authorized folder, never overwritten; `.exe` refused by link and by address; folder outside the authorized ones refused |
+| Copy / organise files | PASS (real files) | only screenshots copied, checked by SHA-256, originals untouched, second run doesn't overwrite, outside folder and `../` patterns refused, approval required by default |
+| Emergency stop during long typing | PASS (stand-in) | Stop cancels between 40-character bursts |
+
 ## Batch 5 (part 1) — tests, security review, guides — 26 October 2026
 No build or install was done (by request).
 

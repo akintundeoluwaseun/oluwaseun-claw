@@ -18,7 +18,7 @@
 │ api/app.py      FastAPI routes, token + Host guard, error format                │
 │ config.py       Settings schema, plain-English validation, atomic save          │
 │ agent/          planner · executor (bounded loop, replans, taint) · runner      │
-│ tools/          36 tools: browser, files, documents, desktop, PDF/OCR           │
+│ tools/          43 tools: browser, files, documents, desktop, PDF/OCR           │
 │ documents/      readers.py (Word/Excel/text) · ocr.py (Tesseract) ·              │
 │                 pdf_pipeline.py (text vs scan per page, OCR, rotation, cache,   │
 │                 searchable copy, page-aware chunks) · service.py (jobs)         │

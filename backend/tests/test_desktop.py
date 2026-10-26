@@ -69,7 +69,7 @@ async def test_open_type_save_in_notepad(desk_ctx):
     typed = await call(desk_ctx, "type_into", number=0, text="Shopping: rice, beans")
     assert typed.verified
     saved = await call(desk_ctx, "click_control", number=3)  # Save
-    assert saved.verified and "New window: 'Save As'" in saved.summary
+    assert saved.verified and "A dialog opened: 'Save As'" in saved.summary
     with pytest.raises(ToolError, match="Look at the window first"):
         await call(desk_ctx, "click_control", number=3)  # numbers are stale after the screen changed
     await call(desk_ctx, "look_at_window", title="Save As")

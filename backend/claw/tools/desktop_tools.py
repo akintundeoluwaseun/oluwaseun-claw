@@ -9,6 +9,7 @@ a separate, explicitly-approved fallback that requires a screenshot first.
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from pathlib import Path
 
@@ -51,10 +52,23 @@ async def _d(ctx: ToolContext, fn_name: str, *args):
         raise ToolError(f"The desktop action did not work: {text}") from exc
 
 
+# Titles of dialogs that usually mean something went wrong.
+_TROUBLE = re.compile(r"error|warning|problem|not responding|failed|cannot|can't|couldn't|denied|alert|crash|stopped working", re.I)
+
+
+def _trouble(before: Snapshot, after: Snapshot) -> list[str]:
+    """New dialogs whose titles suggest an error: reported, and the step is not counted as checked."""
+    return [t for t in sorted(set(after.dialog_titles) - set(before.dialog_titles)) if _TROUBLE.search(t)]
+
+
 def _changed(before: Snapshot, after: Snapshot) -> list[str]:
     notes = []
+    new_dialogs = sorted(set(after.dialog_titles) - set(before.dialog_titles))
+    if new_dialogs:
+        notes.append("A dialog opened: " + ", ".join(f"'{t}'" for t in new_dialogs[:3]) + " (look at it before going on)")
     new_windows = sorted(set(after.window_titles) - set(before.window_titles))
     gone = sorted(set(before.window_titles) - set(after.window_titles))
+    new_windows = [t for t in new_windows if t not in new_dialogs]
     if new_windows:
         notes.append("New window: " + ", ".join(f"'{t}'" for t in new_windows[:3]))
     if gone:
@@ -187,6 +201,12 @@ async def click_control(args: ControlArgs, ctx: ToolContext) -> ToolResult:
     await asyncio.sleep(SETTLE_S)
     after = await _d(ctx, "snapshot", handle)
     notes = _changed(before, after)
+    trouble = _trouble(before, after)
+    if trouble:
+        ctx.desktop.last_controls = []
+        return ToolResult(False, f"Clicked '{c.name or c.role}', and an error-like dialog appeared: "
+                          + ", ".join(f"'{t}'" for t in trouble) + ". Look at it before doing anything else.",
+                          {"changes": notes, "dialogs": trouble}, verified=False)
     if notes:
         ctx.desktop.last_controls = []  # the screen changed: numbers must be looked up again
         return ToolResult(True, f"Clicked '{c.name or c.role}'. " + ". ".join(notes) + ".", {"changes": notes}, verified=True)
@@ -219,8 +239,12 @@ class TypeArgs(ToolArgs):
     text: str = Field(min_length=1, max_length=20000)
 
 
+TYPE_CHUNK = 40  # characters per keyboard burst (~0.4 s): Stop / Ctrl+Alt+X takes effect between bursts
+
+
 async def type_text(args: TypeArgs, ctx: ToolContext) -> ToolResult:
-    await _d(ctx, "type_keys", args.text)
+    for i in range(0, len(args.text), TYPE_CHUNK):
+        await _d(ctx, "type_keys", args.text[i:i + TYPE_CHUNK])
     return ToolResult(True, f"Typed {len(args.text)} characters into the active window.", {"chars": len(args.text)}, verified=False)
 
 
@@ -251,9 +275,13 @@ async def press_keys(args: KeysArgs, ctx: ToolContext) -> ToolResult:
     await asyncio.sleep(SETTLE_S)
     after = await _d(ctx, "snapshot", handle)
     notes = _changed(before, after)
+    trouble = _trouble(before, after)
     label = "+".join(args.keys)
     if notes:
         ctx.desktop.last_controls = []
+    if trouble:
+        return ToolResult(False, f"Pressed {label}, and an error-like dialog appeared: " + ", ".join(f"'{t}'" for t in trouble) + ".",
+                          {"changes": notes, "dialogs": trouble}, verified=False)
     return ToolResult(True, f"Pressed {label}." + (" " + ". ".join(notes) + "." if notes else ""), {"changes": notes}, verified=bool(notes))
 
 
@@ -328,6 +356,74 @@ async def click_at(args: ClickAtArgs, ctx: ToolContext) -> ToolResult:
                       {"changes": notes}, verified=bool(notes))
 
 
+# ---------- scroll ----------
+class ScrollArgs(ToolArgs):
+    title: str | None = Field(default=None, max_length=200, description="Part of the window title; default the active window")
+    direction: str = Field(default="down", pattern="^(up|down)$")
+    clicks: int = Field(default=5, ge=1, le=30, description="Mouse-wheel notches")
+
+
+async def scroll(args: ScrollArgs, ctx: ToolContext) -> ToolResult:
+    target = _match_window(await _d(ctx, "list_windows"), args.title)
+    before = await _d(ctx, "snapshot", target.handle)
+    await _d(ctx, "scroll", target.handle, args.direction == "down", args.clicks)
+    await asyncio.sleep(0.4)
+    after = await _d(ctx, "snapshot", target.handle)
+    moved = after.control_names != before.control_names
+    if moved:
+        ctx.desktop.last_controls = []
+    ctx.desktop.last_window = target.handle
+    return ToolResult(True, f"Scrolled {args.direction} in '{target.title}'." + ("" if moved else " Nothing changed (maybe already at the end)."),
+                      {"moved": moved}, verified=moved)
+
+
+# ---------- choose_menu ----------
+class MenuArgs(ToolArgs):
+    path: list[str] = Field(min_length=1, max_length=5, description='Menu path, e.g. ["File", "Save As..."]')
+    title: str | None = Field(default=None, max_length=200)
+
+
+def menu_risk(args: MenuArgs, ctx: ToolContext) -> RiskLevel:
+    return escalate_by_label(args.path[-1], RiskLevel.LOCAL_WRITE)
+
+
+async def choose_menu(args: MenuArgs, ctx: ToolContext) -> ToolResult:
+    target = _match_window(await _d(ctx, "list_windows"), args.title)
+    before = await _d(ctx, "snapshot", target.handle)
+    await _d(ctx, "menu_select", target.handle, args.path)
+    await asyncio.sleep(SETTLE_S)
+    after = await _d(ctx, "snapshot", target.handle)
+    notes, trouble = _changed(before, after), _trouble(before, after)
+    ctx.desktop.last_controls = []
+    ctx.desktop.last_window = target.handle
+    label = " > ".join(args.path)
+    if trouble:
+        return ToolResult(False, f"Chose {label}; an error-like dialog appeared: " + ", ".join(trouble) + ".",
+                          {"changes": notes, "dialogs": trouble}, verified=False)
+    return ToolResult(True, f"Chose {label}." + (" " + ". ".join(notes) + "." if notes else " Nothing visible changed."),
+                      {"changes": notes}, verified=bool(notes))
+
+
+# ---------- wait_for_window ----------
+class WaitArgs(ToolArgs):
+    title: str = Field(min_length=1, max_length=200, description="Part of the expected window or dialog title")
+    seconds: int = Field(default=15, ge=1, le=120)
+
+
+async def wait_for_window(args: WaitArgs, ctx: ToolContext) -> ToolResult:
+    deadline = time.monotonic() + args.seconds
+    needle = args.title.lower()
+    while True:
+        hits = [w for w in await _d(ctx, "list_windows") if needle in w.title.lower()]
+        if hits:
+            ctx.desktop.last_window = hits[0].handle
+            kind = "dialog" if hits[0].dialog else "window"
+            return ToolResult(True, f"The {kind} '{hits[0].title}' is open.", {"title": hits[0].title, "dialog": hits[0].dialog}, verified=True)
+        if time.monotonic() >= deadline:
+            return ToolResult(False, f"No window titled like '{args.title}' appeared within {args.seconds} seconds.", {}, verified=True)
+        await asyncio.sleep(0.5)
+
+
 def register_desktop_tools(reg: ToolRegistry) -> None:
     D, R, W = Capability.DESKTOP, RiskLevel.READ_ONLY, RiskLevel.LOCAL_WRITE
     reg.register(ToolSpec("list_windows", "List open windows on the desktop.", D, R, NoArgs, list_windows))
@@ -343,6 +439,10 @@ def register_desktop_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("press_keys", 'Press a key or shortcut, e.g. ["ctrl", "s"].', D, W, KeysArgs, press_keys))
     reg.register(ToolSpec("read_control", "Read the text in a control by its number.", D, R, ControlArgs, read_control,
                           precheck=lambda a, c: _control(c, a.number)))
+    reg.register(ToolSpec("scroll", "Scroll a window up or down.", D, R, ScrollArgs, scroll))
+    reg.register(ToolSpec("choose_menu", 'Choose a menu item by its path, e.g. ["File", "Save As..."].', D, W, MenuArgs, choose_menu,
+                          risk_for=menu_risk))
+    reg.register(ToolSpec("wait_for_window", "Wait until a window or dialog with this title appears.", D, R, WaitArgs, wait_for_window))
     reg.register(ToolSpec("take_screenshot", "Save a screenshot of the screen or one window.", D, R, ShotArgs, take_screenshot))
     reg.register(ToolSpec("describe_screen", "Look at the screen and answer a question about it.", D, R, DescribeArgs, describe_screen))
     reg.register(ToolSpec("click_at", "Click at screen coordinates (only when look_at_window can't find the control).",

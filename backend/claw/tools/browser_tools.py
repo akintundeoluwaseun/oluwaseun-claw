@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from urllib.parse import urlparse
 
 from pydantic import Field
@@ -221,6 +222,151 @@ async def search_browser_history(args: HistoryArgs, ctx: ToolContext) -> ToolRes
     )
 
 
+# ---------- fill_field ----------
+# Claw never types secrets into web pages: passwords, card numbers, PINs and one-time codes are
+# for the user to enter themselves.
+_SECRET_AUTOCOMPLETE = re.compile(r"password|cc-|one-time-code|card", re.I)
+_SECRET_LABEL = re.compile(r"password|passcode|\bpin\b|card number|cvv|cvc|security code|one[- ]time|otp", re.I)
+
+
+class FillArgs(ToolArgs):
+    field: str = Field(min_length=1, max_length=200, description="The field's visible label, placeholder or name")
+    value: str = Field(max_length=5000, description="Text to enter; for a dropdown the option to choose; for a checkbox 'yes' or 'no'")
+
+
+async def _find_field(page, label: str):
+    for loc in (page.get_by_label(label, exact=False), page.get_by_placeholder(label, exact=False),
+                page.locator(f'[name="{label}" i]'), page.get_by_role("textbox", name=re.compile(re.escape(label), re.I))):
+        try:
+            if await loc.count() == 1:
+                return loc
+            if await loc.count() > 1:
+                raise ToolError(f"{await loc.count()} fields match '{label}'. Use the field's full label.")
+        except ToolError:
+            raise
+        except Exception:  # noqa: BLE001 — a selector form that this page can't evaluate
+            continue
+    raise ToolError(f"No form field labelled '{label}' was found on this page.")
+
+
+async def fill_field(args: FillArgs, ctx: ToolContext) -> ToolResult:
+    from playwright.async_api import Error as PWError
+
+    page = await ctx.browser.page()
+    loc = await _find_field(page, args.field)
+    info = await loc.evaluate(
+        "el => ({tag: el.tagName.toLowerCase(), type: (el.type || '').toLowerCase(), "
+        "ac: el.autocomplete || '', name: el.name || '', disabled: !!el.disabled, readonly: !!el.readOnly})"
+    )
+    if info["type"] == "password" or _SECRET_AUTOCOMPLETE.search(info["ac"]) or _SECRET_LABEL.search(args.field + " " + info["name"]):
+        raise ToolError("That is a password, card or code field. Claw never types those; please enter it yourself.")
+    if info["type"] == "file":
+        raise ToolError("Claw does not upload files to websites.")
+    if info["disabled"] or info["readonly"]:
+        raise ToolError(f"The field '{args.field}' can't be changed right now.")
+    try:
+        if info["tag"] == "select":
+            await loc.select_option(label=args.value)
+            got = await loc.evaluate("el => el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : ''")
+            ok = got.strip().lower() == args.value.strip().lower()
+        elif info["type"] in ("checkbox", "radio"):
+            want = args.value.strip().lower() in ("yes", "true", "on", "1", "check", "checked")
+            await (loc.check() if want else loc.uncheck())
+            ok = await loc.is_checked() == want
+            got = "checked" if want else "unchecked"
+        else:
+            await loc.fill(args.value)
+            got = await loc.input_value()
+            ok = got == args.value
+    except PWError as exc:
+        raise ToolError(f"The field could not be filled: {str(exc).splitlines()[0][:200]}") from exc
+    return ToolResult(True, f"Filled '{args.field}'" + (" and checked the value is there." if ok else ", but the page shows a different value."),
+                      {"field": args.field, "kind": info["tag"] if info["tag"] == "select" else info["type"] or info["tag"]},
+                      verified=ok)
+
+
+# ---------- download_file ----------
+# Programs and scripts are never downloaded: they could run on the computer.
+BLOCKED_DOWNLOADS = {".exe", ".msi", ".bat", ".cmd", ".com", ".scr", ".ps1", ".vbs", ".vbe", ".js", ".jse", ".wsf",
+                     ".hta", ".jar", ".lnk", ".reg", ".dll", ".sys", ".cpl", ".msc", ".appx", ".msix", ".iso", ".img"}
+MAX_DOWNLOAD_BYTES = 500 * 1024**2
+
+
+class DownloadArgs(ToolArgs):
+    link_text: str | None = Field(default=None, max_length=200, description="Visible text of the download link on the current page")
+    url: str | None = Field(default=None, max_length=2048, description="Or the file's address")
+    folder: str | None = Field(default=None, max_length=500, description="Authorized folder to save into; default the first one")
+
+
+def check_download(args: DownloadArgs, ctx: ToolContext) -> None:
+    from claw.tools.file_tools import resolve_folder
+
+    if not (args.link_text or args.url):
+        raise ToolError("Say which link to download (its text) or give the file's address.")
+    if args.url:
+        validate_web_url(args.url)
+        if Path(urlparse(args.url).path).suffix.lower() in BLOCKED_DOWNLOADS:
+            raise ToolError("Claw does not download programs or scripts.")
+    resolve_folder(ctx, args.folder)
+
+
+async def download_file(args: DownloadArgs, ctx: ToolContext) -> ToolResult:
+    from playwright.async_api import Error as PWError
+    from playwright.async_api import TimeoutError as PWTimeout
+
+    from claw.tools.file_tools import resolve_folder, safe_file_name, unique_path
+
+    check_download(args, ctx)
+    folder = resolve_folder(ctx, args.folder)
+    page = await ctx.browser.page()
+    try:
+        async with page.expect_download(timeout=60000) as dl_info:
+            if args.url:
+                url = validate_web_url(args.url)
+                # Navigating to a file that downloads raises "Download is starting"; that is expected.
+                try:
+                    await page.goto(url)
+                except PWError as exc:
+                    if "download is starting" not in str(exc).lower():
+                        raise
+            else:
+                links = await extract.page_links(page, scope="body")
+                needle = args.link_text.lower()
+                match = next((l for l in links if l["text"].lower() == needle), None) or next(
+                    (l for l in links if needle in l["text"].lower()), None)
+                if match is None:
+                    raise ToolError(f"No link with the text '{args.link_text}' was found on this page.")
+                if Path(urlparse(match["url"]).path).suffix.lower() in BLOCKED_DOWNLOADS:
+                    raise ToolError("Claw does not download programs or scripts.")
+                await page.get_by_role("link", name=re.compile(re.escape(match["text"]), re.I)).first.click()
+        download = await dl_info.value
+    except PWTimeout as exc:
+        raise ToolError("No download started within 60 seconds. The link may open a page instead of a file.", transient=True) from exc
+    except PWError as exc:
+        raise ToolError(f"The download failed: {str(exc).splitlines()[0][:200]}", transient=True) from exc
+    name = download.suggested_filename or "download"
+    ext = Path(name).suffix.lower()
+    if ext in BLOCKED_DOWNLOADS:
+        await download.cancel()
+        raise ToolError(f"The site sent a program or script ({name}). Claw did not save it.")
+    failure = await download.failure()
+    if failure:
+        raise ToolError(f"The download did not finish: {failure}", transient=True)
+    tmp = Path(await download.path())
+    size = tmp.stat().st_size
+    if size > MAX_DOWNLOAD_BYTES:
+        raise ToolError(f"The file is {size / 1024**2:.0f} MB; Claw downloads at most 500 MB.")
+    target = unique_path(folder / safe_file_name(Path(name).stem, ext or ".bin"))
+    ctx.policy.check_path(target, write=True)
+    await download.save_as(target)
+    ok = target.is_file() and target.stat().st_size == size and size > 0
+    _remember(ctx, [download.url])
+    ctx.memory.outputs.append({"path": str(target), "kind": "download", "verified": ok,
+                               "note": "" if ok else "The saved file size does not match the download."})
+    return ToolResult(ok, f"Downloaded {name} ({size:,} bytes) to {target}." if ok else f"Saved {target}, but it looks incomplete.",
+                      {"path": str(target), "bytes": size, "from": download.url}, verified=ok)
+
+
 def register_browser_tools(reg: ToolRegistry) -> None:
     B, R = Capability.BROWSER, RiskLevel.READ_ONLY
     reg.register(ToolSpec("web_search", "Search the web and list the results.", B, R, SearchArgs, web_search))
@@ -235,6 +381,11 @@ def register_browser_tools(reg: ToolRegistry) -> None:
             ClickButtonArgs, click_button, risk_for=lambda a, c: escalate_by_label(a.text, RiskLevel.EXTERNAL),
         )
     )
+    reg.register(ToolSpec("fill_field", "Type into a form field (or choose a dropdown option / tick a box) on the current page. "
+                          "Does not submit; never for passwords, cards or codes.", B, RiskLevel.LOCAL_WRITE, FillArgs, fill_field))
+    reg.register(ToolSpec("download_file", "Download a file from a link on the current page (or an address) into an authorized folder. "
+                          "Programs and scripts are refused.", B, RiskLevel.LOCAL_WRITE, DownloadArgs, download_file,
+                          precheck=check_download))
     reg.register(ToolSpec("list_tabs", "List open browser tabs.", B, R, NoArgs, list_tabs))
     reg.register(ToolSpec("new_tab", "Open a new browser tab, optionally at an address.", B, R, NewTabArgs, new_tab))
     reg.register(ToolSpec("switch_tab", "Switch to a browser tab by its index from list_tabs.", B, R, TabArgs, switch_tab))

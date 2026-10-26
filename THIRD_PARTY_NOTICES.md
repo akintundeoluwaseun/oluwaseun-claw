@@ -73,6 +73,11 @@ via `importlib.metadata`; npm: `package.json`) on 2026-10-26, plus the model car
 | Microsoft Edge / Google Chrome | Proprietary | Already on the user's computer; controlled, not bundled |
 | Chromium (optional, `setup.ps1 -Chromium`) | BSD-3-Clause and others | Downloaded by Playwright; not bundled |
 
-## Considered and not used (see docs/REPO_AUDIT.md)
+## Considered and not used (see docs/REPO_AUDIT.md and docs/AUDIT_V06.md)
+Phase A: Selenium, Browser Use, Stagehand, Puppeteer (Playwright already covers forms and downloads);
+PyAutoGUI, FlaUI, AutoHotkey, WinAppDriver, SikuliX, RobotJS, Nut.js (pywinauto + UI Automation already
+cover launch, menus, scroll and typing; WinAppDriver is unmaintained; FlaUI is .NET; AutoHotkey would add
+a second scripting runtime). No new dependency was added in Phase A.
+
 OCRmyPDF (MPL-2.0, but needs Ghostscript, AGPL), PaddleOCR (Apache-2.0, heavy runtime),
 PDF-OCR (a web app), DynaLM (unverified clients).

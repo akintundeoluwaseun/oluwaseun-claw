@@ -34,6 +34,8 @@ const TOOL_LABEL = {
   take_screenshot: 'Took a screenshot', describe_screen: 'Looked at the screen', click_at: 'Clicked on the screen',
   read_document_pages: 'Read document pages', search_document: 'Searched a document', summarize_document: 'Summarized a document',
   make_searchable_pdf: 'Saved a searchable PDF',
+  fill_field: 'Filled in a form field', download_file: 'Downloaded a file', copy_files: 'Copied files',
+  check_file: 'Checked a file', scroll: 'Scrolled', choose_menu: 'Chose a menu item', wait_for_window: 'Waited for a window',
 };
 const TOOL_ASK = {
   web_search: 'Search the web', open_url: 'Open a page', save_links: 'Save links to a file', click_button: 'Click a button',
@@ -42,6 +44,7 @@ const TOOL_ASK = {
   press_keys: 'Press keys', click_at: 'Click on the screen',
   write_text_file: 'Write a file', save_report: 'Save a report', create_spreadsheet: 'Make a spreadsheet',
   edit_text_file: 'Edit a file', make_searchable_pdf: 'Save a searchable copy of a PDF',
+  fill_field: 'Fill in a form field', download_file: 'Download a file', copy_files: 'Copy files', choose_menu: 'Choose a menu item',
 };
 const OUTCOME = {
   verified: ['Done', 'ok', 'check'], done_unverified: ['Done, not checked', 'warn-done', 'check'],
