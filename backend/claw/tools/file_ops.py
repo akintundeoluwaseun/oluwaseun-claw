@@ -10,6 +10,7 @@ import asyncio
 import fnmatch
 import hashlib
 import os
+import re
 import shutil
 from pathlib import Path, PureWindowsPath
 
@@ -22,6 +23,11 @@ from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, Tool
 from claw.tools.file_tools import unique_path
 
 MAX_COPY_FILES = 500
+# Renaming a document into one of these would turn it into something Windows runs.
+RISKY_EXTS = {".exe", ".bat", ".cmd", ".com", ".scr", ".ps1", ".psm1", ".vbs", ".vbe",
+              ".js", ".jse", ".wsf", ".wsh", ".msi", ".msp", ".hta", ".cpl", ".jar",
+              ".reg", ".lnk", ".pif", ".dll", ".sys"}
+
 MAX_COPY_BYTES = 2 * 1024**3
 # Common names Windows gives screenshots, in English Windows and the Snipping Tool.
 SCREENSHOT_HINTS = ("screenshot", "screen shot", "capture", "snip")
@@ -158,6 +164,121 @@ async def check_file(args: CheckFileArgs, ctx: ToolContext) -> ToolResult:
                       {"path": str(path), "match": False, "chars": len(body)}, verified=True)
 
 
+# ---------- create_folder ----------
+# A name, never a path: a folder is made inside a folder the user authorised, and
+# "..\\elsewhere" or "C:\\Windows" is rejected rather than quietly resolved.
+_BAD_NAME = re.compile(r"[^A-Za-z0-9 ._()-]+")
+_RESERVED_NAMES = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)),
+                   *(f"lpt{i}" for i in range(1, 10))}
+
+
+def clean_folder_name(raw: str) -> str:
+    # Refuse a path rather than quietly stripping it: "../../escaped" would otherwise
+    # become a folder called "escaped" here, which is not what was asked for even
+    # though it stays inside the authorized folder.
+    if any(sep in raw for sep in ("/", "\\")) or Path(raw).name != raw.strip():
+        raise ToolError("Give a folder name, not a path. Claw creates it inside a folder you authorized.")
+    name = _BAD_NAME.sub("", Path(raw).name).strip(" .")[:80]
+    if not name:
+        raise ToolError("That folder name has no usable characters in it.")
+    if name.lower() in _RESERVED_NAMES:
+        raise ToolError(f"'{name}' is a name Windows reserves. Choose another.")
+    return name
+
+
+class NewFolderArgs(ToolArgs):
+    folder_name: str = Field(min_length=1, max_length=100, description='A plain name, e.g. "Claw Test"')
+    inside: str | None = Field(default=None, max_length=500,
+                               description="An authorized folder; defaults to the first one")
+
+
+def check_new_folder(args: NewFolderArgs, ctx: ToolContext) -> None:
+    clean_folder_name(args.folder_name)
+    _parent(ctx, args.inside)
+
+
+def _parent(ctx: ToolContext, inside: str | None) -> Path:
+    roots = ctx.policy.authorized_roots
+    if not roots:
+        raise ToolError("No folders are authorized. Add a folder in Settings so Claw can create one.")
+    parent = _check(ctx, inside or str(roots[0]), write=True)
+    if not parent.is_dir():
+        raise ToolError(f"The folder '{parent}' does not exist.")
+    return parent
+
+
+async def create_folder(args: NewFolderArgs, ctx: ToolContext) -> ToolResult:
+    parent = _parent(ctx, args.inside)
+    name = clean_folder_name(args.folder_name)
+    target = _check(ctx, str(parent / name), write=True)  # re-check the final path
+    existed = target.is_dir()
+    if target.exists() and not existed:
+        raise ToolError(f"'{name}' already exists here and is a file, not a folder.")
+    target.mkdir(parents=True, exist_ok=True)
+    made = target.is_dir()
+    summary = (f"'{name}' was already there." if existed
+               else f"Created the folder '{name}' in {parent}.")
+    return ToolResult(made, summary, {"path": str(target), "created": made and not existed,
+                                      "already_existed": existed}, verified=made)
+
+
+# ---------- rename_file ----------
+class RenameArgs(ToolArgs):
+    path: str = Field(min_length=1, max_length=500, description="The file to rename")
+    new_name: str = Field(min_length=1, max_length=100,
+                          description='The new name, e.g. "hello-test.txt". Not a path.')
+
+
+def _new_name(raw: str, old: Path) -> str:
+    if any(sep in raw for sep in ("/", "\\")) or Path(raw).name != raw:
+        raise ToolError("Give a new name, not a path. Claw renames a file where it already is.")
+    name = _BAD_NAME.sub("", Path(raw).name).strip(" .")[:100]
+    if not name:
+        raise ToolError("That file name has no usable characters in it.")
+    if Path(name).stem.lower() in _RESERVED_NAMES:
+        raise ToolError(f"'{name}' is a name Windows reserves. Choose another.")
+    new_ext = Path(name).suffix.lower()
+    if not new_ext:
+        name += old.suffix  # keep the kind of file it is rather than leaving it with none
+        new_ext = old.suffix.lower()
+    if new_ext in RISKY_EXTS:
+        raise ToolError(f"Claw will not rename a file to '{new_ext}': that would make it a program.")
+    return name
+
+
+def check_rename(args: RenameArgs, ctx: ToolContext) -> None:
+    path = _check(ctx, args.path, write=True)
+    _new_name(args.new_name, path)
+
+
+async def rename_file(args: RenameArgs, ctx: ToolContext) -> ToolResult:
+    path = _check(ctx, args.path, write=True)
+    if not path.is_file():
+        raise ToolError(f"'{path}' is not a file.")
+    name = _new_name(args.new_name, path)
+    target = _check(ctx, str(path.parent / name), write=True)  # re-check the final path
+    if target == path:
+        return ToolResult(True, f"'{path.name}' already has that name.",
+                          {"path": str(path), "renamed": False}, verified=True)
+    if target.exists():
+        # Never overwrite. The user can delete or choose another name themselves.
+        raise ToolError(f"'{name}' already exists in that folder. Nothing was renamed.")
+    before = path.read_bytes()
+    path.rename(target)
+    # Verify rather than trust: the new name is there, the old one is gone, and the
+    # contents came through byte for byte.
+    same = target.is_file() and not path.exists() and target.read_bytes() == before
+    ctx.memory.note_file(target)
+    return ToolResult(
+        same,
+        f"Renamed '{path.name}' to '{name}'. Its contents are unchanged." if same
+        else f"Renamed '{path.name}' to '{name}', but the result could not be verified.",
+        {"path": str(target), "previous_path": str(path), "renamed": True,
+         "bytes": len(before)},
+        verified=same,
+    )
+
+
 def register_file_ops(reg: ToolRegistry) -> None:
     F = Capability.FILES
     reg.register(ToolSpec("copy_files",
@@ -165,3 +286,7 @@ def register_file_ops(reg: ToolRegistry) -> None:
                           F, RiskLevel.LOCAL_WRITE, CopyArgs, copy_files, precheck=check_copy))
     reg.register(ToolSpec("check_file", "Reopen a file and check that it contains exactly the expected text.",
                           F, RiskLevel.READ_ONLY, CheckFileArgs, check_file))
+    reg.register(ToolSpec("create_folder", "Create a new folder inside an authorized folder.",
+                          F, RiskLevel.LOCAL_WRITE, NewFolderArgs, create_folder, precheck=check_new_folder))
+    reg.register(ToolSpec("rename_file", "Rename a file where it is; never overwrites an existing file.",
+                          F, RiskLevel.LOCAL_WRITE, RenameArgs, rename_file, precheck=check_rename))
