@@ -34,6 +34,31 @@ jobs:
         shell: pwsh
         run: choco install tesseract -y --no-progress
 
+      - name: PowerShell scripts parse
+        shell: pwsh
+        run: |
+          # The build scripts cannot be run, or even parsed, on the Linux machines where
+          # most of the work happens. A parse error in them otherwise shows up twenty
+          # minutes into a build, after a multi-gigabyte download.
+          $bad = 0
+          foreach ($f in Get-ChildItem scripts\*.ps1) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors) {
+              $bad++
+              $first = ($errors | Select-Object -First 3 | ForEach-Object { "line $($_.Extent.StartLineNumber): $($_.Message)" }) -join ' | '
+              Write-Output "::error title=$($f.Name) does not parse::$first"
+            }
+          }
+          # The two packaging profiles must still be accepted by the parameter block.
+          foreach ($case in @(@('Online'), @('Local'))) {
+            $cmd = Get-Command .\scripts\build-release.ps1
+            if (-not $cmd.Parameters.ContainsKey('Edition')) { Write-Output '::error title=build-release.ps1::no -Edition parameter'; $bad++ }
+            if (-not $cmd.Parameters.ContainsKey('ServiceUrl')) { Write-Output '::error title=build-release.ps1::no -ServiceUrl parameter'; $bad++ }
+          }
+          if ($bad -gt 0) { exit 1 }
+          Write-Output "::notice title=PowerShell::all scripts parse, build-release.ps1 takes -Edition Online|Local"
+
       - name: Installer script compiles
         shell: pwsh
         run: |
@@ -43,7 +68,7 @@ jobs:
           choco install innosetup -y --no-progress
           $app = Join-Path $env:RUNNER_TEMP 'fake-app'
           New-Item -ItemType Directory -Force $app, (Join-Path $app 'resources') | Out-Null
-          'placeholder' | Out-File (Join-Path $app 'Oluwaseun Claw.exe')
+          'placeholder' | Out-File (Join-Path $app 'S-CLAW.exe')
           $out = Join-Path $env:RUNNER_TEMP 'iss-out'
           New-Item -ItemType Directory -Force $out | Out-Null
           $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'

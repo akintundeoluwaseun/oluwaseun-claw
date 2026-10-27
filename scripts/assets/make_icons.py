@@ -1,66 +1,119 @@
-"""Generate Oluwaseun Claw icons (app icon + tray states). Run: python make_icons.py <out_dir>"""
-import math
+"""Build S-CLAW's Windows icons from the brand SVGs.
+
+    backend/.venv/bin/python scripts/assets/make_icons.py [out_dir]
+
+The icons are *rendered from the real mark* rather than redrawn by hand, so the
+taskbar, the tray and the installer cannot drift away from what the brand files
+say. The full mark is used at 32 px and above; below that its folded facets turn
+to mud, so the simplified mark is used instead - which is why that file exists.
+
+Rendering is done by the Chromium that is already here for the browser tools: no
+extra dependency, and it is the same renderer the app itself draws the mark with.
+The tray icons are flat single-colour silhouettes, because Windows draws the tray
+small and monochrome-ish and a gradient there reads as a smudge.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+ROOT = Path(__file__).resolve().parents[2]
+BRAND = ROOT / "desktop" / "src" / "assets" / "brand"
+DEFAULT_OUT = ROOT / "desktop" / "src" / "assets"
 
-INK = (20, 33, 43, 255)
-JADE = (60, 194, 170, 255)
-AMBER = (232, 160, 54, 255)
-WHITE = (255, 255, 255, 255)
+#: Windows asks for all of these inside one .ico.
+ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
+#: Below this the full mark is unreadable, so the simplified one is used.
+SIMPLIFY_BELOW = 32
 
-
-def stroke(draw, pts, width, color):
-    draw.line(pts, fill=color, width=width, joint="curve")
-    r = width / 2
-    for x, y in (pts[0], pts[-1]):
-        draw.ellipse((x - r, y - r, x + r, y + r), fill=color)
-
-
-def claw_marks(draw, box, color, weight):
-    x0, y0, x1, y1 = box
-    w, h = x1 - x0, y1 - y0
-    for i, off in enumerate((-0.26, 0.0, 0.26)):
-        pts = []
-        for t in [k / 20 for k in range(21)]:
-            # gentle curve from upper-right to lower-left
-            x = x0 + w * (0.5 + off + 0.2 - 0.4 * t) + w * 0.06 * math.sin(t * math.pi)
-            y = y0 + h * (0.12 + 0.76 * t) + (h * 0.05 if i == 1 else 0)
-            pts.append((x, y))
-        stroke(draw, pts, max(1, int(w * weight * (1.0 if i == 1 else 0.82))), color)
+TRAY = {
+    "tray-idle": "#C9D4E6",      # resting: quiet, light enough for a dark taskbar
+    "tray-busy": "#7E9BFF",      # working
+    "tray-attention": "#E3B36A",  # waiting for the person
+}
 
 
-def app_icon(size):
-    s = size * 4
-    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle((0, 0, s - 1, s - 1), radius=int(s * 0.23), fill=INK)
-    claw_marks(d, (s * 0.2, s * 0.18, s * 0.8, s * 0.84), JADE, 0.12)
-    return img.resize((size, size), Image.LANCZOS)
+def chromium() -> str | None:
+    for c in ("/opt/pw-browsers/chromium-1243/chrome-linux64/chrome",
+              shutil.which("chromium"), shutil.which("google-chrome")):
+        if c and Path(c).exists():
+            return c
+    return None
 
 
-def tray_icon(size, dot=None):
-    s = size * 4
-    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle((0, 0, s - 1, s - 1), radius=int(s * 0.26), fill=INK)
-    claw_marks(d, (s * 0.12, s * 0.1, s * 0.88, s * 0.9), JADE, 0.15)
-    if dot:
-        r = s * 0.2
-        cx, cy = s - r * 1.05, s - r * 1.05
-        d.ellipse((cx - r - s * 0.05, cy - r - s * 0.05, cx + r + s * 0.05, cy + r + s * 0.05), fill=INK)
-        d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=dot)
-    return img.resize((size, size), Image.LANCZOS)
+async def render(jobs: list[tuple[Path, int, Path]]) -> None:
+    """Draw each (svg, size, destination) to a transparent PNG."""
+    from playwright.async_api import async_playwright
+
+    exe = chromium()
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(executable_path=exe) if exe else await p.chromium.launch()
+        page = await browser.new_page()
+        for svg, size, dest in jobs:
+            html = (f'<!doctype html><meta charset="utf-8">'
+                    f'<style>html,body{{margin:0;background:transparent}}'
+                    f'svg{{display:block;width:{size}px;height:{size}px}}</style>'
+                    f'{svg.read_text(encoding="utf-8")}')
+            tmp = Path(tempfile.mkdtemp()) / "icon.html"
+            tmp.write_text(html, encoding="utf-8")
+            await page.set_viewport_size({"width": size, "height": size})
+            await page.goto(tmp.as_uri())
+            await page.wait_for_timeout(60)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            await page.screenshot(path=str(dest), omit_background=True)
+            shutil.rmtree(tmp.parent, ignore_errors=True)
+        await browser.close()
+
+
+def tray_svg(colour: str) -> str:
+    mark = (BRAND / "s-claw-mark-mono.svg").read_text(encoding="utf-8")
+    return mark.replace("currentColor", colour)
+
+
+def main(out_dir: Path) -> int:
+    full, small = BRAND / "s-claw-mark.svg", BRAND / "s-claw-mark-small.svg"
+    for f in (full, small, BRAND / "s-claw-mark-mono.svg"):
+        if not f.is_file():
+            print(f"missing brand file: {f}", file=sys.stderr)
+            return 1
+
+    work = Path(tempfile.mkdtemp(prefix="claw-icons-"))
+    jobs: list[tuple[Path, int, Path]] = []
+    layers = {}
+    for size in ICO_SIZES:
+        png = work / f"icon-{size}.png"
+        layers[size] = png
+        jobs.append((small if size < SIMPLIFY_BELOW else full, size, png))
+
+    tray_files = {}
+    for name, colour in TRAY.items():
+        svg = work / f"{name}.svg"
+        svg.write_text(tray_svg(colour), encoding="utf-8")
+        for scale, suffix in ((16, ""), (32, "@2x")):
+            dest = out_dir / f"{name}{suffix}.png"
+            tray_files[dest] = (svg, scale)
+            jobs.append((svg, scale, dest))
+
+    asyncio.run(render(jobs))
+
+    from PIL import Image
+
+    images = [Image.open(layers[s]).convert("RGBA") for s in ICO_SIZES]
+    images[-1].save(out_dir / "icon.ico", format="ICO",
+                    sizes=[(s, s) for s in ICO_SIZES], append_images=images[:-1])
+    images[-1].save(out_dir / "icon.png", format="PNG")
+    shutil.rmtree(work, ignore_errors=True)
+
+    print(f"icon.ico  {', '.join(str(s) for s in ICO_SIZES)} px")
+    print(f"icon.png  {ICO_SIZES[-1]} px")
+    for dest in tray_files:
+        print(f"{dest.name}")
+    return 0
 
 
 if __name__ == "__main__":
-    out = Path(sys.argv[1])
-    out.mkdir(parents=True, exist_ok=True)
-    big = app_icon(256)
-    big.save(out / "icon.png")
-    big.save(out / "icon.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
-    for name, dot in (("tray-idle", None), ("tray-busy", WHITE), ("tray-attention", AMBER)):
-        tray_icon(16, dot).save(out / f"{name}.png")
-        tray_icon(32, dot).save(out / f"{name}@2x.png")
-    print("icons written to", out)
+    raise SystemExit(main(Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_OUT))
