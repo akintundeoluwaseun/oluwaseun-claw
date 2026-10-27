@@ -275,8 +275,13 @@ def _count_rows(path: Path) -> int:
 
 
 async def create_spreadsheet(args: SheetArgs, ctx: ToolContext) -> ToolResult:
-    path = _new_path(ctx, args.folder, args.file_name, "." + args.format)
-    await asyncio.to_thread(_write_xlsx if args.format == "xlsx" else _write_csv, path, args)
+    # A name that already says what it is wins over the format default. Asking for
+    # "contacts.csv" used to give "contacts.csv.xlsx": the wrong kind of file, with
+    # two extensions, and no word about it.
+    named = Path(args.file_name).suffix.lower()
+    fmt = named[1:] if named in (".csv", ".xlsx") else args.format
+    path = _new_path(ctx, args.folder, args.file_name, "." + fmt)
+    await asyncio.to_thread(_write_xlsx if fmt == "xlsx" else _write_csv, path, args)
     written = await asyncio.to_thread(_count_rows, path)
     ok = written == len(args.rows)
     checked, found, missing = provenance(args.rows, ctx.memory.corpus())

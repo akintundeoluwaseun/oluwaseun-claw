@@ -1,6 +1,7 @@
 """Document reading and writing tools (real files, real libraries)."""
 
 import csv
+from pathlib import Path
 
 import docx
 import pytest
@@ -230,3 +231,21 @@ def test_text_reader_keeps_unicode_and_non_breaking_spaces(tmp_path):
     got = read_document(p)
     assert "Caf\u00e9" in got and "Ado-Ekiti" in got
     assert "45\u00a0000" in got or "45 000" in got  # NBSP kept, or folded to a plain space
+
+
+@pytest.mark.parametrize("name,expect", [
+    ("contacts.csv", ".csv"),     # the name says csv, so it is a csv
+    ("contacts.xlsx", ".xlsx"),
+    ("contacts", ".xlsx"),        # no extension: the format default applies
+])
+async def test_spreadsheet_name_decides_the_kind_of_file(tool_ctx, folder, name, expect):
+    """'contacts.csv' used to produce 'contacts.csv.xlsx' - a binary file with two extensions."""
+    r = await call(tool_ctx, "create_spreadsheet", file_name=name, columns=["A", "B"],
+                   rows=[["1", "2"]], folder=str(folder))
+    out = Path(r.data["path"])
+    assert out.suffix == expect, out.name
+    assert out.name.count(".") == 1, f"double extension: {out.name}"
+    if expect == ".csv":
+        assert out.read_text(encoding="utf-8-sig").splitlines()[0] == "A,B"
+    else:
+        assert out.read_bytes()[:2] == b"PK"  # a real xlsx is a zip
