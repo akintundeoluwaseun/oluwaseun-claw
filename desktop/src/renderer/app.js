@@ -59,6 +59,9 @@ const OUTCOME = {
 const state = {
   backend: { state: 'starting', message: 'Starting' },
   settings: null,
+  // Which edition this install is. One app, two packaging profiles: the page hides
+  // what this build cannot do instead of offering it and failing afterwards.
+  edition: null,
   modelReady: false,
   busy: false,
   view: 'home',
@@ -556,6 +559,11 @@ function formatArgValue(v) {
   if (Array.isArray(v) && v.every((x) => x && typeof x === 'object' && 'url' in x)) {
     return v.map((x) => `${x.title || x.url}\n${x.url}${x.note ? `\n${x.note}` : ''}`).join('\n\n');
   }
+  // A list of plain values is a sentence, not a document: ["enter"] took three
+  // lines of pretty-printed JSON on the approval card, for one word.
+  if (Array.isArray(v) && v.every((x) => typeof x === 'string' || typeof x === 'number')) {
+    return v.join(', ');
+  }
   return JSON.stringify(v, null, 1);
 }
 
@@ -629,15 +637,32 @@ function renderRun(body) {
   if (appr) {
     const firstShow = card.hidden || card.dataset.id !== appr.id;
     card.dataset.id = appr.id;
-    $('approval-title').textContent = `Allow Claw to ${(TOOL_ASK[appr.tool] || appr.tool).toLowerCase()}?`;
-    $('approval-risk').textContent = appr.sensitive_scope ? 'Private data' : RISK_LABEL[appr.risk] || appr.risk;
-    $('approval-desc').textContent = appr.description;
+    // Two different things wear this card. Asking permission to act is "allow or
+    // deny". Asking the person to sign in, or type a code that was texted to them,
+    // is not a permission question at all, and wording it as one makes people deny
+    // it. The buttons change with it.
+    const needsYou = appr.kind === 'needs_you';
+    card.dataset.kind = needsYou ? 'needs-you' : 'approval';
+    $('approval-title').textContent = needsYou
+      ? appr.title || 'S-CLAW needs you'
+      : `Allow Claw to ${(TOOL_ASK[appr.tool] || appr.tool).toLowerCase()}?`;
+    $('approval-risk').textContent = needsYou
+      ? (appr.what || 'over to you')
+      : (appr.sensitive_scope ? 'Private data' : RISK_LABEL[appr.risk] || appr.risk);
+    $('approval-desc').textContent = needsYou
+      ? `Please ${appr.description}. S-CLAW will carry on from where it stopped. It never sees what you type.`
+      : appr.description;
+    $('approve-btn').textContent = needsYou ? 'I have done it' : 'Allow';
+    $('deny-btn').textContent = needsYou ? 'Stop the task' : 'Deny';
     $('approval-args').replaceChildren(
       ...Object.entries(appr.args || {})
         .filter(([, v]) => v !== null && v !== undefined && v !== '')
         .flatMap(([k, v]) => [el('dt', { text: k.replace(/_/g, ' ') }), el('dd', { text: formatArgValue(v) })]),
     );
-    $('approval-reason').textContent = [appr.caution, appr.reason ? `Why: ${appr.reason}` : ''].filter(Boolean).join(' ');
+    $('approval-reason').textContent = needsYou
+      ? (appr.detail ? `S-CLAW was: ${appr.detail}` : '')
+      : [appr.caution, appr.reason ? `Why: ${appr.reason}` : ''].filter(Boolean).join(' ');
+    $('approval-context').textContent = needsYou ? '' : (appr.context || '');
     card.hidden = false;
     $('approve-btn').disabled = false;
     $('deny-btn').disabled = false;
@@ -1000,6 +1025,8 @@ async function loadSettings() {
   const res = await api.api('GET', '/settings');
   if (!res.ok) return;
   state.settings = res.body.settings;
+  const ed = await api.api('GET', '/edition');
+  if (ed.ok) applyEdition(ed.body);
   $('data-dir').textContent = `Settings, history and logs are kept in ${res.body.data_dir}`;
   renderContext();
   if (res.body.error) {
@@ -1011,15 +1038,113 @@ const DEFAULT_URLS = { ollama: 'http://127.0.0.1:11434', openai_compatible: 'htt
 
 const KEY_KEPT = '__keep__';  // the backend's placeholder: "leave the saved key alone"
 
+// ---------- Settings: one section at a time ----------
+// Seven sections in one scrolling form meant everything was findable only by
+// scrolling past everything else. The sections themselves are unchanged; the
+// panel decides which one is on screen.
+function settingsTabs() {
+  return Array.from(document.querySelectorAll('.set-tab'));
+}
+
+function showSettingsPanel(id) {
+  for (const tab of settingsTabs()) {
+    const on = tab.dataset.panel === id;
+    tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    const panel = $(tab.dataset.panel);
+    if (panel) {
+      panel.hidden = !on;
+      panel.setAttribute('role', 'tabpanel');
+      panel.setAttribute('aria-label', tab.textContent.trim());
+    }
+  }
+  const panels = $('set-panels');
+  if (panels) panels.scrollTop = 0;
+}
+
+function moveSettingsTab(from, step) {
+  const tabs = settingsTabs();
+  const next = tabs[(tabs.indexOf(from) + step + tabs.length) % tabs.length];
+  showSettingsPanel(next.dataset.panel);
+  next.focus();
+}
+
+// Each search provider asks for a different thing: nothing, a host, or a whole address.
+function applySearchEngine() {
+  const engine = $('b-engine').value;
+  $('b-custom-wrap').hidden = engine !== 'custom';
+  $('b-searxng-wrap').hidden = engine !== 'searxng';
+}
+
+// One quiet flash when a task finishes. Added, then removed so it can happen again.
+function flashMark() {
+  const mark = document.querySelector('.brand-mark');
+  if (!mark) return;
+  mark.classList.remove('is-done');
+  void mark.offsetWidth;          // restart the animation rather than ignore it
+  mark.classList.add('is-done');
+  setTimeout(() => mark.classList.remove('is-done'), 1000);
+}
+
 function applyThinkMode() {
-  const cloud = $('s-think').value === 'cloud';
-  $('cloud-box').hidden = !cloud;
-  $('brain-box').hidden = cloud;
+  const mode = $('s-think').value;
+  $('cloud-box').hidden = mode !== 'cloud';
+  $('service-box').hidden = mode !== 'service';
+  $('brain-box').hidden = mode !== 'builtin';
+  describeEdition();
+}
+
+// What this edition is, and what the choice above it actually means. The two have
+// to be read together: a Claw Local install set to a hosted model does not work
+// offline, and saying "works offline" under that choice would be a lie.
+function describeEdition() {
+  const ed = state.edition;
+  const note = $('s-edition-note');
+  if (!ed) { note.textContent = ''; return; }
+  const mode = $('s-think').value;
+  if (ed.online) {
+    note.textContent = mode === 'service'
+      ? `${ed.name}: Claw thinks on the Claw service, so this computer needs the internet. No brain is installed here.`
+      : `${ed.name}: no brain is installed on this computer, and you have chosen a model of your own instead of the Claw service. The internet is still needed.`;
+    return;
+  }
+  note.textContent = mode === 'builtin'
+    ? `${ed.name}: Claw thinks on this computer and keeps working with the network switched off.`
+    : `${ed.name}: this copy can think on this computer, but you have chosen a model elsewhere, so tasks will need the internet until you switch back.`;
+}
+
+function applyEdition(ed) {
+  state.edition = ed;
+  if (!ed) return;
+  const modes = ed.modes || {};
+  for (const option of $('s-think').options) {
+    const allowed = modes[option.value] ? modes[option.value].allowed : true;
+    option.hidden = !allowed;
+    option.disabled = !allowed;
+  }
+  describeEdition();
+  $('s-service-where').textContent = ed.service_configured
+    ? `This copy is set up to use ${ed.service_url}`
+    : (modes.service && modes.service.why_not) || 'No Claw service was built into this copy.';
+  $('s-service-test').disabled = !ed.service_configured;
+}
+
+async function testServiceConnection() {
+  const note = $('s-service-result');
+  note.dataset.tone = '';
+  note.textContent = 'Asking the Claw service to reply…';
+  $('s-service-test').disabled = true;
+  const res = await api.api('POST', '/models/selftest', {});
+  $('s-service-test').disabled = false;
+  const r = res.body || {};
+  note.dataset.tone = res.ok && r.ok ? 'ok' : 'bad';
+  note.textContent = res.ok && r.ok
+    ? `The Claw service replied in ${(r.ms / 1000).toFixed(1)}s: \u201C${r.reply}\u201D`
+    : r.message || res.body?.error?.message || 'The Claw service did not reply.';
 }
 
 function fillSettingsForm(s) {
   $('s-custom').checked = s.model.mode === 'custom';
-  $('s-think').value = s.model.mode === 'cloud' ? 'cloud' : 'builtin';
+  $('s-think').value = ['cloud', 'service'].includes(s.model.mode) ? s.model.mode : 'builtin';
   applyThinkMode();
   // Cloud fields. The key is never sent to this page, so the box starts empty and
   // says whether one is stored; leaving it empty keeps whatever is saved.
@@ -1044,7 +1169,8 @@ function fillSettingsForm(s) {
   $('b-visible').checked = !b.headless;
   $('b-engine').value = b.search_engine || 'duckduckgo';
   $('b-custom').value = b.custom_search_url || '';
-  $('b-custom-wrap').hidden = $('b-engine').value !== 'custom';
+  $('b-searxng').value = b.searxng_url || '';
+  applySearchEngine();
   $('b-history').value = b.history_access || 'ask';
   const a = s.agent || {};
   $('a-max-steps').value = a.max_steps ?? 20;
@@ -1061,6 +1187,7 @@ function fillSettingsForm(s) {
   $('d-awake').checked = d.keep_awake_while_running !== false;
   $('d-notify').checked = d.notifications !== false;
   $('d-tray').checked = d.close_to_tray !== false;
+  $('d-brief').value = d.brief_at || '';
   state.draftFolders = [...s.permissions.authorized_folders];
   renderFolders();
   $('s-test-result').textContent = '';
@@ -1074,6 +1201,11 @@ function readCloudKey() {
 }
 
 function readModelForm() {
+  if ($('s-think').value === 'service') {
+    // The address and the credential come from the build, so there is nothing here
+    // for the user to fill in or get wrong.
+    return { ...(state.settings?.model || {}), mode: 'service', api_key: KEY_KEPT };
+  }
   if ($('s-think').value === 'cloud') {
     return {
       ...(state.settings?.model || {}),
@@ -1113,6 +1245,7 @@ function readSettingsForm() {
       headless: !$('b-visible').checked,
       search_engine: $('b-engine').value,
       custom_search_url: $('b-custom').value.trim(),
+      searxng_url: $('b-searxng').value.trim(),
       history_access: $('b-history').value,
     },
     documents: { ...(prev.documents || {}) },
@@ -1129,6 +1262,7 @@ function readSettingsForm() {
       keep_awake_while_running: $('d-awake').checked,
       notifications: $('d-notify').checked,
       close_to_tray: $('d-tray').checked,
+      brief_at: $('d-brief').value || '',
     },
   };
 }
@@ -1146,10 +1280,198 @@ function renderFolders() {
   $('folder-empty').hidden = items.length > 0;
 }
 
+// ---------- Automations ----------
+// Each job shows its schedule, when it next runs, and what happened last time.
+// "Ran" and "was skipped" are different words on purpose: a job skipped because
+// you were using S-CLAW has not had its turn.
+const JOB_OUTCOME = {
+  completed: 'ran', failed: 'failed', stopped: 'stopped', skipped: 'was skipped',
+  started: 'running now', incomplete: 'did not finish', interrupted: 'was interrupted',
+};
+
+function jobWhen(job) {
+  if (!job.enabled) return 'Paused';
+  if (!job.next_run) return job.schedule;
+  const when = new Date(job.next_run);
+  const soon = when.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  return `${job.schedule} · next ${soon}`;
+}
+
+function jobLast(job) {
+  if (!job.last_status) return 'Never run yet.';
+  const what = JOB_OUTCOME[job.last_status] || job.last_status;
+  const detail = job.last_detail ? ` — ${job.last_detail}` : '';
+  const when = job.last_run ? ` on ${new Date(job.last_run).toLocaleString()}` : '';
+  return `Last: ${what}${when}${detail}`;
+}
+
+function jobRow(job) {
+  const toggle = el('button', { className: 'link', text: job.enabled ? 'Pause' : 'Resume' });
+  toggle.addEventListener('click', async () => {
+    toggle.disabled = true;
+    await api.api('POST', `/jobs/${encodeURIComponent(job.id)}/enabled`, { enabled: !job.enabled });
+    loadJobs();
+  });
+  const runNow = el('button', { className: 'link', text: 'Run now' });
+  runNow.addEventListener('click', async () => {
+    runNow.disabled = true;
+    const res = await api.api('POST', `/jobs/${encodeURIComponent(job.id)}/run`);
+    if (res.ok) {
+      closeSettings();
+      startWatching(res.body.task_id, job.name);
+    } else {
+      runNow.disabled = false;
+      $('job-error').textContent = (res.body && res.body.error && res.body.error.message) || '';
+    }
+  });
+  const remove = el('button', { className: 'link', text: 'Remove' });
+  remove.addEventListener('click', async () => {
+    const sure = await api.confirm('Remove this job?',
+      `"${job.name}" and its history will be removed. This cannot be undone.`, 'Remove');
+    if (!sure) return;
+    await api.api('DELETE', `/jobs/${encodeURIComponent(job.id)}`);
+    loadJobs();
+  });
+  return el('li', { className: `job-row${job.enabled ? '' : ' job-off'}` }, [
+    el('span', { className: 'job-name', text: job.name }),
+    el('span', { className: 'job-acts' }, [runNow, toggle, remove]),
+    el('span', { className: 'job-what', text: job.task_text }),
+    el('span', { className: 'job-when', text: `${jobWhen(job)} · ${jobLast(job)}` }),
+  ]);
+}
+
+async function loadJobs() {
+  const res = await api.api('GET', '/jobs');
+  const rows = (res.ok && res.body.jobs) || [];
+  $('job-list').replaceChildren(...rows.map(jobRow));
+  $('job-empty').hidden = rows.length > 0;
+}
+
+async function addJob() {
+  const kind = $('job-kind').value;
+  const body = {
+    name: $('job-name').value.trim(),
+    task: $('job-task').value.trim(),
+    kind,
+    minutes: kind === 'every' ? Number($('job-minutes').value) : undefined,
+    at: kind === 'daily' ? $('job-at').value : undefined,
+  };
+  const res = await api.api('POST', '/jobs', body);
+  if (!res.ok) {
+    $('job-error').textContent = (res.body && res.body.error && res.body.error.message)
+      || 'That job could not be added.';
+    return;
+  }
+  $('job-error').textContent = '';
+  $('job-name').value = '';
+  $('job-task').value = '';
+  loadJobs();
+}
+
+/** Wait for a pause in typing before asking the backend again. */
+function debounce(fn, ms) {
+  let t = null;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}
+
+// ---------- Memory ----------
+// What is remembered is shown as it is stored, with where it came from and when.
+// Removing one is immediate: there is no "are you sure" for a single memory,
+// because the whole point is that it should be easy to correct.
+function memoryRow(m) {
+  const when = m.updated_at ? new Date(m.updated_at).toLocaleDateString() : '';
+  const remove = el('button', { className: 'link', text: 'Remove' });
+  remove.addEventListener('click', async () => {
+    remove.disabled = true;
+    const res = await api.api('DELETE', `/memory/${encodeURIComponent(m.id)}`);
+    if (res.ok) loadMemories();
+    else remove.disabled = false;
+  });
+  return el('li', { className: 'mem-row' }, [
+    el('span', { className: 'mem-kind', text: m.kind }),
+    el('span', { className: 'mem-fact' }, [
+      el('strong', { text: `${m.subject}: ` }),
+      document.createTextNode(m.fact),
+    ]),
+    el('span', { className: 'mem-when' }, [document.createTextNode(when), remove]),
+  ]);
+}
+
+async function loadMemories() {
+  const query = encodeURIComponent($('mem-search').value.trim());
+  const res = await api.api('GET', `/memory${query ? `?query=${query}` : ''}`);
+  const rows = (res.ok && res.body.memories) || [];
+  $('mem-list').replaceChildren(...rows.map(memoryRow));
+  $('mem-empty').hidden = rows.length > 0;
+  $('mem-empty').textContent = $('mem-search').value.trim() && rows.length === 0
+    ? 'Nothing remembered matches that.'
+    : 'Nothing is remembered yet.';
+}
+
+async function exportMemories() {
+  const res = await api.api('GET', '/memory/export');
+  if (!res.ok) return;
+  // Saved through the same path as every other file Claw writes.
+  const name = `s-claw-memory-${new Date().toISOString().slice(0, 10)}.json`;
+  await api.saveText(name, JSON.stringify(res.body, null, 2));
+}
+
+async function clearMemories() {
+  const sure = await api.confirm('Forget everything?',
+    'Everything Claw remembers about you, your projects and your contacts will be removed. '
+    + 'This cannot be undone. Export first if you want to keep a copy.', 'Forget everything');
+  if (!sure) return;
+  const res = await api.api('POST', '/memory/forget-all', {});
+  if (res.ok) loadMemories();
+}
+
+// ---------- About ----------
+// The details come from the main process (src/creator.js), so the app, the
+// installer and the packaged executable all carry the same name and link.
+let creator = null;
+
+async function fillAbout() {
+  if (!api.creator) return;
+  creator = creator || await api.creator();
+  if (!creator) return;
+  $('about-version').textContent = `S-CLAW ${creator.version}`;
+  $('about-copyright').textContent = `${creator.copyright}. All rights reserved.`;
+  $('about-whatsapp').textContent = creator.whatsapp;
+  // The address itself is never shown. The badge is the link.
+}
+
+async function openCreatorSite() {
+  if (!creator || !api.openLink) return;
+  const res = await api.openLink(creator.site);
+  if (res && res.ok === false) {
+    const box = $('settings-error');
+    box.replaceChildren(el('div', { className: 'banner-body' },
+      [el('strong', { text: res.message || 'That link could not be opened.' })]));
+    box.hidden = false;
+  }
+}
+
+async function copyWhatsApp() {
+  if (!creator || !api.copyText) return;
+  const res = await api.copyText(creator.whatsapp);
+  const btn = $('copy-whatsapp');
+  // The clipboard gives no visible sign on its own, so the button says what happened.
+  btn.textContent = res && res.ok ? 'Copied' : 'Could not copy';
+  setTimeout(() => { btn.textContent = 'Copy'; }, 1800);
+}
+
 let lastFocus = null;
 function openSettings() {
   lastFocus = document.activeElement;
   fillSettingsForm(state.settings || defaultSettings());
+  applyEdition(state.edition);
+  showSettingsPanel('set-brain');
+  fillAbout();
+  loadMemories();
+  loadJobs();
   $('settings').hidden = false;
   $('settings-scrim').hidden = false;
   $('close-settings').focus();
@@ -1192,10 +1514,22 @@ async function testCloudConnection() {
     return;
   }
   const r = res.body;
-  note.dataset.tone = r.model_available ? 'ok' : 'bad';
-  note.textContent = r.model_available
-    ? `Connected. ${model} answered.`
-    : r.message || 'Connected, but that model was not available.';
+  if (!r.model_available) {
+    note.dataset.tone = 'bad';
+    note.textContent = r.message || 'Connected, but that model was not available.';
+    return;
+  }
+  // Listing the model is not the same as the model answering, and saying "answered"
+  // after a check that generated nothing was a claim this app had not earned.
+  note.textContent = `Connected. Asking ${model} to reply…`;
+  $('s-cloud-test').disabled = true;
+  const live = await api.api('POST', '/models/selftest', { ...readModelForm(), mode: 'cloud' });
+  $('s-cloud-test').disabled = false;
+  const t = live.body || {};
+  note.dataset.tone = live.ok && t.ok ? 'ok' : 'bad';
+  note.textContent = live.ok && t.ok
+    ? `${model} replied in ${(t.ms / 1000).toFixed(1)}s: “${t.reply}”`
+    : t.message || live.body?.error?.message || 'Connected, but the model did not reply.';
 }
 
 async function testConnection() {
@@ -1292,6 +1626,14 @@ function wire() {
   $('doc-ask').addEventListener('click', askAboutDoc);
   $('s-think').addEventListener('change', applyThinkMode);
   $('s-cloud-test').addEventListener('click', testCloudConnection);
+  $('s-service-test').addEventListener('click', testServiceConnection);
+  for (const tab of settingsTabs()) {
+    tab.addEventListener('click', () => showSettingsPanel(tab.dataset.panel));
+    tab.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); moveSettingsTab(tab, 1); }
+      if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); moveSettingsTab(tab, -1); }
+    });
+  }
   $('brain-import').addEventListener('click', importBrain);
   $('brain-restart').addEventListener('click', async () => {
     $('brain-restart').disabled = true;
@@ -1306,6 +1648,17 @@ function wire() {
   $('settings-scrim').addEventListener('click', closeSettings);
   $('save-settings').addEventListener('click', saveSettings);
   $('s-test').addEventListener('click', testConnection);
+  $('job-add').addEventListener('click', addJob);
+  $('job-kind').addEventListener('change', () => {
+    const every = $('job-kind').value === 'every';
+    $('job-every-wrap').hidden = !every;
+    $('job-at-wrap').hidden = every;
+  });
+  $('mem-search').addEventListener('input', debounce(loadMemories, 200));
+  $('mem-export').addEventListener('click', exportMemories);
+  $('mem-clear').addEventListener('click', clearMemories);
+  $('credit-badge').addEventListener('click', openCreatorSite);
+  $('copy-whatsapp').addEventListener('click', copyWhatsApp);
   for (const id of ['s-provider', 's-base-url', 's-model', 's-remote']) {
     $(id).addEventListener('input', () => {
       $('s-test-result').textContent = '';
@@ -1317,7 +1670,7 @@ function wire() {
     if (!url || Object.values(DEFAULT_URLS).includes(url)) $('s-base-url').value = DEFAULT_URLS[$('s-provider').value];
   });
   $('b-engine').addEventListener('change', () => {
-    $('b-custom-wrap').hidden = $('b-engine').value !== 'custom';
+    applySearchEngine();
   });
   $('add-folder').addEventListener('click', async () => {
     const folder = await api.pickFolder();
@@ -1357,6 +1710,11 @@ function wire() {
     if (route && route.taskId) openTask(route.taskId);
   });
   api.onAgentStatus((s) => {
+    // The mark in the title bar turns while Claw works and settles when it stops,
+    // so the state of the app is readable without reading anything.
+    const phase = (s && s.phase) || 'idle';
+    if (document.body.dataset.phase === 'working' && phase !== 'working') flashMark();
+    document.body.dataset.phase = phase;
     if (s && s.phase === 'idle') loadHistory();
   });
   api.shortcut().then((k) => {

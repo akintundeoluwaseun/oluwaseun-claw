@@ -9,11 +9,30 @@
   <link rel="stylesheet" href="quickbar.css">
 </head>
 <body data-mode="collapsed" data-phase="idle">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="claw-mark" viewBox="0 0 64 64">
+      <defs>
+        <linearGradient id="mk-g" x1="14" y1="10" x2="50" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#FFFFFF"/><stop offset=".28" stop-color="#9DB4FF"/>
+          <stop offset=".5" stop-color="#FFFFFF"/><stop offset=".72" stop-color="#AE93FF"/>
+          <stop offset="1" stop-color="#36479B"/>
+        </linearGradient>
+        <linearGradient id="mk-e" x1="20" y1="8" x2="40" y2="52" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#BFD2FF"/>
+        </linearGradient>
+        <radialGradient id="mk-b" cx="32" cy="32" r="27" gradientUnits="userSpaceOnUse">
+          <stop offset=".3" stop-color="#6E8BFF" stop-opacity=".92"/><stop offset="1" stop-color="#6E8BFF" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect class="mk-tile" width="64" height="64" rx="15" fill="#0E0F12"/>
+      <circle class="mk-ring" cx="32" cy="32" r="22" fill="none" stroke="#7E9BFF" stroke-width="2" opacity="0"/>
+      <circle class="mk-bloom" cx="32" cy="32" r="27" fill="url(#mk-b)"/>
+      <g class="mk-blades"><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(0 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(120 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(240 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(0 32 32)" fill="url(#mk-e)" opacity=".92"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(120 32 32)" fill="url(#mk-e)" opacity=".92"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(240 32 32)" fill="url(#mk-e)" opacity=".92"/></g>
+    </symbol>
+  </svg>
+
   <button class="pill" id="pill" type="button" aria-label="Give Claw a task">
-    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" class="mark-tile"/>
-      <path class="mark-claw" d="M21.5 6.5c-1.6 6.4-4.2 12.4-8.6 19M16.2 7.6c-1.3 5.3-3.4 10.3-6.8 15.6M26 8.3c-1.2 5.6-3.5 11.2-7.2 16.9"/>
-    </svg>
+    <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#claw-mark"/></svg>
     <span class="pill-text" id="pill-text">Ask Claw</span>
     <span class="pill-meta" id="pill-meta"></span>
   </button>
@@ -22,10 +41,7 @@
   </button>
 
   <form class="panel" id="panel" autocomplete="off">
-    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" class="mark-tile"/>
-      <path class="mark-claw" d="M21.5 6.5c-1.6 6.4-4.2 12.4-8.6 19M16.2 7.6c-1.3 5.3-3.4 10.3-6.8 15.6M26 8.3c-1.2 5.6-3.5 11.2-7.2 16.9"/>
-    </svg>
+    <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#claw-mark"/></svg>
     <label class="sr-only" for="task">Task for Claw</label>
     <input id="task" type="text" maxlength="4000" spellcheck="true" placeholder="Give Claw a task, then get on with your day">
     <button class="mic" id="mic" type="button" hidden aria-label="Dictate a task" title="Dictate">

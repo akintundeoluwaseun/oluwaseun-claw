@@ -1,6 +1,18 @@
-/* Oluwaseun Claw — shared design tokens.
-   Concept: "the night shift". Calm porcelain by day, deep slate by night,
-   jade means "working fine", amber means "needs you", red means "stop". */
+/* Oluwaseun Claw — design tokens.
+
+   The intent: a quiet, well-made instrument. Warm paper by day, deep ink by
+   night, with one restrained metallic accent. Nothing glows, nothing shouts,
+   and colour is spent only where it carries meaning:
+
+     brass   this is the thing to press, or the place you are
+     green   it worked, and Claw checked
+     amber   it needs you
+     red     it stopped
+
+   Headings are set in a serif, the interface in Manrope. That pairing is what
+   makes software read as considered rather than generic, and it costs nothing:
+   the serif is already on every Windows machine.
+*/
 
 @font-face {
   font-family: "Manrope";
@@ -11,60 +23,106 @@
 }
 
 :root {
-  --mist: #eef2f4;
-  --porcelain: #ffffff;
-  --porcelain-2: #f6f8f9;
-  --ink: #14212b;
-  --slate: #5d6b78;
-  --slate-2: #8794a0;
-  --hairline: #dde3e8;
-  --hairline-2: #c9d2d9;
-  --jade: #0f7b6c;
-  --jade-ink: #ffffff;
-  --jade-soft: #e3f2ef;
-  --amber: #b86e0b;
-  --amber-soft: #fbf0de;
-  --amber-line: #efc983;
-  --red: #c23b3b;
-  --red-soft: #fbe9e9;
-  --shadow-1: 0 1px 2px rgba(20, 33, 43, 0.06);
-  --shadow-2: 0 2px 6px rgba(20, 33, 43, 0.05), 0 12px 32px rgba(20, 33, 43, 0.10);
-  --shadow-float: 0 4px 10px rgba(20, 33, 43, 0.08), 0 18px 48px rgba(20, 33, 43, 0.18);
+  /* --- surfaces, light: warm paper rather than clinical white --- */
+  --bg: #efece6;
+  --surface: #fffdf9;
+  --surface-2: #f7f4ee;
+  --surface-3: #efebe3;
+  --raised: #ffffff;
+
+  /* --- text --- */
+  --ink: #1a1714;
+  --ink-2: #57514a;
+  --ink-3: #8b8379;
+
+  /* --- lines --- */
+  --line: #e3ddd2;
+  --line-2: #cec6b8;
+  --line-strong: #b3a994;
+
+  /* --- the accent: antique brass --- */
+  --brass: #8a6726;
+  --brass-ink: #fffdf7;
+  --brass-soft: #f5edda;
+  --brass-line: #e0cda2;
+
+  /* --- meaning --- */
+  --green: #2d6a57;
+  --green-soft: #e4efe9;
+  --green-line: #b9d6c9;
+  --amber: #96681a;
+  --amber-soft: #f7edda;
+  --amber-line: #e3cb98;
+  --red: #a23a30;
+  --red-soft: #f8e9e6;
+  --red-line: #e6c2bb;
+
+  /* --- depth: warm and shallow; this is paper, not glass --- */
+  --shadow-1: 0 1px 1px rgba(26, 23, 20, 0.04), 0 1px 3px rgba(26, 23, 20, 0.05);
+  --shadow-2: 0 2px 4px rgba(26, 23, 20, 0.04), 0 10px 26px rgba(26, 23, 20, 0.07);
+  --shadow-3: 0 4px 10px rgba(26, 23, 20, 0.07), 0 24px 60px rgba(26, 23, 20, 0.16);
+  --inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+
+  /* --- type --- */
   --font: "Manrope", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
   --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  /* --- rhythm: one scale, used everywhere --- */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s7: 32px; --s8: 40px; --s9: 56px;
+  --r-sm: 8px; --r: 12px; --r-lg: 16px; --r-xl: 22px; --r-pill: 999px;
+
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --fast: 140ms;
+  --slow: 240ms;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --mist: #0f1519;
-    --porcelain: #161e24;
-    --porcelain-2: #1b242b;
-    --ink: #e6ecef;
-    --slate: #9aa8b3;
-    --slate-2: #6f7d88;
-    --hairline: #26313a;
-    --hairline-2: #34414b;
-    --jade: #3cc2aa;
-    --jade-ink: #06201b;
-    --jade-soft: #15302b;
-    --amber: #f0b356;
-    --amber-soft: #2e2416;
-    --amber-line: #6b4d1d;
-    --red: #f07a7a;
-    --red-soft: #3a1d1f;
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.25), 0 12px 32px rgba(0, 0, 0, 0.35);
-    --shadow-float: 0 4px 10px rgba(0, 0, 0, 0.3), 0 18px 48px rgba(0, 0, 0, 0.5);
+    --bg: #101113;
+    --surface: #17191d;
+    --surface-2: #1d2025;
+    --surface-3: #23272d;
+    --raised: #1b1e23;
+
+    --ink: #ece7df;
+    --ink-2: #a49d93;
+    --ink-3: #7a736a;
+
+    --line: #272a30;
+    --line-2: #363a42;
+    --line-strong: #4a4f59;
+
+    --brass: #cfa861;
+    --brass-ink: #1b1403;
+    --brass-soft: #2a2316;
+    --brass-line: #4e4027;
+
+    --green: #58bb9d;
+    --green-soft: #162b25;
+    --green-line: #2b4c42;
+    --amber: #dfae63;
+    --amber-soft: #2c2415;
+    --amber-line: #4f4228;
+    --red: #e07a6e;
+    --red-soft: #2e1b19;
+    --red-line: #553029;
+
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.4);
+    --shadow-3: 0 6px 16px rgba(0, 0, 0, 0.45), 0 30px 70px rgba(0, 0, 0, 0.55);
+    --inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     color-scheme: dark;
   }
 }
 
+/* The mark: an engraved tile, not a sticker. */
 .mark-tile { fill: var(--ink); }
-.mark-claw { fill: none; stroke: #3cc2aa; stroke-width: 3.2; stroke-linecap: round; }
+.mark-claw { fill: none; stroke: var(--brass); stroke-width: 3.2; stroke-linecap: round; }
 @media (prefers-color-scheme: dark) {
-  .mark-tile { fill: #22303a; }
+  .mark-tile { fill: #2a2e35; }
 }
 
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

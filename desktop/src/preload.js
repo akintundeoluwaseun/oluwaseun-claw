@@ -19,9 +19,15 @@ contextBridge.exposeInMainWorld('claw', {
   openOutput: (taskId, path, how) => ipcRenderer.invoke('claw:open-output', taskId, path, how),
   openDocument: () => ipcRenderer.invoke('claw:open-document'),
   saveSearchable: (docId, name) => ipcRenderer.invoke('claw:save-searchable', docId, name),
+  saveText: (name, text) => ipcRenderer.invoke('claw:save-text', name, text),
   showDocument: (docId) => ipcRenderer.invoke('claw:show-file', docId),
   importBrain: () => ipcRenderer.invoke('claw:import-brain'),
   confirm: (title, detail, okLabel) => ipcRenderer.invoke('claw:confirm', title, detail, okLabel),
+  // The creator's details, and the only two things the About panel can do with
+  // them: open the one allowed link, and put the username on the clipboard.
+  creator: () => ipcRenderer.invoke('claw:creator'),
+  openLink: (url) => ipcRenderer.invoke('claw:open-link', url),
+  copyText: (text) => ipcRenderer.invoke('claw:copy-text', text),
   shortcut: () => ipcRenderer.invoke('claw:shortcut'),
   stopShortcut: () => ipcRenderer.invoke('claw:stop-shortcut'),
   platform: process.platform,

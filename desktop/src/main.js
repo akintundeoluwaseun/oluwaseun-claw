@@ -1,12 +1,15 @@
 'use strict';
 
 const {
-  app, BrowserWindow, Menu, Notification, Tray, dialog, globalShortcut, ipcMain,
+  app, BrowserWindow, Menu, Notification, Tray, clipboard, dialog, globalShortcut, ipcMain,
   nativeImage, nativeTheme, powerSaveBlocker, screen, session, shell,
 } = require('electron');
 const path = require('node:path');
 const { Backend } = require('./backend');
 const { AgentWatcher } = require('./watcher');
+const { ReminderWatcher, BriefWatcher } = require('./reminders');
+const { clampBounds, defaultBounds } = require('./quickbar-position');
+const { CREATOR, isAllowedLink } = require('./creator');
 
 const BACKEND_DIR = process.env.CLAW_BACKEND_DIR || (app.isPackaged ? path.join(process.resourcesPath, 'backend') : path.resolve(__dirname, '..', '..', 'backend'));
 const RESOURCES_DIR = process.env.CLAW_RESOURCES || (app.isPackaged ? process.resourcesPath : null);
@@ -21,13 +24,16 @@ let quickBar = null;
 let tray = null;
 let backend = null;
 let watcher = null;
+let reminders = null;
+let briefing = null;
+let lastBriefDay = null;
 let quitting = false;
 let awakeBlocker = null;
 let trayHintShown = false;
-let desktop = { start_with_windows: false, show_quick_bar: true, keep_awake_while_running: true, notifications: true, close_to_tray: true };
+let desktop = { start_with_windows: false, show_quick_bar: true, keep_awake_while_running: true, notifications: true, close_to_tray: true, brief_at: '' };
 
 if (process.env.CLAW_E2E) app.setPath('userData', path.join(require('node:os').tmpdir(), `claw-e2e-${process.pid}`));
-if (IS_WIN) app.setAppUserModelId('com.oluwaseun.claw'); // required for Windows notifications
+if (IS_WIN) app.setAppUserModelId('com.oluwaseun.sclaw'); // required for Windows notifications
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -52,7 +58,7 @@ function createMainWindow() {
     height: 840,
     minWidth: 960,
     minHeight: 620,
-    title: 'Oluwaseun Claw',
+    title: 'S-CLAW',
     icon: path.join(ASSETS, IS_WIN ? 'icon.ico' : 'icon.png'),
     backgroundColor: c.overlay,
     show: false,
@@ -99,13 +105,45 @@ function showMain(route) {
 const QB = { collapsed: { w: 340, h: 52 }, expanded: { w: 680, h: 132 } };
 let quickMode = 'collapsed';
 
+// Where the person last put the bar. Null means the default: centred at the top.
+let quickPos = null;
+let quickDrag = null;
+
+function quickPosFile() {
+  return path.join(app.getPath('userData'), 'quickbar-position.json');
+}
+
+function loadQuickPos() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(quickPosFile(), 'utf8'));
+    if (Number.isFinite(saved.x) && Number.isFinite(saved.y)) quickPos = { x: saved.x, y: saved.y };
+  } catch {
+    quickPos = null;                       // never had one, or it was unreadable
+  }
+}
+
+function saveQuickPos() {
+  try {
+    fs.writeFileSync(quickPosFile(), JSON.stringify(quickPos || {}), 'utf8');
+  } catch (err) {
+    console.warn('could not remember the quick bar position', err.message);
+  }
+}
+
 function quickBounds(mode) {
-  const { workArea } = screen.getPrimaryDisplay();
   const size = QB[mode];
-  return { x: Math.round(workArea.x + (workArea.width - size.w) / 2), y: workArea.y + 10, width: size.w, height: size.h };
+  // Clamp to the display the bar is actually on. A position saved on a second
+  // monitor that is now unplugged would otherwise put the bar off screen, where
+  // it cannot be grabbed to bring it back.
+  const display = quickPos
+    ? screen.getDisplayNearestPoint({ x: Math.round(quickPos.x), y: Math.round(quickPos.y) })
+    : screen.getPrimaryDisplay();
+  const { workArea } = display;
+  return quickPos ? clampBounds(quickPos, size, workArea) : defaultBounds(size, workArea);
 }
 
 function createQuickBar() {
+  loadQuickPos();
   quickBar = new BrowserWindow({
     ...quickBounds('collapsed'),
     frame: false,
@@ -136,6 +174,39 @@ function createQuickBar() {
   quickBar.once('ready-to-show', () => {
     if (desktop.show_quick_bar) quickBar.showInactive();
   });
+}
+
+// Dragging the bar. The renderer owns the pointer (it knows whether this was a
+// click or a drag); the main process owns the window. Deltas are sent rather than
+// absolute positions so a slow frame cannot teleport the bar across the screen.
+function beginQuickDrag() {
+  if (!quickBar) return;
+  const b = quickBar.getBounds();
+  quickDrag = { x: b.x, y: b.y };
+}
+
+function moveQuickDrag(dx, dy) {
+  if (!quickBar || !quickDrag) return;
+  quickPos = { x: quickDrag.x + Math.round(dx), y: quickDrag.y + Math.round(dy) };
+  quickBar.setBounds(quickBounds(quickMode));
+}
+
+function endQuickDrag() {
+  if (!quickDrag) return;
+  quickDrag = null;
+  // Keep what the clamp decided, not what the pointer asked for, so a bar dragged
+  // off the edge comes back to where it actually sits.
+  if (quickBar) {
+    const b = quickBar.getBounds();
+    quickPos = { x: b.x, y: b.y };
+  }
+  saveQuickPos();
+}
+
+function resetQuickPosition() {
+  quickPos = null;
+  saveQuickPos();
+  if (quickBar) quickBar.setBounds(quickBounds(quickMode));
 }
 
 function setQuickMode(mode) {
@@ -186,7 +257,7 @@ function createTray() {
     tray = null; // some Linux desktops have no tray; the app still works
     return;
   }
-  tray.setToolTip('Oluwaseun Claw — ready');
+  tray.setToolTip('S-CLAW — ready');
   tray.setContextMenu(buildTrayMenu());
   tray.on('click', () => showMain());
 }
@@ -195,7 +266,7 @@ function refreshTray(status) {
   if (!tray) return;
   const kind = status.phase === 'attention' ? 'attention' : status.phase === 'working' ? 'busy' : 'idle';
   tray.setImage(trayImage(kind));
-  const tip = status.phase === 'working' ? `Claw — ${status.activity}` : status.phase === 'attention' ? 'Claw — needs your OK' : 'Oluwaseun Claw — ready';
+  const tip = status.phase === 'working' ? `S-CLAW — ${status.activity}` : status.phase === 'attention' ? 'S-CLAW — needs your OK' : 'S-CLAW — ready';
   tray.setToolTip(tip);
   tray.setContextMenu(buildTrayMenu());
 }
@@ -306,6 +377,27 @@ ipcMain.handle('claw:open-output', async (event, taskId, filePath, how) => {
   const err = await shell.openPath(filePath);
   return err ? { ok: false, message: err } : { ok: true };
 });
+// ---------- IPC: who made this ----------
+ipcMain.handle('claw:creator', (event) => (fromOurWindows(event)
+  ? { ...CREATOR, version: app.getVersion() }
+  : null));
+
+// Opening a link hands a URL to the user's own browser, so the URL is not taken
+// on trust: only the creator's own site passes, and only over https.
+ipcMain.handle('claw:open-link', async (event, url) => {
+  if (!senderIs(event, mainWindow)) return { ok: false, message: 'Not allowed.' };
+  if (!isAllowedLink(url)) return { ok: false, message: 'That link is not one S-CLAW opens.' };
+  await shell.openExternal(url);
+  return { ok: true };
+});
+
+ipcMain.handle('claw:copy-text', (event, text) => {
+  if (!senderIs(event, mainWindow) || typeof text !== 'string') return { ok: false };
+  // Short, and only ever something already on screen - never a path or a token.
+  clipboard.writeText(text.slice(0, 200));
+  return { ok: true };
+});
+
 ipcMain.handle('claw:shortcut', (event) => (fromOurWindows(event) ? QUICK_SHORTCUT.replace('CommandOrControl', 'Ctrl') : ''));
 ipcMain.handle('claw:stop-shortcut', (event) => (fromOurWindows(event) ? STOP_SHORTCUT.replace('CommandOrControl', 'Ctrl') : ''));
 
@@ -333,6 +425,27 @@ ipcMain.handle('claw:open-document', async (event) => {
   const [file] = await pickFiles('OPEN_DOC', { title: 'Open a document for Claw to read', properties: ['openFile'], filters: DOC_FILTERS });
   if (!file) return { ok: false, cancelled: true };
   return backend.request('POST', '/documents/open', { path: file }, { internal: true });
+});
+
+// Exporting what Claw remembers. The renderer hands over text it already has;
+// the file name is sanitised here and the person chooses where it goes.
+ipcMain.handle('claw:save-text', async (event, suggestedName, text) => {
+  if (!senderIs(event, mainWindow) || typeof text !== 'string') return { ok: false };
+  if (text.length > 5_000_000) return { ok: false, message: 'That is too large to save this way.' };
+  const base = String(suggestedName || 'export.json').replace(/[\\/:*?"<>|]/g, '_').slice(0, 120);
+  const res = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save a copy',
+    defaultPath: base,
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+    properties: ['showOverwriteConfirmation'],
+  });
+  if (res.canceled || !res.filePath) return { ok: false, cancelled: true };
+  try {
+    fs.writeFileSync(res.filePath, text, 'utf8');
+    return { ok: true, path: res.filePath };
+  } catch (err) {
+    return { ok: false, message: err.message };
+  }
 });
 
 ipcMain.handle('claw:save-searchable', async (event, docId, suggestedName) => {
@@ -380,7 +493,7 @@ ipcMain.handle('claw:confirm', async (event, title, detail, okLabel) => {
   if (process.env.CLAW_E2E) return process.env.CLAW_E2E_CONFIRM !== 'no';
   const res = await dialog.showMessageBox(mainWindow, {
     type: 'warning',
-    title: 'Oluwaseun Claw',
+    title: 'S-CLAW',
     message: String(title).slice(0, 200),
     detail: String(detail || '').slice(0, 600),
     buttons: [String(okLabel || 'OK').slice(0, 40), 'Cancel'],
@@ -488,6 +601,19 @@ ipcMain.on('quickbar:open-app', (event) => {
 ipcMain.on('quickbar:stop', (event) => {
   if (senderIs(event, quickBar)) stopCurrent();
 });
+// Only the quick bar may move the quick bar.
+ipcMain.on('quickbar:drag-begin', (event) => {
+  if (senderIs(event, quickBar)) beginQuickDrag();
+});
+ipcMain.on('quickbar:drag-to', (event, dx, dy) => {
+  if (senderIs(event, quickBar) && Number.isFinite(dx) && Number.isFinite(dy)) moveQuickDrag(dx, dy);
+});
+ipcMain.on('quickbar:drag-end', (event) => {
+  if (senderIs(event, quickBar)) endQuickDrag();
+});
+ipcMain.on('quickbar:reset-position', (event) => {
+  if (senderIs(event, quickBar)) resetQuickPosition();
+});
 
 // ---------- Startup ----------
 // Automatic recovery: if the agent process dies unexpectedly, restart it (at most 3 times in 5 minutes).
@@ -522,6 +648,21 @@ app.whenReady().then(async () => {
   createMainWindow();
   createQuickBar();
   createTray();
+  // Calendar reminders. Clicking one opens S-CLAW on the task view, where the
+  // calendar lives; the notification itself is the whole point of the feature.
+  reminders = new ReminderWatcher(() => backend, {
+    show: (item, text) => notify(text.title, text.body, () => showMain({})),
+  });
+  // The morning briefing. Only while the app runs: there is no service behind it.
+  briefing = new BriefWatcher(() => backend, {
+    at: () => desktop.brief_at,
+    lastDay: () => lastBriefDay,
+    remember: (day) => { lastBriefDay = day; },
+    show: (body) => notify(`Today — ${body.headline}`,
+      (body.agenda || []).slice(0, 3).map((i) => `${i.at}  ${i.summary}`).join('\n')
+        || 'Nothing in your calendar today.',
+      () => showMain({})),
+  });
   watcher = new AgentWatcher(() => backend, {
     onChange: (status) => {
       broadcast('claw:agent-status', status);
@@ -529,7 +670,15 @@ app.whenReady().then(async () => {
       updateAwake();
     },
     onApprovalNeeded: (a) => {
-      notify('Claw needs your OK', `${a.description || a.tool} — open Claw to allow or deny.`, () => showMain({ taskId: a.task_id }));
+      // A request for a password or a code is not an approval, and a notification
+      // that says "allow or deny" is the wrong thing to read on a phone screen
+      // when what is actually wanted is for you to go and sign in.
+      if (a.kind === 'needs_you') {
+        notify('S-CLAW needs you', `${a.description || 'Something needs you'} — open S-CLAW to carry on.`,
+          () => showMain({ taskId: a.task_id }));
+        return;
+      }
+      notify('S-CLAW needs your OK', `${a.description || a.tool} — open S-CLAW to allow or deny.`, () => showMain({ taskId: a.task_id }));
     },
     onTaskEnded: (t) => {
       const parts = [];
@@ -556,6 +705,8 @@ app.whenReady().then(async () => {
   lockDownPermissions();
   await startBackend();
   watcher.start();
+  reminders.start();
+  briefing.start();
   // Push-to-talk only exists when the user has turned voice on and picked that mode.
   try {
     const v = await backend.request('GET', '/speech');

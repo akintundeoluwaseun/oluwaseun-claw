@@ -6,6 +6,74 @@ let phase = 'idle';
 let shortcut = 'Ctrl+Shift+Space';
 let stopKeys = 'Ctrl+Alt+X';
 
+
+// ---------- Moving the bar ----------
+// Press and move to drag it anywhere; press and release without moving is still a
+// click. Four pixels of slack, because nobody presses a mouse button perfectly
+// still, and a bar that opens when you meant to move it is worse than one that
+// does not move when you meant to press it.
+//
+// Positions go to the main process as deltas, at most one per animation frame.
+// On a slow machine that means the bar lags the pointer slightly; it never jumps.
+const DRAG_SLACK = 4;
+let dragged = false;
+let dragFrom = null;
+let dragPending = null;
+let dragFrame = 0;
+
+function startDrag(e) {
+  if (e.button !== 0) return;
+  // The field, the buttons and the microphone are for using, not for grabbing.
+  if (e.target.closest('input, button, a, .link')) return;
+  dragFrom = { x: e.screenX, y: e.screenY };
+  dragged = false;
+  document.body.dataset.dragging = 'maybe';
+}
+
+function onDragMove(e) {
+  if (!dragFrom) return;
+  const dx = e.screenX - dragFrom.x;
+  const dy = e.screenY - dragFrom.y;
+  if (!dragged) {
+    if (Math.abs(dx) < DRAG_SLACK && Math.abs(dy) < DRAG_SLACK) return;
+    dragged = true;
+    document.body.dataset.dragging = 'yes';
+    q.dragBegin();
+  }
+  dragPending = { dx, dy };
+  if (!dragFrame) {
+    dragFrame = requestAnimationFrame(() => {
+      dragFrame = 0;
+      if (dragPending) q.dragTo(dragPending.dx, dragPending.dy);
+      dragPending = null;
+    });
+  }
+}
+
+function endDrag() {
+  if (!dragFrom) return;
+  dragFrom = null;
+  document.body.dataset.dragging = 'no';
+  if (dragFrame) { cancelAnimationFrame(dragFrame); dragFrame = 0; }
+  if (dragPending) { q.dragTo(dragPending.dx, dragPending.dy); dragPending = null; }
+  if (dragged) q.dragEnd();
+  // Let the click that follows see the flag, then forget it.
+  setTimeout(() => { dragged = false; }, 0);
+}
+
+document.addEventListener('mousedown', startDrag);
+document.addEventListener('mousemove', onDragMove);
+document.addEventListener('mouseup', endDrag);
+// A pointer that leaves the window mid-drag still ends the drag.
+window.addEventListener('blur', endDrag);
+// Double-click puts the bar back where it started - but only when it is open.
+// On the collapsed pill the first click already opens it, so a double-click
+// there would be two different things at once.
+document.addEventListener('dblclick', (e) => {
+  if (document.body.dataset.mode !== 'expanded') return;
+  if (!e.target.closest('input, button, a, .link')) q.resetPosition();
+});
+
 function setMode(mode) {
   document.body.dataset.mode = mode;
   if (mode === 'expanded') {
@@ -43,6 +111,7 @@ function foot(text, tone) {
 }
 
 $('pill').addEventListener('click', () => {
+  if (dragged) return;                 // that was a drag, not a press
   if (phase === 'working' || phase === 'attention') q.openApp();
   else q.setMode('expanded');
 });
@@ -134,6 +203,7 @@ async function startRecording() {
   voice.node.onaudioprocess = (e) => {
     if (!voice.recording) return;
     const slice = new Float32Array(e.inputBuffer.getChannelData(0));
+    showLevel(slice);
     if (voice.live) sendLive(slice);
     else voice.chunks.push(slice);
   };
@@ -188,6 +258,29 @@ async function sendLive(slice) {
 
 // Partial words go in the task field so they can be edited the moment you stop.
 // The field is marked provisional until the final text replaces it.
+
+// How loud the microphone actually is, for the mark to breathe with. The samples
+// are already in hand, so this costs one pass over a buffer every 4096 frames
+// and nothing else: no second audio graph, no analyser node, no timer.
+//
+// Smoothed on the way up and down, or the mark flickers on every consonant.
+let micLevel = 0;
+
+function showLevel(slice) {
+  let sum = 0;
+  for (let i = 0; i < slice.length; i += 4) sum += slice[i] * slice[i];
+  const rms = Math.sqrt(sum / (slice.length / 4));
+  // Speech sits well below full scale; 0.22 maps ordinary talking to a full bloom.
+  const target = Math.min(1, rms / 0.22);
+  micLevel += (target - micLevel) * (target > micLevel ? 0.5 : 0.12);
+  document.documentElement.style.setProperty('--level', micLevel.toFixed(3));
+}
+
+function clearLevel() {
+  micLevel = 0;
+  document.documentElement.style.setProperty('--level', '0');
+}
+
 function showPartial(text) {
   $('task').value = text || '';
   $('task').dataset.partial = 'yes';
@@ -196,6 +289,7 @@ function showPartial(text) {
 }
 
 function releaseMic() {
+  clearLevel();
   if (voice.node) { voice.node.disconnect(); voice.node.onaudioprocess = null; voice.node = null; }
   if (voice.ctx) { voice.ctx.close().catch(() => {}); voice.ctx = null; }
   if (voice.stream) { voice.stream.getTracks().forEach((t) => t.stop()); voice.stream = null; }
