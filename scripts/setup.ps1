@@ -1,4 +1,4 @@
-# Oluwaseun Claw - one-time developer setup on Windows 10 (PowerShell 5.1+)
+# S-CLAW - one-time developer setup on Windows 10 (PowerShell 5.1+)
 # Run from the project root:   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
 #
 # Besides Python and Electron, this fetches the two local engines Claw uses (no Ollama):
@@ -53,7 +53,7 @@ Pop-Location
 if (-not $SkipEngine) {
   # The file name is looked up in GitHub's release list at run time: no build number is hard-coded.
   Write-Host "== Fetching llama.cpp (llama-server, $Gpu build) from github.com/ggml-org/llama.cpp"
-  $headers = @{ 'User-Agent' = 'oluwaseun-claw-setup' }
+  $headers = @{ 'User-Agent' = 's-claw-setup' }
   if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }  # build machines: avoids API rate limits
   $patterns = @{ cpu = '-bin-win-cpu-x64\.zip$'; vulkan = '-bin-win-vulkan-x64\.zip$'; cuda = '-bin-win-cuda[\d.-]*-x64\.zip$' }
   # llama.cpp publishes two kinds of release: version tags (v0.7.0) that carry only the source

@@ -199,3 +199,108 @@ async def test_navigation_timeout_is_reported_not_treated_as_a_visit(tool_ctx, h
     assert "too long to load" in str(got.value)
     assert got.value.transient  # the executor may retry a timeout
     assert url not in tool_ctx.browser.seen_urls  # never citable as a source
+
+
+# ---------- what the user is told when the web is unreachable ----------
+def test_network_errors_are_explained_in_plain_words():
+    from claw.browser.session import explain_network_error
+
+    assert explain_network_error("Page.goto: net::ERR_NAME_NOT_RESOLVED at https://x/") == (
+        "that web address does not exist, or this computer has no internet connection (ERR_NAME_NOT_RESOLVED)")
+    assert "not connected to the internet" in explain_network_error("net::ERR_INTERNET_DISCONNECTED")
+    # An unrecognised failure is passed through rather than guessed at.
+    assert explain_network_error("something else entirely") == "something else entirely"
+
+
+async def test_an_unreachable_site_says_so_without_a_bare_error_code(tool_ctx):
+    """Runs for real against a port nothing is listening on - no mock, no internet needed."""
+    from claw.tools.base import ToolError
+    from claw.tools.registry import build_registry
+
+    spec = build_registry().get("open_url")
+    with pytest.raises(ToolError) as caught:
+        # A high port nothing listens on; Chromium refuses low ports like 9 outright.
+        await spec.handler(spec.parse_args({"url": "http://127.0.0.1:49231/"}), tool_ctx)
+    message = str(caught.value)
+    assert "refused the connection" in message and "ERR_CONNECTION_REFUSED" in message
+    assert "net::" not in message
+
+
+async def test_reading_after_a_failed_navigation_gives_a_clean_message(tool_ctx, site):
+    """A real failure, not a mock: the navigation below genuinely cannot complete.
+
+    It used to leave the page with no execution context, and the next read raised
+    Playwright's own "Execution context was destroyed" straight at the user.
+    """
+    from claw.tools.base import ToolError
+    from claw.tools.registry import build_registry
+
+    reg = build_registry()
+    opener, reader = reg.get("open_url"), reg.get("read_page")
+    await opener.handler(opener.parse_args({"url": site.base_url + "/articles/motion-templates"}), tool_ctx)
+    with pytest.raises(ToolError):
+        await opener.handler(opener.parse_args({"url": "http://127.0.0.1:49231/"}), tool_ctx)
+    try:
+        out = await reader.handler(reader.parse_args({}), tool_ctx)
+        assert out.ok                      # the page survived: reading it is fine
+    except ToolError as exc:
+        assert "Execution context" not in str(exc)
+        assert "Open it again" in str(exc) or "could not be read" in str(exc)
+
+
+# ---------- which search engine, and the evidence for the answer ----------
+def test_every_provider_builds_its_own_address():
+    from claw.browser import search
+
+    assert search.build_url("duckduckgo", "a b").endswith("?q=a+b")
+    assert search.build_url("bing", "a b").startswith("https://www.bing.com/search?q=")
+    assert (search.build_url("searxng", "a b", searxng_url="https://s.example.com/")
+            == "https://s.example.com/search?q=a+b")
+    # A host typed with /search already on the end must not become /search/search.
+    assert (search.build_url("searxng", "x", searxng_url="https://s.example.com/search")
+            == "https://s.example.com/search?q=x")
+    assert search.build_url("custom", "x", custom_url="https://o.test/?s={query}") == "https://o.test/?s=x"
+    with pytest.raises(ValueError, match=r"\{query\}"):
+        search.build_url("custom", "x", custom_url="https://o.test/no-placeholder")
+    with pytest.raises(KeyError):
+        search.build_url("altavista", "x")
+
+
+def test_a_searxng_host_is_required_when_it_is_chosen():
+    from claw.config import BrowserSettings
+
+    with pytest.raises(Exception, match="SearXNG"):
+        BrowserSettings(search_engine="searxng")
+    ok = BrowserSettings(search_engine="searxng", searxng_url="https://s.example.com")
+    assert ok.searxng_url == "https://s.example.com"
+
+
+async def test_search_records_where_the_answer_came_from(tool_ctx, site):
+    """Runs a real search against a real page served locally - no mocked results."""
+    from claw.tools.registry import build_registry
+
+    tool_ctx.settings.browser.search_engine = "custom"
+    tool_ctx.settings.browser.custom_search_url = site.base_url + "/search?q={query}"
+    spec = build_registry().get("web_search")
+    r = await spec.handler(spec.parse_args({"query": "templates"}), tool_ctx)
+    assert r.data["provider"]["id"] == "custom"
+    assert r.data["search_url"].startswith(site.base_url)
+    assert r.data["count"] == len(r.data["results"]) >= 1
+    assert r.data["took_ms"] >= 0 and r.data["fetched_at"]
+    assert all(x["url"].startswith("http") for x in r.data["results"])
+
+
+async def test_an_unreadable_results_page_does_not_invent_results(tool_ctx, site):
+    """A layout Claw cannot read falls back to the page's own links, not to guesses."""
+    from claw.browser import extract
+    from claw.tools.registry import build_registry
+
+    opener = build_registry().get("open_url")
+    await opener.handler(opener.parse_args({"url": site.base_url + "/articles/motion-templates"}), tool_ctx)
+    page = await tool_ctx.browser.page()
+    # Bing's selectors match nothing on this page; the fallback then keeps only links
+    # that leave the search host, so an article page yields nothing rather than its
+    # own navigation presented as search results.
+    results = await extract.search_results(page, "bing")
+    assert all(r["url"].startswith("http") for r in results)
+    assert not any(site.base_url in r["url"] for r in results)

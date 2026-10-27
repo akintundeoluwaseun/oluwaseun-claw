@@ -31,7 +31,7 @@ Tick every line before publishing an installer. ✅ = already done in the build 
 - [ ] `desktop/tests/packaged-smoke.mjs` checks repeated by hand: OCR works, engine on 127.0.0.1 only
 - [ ] Works with the network unplugged (except web tasks)
 - [ ] Upgrade over the previous version keeps settings, history and downloaded brains
-- [ ] Uninstall removes the app and keeps `%APPDATA%\OluwaseunClaw`
+- [ ] Uninstall removes the app and keeps `%APPDATA%\S-CLAW`
 - [ ] Windows Defender doesn't flag the installer or the app; SmartScreen behaviour noted
 
 ## E. Paperwork

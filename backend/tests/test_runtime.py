@@ -123,7 +123,10 @@ def test_recommendation_follows_hardware():
     assert catalog.recommended(hw(ram=8)).id == "qwen3-vl-4b"
     assert catalog.recommended(hw(ram=16)).id == "qwen3-vl-8b"
     assert catalog.recommended(hw(ram=8, vram=8)).id == "qwen3-vl-8b"
-    assert catalog.recommended(hw(ram=4)).id == "qwen3-vl-4b"  # nothing fits: smallest, with a warning in the UI
+    # A 4 GB laptop now has a brain of its own instead of being offered one that
+    # will not fit; below that nothing fits and the smallest is still the answer.
+    assert catalog.recommended(hw(ram=4)).id == "qwen3-vl-2b"
+    assert catalog.recommended(hw(ram=2)).id == "qwen3-vl-2b"
 
 
 # ---------- downloads (fake library) ----------

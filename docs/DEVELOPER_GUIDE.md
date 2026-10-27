@@ -1,4 +1,4 @@
-# Oluwaseun Claw — Developer guide
+# S-CLAW — Developer guide
 
 For setup, see `docs/INSTALL.md`. For design, see `ARCHITECTURE.md`. For security, see `docs/SECURITY.md`.
 
@@ -7,7 +7,8 @@ For setup, see `docs/INSTALL.md`. For design, see `ARCHITECTURE.md`. For securit
 backend/claw/
   api/app.py          FastAPI routes (token + Host guard)
   agent/              planner, executor (bounded loop, replans, taint), runner (background, approvals)
-  tools/              tool registry: browser, files, documents, desktop, pdf_tools (36 tools)
+  tools/              tool registry: browser, files, documents, desktop, calendar, mail,
+                      memory, text, system, human, pdf_tools (76 tools)
   documents/          readers (Word/Excel/text), ocr.py (Tesseract), pdf_pipeline.py, service.py
   runtime/            engine.py (llama-server), catalog.py, hub.py, store.py, brain.py
   models/             openai_compat.py (llama-server), ollama.py (optional), base.py

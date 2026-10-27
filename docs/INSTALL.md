@@ -1,7 +1,7 @@
 # Installation and development guide (Windows 10/11, 64-bit)
 
 ## For users
-Run `OluwaseunClaw-<version>-Standard-Setup.exe` (or the Pro one, keeping its `.bin` parts in the
+Run `S-CLAW-<version>-Standard-Setup.exe` (or the Pro one, keeping its `.bin` parts in the
 same folder). Everything Claw needs is inside: the app, its AI engine, OCR and the brain.
 No Python, Node.js, Ollama, account or key. *(Installer pipeline written; not yet built or run
 on Windows — see `PROJECT_STATUS.md`.)*
@@ -42,7 +42,7 @@ powershell -ExecutionPolicy Bypass -File scripts\check.ps1
 GitHub → the repository → **Actions** → **Build Windows installer** → **Run workflow** → choose Standard or Pro.
 GitHub's Windows machine sets everything up, runs the backend tests on real Windows, downloads the brain
 (licence- and checksum-checked), builds the installer, and publishes it under **Releases** as
-`OluwaseunClaw-<version>-<Edition>-Setup.exe` plus `.bin` parts (each under GitHub's 2 GB file limit).
+`S-CLAW-<version>-<Edition>-Setup.exe` plus `.bin` parts (each under GitHub's 2 GB file limit).
 Download all files of one edition into one folder and run the `.exe`. A Standard build takes roughly an hour.
 
 ### 5. Build the installers
@@ -59,7 +59,7 @@ whose licence is not Apache-2.0/MIT.
 
 ## Useful environment variables
 - `CLAW_DATA_DIR` — settings, history (`claw.db`), downloaded brains, OCR cache and logs.
-  Default `%APPDATA%\OluwaseunClaw`.
+  Default `%APPDATA%\S-CLAW`.
 - `CLAW_LLAMA_SERVER` — full path to a `llama-server.exe` to use.
 - `CLAW_TESSERACT` — full path to a `tesseract.exe` to use.
 - `CLAW_RESOURCES` — the installed app's resources folder (set by the app itself).

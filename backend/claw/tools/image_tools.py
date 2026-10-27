@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Literal
 
-from PIL import Image, ImageEnhance, ImageOps
+from claw.integrations.pillow import Image, ImageEnhance, ImageOps
 from pydantic import Field, field_validator
 
 from claw.agent.schemas import Capability

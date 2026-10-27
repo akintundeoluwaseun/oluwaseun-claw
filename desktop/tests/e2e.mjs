@@ -230,13 +230,15 @@ try {
   const engineText = await win.textContent('#engine-line');
   check(/^Engine: |engine is missing/.test(engineText), `engine status shown: "${engineText}"`);
   await win.screenshot({ path: path.join(shotDir, '4a-brain.png') });
+  await win.click('.set-tab[data-panel="set-messages"]');   // Settings is panelled now
   await win.click('#wa-check');
   await win.waitForFunction(() => document.querySelector('#wa-result').dataset.tone === 'bad', null, { timeout: 15000 });
   check(/Windows only/.test(await win.textContent('#wa-result')), `WhatsApp check is honest off Windows: "${await win.textContent('#wa-result')}"`);
   check((await win.textContent('#wa-when')) === 'No successful check yet.', 'a failed check is not shown as a successful one');
   check(await win.inputValue('#m-read') === 'ask' && await win.inputValue('#m-every') === '0', 'reading WhatsApp asks by default; background checks are off');
-  await win.locator('#messages-set').scrollIntoViewIfNeeded();
+  await win.locator('#set-messages').scrollIntoViewIfNeeded();
   await win.screenshot({ path: path.join(shotDir, '4b-messages.png') });
+  await win.click('.set-tab[data-panel="set-brain"]');
   await win.click('.dev > summary');
   await win.click('#s-test');
   await win.waitForFunction(() => document.querySelector('#s-test-result').dataset.tone === 'ok');

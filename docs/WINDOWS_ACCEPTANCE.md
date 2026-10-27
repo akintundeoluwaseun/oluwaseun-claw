@@ -1,94 +1,184 @@
-# Windows acceptance tests (run on a real Windows 10/11 PC)
+# Windows acceptance tests
 
-These tests can't run in the Linux build workspace, so they are marked **BLOCKED** in
-`TEST_RESULTS.md` until someone runs them here. Record each one with the template at the bottom.
+Everything in this file needs a real Windows 10/11 desktop with a logged-in,
+unlocked session. None of it can be run in the Linux build container, and none
+of it is claimed to pass. The automated desktop tests that *do* pass run against
+`tests/fake_desktop.py`, a labelled test double: they prove Claw's logic, not
+Windows' behaviour.
 
-**Before you start:** run `scripts\setup.ps1` and `scripts\start.ps1`, download the Standard brain
-(Settings → Claw's brain), and add `Documents` under Settings → Folders Claw may use. Leave
-"Saving or editing files" on **Ask me**, so you see each approval.
+## Before you start
 
-## Test A — Notepad
-1. Type: *Open Notepad, type 'Oluwaseun Claw desktop-control test', save it as claw-test.txt in
-   Documents, reopen it, and verify the exact contents.*
-2. Approve each step as it's asked.
-3. **Pass only if:**
-   - the last step is "Checked a file … contents match exactly";
-   - `Documents\claw-test.txt` exists;
-   - opening it in Notepad shows exactly that text.
-4. Also try saving into `C:\Windows\claw.txt`. Claw must report that an error-like dialog appeared
-   and must not count the step as done.
-
-## Test B — Chrome
-1. In Settings → Browser, choose **Google Chrome** and tick "Show the browser window".
-2. Type: *Open Chrome, search for 'free open-source video editing software', open a relevant
-   result, and save the title and URL.*
-3. **Pass only if:**
-   - the browser visibly opened a result page;
-   - the saved `.md` file in Documents has that page's real title and address.
-
-## Test C — WhatsApp (official app)
-**Preconditions:** WhatsApp Desktop from the Microsoft Store, linked to your phone, with a few unread chats.
-1. Settings → Messages: leave "Checking WhatsApp in tasks" on **Ask me**.
-2. Type: *Open WhatsApp and tell me which conversations have new messages.* Approve the "Private data" card.
-3. **Pass only if** the chats and counts Claw lists match what WhatsApp shows, and none are invented.
-4. Read one chat on your phone, have someone send you a message, then press **Settings → Check WhatsApp now**.
-   Only the new chat should be marked **New**, and a Windows notification should name it.
-5. Try these one at a time: WhatsApp closed (Claw should open it), the screen locked, and WhatsApp unlinked
-   from the phone. Each case must be explained, never reported as "no unread".
-6. **Sending:** *Send "Claw test" to <a test chat> on WhatsApp.* The approval card must show the exact chat and
-   text; deny it once (nothing is sent), then allow it (the message appears and Claw says it confirmed it).
-7. **If the counts are wrong or Claw says it "couldn't read the chat list"**, WhatsApp's accessible names differ
-   from Claw's guesses. Run `look_at_window` with the title "WhatsApp" (type: *Look at the WhatsApp window and list its
-   controls*) and send the output, so the patterns in `backend/claw/integrations/whatsapp.py` can be corrected.
-
-## Test F — TechDesk sale (test data only)
-**Never run this on your real shop records.** Use a separate Windows user account (or a spare PC) with a fresh
-TechDesk install, and add test products in TechDesk's Inventory, e.g. "Phone charger (Type-C)" ₦3,500 and
-"Phone charger (iPhone)" ₦4,500.
-1. Open TechDesk and sign in yourself if it asks for a PIN (Claw never types PINs).
-2. Type: *Open TechDesk and prepare a sale for two phone chargers.*
-   - Claw should **ask which charger** (both match), listing the real names and prices from the screen.
-3. Type: *Prepare a sale for two Type-C phone chargers, then cancel it.*
-   **Pass if** the form showed 2 × ₦3,500 = ₦7,000, Claw said the total matches, and after cancel no sale exists.
-4. Type: *Prepare a sale for two Type-C phone chargers and record it.* Deny the approval card once: nothing may be
-   recorded. Repeat and allow it. **Pass if** the sale appears in TechDesk's Sales list with ₦7,000, and any
-   invoice/receipt number Claw reports is exactly the one TechDesk shows.
-5. **If Claw says it couldn't find "the Sales page", "the New Sale button", "the product search box" or "its
-   quantity box"**, TechDesk's labels differ from Claw's guesses. Type *Look at the TechDesk window and list its
-   controls* on the New Sale screen and send the output, so the patterns in
-   `backend/claw/integrations/techdesk.py` can be matched to the real names.
-
-## Test D — Flyer (Photoshop, and without it)
-1. **With Photoshop installed:** put a product photo in Documents and type *Open Photoshop and create a promotional
-   flyer for my software TechDesk, using shop.jpg, with my WhatsApp number 0807 000 0000.*
-   **Pass if** the outcome says "Made the flyer with Photoshop", the file opens, and it shows the photo, the
-   headline and the number. Also try format PSD and open it in Photoshop: the text should be editable layers.
-2. **Without Photoshop** (or on another PC): the same request must say "Claw's built-in image editor (Photoshop was
-   not used)". Asking explicitly for Photoshop must be refused with an offer to use the built-in editor.
-3. Check the reported size (e.g. A5 = 1748×2480) in the file's Properties → Details.
-
-## Phase A extras
-- **Form:** *Open https://httpbin.org/forms/post and fill in the customer name "Test User" and
-  pizza size Medium, but don't submit.* Pass if the fields are filled and nothing was submitted.
-- **Download:** *Download the PDF linked on https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/
-  into Documents.* Pass if the file is there and opens. Asking for an `.exe` must be refused.
-- **Copy:** put two screenshots (Win+Shift+S → save) and one other picture in a folder, then:
-  *Find all screenshots in this folder and organise copies into a new folder called Screenshots
-  copies.* Pass if only the screenshots are copied and the originals are untouched.
-- **Scroll and menus:** in Notepad with a long text: *Scroll down in Notepad, then use File >
-  Save As.* Pass if the Save As dialog opens.
-- **Emergency stop:** while a task is typing, press **Ctrl+Alt+X**. Typing must stop within
-  about 1 second, and the task must show "Stopped by you".
-
-## Record template
+```powershell
+git clone <repo> ; cd s-claw
+powershell -ExecutionPolicy Bypass -File scripts\setup.ps1 -SkipOcr -Chromium
+cd backend
+.\.venv\Scripts\python.exe -m pytest -q          # the whole suite, on Windows
 ```
-Test ID:        A / B / …
-Date, PC:       Windows version, RAM, brain (Standard/Pro)
-Preconditions:
-Actions:        what you typed and approved
-Expected:
-Observed:
-Result:         PASS / FAIL / BLOCKED
-Evidence:       screenshot paths; %APPDATA%\OluwaseunClaw\logs\claw.log lines
-Limitations:
+
+Record the machine: Windows build, RAM, CPU, GPU, screen resolution and scaling.
+UI Automation behaves differently at 125% and 150% scaling, so the scaling
+matters.
+
+## A. Desktop control (Priority 2)
+
+Install Claw, open it, and give it one instruction at a time, approving each
+step. For every row, write down what happened, what Claw's own summary said, and
+whether it claimed `verified`.
+
+| # | Say to Claw | Passes when |
+|---|---|---|
+| A1 | `Open Notepad` | a Notepad window appears; summary names the window title |
+| A2 | `Open Calculator and work out 245 x 36` | Calculator shows **8820**; Claw reports 8820 and did not invent it |
+| A3 | `Open File Explorer at my Documents folder` | Explorer opens at Documents |
+| A4 | `Open <a picture>.jpg in the default image viewer` | the picture opens in whatever Windows uses |
+| A5 | `Switch to Notepad, then switch back` | focus moves both ways; Claw reports `verified` only when it really did |
+| A6 | `Open Windows Settings at the Bluetooth page` | Settings opens on Bluetooth |
+| A7 | `Create a file in Documents containing exactly "Hello from S-CLAW", then reopen it and tell me what it says` | the file exists with exactly that text, and Claw read it back |
+
+### The failure paths, which matter more than the happy ones
+
+| # | Do this | Passes when |
+|---|---|---|
+| A8 | Ask Claw to open an app that is not installed | it says no app matched, and does not pretend |
+| A9 | While Claw is launching an app, click another window to steal focus | `focus_window` reports it could not verify, rather than claiming success |
+| A10 | Ask Claw to press Ctrl+S in Notepad with an unsaved file | it reports the Save As dialog opened and stops for it |
+| A11 | Ask it to open `Command Prompt` | refused before anything launches ("system tools") |
+| A12 | Lock the screen, then ask for a desktop step | a clear "Windows is locked" message, not a crash |
+| A13 | Ask it to press a key combination like Alt+Tab | refused by validation |
+
+A1–A13 correspond to the logic covered by `tests/test_desktop.py` (26 tests,
+passing against the double). If a row here fails on real Windows while the
+matching test passes, the double is wrong and should be corrected.
+
+### An independent check (optional)
+
+`microsoft/WinAppDriver` (MIT) can drive Notepad and Calculator through a second
+implementation. Agreement between Claw and WinAppDriver is worth more than Claw
+agreeing with itself. Install it on the test machine only; it is never shipped.
+
+## B. Real local inference (Priority 1)
+
+```powershell
+# the engine tests that are skipped in the container become real here
+.\.venv\Scripts\python.exe -m pytest tests\test_runtime.py -q -rs
 ```
+
+Seven tests change from skipped to run once `llama-server.exe` exists. They use
+`tests/make_tiny_gguf.py` — **random weights**. They prove the engine starts,
+loads a model, honours its API key, restarts after a crash and refuses a model
+that will not fit. They prove nothing about answer quality.
+
+Then the real thing, in Claw:
+
+1. Settings → Claw's brain → download the recommended brain. Note the download
+   size, the time, and the memory it uses once loaded.
+2. **Judgment:** `Write a short professional email asking a supplier for a quote.`
+   Record the actual text it produced.
+3. **Tool use:** `How many words are in <file>.txt?` The model must request
+   `count_text`; Claw validates and runs it; the answer must match
+   `(Get-Content file.txt -Raw).Split().Count`.
+4. **Self-test:** Settings → Test the connection. It must quote the model's own
+   reply and a time. If it says "Ready" without quoting anything, that is a bug.
+5. **Recovery:** kill `llama-server.exe` in Task Manager mid-task. Claw should
+   report the engine died and restart it, not hang.
+6. **Offline:** turn off Wi-Fi and repeat 2 and 3. Claw Local must work
+   unchanged. If anything fails, it is not offline-capable.
+
+## C. Public web search (Priority 3)
+
+On a machine with ordinary internet:
+
+1. `Search the web for the official Python website and open the first result.`
+   The first result should be python.org. Record the provider, the result URL and
+   the time from `web_search`'s own evidence fields.
+2. Repeat with Settings → Search engine → Bing.
+3. If you run a SearXNG server, point Claw at it and repeat. This is the check
+   that the provider interface is real rather than theoretical.
+4. Turn off the network mid-search. The message must name the connection, not
+   print a `net::ERR_` code.
+
+## D. Voice (Priority 5)
+
+Needs a real microphone and real recordings. Nothing about Nigerian English can
+be claimed before this exists.
+
+1. Build a set of **at least 50 utterances** of things people actually say to
+   Claw ("open my documents folder", "summarise this PDF"), spoken by Nigerian
+   English speakers who have consented to the recording being used for testing.
+2. Write the exact intended text for each.
+3. Run them through Claw's transcription and compute word error rate. Record the
+   figure, the model used, and the hardware.
+4. Only then compare against `faster-whisper` or `whisper.cpp` on the same set.
+   Comparing them without the set would prove nothing.
+5. Check push-to-talk key hold and release, an unplugged microphone, silence,
+   background noise, and cancelling mid-sentence.
+
+## E. Packaging (two editions)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1 -Edition Local -Brain Standard -SliceMB 1900
+powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1 -Edition Online -ServiceUrl https://<your service>/v1
+```
+
+The script prints the measured size of each. Then, for each installed edition:
+
+- Claw Online must contain no `llama-server.exe` and no `.gguf`, and Settings
+  must not offer a brain download.
+- Claw Local must contain both, and must work with the network switched off.
+- Neither may contain a service token in any file a user can read.
+
+The GitHub workflow checks the first two automatically and fails the build if
+they are wrong.
+
+## Reporting
+
+For each row: PASS, FAIL, or BLOCKED, with what was observed. A row is not a PASS
+because the code looks right. Send the results back with the Windows build
+number and the hardware, and they go into a dated report beside
+`docs/TEST_RUN_2026-10-27.md`.
+
+## Calendar reminders (added 27 Oct)
+
+Logic is tested on both sides; **no notification has ever appeared on a screen**,
+because this container has no Windows desktop. To confirm it on a real machine:
+
+1. Open S-CLAW and ask it: `remind me about the site visit in 12 minutes`.
+   Expect the reply to say you will be reminded 10 minutes before.
+2. Open `%APPDATA%\S-CLAW\calendars\My calendar.ics` in Notepad. Expect a
+   `BEGIN:VALARM` block with `TRIGGER:-PT10M` inside the event.
+3. Import that same `.ics` into Outlook or Google Calendar. Expect the reminder
+   to come across with it — that is the point of writing a real VALARM.
+4. Wait. Within a minute of the two-minute mark, expect one Windows notification
+   titled `Site visit — in 2 minutes`. Click it: S-CLAW should come to the front.
+5. Wait another two minutes. Expect **no second notification** for the same event.
+6. Close S-CLAW, set the system clock forward a day, reopen it. Expect **no
+   notification at all** for that event — it is retired, not queued.
+7. Check `%APPDATA%\S-CLAW\calendars\reminders.json` holds the event's id.
+
+A failure at step 4 means the poll or the notification is broken; at step 5 the
+"shown once" record; at step 6 the grace window.
+
+## Scheduled jobs (added 27 Oct)
+
+The scheduling arithmetic and the permission restraint are tested; **no job has
+ever run unattended on a real machine**. On Windows:
+
+1. Settings → Automations → add a job: name `Site check`, task
+   `check whether example.com is up`, every 5 minutes. Expect it listed with
+   "every 5 minutes · next …".
+2. Leave S-CLAW open and do nothing for six minutes. Expect the job to run on
+   its own, and its line to read `Last: ran … ` with what it found.
+3. Add a second job whose task is something destructive — `delete the files in
+   my Downloads folder`. Expect it to stop on its own with
+   **"It needed your approval, and nobody was there to give it."** and for the
+   files to be untouched. This is the test that matters most.
+4. Start a long task of your own, and while it runs, wait for a job to come due.
+   Expect the job's line to read `Last: was skipped — S-CLAW was busy with
+   something else.`, and expect it to run shortly after your task finishes
+   (a skip must not consume its turn).
+5. Pause the job. Expect "Paused" and no next run. Resume it.
+6. Close S-CLAW for twenty minutes, then reopen it. Expect **one** run, not four.
+7. Remove the job. Expect it and its history to be gone.
+
+A failure at step 3 is a stop-ship: it means an unattended job can do something
+nobody approved.

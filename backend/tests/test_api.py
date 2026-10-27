@@ -200,3 +200,47 @@ def test_testing_a_connection_does_not_need_the_key_retyped(make_client, monkeyp
     r = c.post("/models/probe", json=body)
     assert r.status_code == 200
     assert seen["key"] == "sk-secret-value-123"  # resolved, not sent as the placeholder
+
+
+# ---------- diagnostics: does the model actually answer? ----------
+def test_selftest_generates_and_reports_the_reply(make_client, fake_server):
+    """/models/status only lists models. This one has to produce words."""
+    fake_server.replies.append("ready")
+    c = make_client(settings_for(fake_server))
+    body = c.post("/models/selftest").json()
+    assert body["ok"] is True and body["reason"] == "ok"
+    assert body["reply"] == "ready" and body["ms"] >= 0
+    # the prompt really went to the server, it was not answered locally
+    assert fake_server.requests, "no request reached the model server"
+
+
+def test_selftest_reports_an_unreachable_server(make_client):
+    c = make_client({"model": {"mode": "custom", "base_url": "http://127.0.0.1:9", "model": "x"}})
+    body = c.post("/models/selftest").json()
+    assert body["ok"] is False and body["reason"] == "unreachable"
+    assert "connect" in body["message"].lower()
+
+
+def test_selftest_reports_a_refused_key(make_client, fake_server):
+    fake_server.status_override = 401
+    c = make_client(settings_for(fake_server, model="qwen2.5:7b"))
+    body = c.post("/models/selftest").json()
+    assert body["ok"] is False and body["reason"] in ("auth_failed", "unreachable")
+
+
+def test_selftest_can_check_an_unsaved_configuration(make_client, fake_server):
+    fake_server.replies.append("ready")
+    c = make_client({"model": {"mode": "cloud", "base_url": "https://api.example.com/v1",
+                               "model": "hosted-model", "api_key": "sk-stored"}})
+    body = c.post("/models/selftest",
+                  json={"mode": "custom", "provider": "ollama",
+                        "base_url": fake_server.base_url, "model": "qwen2.5:7b"}).json()
+    assert body["ok"] is True and body["model"] == "qwen2.5:7b"
+
+
+def test_builtin_status_says_why_it_is_not_ready(make_client):
+    """Without a brain, 'reason' has to distinguish the cases the wording depends on."""
+    body = make_client({"model": {"mode": "builtin"}}).get("/models/status").json()
+    assert body["model_available"] is False
+    assert body["reason"] in ("model_missing", "unreachable")
+    assert body["message"]
