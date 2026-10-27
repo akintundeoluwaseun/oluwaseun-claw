@@ -21,6 +21,7 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -157,12 +158,88 @@ class RunOutcome:
         }
 
 
+#: In these, the keys are argument names rather than schema keywords, so nothing
+#: inside them may be dropped for being called "title".
+_NAME_MAPS = {"properties", "$defs", "definitions", "patternProperties"}
+
+
 def _strip_titles(schema: Any) -> Any:
+    """Drop JSON Schema's "title" annotations, which say nothing a model needs.
+
+    Carefully: ten tools have an *argument* called `title` — create_event,
+    focus_window, choose_menu, save_report and others — and the previous version
+    deleted those too, wherever the key appeared. The model was therefore never
+    shown a required argument of create_event, and could only get it right by
+    guessing the name.
+    """
     if isinstance(schema, dict):
-        return {k: _strip_titles(v) for k, v in schema.items() if k != "title"}
+        out: dict[str, Any] = {}
+        for key, value in schema.items():
+            if key == "title":
+                continue
+            if key in _NAME_MAPS and isinstance(value, dict):
+                out[key] = {name: _strip_titles(sub) for name, sub in value.items()}
+            else:
+                out[key] = _strip_titles(value)
+        return out
     if isinstance(schema, list):
         return [_strip_titles(v) for v in schema]
     return schema
+
+
+#: JSON Schema types, as the model needs to see them.
+_TYPE_WORDS = {"string": "str", "integer": "int", "number": "num", "boolean": "bool",
+               "array": "list", "object": "obj", "null": "null"}
+#: Enough of a field's description to pick the right tool, not enough to write an essay.
+ARG_DESCRIPTION_CHARS = 70
+
+
+def _type_word(schema: dict) -> tuple[str, bool]:
+    """A field's type as one word, and whether it may be left out."""
+    optional = "default" in schema
+    kinds = []
+    if "anyOf" in schema:
+        for option in schema["anyOf"]:
+            word = _TYPE_WORDS.get(option.get("type", ""), "")
+            if word == "null":
+                optional = True
+            elif word:
+                kinds.append(word)
+    elif "enum" in schema:
+        return "one of " + "|".join(str(v) for v in schema["enum"][:8]), optional
+    else:
+        word = _TYPE_WORDS.get(schema.get("type", ""), "")
+        if word:
+            kinds.append(word)
+    return ("|".join(dict.fromkeys(kinds)) or "any"), optional
+
+
+def compact_args(schema: dict) -> str:
+    """A tool's arguments as one readable line instead of JSON Schema.
+
+    Measured before writing this: across the 76 tools, descriptions were 5,421
+    characters and their argument schemas 27,046 — so five sixths of the tool
+    catalogue was `maxLength`, `minLength`, `additionalProperties` and
+    `anyOf [..., null]`, none of which helps a model choose a tool or fill it
+    in. The limits are still enforced, by the same Pydantic models as before,
+    and a model that breaks one gets the validation error back and can correct
+    it. This only changes what is *shown*.
+    """
+    props = schema.get("properties") or {}
+    if not props:
+        return "none"
+    required = set(schema.get("required") or [])
+    parts = []
+    for name, field in props.items():
+        kind, optional = _type_word(field)
+        mark = "" if name in required and not optional else "?"
+        note = (field.get("description") or "").strip()
+        if note:
+            note = note[:ARG_DESCRIPTION_CHARS].rstrip()
+            parts.append(f"{name}:{kind}{mark} ({note})")
+        else:
+            parts.append(f"{name}:{kind}{mark}")
+    return ", ".join(parts)
 
 
 def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None) -> str:
@@ -173,7 +250,7 @@ def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None)
             others.append(spec.name)
             continue
         d = spec.for_model()
-        lines.append(f"- {d['name']}: {d['description']} [risk: {d['risk']}] args={json.dumps(_strip_titles(d['args']))}")
+        lines.append(f"- {d['name']}({compact_args(_strip_titles(d['args']))}) [{d['risk']}]: {d['description']}")
     if others:
         lines.append("Also available (ask for details by using them): " + ", ".join(others))
     return "\n".join(lines)
@@ -279,16 +356,46 @@ def fit_context(messages: list[ChatMessage], window_tokens: int,
     return Fitted(kept, dropped, over, len(tail) + len(sticky))
 
 
-def remembered(ctx: ToolContext, budget_chars: int = MEMORY_CHARS) -> str:
+#: How much each kind is worth before relevance is considered. A preference
+#: changes how any task should be done; a contact usually matters only when the
+#: task is about that person.
+_KIND_WEIGHT = {"preference": 3.0, "fact": 2.0, "decision": 1.5, "project": 1.0, "contact": 1.0}
+_WORD = re.compile(r"[A-Za-z0-9']{3,}")
+_STOPWORDS = {"the", "and", "for", "with", "that", "this", "from", "into", "about", "please",
+              "open", "send", "make", "find", "what", "when", "where", "then", "them", "they"}
+
+
+def _relevance(task: str, row: dict) -> float:
+    """How much this memory has to do with the task in front of us.
+
+    The ranking shape — tier weight, keyword overlap, recency — is the one
+    described in agentmem's README (MIT, github.com/oxgeneral/agentmem). Its
+    implementation is not used: it reaches embeddings through chromadb and
+    sentence-transformers, which would put a PyTorch stack inside a Windows
+    installer to rank a few dozen short sentences. Words in common do the same
+    job here at no cost.
+    """
+    score = _KIND_WEIGHT.get(row.get("kind", ""), 0.5)
+    words = {w.lower() for w in _WORD.findall(task)} - _STOPWORDS
+    if words:
+        text = f"{row.get('subject', '')} {row.get('fact', '')}".lower()
+        hits = sum(1 for w in words if w in text)
+        score += min(hits, 4) * 1.5          # overlap outweighs tier when it is real
+    # Recency, gently: a memory updated today edges out one from last year.
+    stamp = str(row.get("updated_at") or "")
+    score += 0.3 if stamp[:7] >= (datetime.now(timezone.utc).strftime("%Y-%m")) else 0.0
+    return score
+
+
+def remembered(ctx: ToolContext, task: str = "", budget_chars: int = MEMORY_CHARS) -> str:
     """What this person has told Claw, ready to put in the system message.
 
     Storing a memory nobody reads is pointless, and that is what was happening:
     `recall` existed, but nothing offered what was remembered, so the model had
     to think of asking. A small model never does.
 
-    Preferences and facts come first because they change what a task should do
-    ("after 10am", "always the Lekki branch"); contacts and projects fill the
-    rest of the budget if there is room.
+    What goes in is ranked, not just the newest: a preference changes how any
+    task is done, and a contact matters when the task names them.
     """
     store = getattr(ctx, "memory_store", None)
     if store is None:
@@ -297,8 +404,7 @@ def remembered(ctx: ToolContext, budget_chars: int = MEMORY_CHARS) -> str:
         rows = store.memories(limit=60)
     except Exception:   # noqa: BLE001 - memory must never be what stops a task
         return ""
-    order = {"preference": 0, "fact": 1, "decision": 2, "project": 3, "contact": 4}
-    rows.sort(key=lambda r: (order.get(r.get("kind", ""), 9), r.get("updated_at", "")))
+    rows.sort(key=lambda r: (-_relevance(task, r), r.get("subject", "")))
     lines, used = [], 0
     for row in rows:
         line = f"- {row['kind']}, {row['subject']}: {row['fact']}"
@@ -362,7 +468,7 @@ async def run_agent(
     messages = [
         ChatMessage(role="system",
                     content=EXEC_PROMPT.format(tools=tool_catalogue(registry, capabilities))
-                    + remembered(ctx)),
+                    + remembered(ctx, task)),
         ChatMessage(role="user", content=f"Task:\n<<<\n{task}\n>>>\n\nSuggested plan (adjust if needed):\n{plan_text}"),
     ]
     steps: list[dict[str, Any]] = []

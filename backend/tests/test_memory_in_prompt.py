@@ -87,3 +87,30 @@ async def test_the_block_reaches_the_system_message_of_a_real_run(tool_ctx, fake
     await run(tool_ctx, fake_server, [act("list_tabs"), finish("Done.")])
     system = fake_server.requests[-1]["body"]["messages"][0]["content"]
     assert "prefers meetings after 10am" in system, "memory never reached the model"
+
+
+# ---------- ranking ----------
+def test_a_memory_about_the_person_in_the_task_is_offered_first(ctx_with):
+    """Borrowed shape: tier + keyword overlap + recency (agentmem's README),
+    without its embeddings stack."""
+    ctx = ctx_with([
+        ("contact", "Amaka", "accountant"),
+        ("contact", "Tunde", "site engineer on the Lekki project"),
+        ("preference", "me", "prefers meetings after 10am"),
+    ])
+    block = remembered(ctx, "message Tunde about the Lekki handover")
+    assert block.index("Tunde") < block.index("Amaka"), "the named contact should come first"
+
+
+def test_with_no_task_text_preferences_still_lead(ctx_with):
+    ctx = ctx_with([("contact", "Amaka", "accountant"),
+                    ("preference", "me", "prefers meetings after 10am")])
+    block = remembered(ctx, "")
+    assert block.index("prefers meetings") < block.index("Amaka")
+
+
+def test_ranking_does_not_let_an_irrelevant_crowd_push_out_a_preference(ctx_with):
+    ctx = ctx_with([("contact", f"Person {i}", "x" * 60) for i in range(30)]
+                   + [("preference", "me", "prefers meetings after 10am")])
+    block = remembered(ctx, "book something")
+    assert "prefers meetings after 10am" in block, "a preference was crowded out by contacts"

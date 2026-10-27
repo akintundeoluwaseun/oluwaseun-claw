@@ -43,6 +43,7 @@ via `importlib.metadata`; npm: `package.json`) on 2026-10-26, plus the model car
 | pypdfium2 (with PDFium binary) | 5.14.0 | BSD-3-Clause, Apache-2.0; PDFium BSD-3-Clause and its dependencies' licences (shipped in the wheel's `LICENSES` folder) |
 | pillow | 13.0.0 | MIT-CMU |
 | pywinauto (Windows) | 0.6.9 | BSD-3-Clause |
+| pywinauto — *approach only*, see below | 0.6.9 | BSD-3-Clause |
 | comtypes (Windows) | 1.4.17 | MIT |
 | pywin32 (Windows) | 312 | PSF-2.0 |
 | six (Windows) | 1.17.0 | MIT |
@@ -123,3 +124,20 @@ Evaluated and **not** used:
   Audio API, so it has nothing to add.
 - **WhisperX, pyannote** — speaker diarisation and alignment are not needed for single-speaker
   commands, and pyannote's models carry gated licences.
+
+## Code adapted rather than imported
+
+**pywinauto** — BSD-3-Clause, Copyright (c) 2017, Mark Mc Mahon and
+Contributors. `claw/tools/desktop_tools.py:match_control` finds a control by
+name using the approach in upstream's `pywinauto/findbestmatch.py`: score every
+candidate label with `difflib.SequenceMatcher.ratio()` after cutting it at the
+first tab or newline, and refuse rather than return a poor match. No upstream
+source was copied; the algorithm is re-expressed over S-CLAW's own
+`ControlInfo` records, because `pywinauto` installs on Windows only and this
+logic must behave identically on the Linux test desktop.
+
+**agentmem** — MIT, Copyright (c) 2025 agentmem contributors.
+`claw/agent/executor.py:_relevance` ranks remembered facts using the shape
+described in that project's README — tier weight, keyword overlap, recency
+boost. None of its code is used: its retrieval path requires `chromadb` and
+`sentence-transformers`, which S-CLAW does not ship.
