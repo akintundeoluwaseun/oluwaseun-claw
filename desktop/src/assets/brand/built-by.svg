@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 302 72" width="302" height="72" role="img"
+     aria-label="Built by Oluwaseun">
+  <!-- The credit badge. Drawn rather than shipped as a photograph, so it stays
+       sharp on a 4K laptop and can sit on either theme without a white box. -->
+  <defs>
+    <linearGradient id="bb-pill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e2740"/>
+      <stop offset="1" stop-color="#121829"/>
+    </linearGradient>
+    <linearGradient id="bb-dot" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#ffb04a"/>
+      <stop offset="1" stop-color="#f08d14"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="300" height="70" rx="35" fill="url(#bb-pill)"
+        stroke="#ffffff" stroke-opacity="0.08"/>
+  <circle cx="40" cy="36" r="25" fill="url(#bb-dot)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M33.5 29 26.5 36l7 7"/>
+    <path d="M46.5 29 53.5 36l-7 7"/>
+    <path d="M42.6 27.5 37.4 44.5" stroke-width="3"/>
+  </g>
+  <!-- textLength pins each run to a fixed width. Without it the badge is only the
+       right shape on a machine that has Segoe UI, and the name runs off the pill
+       everywhere else. -->
+  <text x="79" y="45" textLength="76" lengthAdjust="spacingAndGlyphs"
+        font-family="Segoe UI, system-ui, -apple-system, sans-serif"
+        font-size="23" fill="#c3cad8">Built by</text>
+  <text x="163" y="45" textLength="112" lengthAdjust="spacingAndGlyphs"
+        font-family="Segoe UI, system-ui, -apple-system, sans-serif"
+        font-size="23" font-weight="700" fill="#ffffff">Oluwaseun</text>
+</svg>

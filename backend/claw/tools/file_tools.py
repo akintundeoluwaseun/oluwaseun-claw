@@ -76,7 +76,7 @@ async def save_links(args: SaveLinksArgs, ctx: ToolContext) -> ToolResult:
     path = unique_path(folder / safe_file_name(args.file_name, ".md"))
     ctx.policy.check_path(path, write=True)  # re-check the final path
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-    lines = [f"# {args.heading}", "", f"_Saved by Oluwaseun Claw on {stamp}_", ""]
+    lines = [f"# {args.heading}", "", f"_Saved by S-CLAW on {stamp}_", ""]
     for l in args.links:
         title = l.title.replace("[", "(").replace("]", ")")
         lines.append(f"- [{title}]({l.url})" + (f" — {l.note}" if l.note else ""))

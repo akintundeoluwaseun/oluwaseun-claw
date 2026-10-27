@@ -6,10 +6,23 @@ on:
   workflow_dispatch:
     inputs:
       edition:
-        description: "Edition (Standard = 4B brain, ~3.6 GB; Pro = 8B brain, ~6.5 GB)"
+        description: "Online = small, thinks on the Claw service; Local = carries llama.cpp and a brain, works offline"
         type: choice
-        options: [Standard, Pro]
+        options: [Online, Local]
+        default: Local
+      brain:
+        description: "Local only: Light = 2B (~1.8 GB), Standard = 4B (~3.4 GB), Pro = 8B (~6 GB)"
+        type: choice
+        options: [Light, Standard, Pro]
         default: Standard
+      service_url:
+        description: "Online only: the https address of the Claw service this build thinks with. No default; the build fails without it."
+        type: string
+        default: ""
+      publish:
+        description: "Publish the installer as a GitHub release. Off by default: a build is not a release."
+        type: boolean
+        default: false
   push:
     tags: ["v*"]
 
@@ -21,7 +34,11 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 240
     env:
-      EDITION: ${{ inputs.edition || 'Standard' }}
+      EDITION: ${{ inputs.edition || 'Local' }}
+      BRAIN: ${{ inputs.brain || 'Standard' }}
+      SERVICE_URL: ${{ inputs.service_url }}
+      # A tag push publishes; a manual run only publishes when asked.
+      PUBLISH: ${{ github.ref_type == 'tag' || inputs.publish == true }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PYTHONUTF8: "1"
@@ -43,7 +60,7 @@ jobs:
         run: |
           $log = "$env:RUNNER_TEMP\setup.log"
           try {
-            ./scripts/setup.ps1 -SkipOcr *>&1 | Tee-Object -FilePath $log
+            ./scripts/setup.ps1 -SkipOcr -Chromium *>&1 | Tee-Object -FilePath $log
             if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
           } catch {
             $tail = (Get-Content $log -Tail 30 -ErrorAction SilentlyContinue) -join ' | '
@@ -57,39 +74,65 @@ jobs:
           & "C:\Program Files\Tesseract-OCR\tesseract.exe" --version
           Get-ChildItem "C:\Program Files\Tesseract-OCR\tessdata" | Select-Object -First 20 Name
 
-      - name: Backend tests on real Windows (results kept, build continues)
-        continue-on-error: true
+      - name: Backend tests on real Windows
         run: |
           cd backend
           $env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
           .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider -rfE --junitxml=..\build-test-results.xml 2>&1 | Tee-Object ..\build-test-output.txt
-          # Make the summary readable through the API (annotations): result line + failing tests.
-          $sum = (Get-Content ..\build-test-output.txt | Select-String -Pattern '^(FAILED|ERROR) |passed|failed' | Select-Object -Last 40 | ForEach-Object { $_.Line }) -join ' | '
-          Write-Output "::notice title=Windows test results::$sum"
+          $code = $LASTEXITCODE
+          # Readable through the API: the count first (annotations cap at ~4 KB and the
+          # count is what gets cut off when a long list of failures comes first), then
+          # the failing test names.
+          $count = (Get-Content ..\build-test-output.txt | Select-String -Pattern '\d+ (passed|failed)' | Select-Object -Last 1).Line
+          $fails = (Get-Content ..\build-test-output.txt | Select-String -Pattern '^(FAILED|ERROR) ' | ForEach-Object { ($_.Line -split ' - ')[0] } | Select-Object -First 25) -join ' | '
+          Write-Output "::notice title=Windows test results::$count || $fails"
+          # A failing suite must not produce an installer. This step used to carry
+          # continue-on-error, which let a build publish a release while 17 tests were
+          # red and nobody looking at the green tick would have known.
+          if ($code -ne 0) {
+            Write-Output "::error title=Windows tests failed::$count || $fails"
+            exit $code
+          }
 
       - name: Download the brain (licence + checksum verified)
+        if: env.EDITION == 'Local'
         run: |
-          $id = if ($env:EDITION -eq 'Pro') { 'qwen3-vl-8b' } else { 'qwen3-vl-4b' }
+          $id = @{ Light = 'qwen3-vl-2b'; Standard = 'qwen3-vl-4b'; Pro = 'qwen3-vl-8b' }[$env:BRAIN]
           $log = "$env:RUNNER_TEMP\brain.log"
           try {
-            backend\.venv\Scripts\python.exe backend\packaging\fetch_brain.py $id --data-dir "$env:RUNNER_TEMP\brain" *>&1 | Tee-Object -FilePath $log
+            # C: on purpose. The workspace, the staging copy, the unpacked app and the
+            # installer all live on D:, and the Pro brain is ~6.5 GB; keeping the download
+            # off that drive is the difference between fitting and running out.
+            backend\.venv\Scripts\python.exe backend\packaging\fetch_brain.py $id --data-dir "$env:USERPROFILE\claw-brain" *>&1 | Tee-Object -FilePath $log
             if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
           } catch {
             $tail = (Get-Content $log -Tail 30 -ErrorAction SilentlyContinue) -join ' | '
             Write-Output "::error title=brain failed::$($_.Exception.Message) || $tail"
             exit 1
           }
-          "MODEL_DIR=$env:RUNNER_TEMP\brain\models\$id" | Out-File -Append $env:GITHUB_ENV
+          "MODEL_DIR=$env:USERPROFILE\claw-brain\models\$id" | Out-File -Append $env:GITHUB_ENV
 
       - name: Build the installer
         run: |
-          Get-PSDrive C, D -ErrorAction SilentlyContinue | Format-Table Name, Used, Free
+          $free = (Get-PSDrive C, D -ErrorAction SilentlyContinue | ForEach-Object { "$($_.Name): $([math]::Round($_.Free/1GB,1)) GB free" }) -join ' | '
+          Write-Output "::notice title=Disk before build::$free"
           $log = "$env:RUNNER_TEMP\build.log"
           try {
-            ./scripts/build-release.ps1 -Edition $env:EDITION -ModelDir $env:MODEL_DIR -SliceMB 1900 *>&1 | Tee-Object -FilePath $log
+            if ($env:EDITION -eq 'Online') {
+              # No engine and no weights: one small file, and nothing to split.
+              ./scripts/build-release.ps1 -Edition Online -ServiceUrl $env:SERVICE_URL *>&1 | Tee-Object -FilePath $log
+            } else {
+              ./scripts/build-release.ps1 -Edition Local -Brain $env:BRAIN -ModelDir $env:MODEL_DIR -SliceMB 1900 *>&1 | Tee-Object -FilePath $log
+            }
             if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { throw "exit code $LASTEXITCODE" }
           } catch {
-            $tail = (Get-Content $log -Tail 30 -ErrorAction SilentlyContinue) -join ' | '
+            # Prefer the lines that say what went wrong: electron-builder prints dozens of
+            # harmless "signing is skipped" notes, which otherwise fill the whole annotation.
+            $all = Get-Content $log -ErrorAction SilentlyContinue
+            $errs = $all | Select-String -Pattern 'error|failed|cannot|missing' -CaseSensitive:$false |
+                    Where-Object { $_.Line -notmatch 'signing is skipped' } |
+                    Select-Object -Last 12 | ForEach-Object { $_.Line.Trim() }
+            $tail = (($errs + ($all | Select-Object -Last 5)) | Select-Object -Unique) -join ' | '
             Write-Output "::error title=build failed::$($_.Exception.Message) || $tail"
             exit 1
           }
@@ -97,17 +140,46 @@ jobs:
           Write-Output "::notice title=Installer files::$sizes"
 
       - name: Smoke-test the built app (starts, frozen backend answers)
-        continue-on-error: true
         run: |
-          $exe = Get-ChildItem "build\app-$($env:EDITION.ToLower())\win-unpacked\resources\backend\claw-backend.exe"
+          $appEdition = $env:EDITION.ToLower()
+          $exe = Get-ChildItem "build\app-$appEdition\win-unpacked\resources\backend\claw-backend.exe"
           $env:CLAW_SESSION_TOKEN = "smoke-test-token-0123456789abcdef"
-          $env:CLAW_RESOURCES = (Resolve-Path "build\app-$($env:EDITION.ToLower())\win-unpacked\resources").Path
+          $env:CLAW_RESOURCES = (Resolve-Path "build\app-$appEdition\win-unpacked\resources").Path
           $env:CLAW_DATA_DIR = "$env:RUNNER_TEMP\smoke"
           $p = Start-Process $exe.FullName -ArgumentList "--port", "18765" -PassThru
           Start-Sleep 15
           $h = @{ "X-Claw-Token" = $env:CLAW_SESSION_TOKEN }
           Invoke-RestMethod http://127.0.0.1:18765/health | ConvertTo-Json | Tee-Object build\smoke.txt
           Invoke-RestMethod http://127.0.0.1:18765/brain -Headers $h | ConvertTo-Json -Depth 4 | Tee-Object -Append build\smoke.txt
+          # Voice: does the FROZEN backend load sherpa-onnx and its bundled onnxruntime?
+          # This is the one thing about packaging voice that cannot be checked off Windows.
+          # The two editions are one application; this is the check that they were built
+          # as the right one. Getting this wrong is the failure the brief warns about:
+          # an "offline" install that talks to a server, or an online one carrying 6 GB.
+          $ed = Invoke-RestMethod http://127.0.0.1:18765/edition -Headers $h
+          $ed | ConvertTo-Json -Depth 3 | Tee-Object -Append build\smoke.txt
+          $engine = "build\app-$appEdition\win-unpacked\resources\engine\llama-server.exe"
+          $weights = @(Get-ChildItem "build\app-$appEdition\win-unpacked\resources\models" -Recurse -Filter *.gguf -ErrorAction SilentlyContinue)
+          $weightMB = [math]::Round((($weights | Measure-Object Length -Sum).Sum) / 1MB, 1)
+          Write-Output "::notice title=Edition::id=$($ed.id) local_inference=$($ed.local_inference) service_configured=$($ed.service_configured) engine=$(Test-Path $engine) weights=$($weights.Count) files $weightMB MB"
+          if ($env:EDITION -eq 'Online') {
+            if ($ed.id -ne 'online' -or $ed.local_inference) { Write-Output "::error title=Wrong edition::Claw Online was built but it reports $($ed.id)/local_inference=$($ed.local_inference)"; exit 1 }
+            if (Test-Path $engine) { Write-Output '::error title=Online carries the engine::llama-server.exe must not be in Claw Online'; exit 1 }
+            if ($weights.Count -gt 0) { Write-Output "::error title=Online carries weights::$($weights.Count) .gguf file(s), $weightMB MB"; exit 1 }
+            if (-not $ed.service_configured) { Write-Output '::error title=No service::Claw Online was built without a service address'; exit 1 }
+          } else {
+            if ($ed.id -ne 'local' -or -not $ed.local_inference) { Write-Output "::error title=Wrong edition::Claw Local reports $($ed.id)/local_inference=$($ed.local_inference)"; exit 1 }
+            if (-not (Test-Path $engine)) { Write-Output '::error title=Local has no engine::llama-server.exe is missing, so it cannot think offline'; exit 1 }
+            if ($weights.Count -eq 0) { Write-Output '::error title=Local has no brain::no .gguf weights were packaged'; exit 1 }
+          }
+          $voice = Invoke-RestMethod http://127.0.0.1:18765/speech -Headers $h
+          $live = ($voice.catalog | Where-Object { $_.kind -eq 'streaming' }).id -join ','
+          $line = "engine=$($voice.engine) runtime_ready=$($voice.runtime_ready) reason='$($voice.reason)' models=$($voice.catalog.Count) live=$live"
+          $line | Tee-Object -Append build\smoke.txt
+          Write-Output "::notice title=Voice in the frozen app::$line"
+          if (-not $voice.runtime_ready) {
+            Write-Output "::error title=Voice runtime missing::The packaged backend could not load sherpa-onnx: $($voice.reason)"
+          }
           Stop-Process $p -Force
           Write-Output "::notice title=Smoke test::$((Get-Content build\smoke.txt -Raw) -replace '\s+', ' ')"
 
@@ -123,16 +195,33 @@ jobs:
             build/installers/SHA256SUMS.txt
           if-no-files-found: ignore
 
+      - name: Upload the installer as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claw-${{ env.EDITION }}-installer
+          path: build/installers/*
+          if-no-files-found: error
+          retention-days: 14
+
+      # A build is not a release. This only runs for a tag push, or when the person
+      # starting the run ticked "publish".
       - name: Publish as a GitHub Release
+        if: env.PUBLISH == 'true'
         run: |
           $version = (Get-Content desktop\package.json | ConvertFrom-Json).version
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "v$version-build.$env:GITHUB_RUN_NUMBER" }
-          $files = Get-ChildItem build\installers | Where-Object { $_.Name -like "*$env:EDITION*" -or $_.Name -eq 'SHA256SUMS.txt' } | ForEach-Object FullName
+          $match = if ($env:EDITION -eq 'Online') { '*Online*' } else { '*Local*' }
+          $files = Get-ChildItem build\installers | Where-Object { $_.Name -like $match -or $_.Name -eq 'SHA256SUMS.txt' } | ForEach-Object FullName
+          $howto = if ($env:EDITION -eq 'Online') {
+            "One file. Run the Setup .exe. No brain is downloaded and no key is needed: Claw thinks on the Claw service, so this computer needs the internet."
+          } else {
+            "Download **all** files of this release into one folder, then run the Setup .exe. The .bin files are parts of the same installer, and Setup refuses to start if one is missing instead of asking for a disk halfway through. Claw Local thinks on your computer and keeps working with the network switched off."
+          }
           $notes = @"
-          Oluwaseun Claw $version ($env:EDITION edition), built on GitHub's Windows machines from commit $env:GITHUB_SHA.
+          S-CLAW $version ($env:EDITION edition), built on GitHub's Windows machines from commit $env:GITHUB_SHA.
 
-          Download **all** files of this edition into one folder and run the Setup .exe (the .bin files are parts of the same installer).
+          $howto
           Not code-signed yet: Windows SmartScreen may warn (More info -> Run anyway).
           Test status: see TEST_RESULTS.md and the windows-build-reports artifact of this run.
           "@
-          gh release create $tag $files --prerelease --title "Oluwaseun Claw $version $env:EDITION (build $env:GITHUB_RUN_NUMBER)" --notes $notes
+          gh release create $tag $files --prerelease --title "S-CLAW $version $env:EDITION (build $env:GITHUB_RUN_NUMBER)" --notes $notes

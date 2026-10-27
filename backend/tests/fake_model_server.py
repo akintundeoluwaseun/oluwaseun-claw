@@ -41,6 +41,8 @@ class FakeModelServer:
                 self.wfile.write(body)
 
             def do_GET(self):
+                if server.status_override:  # tests that need a 401/429 from the listing
+                    return self._send(server.status_override, {"error": {"message": "refused"}})
                 if self.path == "/api/tags":
                     self._send(200, {"models": [{"name": m, "size": 123, "details": {}} for m in server.models]})
                 elif self.path == "/v1/models":

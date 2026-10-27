@@ -1,10 +1,26 @@
 # Known issues and limits (v0.5.0)
 
+> Verdicts for every capability are in `docs/CAPABILITY_MATRIX.md`; the tests
+> that need another machine are in `docs/WINDOWS_ACCEPTANCE.md`.
+
+## The four things that block most of what is untested
+1. **No Windows desktop** in the build container, so all desktop automation is
+   tested against a labelled double.
+2. **No reachable model weights** — huggingface.co and GitHub release assets are
+   both refused by the egress policy — so no real model has ever answered.
+3. **No Claw service and no provider credentials**, so hosted inference is
+   unproven. Claw Online's client is written; the server does not exist.
+4. **No public internet**, so web search is tested against a local site only.
+
 ## Not yet tested
 | Area | Status |
 |---|---|
 | Running on Windows 10/11 | Never run. Everything was tested on Linux. |
 | Real Qwen3-VL brains | Never loaded. Tests used a tiny random stand-in model. Planning quality, speed and memory on 8 GB and 16 GB laptops are unknown. |
+| The Light brain (`qwen3-vl-2b`) | Its Hugging Face repository and file patterns were written by analogy with the 4B and 8B entries and have never been resolved against the API. If they are wrong the download fails with "no file matched"; it cannot fetch the wrong file, because names, sizes and checksums all come from the API. |
+| Claw Online end to end | The client refuses a plain-http service, carries a built-in token and reports connection loss honestly — all tested. No request has ever reached a real service, because there isn't one. |
+| SearXNG as a search backend | The provider interface, URL building and validation are tested. No SearXNG server has been contacted. |
+| PowerShell build scripts | Cannot be run **or parsed** on Linux. A parse check now runs in the Windows test workflow. |
 | Windows UI Automation (desktop apps) | Logic tested on a stand-in desktop only. Checklist in `docs/DESKTOP.md`. |
 | Installers (`build-release.ps1`, Inno Setup) | Written, not built or installed. |
 | `setup.ps1` downloads (llama.cpp via GitHub, Tesseract via winget) | Not run. |
@@ -28,3 +44,17 @@
 
 ## Fixed in this version (for reference)
 See `TEST_RESULTS.md` → "Bugs found and fixed in this cycle".
+
+## Claw's own browsing history is not kept in headless mode on Windows
+
+Chromium writes no History database at all when it runs hidden on Windows.
+Measured on a Windows runner with one persistent profile: headless produced 50
+profile files and no `Default\History`; the same run with a visible browser
+produced 156 files including it. Headless on Linux does write it, which is why
+this only ever showed up on Windows.
+
+Effect: with **Settings → Browser → run hidden** turned on, on Windows,
+`search_browser_history(source="claw")` finds nothing. Claw now says exactly
+that instead of "no browsing history was found". Reading Chrome's or Edge's own
+history is unaffected, and so is the default configuration, because Claw runs
+the browser visibly unless you change it.

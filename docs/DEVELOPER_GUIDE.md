@@ -1,4 +1,4 @@
-# Oluwaseun Claw — Developer guide
+# S-CLAW — Developer guide
 
 For setup, see `docs/INSTALL.md`. For design, see `ARCHITECTURE.md`. For security, see `docs/SECURITY.md`.
 
@@ -7,7 +7,8 @@ For setup, see `docs/INSTALL.md`. For design, see `ARCHITECTURE.md`. For securit
 backend/claw/
   api/app.py          FastAPI routes (token + Host guard)
   agent/              planner, executor (bounded loop, replans, taint), runner (background, approvals)
-  tools/              tool registry: browser, files, documents, desktop, pdf_tools (36 tools)
+  tools/              tool registry: browser, files, documents, desktop, calendar, mail,
+                      memory, text, system, human, pdf_tools (76 tools)
   documents/          readers (Word/Excel/text), ocr.py (Tesseract), pdf_pipeline.py, service.py
   runtime/            engine.py (llama-server), catalog.py, hub.py, store.py, brain.py
   models/             openai_compat.py (llama-server), ollama.py (optional), base.py
@@ -81,3 +82,14 @@ once. Steps and limits are in `docs/INSTALL.md` §5 and `docs/RELEASE_CHECKLIST.
 - New dependencies: record the version and licence in `THIRD_PARTY_NOTICES.md`.
 - Update the six records (`PROJECT_STATUS`, `ARCHITECTURE`, `IMPLEMENTATION_PLAN`,
   `TEST_RESULTS`, `THIRD_PARTY_NOTICES`, `CHANGELOG`) with every change.
+
+## Where S-CLAW sits next to OpenClaw
+
+`docs/OPENCLAW_COMPARISON.md` compares this codebase with OpenClaw 2026.10.7,
+capability by capability, with a source for every claim on both sides. Read it
+before adding a capability "because OpenClaw has it": several rows are places
+where the two products deliberately disagree, and three are gaps worth closing.
+
+It also carries the measured cost of the tool catalogue (35,689 chars
+unfiltered, 5.8k tokens for `files` alone), which is the number to beat if you
+touch `tool_catalogue` in `claw/agent/executor.py`.

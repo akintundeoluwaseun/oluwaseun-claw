@@ -5,7 +5,7 @@ file names, sizes, SHA-256 checksums and licence are read from Hugging Face's
 API at download time, so nothing here is guessed. A model is only offered if
 the repository's own licence tag is in ALLOWED_LICENSES.
 
-Both entries are Qwen3-VL "Instruct" models (text + screenshots in one model),
+All entries are Qwen3-VL "Instruct" models (text + screenshots in one model),
 which llama.cpp supports (PROJECTOR_TYPE_QWEN3VL). Sizes and memory needs are
 estimates for Q4_K_M weights plus the F16 vision projector.
 """
@@ -37,6 +37,18 @@ class CatalogEntry:
 
 
 CATALOG = [
+    CatalogEntry(
+        id="qwen3-vl-2b",
+        name="Light brain",
+        edition="Light",
+        repo="Qwen/Qwen3-VL-2B-Instruct-GGUF",
+        model_pattern=r"q4_k_m\.gguf$",
+        mmproj_pattern=r"mmproj[^/]*f16\.gguf$",
+        approx_download_gb=1.8,
+        min_ram_gb=4,
+        min_vram_gb=2,
+        description="For computers with 4 GB of memory. The fastest and the least capable.",
+    ),
     CatalogEntry(
         id="qwen3-vl-4b",
         name="Standard brain",
@@ -76,6 +88,8 @@ def fits(entry: CatalogEntry, hw: Hardware) -> bool:
 
 
 def recommended(hw: Hardware) -> CatalogEntry:
-    """The largest brain that fits; the Standard brain if nothing clearly fits."""
+    """The largest brain that fits; the smallest one if nothing clearly fits."""
     fitting = [e for e in CATALOG if fits(e, hw)]
-    return max(fitting, key=lambda e: e.min_ram_gb) if fitting else CATALOG[0]
+    if fitting:
+        return max(fitting, key=lambda e: e.min_ram_gb)
+    return min(CATALOG, key=lambda e: e.min_ram_gb)

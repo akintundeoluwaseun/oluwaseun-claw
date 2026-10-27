@@ -6,18 +6,14 @@ to the model only as quoted data.
 
 from __future__ import annotations
 
-from urllib.parse import parse_qs, quote_plus, unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
+from claw.browser import search
 from claw.config import BrowserSettings
 from claw.tools.base import ToolError
 
 MAX_PAGE_CHARS = 12000
 MAX_LINKS = 80
-
-SEARCH_URLS = {
-    "duckduckgo": "https://html.duckduckgo.com/html/?q={query}",
-    "bing": "https://www.bing.com/search?q={query}",
-}
 
 # Runs inside the page. Prefers <main>/<article>, drops scripts, nav and hidden parts.
 _READ_JS = """
@@ -47,27 +43,9 @@ _LINKS_JS = """
 }
 """
 
-_RESULTS_JS = {
-    "duckduckgo": """
-() => Array.from(document.querySelectorAll('.result')).map(r => {
-  const a = r.querySelector('a.result__a');
-  const s = r.querySelector('.result__snippet');
-  return a ? { title: a.innerText.trim(), url: a.href, snippet: s ? s.innerText.trim() : '' } : null;
-}).filter(Boolean)
-""",
-    "bing": """
-() => Array.from(document.querySelectorAll('#b_results > li.b_algo')).map(r => {
-  const a = r.querySelector('h2 a');
-  const s = r.querySelector('.b_caption p, p');
-  return a ? { title: a.innerText.trim(), url: a.href, snippet: s ? s.innerText.trim() : '' } : null;
-}).filter(Boolean)
-""",
-}
-
-
 def search_url(settings: BrowserSettings, query: str) -> str:
-    template = settings.custom_search_url if settings.search_engine == "custom" else SEARCH_URLS[settings.search_engine]
-    return template.replace("{query}", quote_plus(query))
+    return search.build_url(settings.search_engine, query,
+                            settings.custom_search_url, settings.searxng_url)
 
 
 def clean_text(text: str, limit: int = MAX_PAGE_CHARS) -> tuple[str, bool]:
@@ -87,15 +65,34 @@ def unwrap_redirect(url: str) -> str:
     return url
 
 
+async def evaluate(page, script, arg=None):
+    """Run a script in the page and turn Playwright's failures into plain words.
+
+    A navigation that failed part-way leaves the page without an execution context,
+    and the next read used to surface Playwright's own wording ("Execution context
+    was destroyed") as an unhandled error rather than something the user can act on.
+    """
+    from playwright.async_api import Error as PWError
+
+    try:
+        return await (page.evaluate(script, arg) if arg is not None else page.evaluate(script))
+    except PWError as exc:
+        detail = str(exc).splitlines()[0]
+        if "Execution context was destroyed" in detail or "navigating" in detail.lower():
+            raise ToolError("The page changed while it was being read. Open it again and retry.",
+                            transient=True) from exc
+        raise ToolError(f"The page could not be read: {detail[:160]}", transient=True) from exc
+
+
 async def read_page(page) -> dict:
-    text, truncated = clean_text(await page.evaluate(_READ_JS))
+    text, truncated = clean_text(await evaluate(page, _READ_JS))
     return {"url": page.url, "title": await page.title(), "text": text, "truncated": truncated}
 
 
 async def page_links(page, scope: str | None = None, contains: str | None = None) -> list[dict]:
     if scope is not None and (len(scope) > 100 or any(c in scope for c in "{};")):
         raise ToolError("That page section selector is not allowed.")
-    links = await page.evaluate(_LINKS_JS, scope)
+    links = await evaluate(page, _LINKS_JS, scope)
     if contains:
         needle = contains.lower()
         links = [l for l in links if needle in l["text"].lower() or needle in l["url"].lower()]
@@ -104,9 +101,9 @@ async def page_links(page, scope: str | None = None, contains: str | None = None
 
 async def search_results(page, engine: str) -> list[dict]:
     results: list[dict] = []
-    js = _RESULTS_JS.get(engine)
+    js = search.get(engine).results_js if engine in search.PROVIDERS else ""
     if js:
-        results = await page.evaluate(js)
+        results = await evaluate(page, js)
     if not results:
         # Custom engines, or a changed results layout: fall back to the main content's links.
         host = urlparse(page.url).netloc

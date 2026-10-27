@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+import time
+from datetime import datetime
 from urllib.parse import urlparse
 
 from pydantic import Field
 
 from claw.agent.schemas import Capability
 from claw.browser import extract
+import sys
+
 from claw.browser.history import HISTORY_SOURCES, history_path, search_history
 from claw.browser.session import validate_web_url
 from claw.permissions.policy import RiskLevel
@@ -31,20 +35,35 @@ class SearchArgs(ToolArgs):
 
 async def web_search(args: SearchArgs, ctx: ToolContext) -> ToolResult:
     s = ctx.settings.browser
+    provider = extract.search.describe(s.search_engine, s.custom_search_url, s.searxng_url)
     url = extract.search_url(s, args.query)
+    started = time.monotonic()
     info = await ctx.browser.goto(url)
     page = await ctx.browser.page()
     results = await extract.search_results(page, s.search_engine)
+    took_ms = round((time.monotonic() - started) * 1000)
     ctx.browser.last_results = results
     _remember(ctx, [r["url"] for r in results])
     expected_host = urlparse(url).netloc
     verified = urlparse(info["url"]).netloc == expected_host and (info["status"] or 200) < 400
+    # Where the answer came from, from which page, and when. Without this a result
+    # is just text, and a stale answer looks exactly like a fresh one.
+    evidence = {
+        "provider": provider, "search_url": info["url"], "page_title": info.get("title", ""),
+        "status": info.get("status"), "fetched_at": datetime.now().isoformat(timespec="seconds"),
+        "took_ms": took_ms, "count": len(results),
+    }
     if not results:
-        return ToolResult(True, f"Searched for '{args.query}' but found no results on the page.", {"results": []}, verified)
+        return ToolResult(
+            True,
+            f"Searched {provider['name']} for '{args.query}' and the page loaded, "
+            f"but no results could be read from it.",
+            {"results": [], **evidence}, verified,
+        )
     return ToolResult(
         True,
-        f"Found {len(results)} results for '{args.query}'.",
-        {"results": results, "search_url": info["url"]},
+        f"Found {len(results)} result(s) for '{args.query}' on {provider['name']} ({took_ms} ms).",
+        {"results": results, **evidence},
         verified,
         untrusted_text=_format_results(results),
     )
@@ -210,7 +229,16 @@ class HistoryArgs(ToolArgs):
 async def search_browser_history(args: HistoryArgs, ctx: ToolContext) -> ToolResult:
     if args.source not in HISTORY_SOURCES:
         raise ToolError(f"Unknown browser '{args.source}'. Use one of: {', '.join(HISTORY_SOURCES)}.")
-    rows = search_history(history_path(args.source, ctx.data_dir), args.phrase, args.days)
+    try:
+        rows = search_history(history_path(args.source, ctx.data_dir), args.phrase, args.days)
+    except ToolError:
+        # Chromium keeps no history database in headless mode on Windows, so Claw's own
+        # history is genuinely absent there rather than merely unread. Say which it is.
+        if args.source == "claw" and ctx.settings.browser.headless and sys.platform == "win32":
+            raise ToolError(
+                "Claw keeps no browsing history while the browser is hidden on Windows.",
+            ) from None
+        raise
     _remember(ctx, [r["url"] for r in rows])
     text = "\n".join(f"- {r['last_visit']}  {r['title']} — {r['url']}" for r in rows)
     return ToolResult(

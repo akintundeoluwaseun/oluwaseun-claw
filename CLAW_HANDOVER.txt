@@ -1,0 +1,617 @@
+===============================================================================
+OLUWASEUN CLAW - COMPLETE HANDOVER
+What it is, how it works, what was built, and what is not yet proven.
+Written 26 October 2026. Branch: claude/ecstatic-ritchie-x6ao14
+===============================================================================
+
+HOW TO READ THIS FILE
+---------------------
+Section 1 is what you download and install.
+Sections 2-7 are how the app works and what every screen does.
+Sections 8-10 are what was built in this session and what broke along the way.
+Section 11 is the test evidence, with exact numbers.
+Section 12 is the honest list of what has NOT been tested. Read that one.
+
+
+===============================================================================
+1. WHAT TO DOWNLOAD
+===============================================================================
+
+Three editions are published. All are Windows 10/11, 64-bit.
+
+  LITE - one file, 235 MB  <- recommended
+  https://github.com/akintundeoluwaseun/oluwaseun-claw/releases/tag/v0.5.0-build.9
+      OluwaseunClaw-0.5.0-Standard-NoBrain-Setup.exe
+      No AI model inside. After installing you either point Claw at an online
+      model, or download a brain from inside the app.
+
+  STANDARD - 4 files, 3.33 GB
+  https://github.com/akintundeoluwaseun/oluwaseun-claw/releases/tag/v0.5.0-build.4
+      Setup.exe + Setup-1.bin + Setup-2.bin + SHA256SUMS.txt
+      Includes the 4B brain. Runs with no internet at all.
+
+  PRO - 6 files, 5.99 GB
+  https://github.com/akintundeoluwaseun/oluwaseun-claw/releases/tag/v0.5.0-build.6
+      Setup.exe + Setup-1..4.bin + SHA256SUMS.txt
+      Includes the 8B brain. Needs about 16 GB of RAM to be worth it.
+
+DO NOT USE build.7 or build.8. They are earlier Lite builds that were
+published without the smoke test ever running (see section 10). Use build.9.
+
+WHY STANDARD AND PRO ARE SEVERAL FILES
+    A GitHub release allows 2 GB per file. The Pro brain alone is 6 GB, so the
+    installer has to be split into parts. That is a hosting limit, not a
+    design choice. Lite has no brain inside, so nothing needs splitting and it
+    is a single .exe.
+
+    For Standard and Pro: put every file of that release in ONE folder, then
+    run the Setup .exe. If a part is missing, Setup now refuses to start and
+    names the missing file. It used to begin installing and then demand
+    "insert Disk 1" halfway through, which looked like a fault in the app.
+
+WINDOWS WILL WARN YOU
+    The app is not code-signed. SmartScreen shows "Windows protected your PC".
+    Click "More info" then "Run anyway". This is unavoidable until a code
+    signing certificate is bought and configured. It is not a sign of malware,
+    but it is also not something that can be argued away - it is a real gap.
+
+
+===============================================================================
+2. WHAT CLAW IS
+===============================================================================
+
+A Windows assistant that does real work on the computer. You type or speak an
+ordinary instruction and it carries it out using the actual applications -
+Notepad, the browser, TechDesk, WhatsApp - then checks the result.
+
+Examples it is built around:
+
+    Open Notepad, type this, save it as claw-test.txt, and verify it
+    Open Chrome and search for free open-source video editing software
+    Read this scanned PDF and tell me the total
+    Open TechDesk and prepare a sale for two phone chargers
+    Find PDF files in my Downloads folder
+    Create a promotional flyer and save it
+
+The design rule throughout: never claim success because a tool returned
+without an error. Claw reopens the file, reads the page title, inspects the
+image, checks the saved transaction. If it cannot verify something, it says so
+rather than implying it worked.
+
+
+===============================================================================
+3. HOW IT WORKS - THE FIVE STAGES
+===============================================================================
+
+These are deliberately separate. No single part is trusted to do all of it.
+
+  1. INPUT        You type in the app or the floating bar, or you speak and
+                  speech recognition turns audio into text. Recognition only
+                  makes text. It never decides what to do.
+
+  2. PLANNING     The model reads your instruction and proposes steps, each
+                  naming one tool and its arguments.
+
+  3. VALIDATION   Every proposed step is checked locally before it runs:
+                  the tool must exist, the arguments must fit its schema, the
+                  path must be inside a folder you authorised. The model
+                  cannot invent a command for Windows to run.
+
+  4. EXECUTION    The step runs through a typed tool. Consequential actions
+                  (sending, deleting, buying, submitting) stop and ask you.
+
+  5. VERIFICATION Claw checks the real outcome - reopens the file, reads the
+                  page, inspects the image dimensions, re-reads the saved
+                  record - and reports what actually happened.
+
+TECHNOLOGY
+    Interface      Electron (the window and the floating bar)
+    Backend        Python + FastAPI, bound to 127.0.0.1 only, never 0.0.0.0
+    Local AI       llama.cpp (llama-server) running a Qwen3-VL brain
+    Browser        Playwright driving Microsoft Edge (already on Windows)
+    Desktop        Windows UI Automation via pywinauto
+    Documents      pypdfium2 and pypdf for text, Tesseract for scans
+    Images         Pillow; Photoshop via its own scripting interface if present
+    Speech         sherpa-onnx running Whisper or a streaming zipformer
+    Storage        SQLite
+    Installer      PyInstaller + electron-builder + Inno Setup
+
+The backend and the window talk over localhost with a random token generated
+per launch. Nothing listens on the network.
+
+
+===============================================================================
+4. THE INTERFACE
+===============================================================================
+
+MAIN WINDOW - HOME
+    A large prompt: "What should Claw take care of?" with a text box, example
+    tasks you can click, and two buttons: "Plan only" and "Start task".
+
+    Under the box, chips show what will be used: which brain or hosted model,
+    and which folders Claw may touch.
+
+    Left sidebar: New task (Ctrl+N), a task search box, and today's tasks with
+    a coloured dot each - green finished, grey waiting for you.
+
+    Top bar: "Agent running" and the model status, so you can see at a glance
+    whether anything is actually ready.
+
+    Bottom left: Documents and Settings.
+
+TASKS
+    Each task shows the plan, which step is running, what it is doing right
+    now, and the result. Progress reflects real task state - there is no
+    animated progress bar that moves on its own.
+
+APPROVALS
+    When a step would send a message, delete something, submit a sale or
+    change something online, the task stops and asks. It tells you exactly
+    what it is about to do. Nothing consequential happens without your click.
+
+DOCUMENTS
+    Open a PDF, Word or Excel file. For a scanned PDF you see each page, where
+    its text came from (the PDF's own text layer or OCR), and how confident
+    the OCR was. You can search it, ask Claw about it, and save a searchable
+    copy of a scan.
+
+SETTINGS
+    Claw's brain          Where Claw thinks: on this computer, or online.
+                          See section 6.
+    Voice                 On/off, which model, push-to-talk key, privacy.
+    Permissions           What Claw may do without asking, per risk level,
+                          and which folders it may read or write.
+    Browser               Which browser, visible or hidden, search engine,
+                          whether Claw may read your browsing history.
+    Background            Quick bar, start with Windows, keep awake,
+                          notifications, close to tray.
+    Messages              WhatsApp reading permission and previews.
+
+EMERGENCY STOP
+    Ctrl+Alt+X anywhere in Windows stops the running task immediately. The
+    floating bar also has a stop button while a task runs.
+
+
+===============================================================================
+5. THE FLOATING COMMAND BAR
+===============================================================================
+
+A small bar that stays available on the desktop. Ctrl+Shift+Space opens it
+from anywhere in Windows.
+
+Collapsed it is a pill that says "Ask Claw", or shows what Claw is working on,
+or "Needs your OK" when a task is waiting for you. Clicking it when a task is
+running opens the main window instead of starting a new one.
+
+Expanded it has the Claw mark, a text field, a microphone button, and Start.
+Escape closes it.
+
+VOICE
+    Click the microphone, speak, click again to stop. Or hold the push-to-talk
+    key (Ctrl+Shift+V by default).
+
+    While recording, the microphone turns red with a dot, and a row appears
+    underneath with a pulsing indicator and a Cancel button.
+
+    With the "Live (English)" model the words appear WHILE you are still
+    talking, in grey italic to show they are provisional. They settle into
+    normal text when you stop. With the Whisper models the text appears after
+    you stop - Whisper cannot stream, it needs the whole utterance first.
+
+    The words land in the text field. You read them, fix anything wrong, and
+    press Start. NOTHING RUNS UNTIL YOU PRESS START. Recognised words are
+    treated as untrusted input, exactly like text from a web page.
+
+    Claw never listens in the background. There is no always-on mode and no
+    setting that could become one. The microphone is released the moment
+    recording stops, before recognition even begins, so the Windows
+    microphone-in-use indicator goes out immediately.
+
+
+===============================================================================
+6. ONLINE OR OFFLINE - WHERE CLAW THINKS
+===============================================================================
+
+Settings -> Claw's brain -> "Where Claw thinks". Two choices.
+
+ON THIS COMPUTER (the built-in brain)
+    A Qwen3-VL model runs locally through llama.cpp. No account, no key,
+    nothing sent anywhere. Standard and Pro include the brain in the
+    installer. With Lite you download one from this screen.
+
+    Standard brain: 4B, about 3.3 GB, wants 8 GB of RAM.
+    Pro brain:      8B, about 6.2 GB, wants 16 GB of RAM.
+
+ONLINE (a hosted model)
+    Claw calls a hosted model over the internet and no brain is downloaded or
+    run locally. You give it:
+
+        Address   must start with https:// - the key must not travel in clear
+        Model     which model to use
+        API key   stored on this computer only
+
+    "Test connection" checks it before you save.
+
+    How the key is handled:
+      - It is never sent to the interface. The box shows "A key is saved".
+      - Leave the box blank and your saved key is kept untouched, even when
+        you change other settings.
+      - Type something and it replaces the key.
+      - It is excluded from logs and from the settings dump.
+
+    Choosing online is itself your consent to use a server elsewhere, so it
+    does not also require the developer "allow a remote server" switch. Every
+    other mode stays local-only exactly as before.
+
+IMPORTANT: there is no Claw cloud service. "Online" means a model service you
+have an account with. Claw is not hosting anything for you.
+
+DEVELOPER MODE
+    A third option, hidden under "Developer", points Claw at a model server
+    you run yourself - llama.cpp, Ollama, anything OpenAI-compatible. That one
+    is still local-only unless you explicitly allow a remote address.
+
+
+===============================================================================
+7. SECURITY AND PRIVACY
+===============================================================================
+
+    The backend binds to 127.0.0.1 and never 0.0.0.0. Nothing is reachable
+    from your network.
+
+    Every request needs a token generated fresh each launch.
+
+    Paths are canonicalised and checked against the folders you authorised.
+    Traversal attempts ('..\..\evil', 'C:\Windows\evil') are stripped to a
+    plain file name and re-checked before anything is written.
+
+    Command Prompt, PowerShell, regedit, Windows Security and Control Panel
+    are refused outright.
+
+    Text from web pages, documents and chats is marked untrusted. It cannot
+    make Claw run a command. There is a test for exactly this.
+
+    Destructive actions have an approval floor that settings cannot lower.
+
+    Secrets are redacted from logs. Form filling never types a saved password.
+
+    Audio is held in memory and never written to disk. The log records how
+    many words were heard, never which ones. The modules that handle audio
+    contain no network client at all - a test enforces that, so recognition
+    cannot quietly become a request.
+
+    The floating bar's page cannot reach the network (connect-src 'none').
+    Audio goes to the backend over an internal channel, not from the page.
+
+    The app allows the microphone permission only, only for Claw's own two
+    windows, and only while voice is switched on. Everything else - camera,
+    location, screen capture - is refused. Before this session there was no
+    permission handler at all, which meant the default permissive behaviour.
+
+
+===============================================================================
+8. WHAT WAS BUILT IN THIS SESSION
+===============================================================================
+
+22 commits. 48 files changed, 4,044 lines added, 55 removed.
+
+A. THE WINDOWS BUILD WAS COMPLETELY BROKEN - FIXED
+   Two builds had failed 38 seconds in, every time. The setup script asked
+   GitHub for llama.cpp's "latest" release and expected the Windows binary to
+   be among its files. llama.cpp had changed: version tags (v0.7.0) now carry
+   only source code, while the Windows binaries stay on per-commit build tags
+   (b11900). "Latest" resolved to a source-only release, so setup threw
+   "No Windows cpu build in llama.cpp release v0.7.0" and the build died in
+   its first step.
+
+   Now it walks the release list and takes the first release that actually
+   carries the build it needs, so it keeps working whichever tag scheme
+   upstream uses.
+
+B. THE TEST SUITE WAS FAILING ON WINDOWS FOR A SILLY REASON - FIXED
+   17 tests failed on Windows because the build machine never installed
+   Playwright's Chromium. One flag.
+
+C. A REAL CROSS-PLATFORM BUG - FOUND AND FIXED
+   A test passed on Linux and failed on Windows, and the report blamed PDF
+   text extraction. It was not PDF extraction. A diagnostic run on a real
+   Windows machine showed extraction was byte-identical on both platforms.
+
+   The real cause: Claw records which files it has opened using a
+   canonicalised path, and Windows folds that path to lower case. The lookup
+   used the original spelling. So on Windows, "save a report citing this PDF I
+   just read" was refused with "these sources were not opened". It also broke
+   on any platform for a path containing '..'.
+
+   Fixed by having one canonical key for file identity, used on both sides.
+
+   A second bug surfaced while writing the tests: newlines were normalised for
+   PDFs but not for text, Word or Excel, so a file written on Windows carried
+   its carriage returns into reports and the model's context.
+
+D. OFFLINE VOICE INPUT - BUILT
+   Engine: sherpa-onnx (Apache-2.0) running Whisper exports (MIT). Chosen over
+   whisper.cpp because it installs as an ordinary Python package on Windows,
+   so there is no second compiled program to ship and update alongside
+   llama-server. The engine sits behind an interface so it can be swapped.
+
+   Four models, downloaded on request and never bundled:
+       Quick (English)   120 MB   fastest, least accurate
+       Balanced          250 MB   the default
+       Most accurate     900 MB   best with accents and names
+       Live (English)    330 MB   words appear as you speak
+
+   File names, sizes, checksums and the licence are read from the model
+   library at download time and the licence is checked before anything is
+   written. No checksum is hard-coded - there is a test asserting none exists
+   in the catalogue, because one written by hand would be a guess.
+
+E. LIVE TRANSCRIPTION - BUILT
+   Whisper cannot stream. Live input needed a different kind of model, so the
+   catalogue gained a streaming transducer. Every model records whether it
+   streams and the bar adapts.
+
+   One detail worth knowing: resampling microphone audio chunk by chunk would
+   put a seam at every boundary. The resampler carries its state between
+   chunks, and a test shows its output is bit-identical to resampling the
+   whole recording at once.
+
+F. ONLINE MODE - BUILT
+   Described in section 6. The adapter already sent an authorisation header,
+   so this was the mode, the key and the wiring rather than a new client.
+
+G. THE INSTALLERS
+   - The voice runtime is packaged into the frozen backend (about 37 MB).
+   - A guard refuses to start a split installer when a part is missing.
+   - A Lite edition with no brain, so there is a single-file installer.
+   - The build fails if the packaged app cannot load the speech runtime.
+
+H. FASTER, SAFER BUILDS
+   - A Windows test workflow that runs the suite in about 4 minutes without
+     building an installer or publishing a release.
+   - The installer script is compiled on every Windows test run, in both plain
+     and split configurations. This exists because a one-line mistake in it
+     once failed a build 20 minutes in, after a 6 GB download.
+
+
+===============================================================================
+9. WHAT THE SCREENSHOTS FOUND
+===============================================================================
+
+The interface was photographed by rendering the app's own HTML, CSS and
+JavaScript in a browser. Two real bugs turned up immediately.
+
+    The Start button in the floating bar was squashed into a circle on a row
+    of its own. The bar's layout has three columns and the new microphone
+    became a fourth item, so Start wrapped. Nobody would have noticed this
+    without looking at it.
+
+    The status chip said "Built-in brain" no matter which mode was selected,
+    because it tested for the wrong value. With online mode selected it now
+    names the hosted model.
+
+Also worth recording: the first screenshot attempt photographed the wrong
+screen entirely. Settings is a dialog opened by a click, not a view toggle, so
+every "settings" image from that run was actually the home page. They were
+caught before being presented as evidence of a screen that had not been
+looked at.
+
+
+===============================================================================
+10. MISTAKES MADE AND CORRECTED
+===============================================================================
+
+Recorded because they affect how much the rest of this file should be trusted.
+
+    THE FIRST DIAGNOSIS OF THE PDF BUG WAS WRONG. The report said PDF text
+    extraction differed by platform. It did not. The wrong conclusion came
+    from a truncated error message that hid the half of the assertion that
+    actually failed. The fix only came after running a diagnostic on a real
+    Windows machine instead of reasoning about it.
+
+    A BROKEN INSTALLER SCRIPT WAS COMMITTED. The guard added to catch missing
+    installer parts referenced a value that does not exist in that context.
+    Inno Setup rejected it and the Pro build failed after downloading 6 GB.
+    The compile check in section 8H exists so that cannot happen again.
+
+    TWO LITE INSTALLERS WERE PUBLISHED WITHOUT BEING TESTED. The smoke test
+    looks for the app under a folder named after the edition, but Lite is
+    built under a different name, so the lookup failed on its first line. The
+    step was marked "continue on error", so the build went green and published
+    anyway. builds 7 and 8 shipped with nothing having checked that the app
+    even starts. The path is fixed and that step can no longer be ignored.
+
+    A DISK SPACE PROBLEM WAS PREDICTED THAT DID NOT EXIST. Work was done to
+    move a download to another drive on the assumption that the build machine
+    was short of space. It had 109 GB free. The change is harmless but it was
+    a guess where a measurement was available.
+
+A PATTERN WORTH NOTING: three separate times, a step marked "continue on
+error" let a real failure pass under a green tick. That flag is still on the
+backend test step. The results have been read manually every time rather than
+trusting the tick. If you want the build to be trustworthy on its own, that is
+the thing to change.
+
+
+===============================================================================
+11. TEST RESULTS
+===============================================================================
+
+ON THIS LINUX BUILD MACHINE
+    283 tests collected: 275 passed, 8 skipped, 0 failed.
+    The 8 skips are honest environment gaps - no llama-server binary and no
+    display - not hidden failures.
+
+ON A REAL WINDOWS MACHINE (the build that produced Lite build.9)
+    279 passed, 4 skipped, 0 failed.
+
+INTERFACE TESTS
+    8 passed.
+
+THE PACKAGED APP ON WINDOWS, verified automatically during the build:
+    status ok, database initialised, settings loaded
+    speech runtime loaded inside the frozen program, 4 models listed,
+    live model recognised
+
+WHAT IS COVERED BY REAL TESTS
+    Audio decoding at every sample rate, width and channel count
+    The voice model manager: checksums, corruption, resumed downloads,
+        cancellation, a refused licence, insufficient disk space
+    Live transcription: partial text growing, resampling without seams,
+        cancellation, one recording at a time, no leaked sessions
+    Scanned PDF reading with real OCR, including rotated and skewed pages
+    Path permissions, traversal, symlink escape, null bytes
+    Approval rules, including that declining writes nothing
+    Untrusted text handling and the injection guard
+    Browser navigation, timeouts, and that a failed page is not cited
+    Settings validation and the API key never leaving the backend
+
+THE ONE TEST THAT WAS RUN WITH A REAL BROWSER, END TO END
+    Search, open a result, read the page, screenshot it. Passed, against a
+    local test site - the public internet is not reachable from the build
+    machine.
+
+
+===============================================================================
+12. WHAT HAS NOT BEEN TESTED - READ THIS
+===============================================================================
+
+This is the most important section in the file.
+
+NOBODY HAS EVER SPOKEN INTO THIS APPLICATION.
+    There is no microphone and no sound card on the build machine. The audio
+    plumbing, the model manager and the streaming logic are tested with
+    generated tones and a stand-in recogniser. Microphone capture, the bar on
+    screen, the global shortcut and real speech recognition are untested.
+
+THERE IS NO ACCURACY FIGURE. NOT FOR NIGERIAN ENGLISH, NOT FOR ANY ACCENT.
+    None has been measured and none has been invented. The models are general
+    English and multilingual Whisper exports, not tuned for Nigerian English.
+    Expect trouble with names like Ado-Ekiti and Adebayo until it is measured.
+    docs/VOICE_NIGERIAN_ENGLISH.md is a measurement plan: five speakers, four
+    noise conditions, word error rate plus intent, number and name accuracy
+    reported per condition rather than averaged into one flattering number.
+    It also says explicitly that text-to-speech does not count as a test,
+    because it measures the synthetic voice's accent and not yours.
+
+NO HOSTED MODEL HAS EVER BEEN CALLED.
+    Online mode's settings, storage, key handling and validation are tested.
+    The build machine has no outbound internet, so no real service has ever
+    answered. The first genuine test is you entering a real address and key.
+
+NO WINDOWS APPLICATION HAS EVER BEEN DRIVEN.
+    Notepad, WhatsApp, Photoshop, TechDesk and the Windows calendar have never
+    been touched by this build. The tests covering them run against a stand-in
+    desktop. They prove the logic is right; they do not prove Claw can operate
+    a real application. The repository is honest about this in its own test
+    files, and so is this file.
+
+THE INSTALLED APPLICATION HAS NEVER BEEN RUN BY A PERSON.
+    The build checks that the packaged backend starts and answers. Nobody has
+    installed it on a normal computer and used it.
+
+THE BRAIN HAS NEVER RUN WITH REAL WEIGHTS.
+    Every engine test used a tiny randomly generated model. How well a 4B or
+    8B local model follows Claw's action format is the single largest unknown
+    in the project.
+
+TWO FEATURES DO NOT EXIST.
+    Video creation and calendar integration. Not blocked, not partly done -
+    not written. There is a stub file for integrations containing one line of
+    description and nothing else.
+
+SMALLER GAPS
+    No live accuracy tuning for push-to-talk timing; the 400 ms gap used to
+    detect key release is a guess that needs real hardware.
+    The chosen microphone device is stored but not yet honoured.
+    Authentication expiry has no general handling.
+    The voice model repository names could not be verified from the build
+    machine. A wrong one fails the download with a clear message and installs
+    nothing, but the first real download is the first proof they are right.
+
+
+===============================================================================
+13. KNOWN ISSUES
+===============================================================================
+
+    Not code-signed, so SmartScreen warns on every install.
+
+    Claw's own browsing history is not kept when the browser runs hidden on
+    Windows. Measured: hidden produced 50 profile files and no history
+    database; visible produced 156 including it. Claw runs the browser visibly
+    by default so a normal install is unaffected, and it now says the real
+    reason instead of "no browsing history was found".
+
+    Pro needs about 16 GB of RAM. On an 8 GB machine, use Standard.
+
+    OCR is English only and has been tested on generated pages, not real
+    scans. Handwriting, tables and multi-column layouts come out as plain
+    text.
+
+    Desktop steps cannot run on a locked screen. One task at a time.
+
+    Injection detection is pattern-based. The real protection is that changes
+    need your approval, not the pattern matching.
+
+
+===============================================================================
+14. WHERE THINGS ARE IN THE REPOSITORY
+===============================================================================
+
+    backend/claw/agent/        planning and running tasks
+    backend/claw/tools/        every tool, with its schema and permissions
+    backend/claw/browser/      Playwright session, history
+    backend/claw/computer/     Windows UI Automation
+    backend/claw/documents/    PDF pipeline and OCR
+    backend/claw/speech/       voice input (new, about 1,300 lines)
+    backend/claw/runtime/      the local brain: engine, downloads, storage
+    backend/claw/permissions/  path and risk policy
+    backend/claw/api/          the HTTP interface
+    backend/tests/             283 tests
+    desktop/src/               the window, the floating bar, the tray
+    packaging/claw.iss         the installer script
+    scripts/                   setup and release scripts
+    .github/workflows/         the Windows build and the Windows test run
+
+    docs/VOICE.md                     how voice works, and its test results
+    docs/VOICE_NIGERIAN_ENGLISH.md    the accuracy measurement plan
+    docs/TEST_RUN_2026-10-26.md       the A-J test run and its findings
+    docs/KNOWN_ISSUES.md              known issues
+    docs/SECURITY.md                  security and permissions
+    docs/WINDOWS_ACCEPTANCE.md        the manual Windows checklist
+
+
+===============================================================================
+15. WHAT TO DO NEXT
+===============================================================================
+
+IN THIS ORDER, because each one answers a question the next depends on.
+
+ 1. Install Lite build.9 on your own Windows machine. Confirm it opens.
+
+ 2. Choose online mode, enter a real address, model and key, press Test
+    connection. This is the first time any hosted model will have been called.
+
+ 3. Give it the Notepad task and watch what happens:
+        Open Notepad, type 'Oluwaseun Claw desktop-control test', save it as
+        claw-test.txt in Documents, reopen it, and verify the exact contents.
+    This is the first time Claw will have driven a real Windows application.
+
+ 4. Settings -> Voice -> download "Live (English)". Press the microphone and
+    say something with a Nigerian place name and a price in it. Watch whether
+    the grey text jumps around while you speak. That tells us whether the
+    endpoint timing needs tuning before accuracy work is worth starting.
+
+ 5. Only then start measuring accuracy, using the plan in
+    docs/VOICE_NIGERIAN_ENGLISH.md.
+
+Things worth doing regardless:
+    Remove "continue on error" from the backend test step so a failing suite
+    cannot publish a release.
+    Buy a code signing certificate if this is going to other people.
+    Decide whether video and calendar are actually wanted before anything else
+    is built.
+
+===============================================================================
+END
+===============================================================================

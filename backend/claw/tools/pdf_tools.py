@@ -34,7 +34,7 @@ def _pdf(ctx: ToolContext, raw: str) -> Path:
         raise ToolError(str(exc)) from exc
     if not path.is_file() or path.suffix.lower() != ".pdf":
         raise ToolError(f"'{path.name}' is not a PDF file.")
-    ctx.memory.seen_files.add(str(path))
+    ctx.memory.note_file(path)
     return path
 
 
@@ -193,7 +193,7 @@ class _NoOcr:
 
 
 def register_pdf_tools(reg: ToolRegistry) -> None:
-    F, R = Capability.FILES, RiskLevel.READ_ONLY
+    F, R = Capability.DOCUMENTS, RiskLevel.READ_ONLY
     reg.register(ToolSpec("read_document_pages", f"Read specific pages of a PDF (up to {PAGES_PER_CALL} at a time).", F, R, PagesArgs, read_document_pages))
     reg.register(ToolSpec("search_document", "Find words in a PDF; returns matching snippets with page numbers.", F, R, SearchDocArgs, search_document))
     reg.register(ToolSpec("summarize_document", "Summarise a whole PDF part by part, with page references.", F, R, SummaryArgs, summarize_document))

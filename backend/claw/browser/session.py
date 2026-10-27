@@ -38,6 +38,37 @@ def validate_web_url(url: str) -> str:
     return url
 
 
+# Chromium reports network failures as codes like net::ERR_NAME_NOT_RESOLVED. Shown
+# raw they tell the user nothing, and "could not open" alone hides the one thing that
+# decides what to do next: whether this computer has internet at all.
+NETWORK_ERRORS = {
+    "ERR_NAME_NOT_RESOLVED": "that web address does not exist, or this computer has no internet connection",
+    "ERR_INTERNET_DISCONNECTED": "this computer is not connected to the internet",
+    "ERR_PROXY_CONNECTION_FAILED": "the network's proxy refused the connection",
+    "ERR_TUNNEL_CONNECTION_FAILED": "the network's proxy refused the connection",
+    "ERR_CONNECTION_REFUSED": "the site refused the connection",
+    "ERR_CONNECTION_RESET": "the connection was cut off",
+    "ERR_CONNECTION_TIMED_OUT": "the site did not answer in time",
+    "ERR_CONNECTION_CLOSED": "the connection was closed before the page loaded",
+    "ERR_ADDRESS_UNREACHABLE": "that address could not be reached from this network",
+    "ERR_CERT_AUTHORITY_INVALID": "the site's security certificate could not be trusted",
+    "ERR_CERT_DATE_INVALID": "the site's security certificate has expired",
+    "ERR_SSL_PROTOCOL_ERROR": "the secure connection failed",
+    "ERR_BLOCKED_BY_CLIENT": "something on this computer blocked the request",
+    "ERR_BLOCKED_BY_ADMINISTRATOR": "this network blocks that site",
+    "ERR_TOO_MANY_REDIRECTS": "the site kept redirecting and never settled",
+    "ERR_EMPTY_RESPONSE": "the site answered with nothing",
+}
+
+
+def explain_network_error(detail: str) -> str:
+    """Plain words for a Chromium error, with its code kept for a bug report."""
+    for code, words in NETWORK_ERRORS.items():
+        if code in detail:
+            return f"{words} ({code})"
+    return detail
+
+
 class BrowserSession:
     def __init__(self, data_dir: Path, settings_getter):
         self.profile_dir = data_dir / PROFILE_DIRNAME
@@ -134,7 +165,8 @@ class BrowserSession:
         except PWTimeout as exc:
             raise ToolError(f"The page took too long to load: {url}", transient=True) from exc
         except PWError as exc:
-            raise ToolError(f"Could not open {url}: {str(exc).splitlines()[0][:200]}", transient=True) from exc
+            detail = str(exc).splitlines()[0][:200]
+            raise ToolError(f"Could not open {url}: {explain_network_error(detail)}", transient=True) from exc
         status = response.status if response else None
         return {"url": page.url, "title": await page.title(), "status": status}
 

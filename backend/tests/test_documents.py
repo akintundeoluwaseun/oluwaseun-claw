@@ -1,11 +1,13 @@
 """Document reading and writing tools (real files, real libraries)."""
 
 import csv
+from pathlib import Path
 
 import docx
 import pytest
 from openpyxl import Workbook, load_workbook
 
+from claw.documents.pdf_pipeline import PdfPipeline
 from claw.documents.readers import read_document
 from claw.tools.base import ToolError
 from claw.tools.registry import build_registry
@@ -72,7 +74,10 @@ def test_read_pdf_docx_xlsx(tmp_path):
 async def test_read_file_tool_records_seen(tool_ctx, folder):
     make_pdf(folder / "report.pdf", "Quarterly sales grew 12 percent")
     r = await call(tool_ctx, "read_file", path=str(folder / "report.pdf"))
-    assert "12 percent" in r.untrusted_text and str(folder / "report.pdf") in tool_ctx.memory.seen_files
+    # saw_file, not `in seen_files`: the recorded path is canonical, so on Windows the set
+    # holds a case-folded path and a raw string match would miss the file Claw just read.
+    assert "12 percent" in r.untrusted_text
+    assert tool_ctx.memory.saw_file(str(folder / "report.pdf"))
 
 
 async def test_write_text_file_never_overwrites(tool_ctx, folder):
@@ -133,3 +138,114 @@ async def test_edit_keeps_backup(tool_ctx, folder):
     r = await call(tool_ctx, "edit_text_file", path=str(f), find="buy rice", replace_with="buy ofada rice")
     assert r.verified and f.read_text() == "buy ofada rice\nbuy beans\n"
     assert open(r.data["backup"]).read() == "buy rice\nbuy beans\n"
+
+
+# --- Regression: a source Claw really opened must be citable however the path is spelled. ---
+# The recorded path is canonical (policy.canonical_path): '~', '..' and symlinks are resolved,
+# and on Windows the case is folded. Comparing the model's raw spelling against that set made
+# save_report reject a file it had just read -- on Windows for every path with a capital letter
+# (test_read_file_tool_records_seen failed there), and on any platform for a '..' path.
+
+async def test_seen_file_is_citable_through_a_dotdot_path(tool_ctx, folder):
+    (folder / "sub").mkdir()
+    make_pdf(folder / "report.pdf", "Quarterly sales grew 12 percent")
+    spelled = str(folder / "sub" / ".." / "report.pdf")
+    await call(tool_ctx, "read_file", path=spelled)
+    args = dict(title="Quarterly", sections=[{"heading": "Findings", "body": "Sales grew."}],
+                sources=[{"title": "Report", "location": spelled}])
+    r = await call(tool_ctx, "save_report", **args)
+    assert r.verified
+
+
+def test_memory_matches_paths_by_identity_not_spelling(tmp_path):
+    from claw.tools.base import TaskMemory
+
+    f = tmp_path / "a.pdf"
+    f.write_bytes(b"%PDF-1.4\n")
+    m = TaskMemory()
+    m.note_file(f)
+    assert m.saw_file(str(f))
+    assert m.saw_file(str(tmp_path / "sub" / ".." / "a.pdf"))
+    assert not m.saw_file(str(tmp_path / "b.pdf"))
+    assert not m.saw_file("https://example.com/a.pdf")  # a URL is not a path
+    assert not m.saw_file("")
+
+
+def test_memory_folds_case_where_the_filesystem_does(tmp_path, monkeypatch):
+    """Emulates Windows: os.path.normcase folds case, so the two spellings are one file."""
+    import ntpath
+
+    from claw.tools.base import TaskMemory
+
+    monkeypatch.setattr("claw.permissions.policy.os.path.normcase", ntpath.normcase)
+    m = TaskMemory()
+    m.note_file(tmp_path / "Report.PDF")
+    assert m.saw_file(str(tmp_path / "report.pdf"))
+
+
+async def test_unseen_source_is_still_refused(tool_ctx, folder):
+    make_pdf(folder / "report.pdf", "Quarterly sales grew 12 percent")
+    with pytest.raises(ToolError, match="not opened"):
+        await call(tool_ctx, "save_report", title="Quarterly",
+                   sections=[{"heading": "Findings", "body": "Sales grew."}],
+                   sources=[{"title": "Report", "location": str(folder / "report.pdf")}])
+
+
+# --- Extraction content: whitespace, newlines, Unicode and numbers survive the read. ---
+
+@pytest.mark.parametrize("label,text,needles", [
+    ("plain", "Quarterly sales grew 12 percent", ["12 percent"]),
+    ("percent_sign", "Operating margin rose to 12.5% this financial year", ["12.5%"]),
+    ("money_and_date", "Total due: 45,000 naira by 30 November 2026", ["45,000", "30 November 2026"]),
+    ("hyphen_and_name", "Ado-Ekiti branch grew 7 percent", ["Ado-Ekiti", "7 percent"]),
+])
+def test_text_pdf_keeps_numbers_and_characters(tmp_path, label, text, needles):
+    make_pdf(tmp_path / f"{label}.pdf", text)
+    r = PdfPipeline(tmp_path / "cache").read(tmp_path / f"{label}.pdf")
+    got = r.pages[0].text
+    assert r.pages[0].source == "text"
+    for n in needles:
+        assert n in got, f"{label}: {n!r} missing from {got!r}"
+
+
+def test_crlf_and_lf_normalise_to_the_same_text(tmp_path):
+    out = {}
+    for name, nl in (("crlf", "\r\n"), ("lf", "\n")):
+        p = tmp_path / f"{name}.txt"
+        p.write_bytes(f"Quarterly sales{nl}grew 12 percent{nl}".encode())
+        out[name] = read_document(p).strip()
+    assert out["crlf"] == out["lf"]
+    assert "\r" not in out["crlf"]
+
+
+def test_empty_and_malformed_documents_are_reported_not_silently_empty(tmp_path):
+    bad = tmp_path / "broken.pdf"
+    bad.write_bytes(b"%PDF-1.4\nnot really a pdf\n")
+    with pytest.raises(ToolError):
+        PdfPipeline(tmp_path / "cache").read(bad)
+
+
+def test_text_reader_keeps_unicode_and_non_breaking_spaces(tmp_path):
+    p = tmp_path / "notes.txt"
+    p.write_text("Caf\u00e9 Ado-Ekiti\u2014total 45\u00a0000 naira\n", encoding="utf-8")
+    got = read_document(p)
+    assert "Caf\u00e9" in got and "Ado-Ekiti" in got
+    assert "45\u00a0000" in got or "45 000" in got  # NBSP kept, or folded to a plain space
+
+
+@pytest.mark.parametrize("name,expect", [
+    ("contacts.csv", ".csv"),     # the name says csv, so it is a csv
+    ("contacts.xlsx", ".xlsx"),
+    ("contacts", ".xlsx"),        # no extension: the format default applies
+])
+async def test_spreadsheet_name_decides_the_kind_of_file(tool_ctx, folder, name, expect):
+    """'contacts.csv' used to produce 'contacts.csv.xlsx' - a binary file with two extensions."""
+    r = await call(tool_ctx, "create_spreadsheet", file_name=name, columns=["A", "B"],
+                   rows=[["1", "2"]], folder=str(folder))
+    out = Path(r.data["path"])
+    assert out.suffix == expect, out.name
+    assert out.name.count(".") == 1, f"double extension: {out.name}"
+    if expect == ".csv":
+        assert out.read_text(encoding="utf-8-sig").splitlines()[0] == "A,B"
+    else:
+        assert out.read_bytes()[:2] == b"PK"  # a real xlsx is a zip

@@ -12,6 +12,9 @@ from claw.agent.executor import run_agent
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.logging_setup import log_event
 from claw.models.base import ModelError
+#: What to assume for a model whose window Claw cannot read. Conservative on
+#: purpose: trimming a little early costs context, trimming too late costs the run.
+HOSTED_CONTEXT_TOKENS = 32768
 from claw.tools.base import ToolContext
 
 if TYPE_CHECKING:
@@ -38,17 +41,25 @@ class TaskRunner:
         self.current_id: str | None = None
         self._task: asyncio.Task | None = None
         self.approvals: dict[str, PendingApproval] = {}
+        #: True while a scheduled job is running, so nothing waits for a person.
+        self.unattended = False
 
     @property
     def busy(self) -> bool:
         return self._task is not None and not self._task.done()
 
-    def start(self, task_text: str) -> str:
+    def start(self, task_text: str, unattended: bool = False) -> str:
+        """Run a task. `unattended` means nobody is watching — a scheduled job.
+
+        It is not a convenience flag: it changes the permission policy, because
+        an approval cannot be given by an empty room.
+        """
         if self.busy:
             raise TaskBusy()
         db = self.state.db
+        self.unattended = unattended
         task_id = db.create_task(task_text, self.state.model_label())
-        db.add_event(task_id, "requested_task", {"task": task_text})
+        db.add_event(task_id, "requested_task", {"task": task_text, "unattended": unattended})
         self.current_id = task_id
         self._task = asyncio.create_task(self._run(task_id, task_text), name=f"claw-task-{task_id}")
         return task_id
@@ -105,8 +116,9 @@ class TaskRunner:
         try:
             adapter = await state.think_adapter()
             ctx = ToolContext(
-                settings=settings, policy=state.policy(), data_dir=state.data_dir, browser=state.browser, task_id=task_id,
+                settings=settings, policy=state.policy().unattended() if self.unattended else state.policy(), data_dir=state.data_dir, browser=state.browser, task_id=task_id,
                 desktop=state.desktop, vision=state.vision_fn(adapter), llm=adapter, docs=state.docs.pipeline,
+                ask_user=request_approval, recent_tasks=db.list_tasks, memory_store=db,
             )
             db.update_task(task_id, status="planning")
             emit("model_call", {"provider": adapter.provider, "model": adapter.model, "purpose": "plan"})
@@ -116,7 +128,13 @@ class TaskRunner:
             emit("planned", {"steps": len(plan.steps)})
             plan_text = "\n".join(f"{s.index}. {s.description}" for s in plan.steps)
             caps = {s.capability.value for s in plan.steps} - {"reasoning"}
-            outcome = await run_agent(task_text, plan_text, adapter, state.registry, ctx, emit, request_approval, caps or None)
+            # The real window, not a guess: the built-in engine is started with
+            # -c <ctx_size>, and a hosted model is assumed to have more but is
+            # still budgeted, because an unbounded conversation is what hits it.
+            window = (state.brain.engine.ctx_size if settings.model.mode == "builtin"
+                      else HOSTED_CONTEXT_TOKENS)
+            outcome = await run_agent(task_text, plan_text, adapter, state.registry, ctx, emit,
+                                      request_approval, caps or None, window_tokens=window)
             db.update_task(task_id, status=outcome.status, error=outcome.error, result=outcome.summary())
             emit("task_" + outcome.status, {"error": outcome.error} if outcome.error else {})
             log_event(log, "task ended", task_id=task_id, status=outcome.status, steps=len(outcome.steps))

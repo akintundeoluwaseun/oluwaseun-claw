@@ -16,9 +16,18 @@ from claw.permissions.policy import Decision, RiskLevel
 
 
 class Capability(StrEnum):
+    """What a step needs, and therefore which tools the model is shown for it.
+
+    These are a context budget as much as a description. The whole catalogue is
+    ~8.9k tokens against the built-in engine's 8192-token window, so a step that
+    only needs the calendar must not drag in spreadsheets and OCR.
+    """
+
     BROWSER = "browser"
     DESKTOP = "desktop"
     FILES = "files"
+    DOCUMENTS = "documents"     # PDFs, Word, images: reading rather than filing
+    ORGANISER = "organiser"     # calendar, reminders, what Claw remembers
     REASONING = "reasoning"
 
 

@@ -43,6 +43,7 @@ via `importlib.metadata`; npm: `package.json`) on 2026-10-26, plus the model car
 | pypdfium2 (with PDFium binary) | 5.14.0 | BSD-3-Clause, Apache-2.0; PDFium BSD-3-Clause and its dependencies' licences (shipped in the wheel's `LICENSES` folder) |
 | pillow | 13.0.0 | MIT-CMU |
 | pywinauto (Windows) | 0.6.9 | BSD-3-Clause |
+| pywinauto — *approach only*, see below | 0.6.9 | BSD-3-Clause |
 | comtypes (Windows) | 1.4.17 | MIT |
 | pywin32 (Windows) | 312 | PSF-2.0 |
 | six (Windows) | 1.17.0 | MIT |
@@ -90,3 +91,53 @@ Fonts: the flyer uses fonts already on the computer (Segoe UI/Arial on Windows);
 
 OCRmyPDF (MPL-2.0, but needs Ghostscript, AGPL), PaddleOCR (Apache-2.0, heavy runtime),
 PDF-OCR (a web app), DynaLM (unverified clients).
+
+## Voice input (offline speech recognition)
+
+**sherpa-onnx** (https://github.com/k2-fsa/sherpa-onnx, Apache-2.0) — chosen and added as a
+dependency. It installs as an ordinary Python wheel on Windows, so it needs no second native binary
+beside llama-server, and it runs Whisper exports on CPU through ONNX Runtime (MIT). The engine sits
+behind `claw/speech/base.py`, so it can be replaced without touching the command bar.
+
+**Speech model weights** are Whisper exports (MIT, https://github.com/openai/whisper), downloaded on
+request from Hugging Face. Nothing is bundled in the installer: file names, sizes, SHA-256 checksums
+and the licence are read from the public API at download time and the licence is checked against an
+allow-list before anything is written, exactly as for the brain.
+
+Evaluated and **not** used:
+
+- **whisper.cpp** (MIT) — the obvious alternative and a close call. It would mirror the existing
+  llama-server runtime management, but it means shipping and updating a second compiled binary per
+  platform for no accuracy gain over the same weights. Kept as the first candidate if sherpa-onnx
+  proves unsuitable; the engine interface exists for that.
+- **faster-whisper** (MIT) — pulls in CTranslate2 and, in practice, a CUDA/cuDNN story that makes a
+  Windows installer considerably larger for a CPU-only use case.
+- **Vosk** (Apache-2.0) — smaller and faster, but its English models are noticeably weaker on
+  accented speech and proper nouns, which is the case that matters most here.
+- **Windows Offline Transcribe**, **AuraScribe**, **Whisper Local** — useful as reference
+  implementations; all are applications rather than libraries, and none is a maintained dependency
+  suitable for redistribution.
+- **Silero VAD** (MIT) — not added separately: sherpa-onnx already bundles voice-activity detection,
+  and the bar records only while the user holds or clicks the microphone, so endpointing is not what
+  decides when recording stops.
+- **NAudio** (MIT) — a .NET library; Claw captures audio in the Electron renderer through the Web
+  Audio API, so it has nothing to add.
+- **WhisperX, pyannote** — speaker diarisation and alignment are not needed for single-speaker
+  commands, and pyannote's models carry gated licences.
+
+## Code adapted rather than imported
+
+**pywinauto** — BSD-3-Clause, Copyright (c) 2017, Mark Mc Mahon and
+Contributors. `claw/tools/desktop_tools.py:match_control` finds a control by
+name using the approach in upstream's `pywinauto/findbestmatch.py`: score every
+candidate label with `difflib.SequenceMatcher.ratio()` after cutting it at the
+first tab or newline, and refuse rather than return a poor match. No upstream
+source was copied; the algorithm is re-expressed over S-CLAW's own
+`ControlInfo` records, because `pywinauto` installs on Windows only and this
+logic must behave identically on the Linux test desktop.
+
+**agentmem** — MIT, Copyright (c) 2025 agentmem contributors.
+`claw/agent/executor.py:_relevance` ranks remembered facts using the shape
+described in that project's README — tier weight, keyword overlap, recency
+boost. None of its code is used: its retrieval path requires `chromadb` and
+`sentence-transformers`, which S-CLAW does not ship.

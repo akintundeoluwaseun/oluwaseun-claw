@@ -193,3 +193,72 @@ async def test_blocked_app_refused_before_asking(desk_ctx, fake_server):
         [act("launch_app", name="PowerShell"), json.dumps({"thought": "x", "action": "finish", "final_answer": "Not allowed."})],
     )
     assert approvals == [] and out.steps[0]["outcome"] == "failed"
+
+
+# ---------- the failure paths of launch / focus / keys ----------
+# These are the cases that matter on a real desktop and that the happy-path tests
+# above never reach. They still run against the TEST DOUBLE: passing here says the
+# logic is right, not that Windows behaves this way.
+async def test_launch_reports_honestly_when_no_window_appears(desk_ctx, monkeypatch):
+    from claw.tools import desktop_tools
+
+    monkeypatch.setattr(desktop_tools, "LAUNCH_TIMEOUT_S", 1.0)
+    monkeypatch.setattr(desk_ctx.fake, "launch", lambda target: desk_ctx.fake.launched.append(target))
+    r = await call(desk_ctx, "launch_app", name="Notepad")
+    assert r.ok is False and r.verified is False
+    assert "no new window appeared" in r.summary
+    assert desk_ctx.fake.launched  # it really did try
+
+
+async def test_launch_refuses_system_tools_before_touching_the_desktop(desk_ctx):
+    with pytest.raises(ToolError, match="system tools"):
+        await call(desk_ctx, "launch_app", name="Command Prompt")
+    assert desk_ctx.fake.launched == []
+
+
+async def test_focus_is_not_verified_when_another_window_stays_in_front(desk_ctx, monkeypatch):
+    await call(desk_ctx, "launch_app", name="Notepad")
+    monkeypatch.setattr(desk_ctx.fake, "focus_window", lambda handle: None)  # focus refused
+    r = await call(desk_ctx, "focus_window", title="file explorer")
+    assert r.ok is False and r.verified is False
+    assert "stayed in front" in r.summary
+
+
+async def test_an_ambiguous_window_title_is_refused_with_the_candidates(desk_ctx):
+    await call(desk_ctx, "launch_app", name="Notepad")
+    desk_ctx.fake.windows[desk_ctx.fake.next_handle] = {
+        "title": "Untitled - Notepad (2)", "process": "notepad.exe", "controls": []}
+    with pytest.raises(ToolError, match="Several windows match"):
+        await call(desk_ctx, "focus_window", title="notepad")
+
+
+async def test_press_keys_reports_an_error_dialog_and_does_not_claim_success(desk_ctx):
+    await call(desk_ctx, "launch_app", name="Notepad")
+
+    def angry(keys):
+        h = desk_ctx.fake.next_handle
+        desk_ctx.fake.next_handle += 1
+        desk_ctx.fake.windows[h] = {"title": "Error saving file", "process": "notepad.exe",
+                                    "dialog": True, "controls": [{"role": "Button", "name": "OK"}]}
+        desk_ctx.fake.active = h
+
+    desk_ctx.fake.send_keys = angry
+    r = await call(desk_ctx, "press_keys", keys=["ctrl", "s"])
+    assert r.ok is False and r.verified is False
+    assert "Error saving file" in r.summary
+
+
+async def test_press_keys_with_no_effect_is_not_counted_as_verified(desk_ctx):
+    await call(desk_ctx, "launch_app", name="Notepad")
+    r = await call(desk_ctx, "press_keys", keys=["f5"])  # the stand-in ignores it
+    assert r.ok is True and r.verified is False
+
+
+async def test_typing_is_only_verified_when_it_reads_back(desk_ctx, monkeypatch):
+    await call(desk_ctx, "launch_app", name="Notepad")
+    await call(desk_ctx, "look_at_window")
+    good = await call(desk_ctx, "type_into", number=0, text="Hello from Claw")
+    assert good.verified is True
+    monkeypatch.setattr(desk_ctx.fake, "read", lambda index: "something else entirely")
+    bad = await call(desk_ctx, "type_into", number=0, text="Hello again")
+    assert bad.verified is False and "could not read it back" in bad.summary

@@ -27,6 +27,11 @@ class ModelStatus(BaseModel):
     model: str
     message: str
     available_models: list[str] = []
+    # Why it is not usable, when it is not. The interface chooses its wording from
+    # this rather than guessing from two booleans, which cannot tell a refused key
+    # apart from a server that never answered.
+    #   ok | unreachable | auth_failed | rate_limited | model_missing | not_configured | error
+    reason: str = "ok"
 
 
 class ModelError(Exception):
@@ -44,6 +49,19 @@ class ModelServerUnavailable(ModelError):
 
 class ModelNotFound(ModelError):
     pass
+
+
+class ModelAuthFailed(ModelError):
+    """The provider answered and refused the credential (401/403).
+
+    Deliberately not a ModelServerUnavailable: the server was reached. Reporting
+    this as "unreachable" sends the user to check their internet when the real
+    problem is the key.
+    """
+
+
+class ModelRateLimited(ModelError):
+    """The provider answered 429. Reachable, authenticated, just too busy or over quota."""
 
 
 class ModelResponseError(ModelError):
@@ -71,9 +89,25 @@ class ModelAdapter(ABC):
         base = dict(provider=self.provider, base_url=self.base_url, model=self.model)
         try:
             models = await self.list_models()
+        except ModelAuthFailed as exc:
+            return ModelStatus(
+                server_reachable=True, model_available=False, reason="auth_failed",
+                message=f"{exc.message} {exc.hint}".strip(), **base,
+            )
+        except ModelRateLimited as exc:
+            return ModelStatus(
+                server_reachable=True, model_available=False, reason="rate_limited",
+                message=f"{exc.message} {exc.hint}".strip(), **base,
+            )
+        except ModelServerUnavailable as exc:
+            return ModelStatus(
+                server_reachable=False, model_available=False, reason="unreachable",
+                message=f"{exc.message} {exc.hint}".strip(), **base,
+            )
         except ModelError as exc:
             return ModelStatus(
-                server_reachable=False, model_available=False, message=f"{exc.message} {exc.hint}".strip(), **base
+                server_reachable=False, model_available=False, reason="error",
+                message=f"{exc.message} {exc.hint}".strip(), **base,
             )
         names = [m.name for m in models]
         if not self.model:
@@ -81,7 +115,7 @@ class ModelAdapter(ABC):
                 server_reachable=True,
                 model_available=False,
                 message="The model server is running, but no model is selected. Choose one in Settings.",
-                available_models=names,
+                available_models=names, reason="not_configured",
                 **base,
             )
         if not _model_in(self.model, names):
@@ -89,7 +123,7 @@ class ModelAdapter(ABC):
                 server_reachable=True,
                 model_available=False,
                 message=f"The model '{self.model}' is not installed on the server. {self.missing_model_hint()}",
-                available_models=names,
+                available_models=names, reason="model_missing",
                 **base,
             )
         return ModelStatus(

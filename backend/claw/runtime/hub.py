@@ -83,8 +83,8 @@ def _pick(siblings: list[dict], pattern: str, exclude_mmproj: bool) -> RemoteFil
     return min(found, key=lambda f: f.size) if found else None
 
 
-async def resolve(entry: CatalogEntry, client: httpx.AsyncClient | None = None) -> ResolvedModel:
-    url = f"{hub_base()}/api/models/{entry.repo}?blobs=true"
+async def _model_info(repo: str, label: str, client: httpx.AsyncClient | None) -> dict:
+    url = f"{hub_base()}/api/models/{repo}?blobs=true"
     own = client is None
     client = client or httpx.AsyncClient(timeout=30, follow_redirects=True)
     try:
@@ -93,13 +93,17 @@ async def resolve(entry: CatalogEntry, client: httpx.AsyncClient | None = None) 
         except httpx.HTTPError as exc:
             raise DownloadError("Could not reach the model library (Hugging Face).", "Check the internet connection.") from exc
         if r.status_code == 404:
-            raise DownloadError(f"The model library no longer has {entry.repo}.")
+            raise DownloadError(f"The model library no longer has {repo}.")
         if r.status_code >= 400:
             raise DownloadError(f"The model library answered with an error ({r.status_code}).")
-        info = r.json()
+        return r.json()
     finally:
         if own:
             await client.aclose()
+
+
+async def resolve(entry: CatalogEntry, client: httpx.AsyncClient | None = None) -> ResolvedModel:
+    info = await _model_info(entry.repo, entry.name, client)
     lic = _license(info)
     if lic not in ALLOWED_LICENSES:
         raise DownloadError(f"{entry.name} is published under '{lic}', which Claw can't use without permission.")
@@ -109,6 +113,27 @@ async def resolve(entry: CatalogEntry, client: httpx.AsyncClient | None = None) 
         raise DownloadError(f"No suitable model file was found in {entry.repo}.")
     mmproj = _pick(siblings, entry.mmproj_pattern, exclude_mmproj=False) if entry.mmproj_pattern else None
     return ResolvedModel(entry.repo, lic, model, mmproj)
+
+
+async def resolve_many(repo: str, patterns: dict[str, str], *, label: str,
+                       allowed: set[str], client: httpx.AsyncClient | None = None) -> tuple[str, dict[str, RemoteFile]]:
+    """Resolve several files from one repository (e.g. a speech model's encoder, decoder and tokens).
+
+    Same rules as resolve(): the file list, sizes, SHA-256 and licence come from
+    the public API, and a licence that is not allowed stops the download.
+    """
+    info = await _model_info(repo, label, client)
+    lic = _license(info)
+    if lic not in allowed:
+        raise DownloadError(f"{label} is published under '{lic}', which Claw can't use without permission.")
+    siblings = info.get("siblings") or []
+    out: dict[str, RemoteFile] = {}
+    for key, pattern in patterns.items():
+        found = _pick(siblings, pattern, exclude_mmproj=False)
+        if found is None:
+            raise DownloadError(f"{label} is incomplete in the model library: no file matching '{pattern}'.")
+        out[key] = found
+    return lic, out
 
 
 def check_disk(folder: Path, needed: int) -> None:

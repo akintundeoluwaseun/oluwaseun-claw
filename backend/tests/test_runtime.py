@@ -76,7 +76,7 @@ async def test_engine_restarts_after_crash(tiny, monkeypatch):
     monkeypatch.setattr(engine_mod, "detect", lambda: hw())
     eng = LlamaServer()
     await eng.ensure("tiny", tiny)
-    eng._proc.send_signal(signal.SIGKILL)
+    eng._proc.kill()  # SIGKILL on POSIX, TerminateProcess on Windows (there is no SIGKILL there)
     eng._proc.wait()
     assert await eng.check_alive() is True
     assert eng.status.state == "ready" and eng.status.restarts == 1
@@ -123,7 +123,10 @@ def test_recommendation_follows_hardware():
     assert catalog.recommended(hw(ram=8)).id == "qwen3-vl-4b"
     assert catalog.recommended(hw(ram=16)).id == "qwen3-vl-8b"
     assert catalog.recommended(hw(ram=8, vram=8)).id == "qwen3-vl-8b"
-    assert catalog.recommended(hw(ram=4)).id == "qwen3-vl-4b"  # nothing fits: smallest, with a warning in the UI
+    # A 4 GB laptop now has a brain of its own instead of being offered one that
+    # will not fit; below that nothing fits and the smallest is still the answer.
+    assert catalog.recommended(hw(ram=4)).id == "qwen3-vl-2b"
+    assert catalog.recommended(hw(ram=2)).id == "qwen3-vl-2b"
 
 
 # ---------- downloads (fake library) ----------

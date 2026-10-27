@@ -14,9 +14,11 @@ import httpx
 from claw.models.base import (
     ChatMessage,
     ModelAdapter,
+    ModelAuthFailed,
     ModelError,
     ModelInfo,
     ModelNotFound,
+    ModelRateLimited,
     ModelResponseError,
     ModelServerUnavailable,
 )
@@ -102,6 +104,18 @@ class OpenAICompatAdapter(ModelAdapter):
         if resp.status_code >= 500 and re.search(r"does not match|failed to parse|parse error|grammar", resp.text, re.I):
             # The answer came out malformed or was cut off: a bad reply, not a broken engine.
             raise ModelResponseError("The brain's answer was cut off or malformed.")
+        if resp.status_code in (401, 403):
+            # The provider answered: the credential is the problem, not the network.
+            # The body is not repeated here because a provider may echo the key back.
+            raise ModelAuthFailed(
+                "The AI service refused the API key.",
+                "Check the key and the address in Settings → Claw's brain.",
+            )
+        if resp.status_code == 429:
+            raise ModelRateLimited(
+                "The AI service is rate limiting this key.",
+                "Wait a moment and try again, or check your plan's limits.",
+            )
         if resp.status_code >= 400:
             raise ModelError(f"The model server returned an error ({resp.status_code}): {resp.text[:500]}")
         try:

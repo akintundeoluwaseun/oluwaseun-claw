@@ -52,6 +52,11 @@ def _words(text: str) -> list[str]:
     return re.findall(r"[a-z0-9]+", text.lower())
 
 
+def is_system_tool(name: str) -> bool:
+    """Names S-CLAW will not open, whatever route is taken to them."""
+    return bool(BLOCKED.search(name.strip().lower()))
+
+
 def find_app(name: str, search_dirs: list[Path] | None = None) -> list[AppMatch]:
     query = name.strip().lower()
     if not query:

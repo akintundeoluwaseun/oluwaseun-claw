@@ -53,6 +53,24 @@ class PermissionPolicy:
     def decide(self, risk: RiskLevel) -> Decision:
         return self.modes[risk]
 
+    def unattended(self) -> "PermissionPolicy":
+        """The same policy, for work nobody is watching.
+
+        A scheduled job runs with no one there to answer, so every "ask"
+        becomes "no". Waiting ten minutes for an approval that will never come,
+        and then carrying on, is how an unattended agent does something nobody
+        agreed to. Destructive work is refused outright, whatever the settings
+        say: approval cannot be given by an empty room.
+        """
+        modes = {level: (Decision.DENY if decision == Decision.ASK else decision)
+                 for level, decision in self.modes.items()}
+        modes[RiskLevel.DESTRUCTIVE] = Decision.DENY
+        clone = PermissionPolicy(modes, [], None)
+        clone.modes = modes
+        clone.authorized_roots = list(self.authorized_roots)
+        clone.extra_files = set(self.extra_files)
+        return clone
+
     def check_path(self, candidate: str | os.PathLike[str], write: bool = False) -> Path:
         """Return the canonical path if it lies inside an authorized folder.
 
@@ -73,8 +91,17 @@ class PermissionPolicy:
         raise PathNotAuthorized(raw, "it is outside the folders you authorized")
 
 
-def _canonical(path: Path) -> Path:
-    return Path(os.path.normcase(str(path.expanduser().resolve(strict=False))))
+def canonical_path(path: str | os.PathLike[str]) -> Path:
+    """One spelling per file.
+
+    Resolves '~', '..' and symlinks, and on Windows also folds case and slashes
+    (os.path.normcase), because 'C:\\Users\\x' and 'c:/users/x' are the same file there.
+    Anything that needs to recognise a path it has seen before must key on this.
+    """
+    return Path(os.path.normcase(str(Path(path).expanduser().resolve(strict=False))))
+
+
+_canonical = canonical_path  # internal alias
 
 
 def _is_within(path: Path, root: Path) -> bool:

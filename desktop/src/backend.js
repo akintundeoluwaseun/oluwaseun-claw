@@ -16,8 +16,10 @@ const ALLOWED_ROUTES = [
   ['GET', /^\/health$/],
   ['GET', /^\/settings$/],
   ['PUT', /^\/settings$/],
+  ['GET', /^\/edition$/],
   ['GET', /^\/models\/status$/],
   ['POST', /^\/models\/probe$/],
+  ['POST', /^\/models\/selftest$/],
   ['POST', /^\/tasks\/plan$/],
   ['GET', /^\/tasks(\?[\w=&%.+-]*)?$/],
   ['GET', new RegExp(`^/tasks/${ID}$`)],
@@ -35,6 +37,12 @@ const ALLOWED_ROUTES = [
   ['POST', /^\/brain\/restart$/],
   ['GET', /^\/messages\/whatsapp$/],
   ['POST', /^\/messages\/whatsapp\/check$/],
+  ['GET', /^\/speech$/],
+  ['POST', /^\/speech\/stream\/start$/],
+  ['POST', /^\/speech\/stream\/cancel$/],
+  ['POST', /^\/speech\/models\/download$/],
+  ['POST', /^\/speech\/models\/download\/cancel$/],
+  ['POST', /^\/speech\/models\/remove$/],
   ['GET', new RegExp(`^/documents/${ID}(\\?pages=1)?$`)],
   ['GET', new RegExp(`^/documents/${ID}/search\\?q=[\\w%.+~*'()!-]{1,600}$`)],
   ['POST', new RegExp(`^/documents/${ID}/cancel$`)],
@@ -202,6 +210,63 @@ class Backend {
         ok: false,
         status: 0,
         body: { error: { code: timedOut ? 'timeout' : 'network', message: timedOut ? 'The agent took too long to answer.' : 'Could not reach the agent.' } },
+      };
+    }
+  }
+
+  async sendAudioChunk(streamId, pcm) {
+    if (typeof streamId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(streamId)) {
+      return { ok: false, status: 400, body: { error: { code: 'audio', message: 'That recording is no longer open.' } } };
+    }
+    return this.postBytes(`/speech/stream/${streamId}/chunk`, pcm, 20000);
+  }
+
+  async finishStream(streamId) {
+    if (typeof streamId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(streamId)) {
+      return { ok: false, status: 400, body: { error: { code: 'audio', message: 'That recording is no longer open.' } } };
+    }
+    return this.postBytes(`/speech/stream/${streamId}/finish`, new Uint8Array(0), 120000);
+  }
+
+  async sendAudio(wav) {
+    if (this.status.state !== 'ready') {
+      return { ok: false, status: 503, body: { error: { code: 'backend_unavailable', message: this.status.message } } };
+    }
+    if (!(wav instanceof Uint8Array) || wav.length === 0 || wav.length > 40 * 1024 * 1024) {
+      return { ok: false, status: 400, body: { error: { code: 'audio', message: 'That recording could not be read.' } } };
+    }
+    return this.postBytes('/speech/transcribe', wav, 120000);
+  }
+
+  // Audio is bytes, so it never goes through the JSON route or its allowlist.
+  // Only the three speech paths below can be reached this way.
+  async postBytes(route, bytes, timeoutMs) {
+    if (!/^\/speech\/(transcribe|stream\/[A-Za-z0-9_-]{1,64}\/(chunk|finish))$/.test(route)) {
+      return { ok: false, status: 400, body: { error: { code: 'blocked_route', message: 'That request is not allowed.' } } };
+    }
+    if (this.status.state !== 'ready') {
+      return { ok: false, status: 503, body: { error: { code: 'backend_unavailable', message: this.status.message } } };
+    }
+    try {
+      const res = await fetch(`http://127.0.0.1:${this.port}${route}`, {
+        method: 'POST',
+        headers: { 'X-Claw-Token': this.token, 'Content-Type': 'application/octet-stream' },
+        body: bytes,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = { error: { code: 'bad_reply', message: 'The agent sent a reply that could not be read.' } };
+      }
+      return { ok: res.ok, status: res.status, body: data };
+    } catch (err) {
+      const timedOut = err && err.name === 'TimeoutError';
+      return {
+        ok: false,
+        status: 0,
+        body: { error: { code: timedOut ? 'timeout' : 'network', message: timedOut ? 'Recognition took too long.' : 'Could not reach the agent.' } },
       };
     }
   }

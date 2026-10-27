@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Oluwaseun Claw</title>
+  <title>S-CLAW</title>
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -21,13 +21,62 @@
     <symbol id="i-doc" viewBox="0 0 20 20"><path d="M6 2.8h5.6L15.2 6.4v9.3a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5V4.3A1.5 1.5 0 0 1 6 2.8z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11.3 3v3.6h3.6M7.5 10.2h5M7.5 13.2h5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
     <symbol id="i-upload" viewBox="0 0 20 20"><path d="M10 13V4M6.5 7.5 10 4l3.5 3.5M4.5 13.5v1.7c0 .8.7 1.5 1.5 1.5h8c.8 0 1.5-.7 1.5-1.5v-1.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-download" viewBox="0 0 20 20"><path d="M10 4v9M6.5 9.5 10 13l3.5-3.5M4.5 13.5v1.7c0 .8.7 1.5 1.5 1.5h8c.8 0 1.5-.7 1.5-1.5v-1.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="claw-mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" class="mark-tile"/><path class="mark-claw" d="M21.5 6.5c-1.6 6.4-4.2 12.4-8.6 19M16.2 7.6c-1.3 5.3-3.4 10.3-6.8 15.6M26 8.3c-1.2 5.6-3.5 11.2-7.2 16.9"/></symbol>
+    <symbol id="built-by" viewBox="0 0 302 72">
+      <!-- The credit badge. Drawn rather than shipped as a photograph, so it stays
+         sharp on a 4K laptop and can sit on either theme without a white box. -->
+    <defs>
+      <linearGradient id="bb-pill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1e2740"/>
+        <stop offset="1" stop-color="#121829"/>
+      </linearGradient>
+      <linearGradient id="bb-dot" x1="0" y1="0" x2="0.2" y2="1">
+        <stop offset="0" stop-color="#ffb04a"/>
+        <stop offset="1" stop-color="#f08d14"/>
+      </linearGradient>
+    </defs>
+    <rect x="1" y="1" width="300" height="70" rx="35" fill="url(#bb-pill)"
+          stroke="#ffffff" stroke-opacity="0.08"/>
+    <circle cx="40" cy="36" r="25" fill="url(#bb-dot)"/>
+    <g fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M33.5 29 26.5 36l7 7"/>
+      <path d="M46.5 29 53.5 36l-7 7"/>
+      <path d="M42.6 27.5 37.4 44.5" stroke-width="3"/>
+    </g>
+    <!-- textLength pins each run to a fixed width. Without it the badge is only the
+         right shape on a machine that has Segoe UI, and the name runs off the pill
+         everywhere else. -->
+    <text x="79" y="45" textLength="76" lengthAdjust="spacingAndGlyphs"
+          font-family="Segoe UI, system-ui, -apple-system, sans-serif"
+          font-size="23" fill="#c3cad8">Built by</text>
+    <text x="163" y="45" textLength="112" lengthAdjust="spacingAndGlyphs"
+          font-family="Segoe UI, system-ui, -apple-system, sans-serif"
+          font-size="23" font-weight="700" fill="#ffffff">Oluwaseun</text>
+    </symbol>
+    <symbol id="claw-mark" viewBox="0 0 64 64">
+      <defs>
+        <linearGradient id="mk-g" x1="14" y1="10" x2="50" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#FFFFFF"/><stop offset=".28" stop-color="#9DB4FF"/>
+          <stop offset=".5" stop-color="#FFFFFF"/><stop offset=".72" stop-color="#AE93FF"/>
+          <stop offset="1" stop-color="#36479B"/>
+        </linearGradient>
+        <linearGradient id="mk-e" x1="20" y1="8" x2="40" y2="52" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#BFD2FF"/>
+        </linearGradient>
+        <radialGradient id="mk-b" cx="32" cy="32" r="27" gradientUnits="userSpaceOnUse">
+          <stop offset=".3" stop-color="#6E8BFF" stop-opacity=".92"/><stop offset="1" stop-color="#6E8BFF" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect class="mk-tile" width="64" height="64" rx="15" fill="#0E0F12"/>
+      <circle class="mk-ring" cx="32" cy="32" r="22" fill="none" stroke="#7E9BFF" stroke-width="2" opacity="0"/>
+      <circle class="mk-bloom" cx="32" cy="32" r="27" fill="url(#mk-b)"/>
+      <g class="mk-blades"><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(0 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(120 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(240 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(0 32 32)" fill="url(#mk-e)" opacity=".92"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(120 32 32)" fill="url(#mk-e)" opacity=".92"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(240 32 32)" fill="url(#mk-e)" opacity=".92"/></g>
+    </symbol>
   </svg>
 
   <header class="titlebar">
     <div class="titlebar-brand">
       <svg class="brand-mark" aria-hidden="true"><use href="#claw-mark"/></svg>
-      <span class="brand-name">Oluwaseun Claw</span>
+      <span class="brand-name">S<span class="brand-dash">-</span>CLAW</span>
     </div>
     <div class="titlebar-status">
       <button class="status-chip" id="backend-pill" data-state="starting" type="button" title="Agent status">
@@ -179,6 +228,7 @@
             <span class="approval-risk" id="approval-risk"></span>
           </div>
           <p id="approval-desc" class="approval-desc"></p>
+          <p id="approval-context" class="approval-context"></p>
           <dl id="approval-args" class="approval-args"></dl>
           <p id="approval-reason" class="approval-reason"></p>
           <div class="approval-actions">
@@ -232,9 +282,67 @@
       <h2 id="settings-title">Settings</h2>
       <button class="icon-btn" id="close-settings" type="button" aria-label="Close settings"><svg aria-hidden="true"><use href="#i-x"/></svg></button>
     </header>
-    <form id="settings-form" class="sheet-body" novalidate>
-      <section class="set">
+  <form id="settings-form" class="sheet-body" novalidate>
+    <nav class="set-nav" role="tablist" aria-label="Settings sections">
+      <button class="set-tab" type="button" role="tab" data-panel="set-brain" aria-selected="true">Claw&rsquo;s brain</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-permissions" aria-selected="false">Permissions</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-folders" aria-selected="false">Folders</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-browser" aria-selected="false">Browser</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-messages" aria-selected="false">Messages</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-background" aria-selected="false">Background</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-limits" aria-selected="false">Limits</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-jobs" aria-selected="false">Automations</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-memory" aria-selected="false">Memory</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-about" aria-selected="false">About</button>
+    </nav>
+    <div class="set-panels" id="set-panels">
+      <section class="set" id="set-brain">
         <h3>Claw's brain</h3>
+        <div class="field">
+          <label for="s-think">Where Claw thinks</label>
+          <select id="s-think">
+            <option value="service">The Claw service — no setup, needs the internet</option>
+            <option value="builtin">On this computer — Claw's own brain, works offline</option>
+            <option value="cloud">Your own online model — your address and key</option>
+          </select>
+          <p class="set-note" id="s-edition-note"></p>
+        </div>
+
+        <div id="service-box" hidden>
+          <p class="set-note">Claw sends your instructions and what it reads to the Claw service, which
+            decides what to do next. Every action still runs on this computer, and still goes through the
+            same checks and approvals. No key to set up; the internet is required.</p>
+          <p class="set-note" id="s-service-where"></p>
+          <button type="button" class="ghost" id="s-service-test">Test the connection</button>
+          <p class="set-note" id="s-service-result"></p>
+        </div>
+
+        <div id="cloud-box" hidden>
+          <p class="set-note">Claw sends your instructions and what it reads to this service. Nothing is
+            downloaded to this computer, and the built-in brain is not used.</p>
+          <div class="field">
+            <label for="s-cloud-url">Address</label>
+            <input id="s-cloud-url" type="url" spellcheck="false" autocomplete="off"
+                   placeholder="https://api.example.com/v1">
+            <p class="field-note">Must start with https:// so your key is not sent in the clear.</p>
+          </div>
+          <div class="field">
+            <label for="s-cloud-model">Model</label>
+            <input id="s-cloud-model" spellcheck="false" autocomplete="off" placeholder="the model's name">
+          </div>
+          <div class="field">
+            <label for="s-cloud-key">API key</label>
+            <div class="field-row">
+              <input id="s-cloud-key" type="password" spellcheck="false" autocomplete="off"
+                     placeholder="paste your key">
+              <button class="btn btn-quiet" id="s-cloud-test" type="button">Test connection</button>
+            </div>
+            <p class="field-note" id="s-cloud-key-note"></p>
+          </div>
+          <p id="s-cloud-result" class="field-note" aria-live="polite"></p>
+        </div>
+
+        <div id="brain-box">
         <p class="set-note" id="brain-summary"></p>
         <div class="engine-line" id="engine-line"></div>
         <ul class="brains" id="brain-list" aria-label="Brains"></ul>
@@ -246,6 +354,7 @@
         <div class="brain-more">
           <button class="btn btn-quiet btn-sm" id="brain-import" type="button"><svg aria-hidden="true"><use href="#i-upload"/></svg>Use a GGUF file I have</button>
           <button class="btn btn-quiet btn-sm" id="brain-restart" type="button">Restart the brain</button>
+        </div>
         </div>
         <details class="dev">
           <summary>Developer: use a custom model server</summary>
@@ -278,17 +387,24 @@
         </details>
       </section>
 
-      <section class="set">
+      <section class="set" id="set-background">
         <h3>Running in the background</h3>
         <label class="toggle"><input id="d-quickbar" type="checkbox"><span>Show the quick bar at the top of the screen</span></label>
         <label class="toggle"><input id="d-startup" type="checkbox"><span>Start Claw when Windows starts</span></label>
         <label class="toggle"><input id="d-awake" type="checkbox"><span>Keep the computer awake while a task runs</span></label>
         <label class="toggle"><input id="d-notify" type="checkbox"><span>Notify me when a task finishes or needs me</span></label>
         <label class="toggle"><input id="d-tray" type="checkbox"><span>Closing the window keeps Claw running in the tray</span></label>
+        <div class="field">
+          <label for="d-brief">Morning briefing</label>
+          <input id="d-brief" type="time" step="300" placeholder="08:00">
+          <p class="set-note">Today's calendar and anything that didn't finish, once a day. Leave
+            it empty for none. It can only appear while S-CLAW is running &mdash; there is no
+            service behind it, so a computer that stayed off gets no briefing.</p>
+        </div>
         <p class="set-note" id="shortcut-note"></p>
       </section>
 
-      <section class="set" id="messages-set">
+      <section class="set" id="set-messages">
         <h3>Messages (WhatsApp)</h3>
         <p class="set-note">Claw reads which chats have unread messages in the WhatsApp app on this computer. It doesn't read your
           conversations or store message text, and sending a message always asks you first.</p>
@@ -311,7 +427,7 @@
         </div>
       </section>
 
-      <section class="set">
+      <section class="set" id="set-permissions">
         <h3>What Claw may do without asking</h3>
         <div class="perm-grid">
           <label for="p-read_only">Looking and reading</label>
@@ -328,14 +444,14 @@
         <p class="set-note">If you want tasks to finish while you are away, set "Saving or editing files" to Go ahead. Deleting, sending and buying always wait for you.</p>
       </section>
 
-      <section class="set">
+      <section class="set" id="set-folders">
         <h3>Folders Claw may use</h3>
         <ul id="folder-list" class="folders"></ul>
         <p id="folder-empty" class="set-note">No folders yet. Claw can't save anything until you add one.</p>
         <button class="btn btn-quiet" id="add-folder" type="button"><svg aria-hidden="true"><use href="#i-folder"/></svg>Add folder</button>
       </section>
 
-      <section class="set">
+      <section class="set" id="set-browser">
         <h3>Browser</h3>
         <div class="field">
           <label for="b-channel">Browser Claw uses</label>
@@ -351,8 +467,15 @@
           <select id="b-engine">
             <option value="duckduckgo">DuckDuckGo</option>
             <option value="bing">Bing</option>
+            <option value="searxng">A SearXNG server of your own</option>
             <option value="custom">Custom address</option>
           </select>
+        </div>
+        <div class="field" id="b-searxng-wrap" hidden>
+          <label for="b-searxng">Your SearXNG address</label>
+          <input id="b-searxng" type="url" spellcheck="false" placeholder="https://search.example.com">
+          <p class="set-note">A metasearch server you or your organisation runs. Claw only talks to it over
+            the network; it is not part of Claw, and it needs its own internet connection.</p>
         </div>
         <div class="field" id="b-custom-wrap" hidden>
           <label for="b-custom">Search address, with {query} where the words go</label>
@@ -361,7 +484,7 @@
         <p class="set-note">Claw uses its own browser profile. It never sees your passwords or signed-in accounts.</p>
       </section>
 
-      <section class="set">
+      <section class="set" id="set-limits">
         <h3>Limits</h3>
         <div class="field-pair">
           <div class="field"><label for="a-max-steps">Most steps per task</label><input id="a-max-steps" type="number" min="1" max="50" step="1"></div>
@@ -369,9 +492,85 @@
         </div>
       </section>
 
+      <section class="set" id="set-jobs">
+        <h3>Jobs that run on a schedule</h3>
+        <p class="set-note"><strong>They run only while S-CLAW is open.</strong> A computer that is
+          off, asleep or logged out does nothing, whatever the schedule says. And because nobody is
+          watching, a scheduled job can only look &mdash; anything that would normally ask your
+          permission is refused, and the job stops and tells you.</p>
+        <ul class="job-list" id="job-list"></ul>
+        <p class="set-note" id="job-empty" hidden>No jobs yet.</p>
+        <div class="job-new">
+          <div class="field">
+            <label for="job-name">Name</label>
+            <input id="job-name" type="text" maxlength="80" placeholder="Site check">
+          </div>
+          <div class="field">
+            <label for="job-task">What should it do?</label>
+            <input id="job-task" type="text" maxlength="2000" placeholder="check whether example.com is up">
+          </div>
+          <div class="field-pair">
+            <div class="field">
+              <label for="job-kind">How often</label>
+              <select id="job-kind">
+                <option value="every">Every so often</option>
+                <option value="daily">Once a day</option>
+              </select>
+            </div>
+            <div class="field" id="job-every-wrap">
+              <label for="job-minutes">Minutes between runs</label>
+              <input id="job-minutes" type="number" min="5" max="10080" step="5" value="60">
+            </div>
+            <div class="field" id="job-at-wrap" hidden>
+              <label for="job-at">At</label>
+              <input id="job-at" type="time" step="300" value="08:00">
+            </div>
+          </div>
+          <button class="btn btn-quiet" id="job-add" type="button">Add this job</button>
+          <p class="set-note" id="job-error" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="set" id="set-memory">
+        <h3>What Claw remembers</h3>
+        <p class="set-note">Only what you have told it: how you like things done, what you are
+          working on, the people you deal with, and what was decided. It never keeps a password,
+          a code, a card number or a key &mdash; those are refused when you say them, not hidden
+          afterwards.</p>
+        <div class="mem-head">
+          <input id="mem-search" type="search" placeholder="Search what's remembered" aria-label="Search memories">
+          <button class="btn btn-quiet" id="mem-export" type="button">Export</button>
+          <button class="btn btn-quiet btn-danger" id="mem-clear" type="button">Forget everything</button>
+        </div>
+        <ul class="mem-list" id="mem-list"></ul>
+        <p class="set-note" id="mem-empty" hidden>Nothing is remembered yet.</p>
+      </section>
+
+      <section class="set" id="set-about">
+        <h3>About S-CLAW</h3>
+        <p class="set-note" id="about-version">S-CLAW</p>
+        <button class="credit" id="credit-badge" type="button"
+                title="Open Oluwaseun's website in your browser">
+          <svg class="credit-badge" viewBox="0 0 302 72" aria-hidden="true"><use href="#built-by"/></svg>
+          <span class="sr-only">Built by Oluwaseun &mdash; open the website</span>
+        </button>
+        <dl class="about-list">
+          <dt>WhatsApp</dt>
+          <dd>
+            <span class="about-handle" id="about-whatsapp">oluwaseun85148</span>
+            <button class="link" id="copy-whatsapp" type="button">Copy</button>
+            <span class="about-hint">search this username in WhatsApp</span>
+          </dd>
+          <dt>Licence</dt>
+          <dd>MIT. The source, and what each part is for, is in the repository.</dd>
+        </dl>
+        <p class="set-note" id="about-copyright"></p>
+      </section>
+
       <div id="settings-error" class="banner banner-inline" role="alert" hidden></div>
       <p class="set-note" id="data-dir"></p>
-    </form>
+    </div>
+  </form>
     <footer class="sheet-foot">
       <button class="btn btn-quiet" id="cancel-settings" type="button">Cancel</button>
       <button class="btn btn-primary" id="save-settings" type="button">Save settings</button>

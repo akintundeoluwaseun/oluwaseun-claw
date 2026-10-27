@@ -1,0 +1,99 @@
+# The backend test suite on real Windows, without building an installer.
+# The full build takes ~25 minutes and publishes a release; this takes a few
+# minutes and is what you want when checking a fix on Windows.
+name: Windows tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/ecstatic-ritchie-x6ao14"]
+    paths: ["backend/**", "packaging/**", "scripts/**", ".github/workflows/test-windows.yml"]
+
+jobs:
+  tests:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        shell: pwsh
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          python -m playwright install chromium
+
+      - name: Tesseract (OCR tests)
+        shell: pwsh
+        run: choco install tesseract -y --no-progress
+
+      - name: PowerShell scripts parse
+        shell: pwsh
+        run: |
+          # The build scripts cannot be run, or even parsed, on the Linux machines where
+          # most of the work happens. A parse error in them otherwise shows up twenty
+          # minutes into a build, after a multi-gigabyte download.
+          $bad = 0
+          foreach ($f in Get-ChildItem scripts\*.ps1) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors) {
+              $bad++
+              $first = ($errors | Select-Object -First 3 | ForEach-Object { "line $($_.Extent.StartLineNumber): $($_.Message)" }) -join ' | '
+              Write-Output "::error title=$($f.Name) does not parse::$first"
+            }
+          }
+          # The two packaging profiles must still be accepted by the parameter block.
+          foreach ($case in @(@('Online'), @('Local'))) {
+            $cmd = Get-Command .\scripts\build-release.ps1
+            if (-not $cmd.Parameters.ContainsKey('Edition')) { Write-Output '::error title=build-release.ps1::no -Edition parameter'; $bad++ }
+            if (-not $cmd.Parameters.ContainsKey('ServiceUrl')) { Write-Output '::error title=build-release.ps1::no -ServiceUrl parameter'; $bad++ }
+          }
+          if ($bad -gt 0) { exit 1 }
+          Write-Output "::notice title=PowerShell::all scripts parse, build-release.ps1 takes -Edition Online|Local"
+
+      - name: Installer script compiles
+        shell: pwsh
+        run: |
+          # Compiling the real claw.iss against a stand-in app folder catches a broken
+          # directive, preprocessor expression or [Code] block in about a minute, instead
+          # of twenty minutes into a build that has already downloaded a 6 GB brain.
+          choco install innosetup -y --no-progress
+          $app = Join-Path $env:RUNNER_TEMP 'fake-app'
+          New-Item -ItemType Directory -Force $app, (Join-Path $app 'resources') | Out-Null
+          'placeholder' | Out-File (Join-Path $app 'S-CLAW.exe')
+          $out = Join-Path $env:RUNNER_TEMP 'iss-out'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          foreach ($case in @('plain', 'split')) {
+            $args = @("/DEdition=Pro", "/DAppDir=$app", "/DVersion=9.9.9", "/DOutDir=$out")
+            if ($case -eq 'split') { $args += "/DSliceBytes=1992294400" }  # exercises the missing-part guard
+            & $iscc @args packaging\claw.iss | Tee-Object iss-$case.txt | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              $err = (Get-Content iss-$case.txt | Select-String -Pattern 'error' -CaseSensitive:$false | Select-Object -Last 5 | ForEach-Object { $_.Line.Trim() }) -join ' | '
+              Write-Output "::error title=claw.iss ($case) does not compile::$err"
+              exit 1
+            }
+          }
+          Write-Output "::notice title=Installer script::claw.iss compiles, plain and split"
+
+      - name: Backend tests
+        shell: pwsh
+        working-directory: backend
+        run: |
+          $env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
+          python -m pytest -q -p no:cacheprovider -rfE 2>&1 | Tee-Object out.txt
+          $code = $LASTEXITCODE
+          # Keep the summary readable through the API; annotations cap at ~4 KB, so the
+          # count comes first and the failing names after it.
+          $tail = (Get-Content out.txt | Select-String -Pattern '\d+ (passed|failed)' | Select-Object -Last 1).Line
+          $fails = (Get-Content out.txt | Select-String -Pattern '^(FAILED|ERROR) ' | ForEach-Object { ($_.Line -split ' - ')[0] }) -join ' | '
+          Write-Output "::notice title=Windows tests::$tail || $fails"
+          exit $code

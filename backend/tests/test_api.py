@@ -128,3 +128,119 @@ def test_history_search_covers_answers_and_errors(make_client, data_dir):
     db.update_task(t2, status="failed", error="Windows is locked")
     assert [t["id"] for t in c.get("/tasks", params={"q": "ekiti grand"}).json()["tasks"]] == [t1]
     assert [t["id"] for t in c.get("/tasks", params={"q": "locked"}).json()["tasks"]] == [t2]
+
+
+# ---------- cloud mode over the API ----------
+CLOUD = {"model": {"mode": "cloud", "base_url": "https://api.example.com/v1",
+                   "model": "hosted-model", "api_key": "sk-secret-value-123"}}
+
+
+def test_api_key_is_never_sent_to_the_page(make_client):
+    c = make_client(CLOUD)
+    body = c.get("/settings").json()["settings"]
+    assert body["model"]["api_key"] != "sk-secret-value-123"
+    assert body["model"]["api_key_set"] is True
+    assert "sk-secret-value-123" not in json.dumps(body)
+
+
+def test_saving_settings_without_touching_the_key_keeps_it(make_client):
+    c = make_client(CLOUD)
+    body = c.get("/settings").json()["settings"]
+    body["model"]["temperature"] = 0.5  # change something else and send it back verbatim
+    r = c.put("/settings", json=body)
+    assert r.status_code == 200
+    assert r.json()["settings"]["model"]["api_key_set"] is True
+    # The stored key is unchanged: the page never saw it, so it cannot have overwritten it.
+    again = c.get("/settings").json()["settings"]
+    assert again["model"]["api_key_set"] is True and again["model"]["temperature"] == 0.5
+
+
+def test_the_key_can_be_replaced_and_cleared(make_client):
+    c = make_client(CLOUD)
+    body = c.get("/settings").json()["settings"]
+    body["model"]["api_key"] = "sk-a-new-one"
+    assert c.put("/settings", json=body).status_code == 200
+    body = c.get("/settings").json()["settings"]
+    assert body["model"]["api_key_set"] is True
+    body["model"]["api_key"] = ""
+    assert c.put("/settings", json=body).status_code == 200
+    assert c.get("/settings").json()["settings"]["model"]["api_key_set"] is False
+
+
+def test_cloud_mode_reports_its_model_without_a_brain(make_client):
+    c = make_client(CLOUD)
+    assert c.get("/health").json()["status"] == "ok"
+    brain = c.get("/brain").json()
+    assert brain["mode"] == "cloud"  # no brain is installed, and none is needed
+
+
+def test_testing_a_connection_does_not_need_the_key_retyped(make_client, monkeypatch):
+    """The page never has the key, so 'Test connection' sends the placeholder back."""
+    seen = {}
+
+    class Probe:
+        provider = "openai_compatible"
+        api_key = ""
+
+        def __init__(self, **kw):
+            pass
+
+        async def status(self):
+            from claw.models.base import ModelStatus
+
+            seen["key"] = self.api_key
+            return ModelStatus(server_reachable=True, model_available=True, provider="openai_compatible",
+                               base_url="https://api.example.com/v1", model="hosted-model",
+                               message="", available_models=["m"])
+
+    monkeypatch.setitem(__import__("claw.models.registry", fromlist=["_ADAPTERS"])._ADAPTERS,
+                        "openai_compatible", Probe)
+    c = make_client(CLOUD)
+    body = dict(CLOUD["model"], api_key="__keep__")
+    r = c.post("/models/probe", json=body)
+    assert r.status_code == 200
+    assert seen["key"] == "sk-secret-value-123"  # resolved, not sent as the placeholder
+
+
+# ---------- diagnostics: does the model actually answer? ----------
+def test_selftest_generates_and_reports_the_reply(make_client, fake_server):
+    """/models/status only lists models. This one has to produce words."""
+    fake_server.replies.append("ready")
+    c = make_client(settings_for(fake_server))
+    body = c.post("/models/selftest").json()
+    assert body["ok"] is True and body["reason"] == "ok"
+    assert body["reply"] == "ready" and body["ms"] >= 0
+    # the prompt really went to the server, it was not answered locally
+    assert fake_server.requests, "no request reached the model server"
+
+
+def test_selftest_reports_an_unreachable_server(make_client):
+    c = make_client({"model": {"mode": "custom", "base_url": "http://127.0.0.1:9", "model": "x"}})
+    body = c.post("/models/selftest").json()
+    assert body["ok"] is False and body["reason"] == "unreachable"
+    assert "connect" in body["message"].lower()
+
+
+def test_selftest_reports_a_refused_key(make_client, fake_server):
+    fake_server.status_override = 401
+    c = make_client(settings_for(fake_server, model="qwen2.5:7b"))
+    body = c.post("/models/selftest").json()
+    assert body["ok"] is False and body["reason"] in ("auth_failed", "unreachable")
+
+
+def test_selftest_can_check_an_unsaved_configuration(make_client, fake_server):
+    fake_server.replies.append("ready")
+    c = make_client({"model": {"mode": "cloud", "base_url": "https://api.example.com/v1",
+                               "model": "hosted-model", "api_key": "sk-stored"}})
+    body = c.post("/models/selftest",
+                  json={"mode": "custom", "provider": "ollama",
+                        "base_url": fake_server.base_url, "model": "qwen2.5:7b"}).json()
+    assert body["ok"] is True and body["model"] == "qwen2.5:7b"
+
+
+def test_builtin_status_says_why_it_is_not_ready(make_client):
+    """Without a brain, 'reason' has to distinguish the cases the wording depends on."""
+    body = make_client({"model": {"mode": "builtin"}}).get("/models/status").json()
+    assert body["model_available"] is False
+    assert body["reason"] in ("model_missing", "unreachable")
+    assert body["message"]

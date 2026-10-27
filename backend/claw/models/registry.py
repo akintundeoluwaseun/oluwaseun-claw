@@ -15,9 +15,14 @@ _ADAPTERS: dict[str, type[ModelAdapter]] = {
 
 def build_adapter(settings: ModelSettings) -> ModelAdapter:
     cls = _ADAPTERS[settings.provider]
-    return cls(
+    adapter = cls(
         base_url=settings.base_url,
         model=settings.model,
         timeout_s=settings.request_timeout_s,
         temperature=settings.temperature,
     )
+    # The OpenAI-compatible adapter carries a key as an attribute rather than a
+    # constructor argument; cloud mode is the only place a user-supplied one is used.
+    if settings.api_key and hasattr(adapter, "api_key"):
+        adapter.api_key = settings.api_key
+    return adapter

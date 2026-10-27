@@ -1,3 +1,10 @@
+/* The quick bar: a small, calm thing at the top of the screen.
+
+   It uses the same tokens as the main window, so the two never drift apart.
+   Earlier versions hard-coded their own greys and a second set of accent
+   colours, which is why the bar and the app stopped matching.
+*/
+
 html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
 body {
   font: 14px/1.4 var(--font);
@@ -7,48 +14,53 @@ body {
   align-items: flex-start;
   padding-top: 6px;
   user-select: none;
+  -webkit-font-smoothing: antialiased;
 }
-:focus-visible { outline: 2px solid var(--jade); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
-/* Collapsed pill */
+/* ---------- Collapsed pill ---------- */
 .pill {
   display: inline-flex; align-items: center; gap: 10px;
-  height: 40px; padding: 0 16px 0 9px; max-width: 320px;
-  border-radius: 999px; border: 1px solid var(--hairline);
-  background: var(--porcelain); color: var(--ink);
-  box-shadow: var(--shadow-2);
+  height: 40px; padding: 0 var(--s4) 0 9px; max-width: 320px;
+  border-radius: var(--r-pill); border: 1px solid var(--line-2);
+  background: var(--surface); color: var(--ink);
+  box-shadow: var(--shadow-2), var(--inset);
   font: 600 13.5px/1 var(--font); letter-spacing: -0.005em;
   cursor: pointer;
-  transition: border-color 160ms var(--ease), transform 160ms var(--ease);
+  transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease), transform 160ms var(--ease);
 }
-.pill:hover { border-color: var(--hairline-2); transform: translateY(1px); }
+.pill:hover { border-color: var(--line-strong); box-shadow: var(--shadow-3), var(--inset); }
+.pill:active { transform: translateY(1px); }
 .pill .mark { width: 24px; height: 24px; flex-shrink: 0; }
 .pill-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pill-meta { color: var(--slate); font-weight: 500; white-space: nowrap; font-size: 12.5px; }
+.pill-meta { color: var(--ink-2); font-weight: 500; white-space: nowrap; font-size: 12.5px; }
 
 body[data-phase="working"] .pill .mark { animation: breathe 1.8s var(--ease) infinite; }
 @keyframes breathe { 50% { transform: scale(0.86); opacity: 0.75; } }
+body[data-phase="working"] .pill { border-color: var(--brass-line); }
 body[data-phase="attention"] .pill { border-color: var(--amber-line); background: var(--amber-soft); }
 body[data-phase="attention"] .pill-meta { color: var(--amber); font-weight: 700; }
 
 .pill-stop {
-  display: none; width: 40px; height: 40px; margin-left: 6px; border-radius: 50%;
-  border: 1px solid var(--hairline); background: var(--porcelain); color: var(--red);
+  display: none; width: 40px; height: 40px; margin-left: var(--s1); border-radius: 50%;
+  border: 1px solid var(--red-line); background: var(--surface); color: var(--red);
   box-shadow: var(--shadow-2); cursor: pointer; align-items: center; justify-content: center;
+  transition: background-color 140ms var(--ease), border-color 140ms var(--ease);
 }
 .pill-stop svg { width: 14px; height: 14px; fill: currentColor; }
-.pill-stop:hover { background: var(--red-soft); }
+.pill-stop:hover { background: var(--red-soft); border-color: var(--red); }
 body[data-phase="working"] .pill-stop, body[data-phase="attention"] .pill-stop { display: inline-flex; }
 body[data-phase="working"] .pill, body[data-phase="attention"] .pill { max-width: 276px; }
 
-/* Expanded panel */
+/* ---------- Expanded panel ---------- */
 .panel {
   display: none;
   width: 660px; box-sizing: border-box;
-  grid-template-columns: 30px 1fr auto; align-items: center; gap: 14px;
-  padding: 12px 12px 10px 18px; border-radius: 22px;
-  border: 1px solid var(--hairline); background: var(--porcelain);
-  box-shadow: var(--shadow-float);
+  /* mark | task field | microphone | Start */
+  grid-template-columns: 30px 1fr auto auto; align-items: center; gap: var(--s4);
+  padding: var(--s3) var(--s3) 10px var(--s5); border-radius: var(--r-lg);
+  border: 1px solid var(--line-2); background: var(--surface);
+  box-shadow: var(--shadow-3), var(--inset);
   animation: drop 180ms var(--ease);
 }
 @keyframes drop { from { opacity: 0; transform: translateY(-6px) scale(0.985); } }
@@ -57,21 +69,139 @@ body[data-mode="expanded"] .panel { display: grid; }
 .panel .mark { width: 30px; height: 30px; }
 .panel input {
   border: 0; outline: none; background: transparent; color: var(--ink);
-  font: 500 17px/1.3 var(--font); letter-spacing: -0.01em; padding: 10px 0; min-width: 0;
+  font: 400 17px/1.35 var(--font); letter-spacing: -0.005em; padding: 10px 0; min-width: 0;
 }
-.panel input::placeholder { color: var(--slate-2); }
+.panel input::placeholder { color: var(--ink-3); }
 .run {
-  height: 40px; padding: 0 20px; border-radius: 999px; border: 0;
-  background: var(--jade); color: var(--jade-ink);
-  font: 700 14px/1 var(--font); cursor: pointer;
-  transition: opacity 120ms var(--ease);
+  height: 38px; padding: 0 var(--s5); border-radius: var(--r-sm); border: 1px solid var(--ink);
+  background: var(--ink); color: var(--surface);
+  font: 700 13.5px/1 var(--font); cursor: pointer;
+  transition: background-color 140ms var(--ease), opacity 120ms var(--ease);
 }
+.run:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 86%, var(--brass)); }
 .run:disabled { opacity: 0.35; cursor: default; }
 .panel-foot {
-  grid-column: 1 / -1; margin: 0; padding: 8px 2px 0; border-top: 1px solid var(--hairline);
-  display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--slate);
+  grid-column: 1 / -1; margin: 0; padding: var(--s2) 2px 0; border-top: 1px solid var(--line);
+  display: flex; justify-content: space-between; gap: var(--s3); font-size: 12.5px; color: var(--ink-2);
 }
-.panel-foot[data-tone="ok"] #foot-text { color: var(--jade); font-weight: 600; }
+.panel-foot[data-tone="ok"] #foot-text { color: var(--green); font-weight: 600; }
 .panel-foot[data-tone="bad"] #foot-text { color: var(--red); font-weight: 600; }
-.link { border: 0; background: none; padding: 0; color: var(--ink); font: 600 12.5px var(--font); cursor: pointer; text-decoration: underline; text-decoration-color: var(--hairline-2); text-underline-offset: 3px; }
+.link {
+  border: 0; background: none; padding: 0; color: var(--ink); font: 600 12.5px var(--font);
+  cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px;
+}
 .link:hover { text-decoration-color: currentColor; }
+
+/* ---------- Voice ---------- */
+.mic {
+  display: grid; place-items: center; position: relative;
+  margin-right: -4px; width: 32px; height: 32px; flex: 0 0 auto;
+  border: 0; border-radius: 50%; background: transparent; color: var(--ink-3); cursor: pointer;
+  transition: background-color 120ms var(--ease), color 120ms var(--ease);
+}
+.mic:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.mic:disabled { opacity: 0.4; cursor: not-allowed; }
+.mic svg { width: 16px; height: 16px; fill: currentColor; }
+
+/* A recording indicator that does not rely on colour alone. */
+.mic-dot {
+  position: absolute; top: 2px; right: 2px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--red); opacity: 0; transform: scale(0.6);
+  transition: opacity 120ms var(--ease), transform 120ms var(--ease);
+}
+body[data-listening='yes'] .mic { color: var(--red); background: var(--red-soft); }
+body[data-listening='yes'] .mic-dot { opacity: 1; transform: scale(1); }
+
+.listening {
+  display: flex; align-items: center; gap: var(--s2); grid-column: 1 / -1;
+  margin: var(--s1) 0 0; font-size: 12px; color: var(--ink-2);
+}
+.listening-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--red);
+  animation: claw-pulse 1.4s ease-in-out infinite;
+}
+@keyframes claw-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.72); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .listening-dot { animation: none; }
+  .mic, .mic-dot { transition: none; }
+}
+
+/* Words still being decoded: shown, but visibly provisional. */
+#task[data-partial='yes'] { color: var(--ink-3); font-style: italic; }
+.listening #listening-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- The mark, in motion ----------
+
+   Four states, and the app is only ever in one of them:
+
+     idle        still. A logo that never stops moving is a logo you stop seeing.
+     listening   the bloom follows the voice (--level, set from the microphone's
+                 own samples) and a ring leaves the mark on each phrase.
+     working     the blades turn, slowly and evenly.
+     attention   a warm pulse, because something is waiting for the person.
+
+   Everything here is transform and opacity, so it stays on the compositor and
+   costs no layout. Reduced motion stops all of it.
+*/
+.mark, .brand-mark { --level: 0; }
+.mk-blades, .mk-bloom, .mk-ring { transform-origin: 50% 50%; transform-box: fill-box; }
+
+/* idle: a slow settle on first paint, then nothing */
+.mk-blades { animation: mk-settle 700ms var(--ease) both; }
+@keyframes mk-settle { from { transform: rotate(-28deg) scale(.86); opacity: 0; } }
+
+/* listening: the bloom breathes with the voice, the blades drift */
+body[data-listening="yes"] .mk-bloom {
+  transform: scale(calc(0.78 + var(--level) * 0.55));
+  opacity: calc(0.5 + var(--level) * 0.5);
+  transition: transform 90ms linear, opacity 90ms linear;
+}
+body[data-listening="yes"] .mk-blades {
+  animation: mk-drift 5.5s linear infinite;
+  transform: scale(calc(1 + var(--level) * 0.07));
+  transition: transform 110ms linear;
+}
+body[data-listening="yes"] .mk-ring { animation: mk-ping 1.9s var(--ease) infinite; }
+@keyframes mk-drift { to { transform: rotate(360deg); } }
+@keyframes mk-ping {
+  0% { opacity: .5; transform: scale(.72); }
+  70% { opacity: 0; transform: scale(1.25); }
+  100% { opacity: 0; transform: scale(1.25); }
+}
+
+/* working: an even turn, and a bloom that breathes once every few seconds */
+body[data-phase="working"] .mk-blades { animation: mk-turn 3.6s linear infinite; }
+body[data-phase="working"] .mk-bloom { animation: mk-breathe 2.8s var(--ease) infinite; }
+@keyframes mk-turn { to { transform: rotate(360deg); } }
+@keyframes mk-breathe { 50% { opacity: .95; transform: scale(1.08); } }
+
+/* attention: slower, warmer, unmistakably waiting */
+body[data-phase="attention"] .mk-bloom { animation: mk-wait 1.6s var(--ease) infinite; }
+@keyframes mk-wait { 50% { opacity: 1; transform: scale(1.12); } }
+
+/* done: one quiet flash, added and removed by the script */
+.mark.is-done .mk-bloom, .brand-mark.is-done .mk-bloom { animation: mk-flash 900ms var(--ease) 1; }
+@keyframes mk-flash { 0% { opacity: 1; transform: scale(1.3); } 100% { opacity: .5; transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-blades, .mk-bloom, .mk-ring { animation: none !important; transform: none !important; }
+  body[data-listening="yes"] .mk-bloom { opacity: .9; }
+}
+
+/* ---------- Moving the bar ----------
+   The whole bar is a handle, except the things you press. The cursor says so
+   before you try, and while it is moving nothing transitions: a bar that eases
+   towards the pointer feels broken rather than smooth. */
+.pill, .panel { cursor: grab; }
+.pill input, .panel input, .pill button, .panel button, .link { cursor: default; }
+.panel input { cursor: text; }
+body[data-dragging="yes"] .pill,
+body[data-dragging="yes"] .panel { cursor: grabbing; transition: none; }
+body[data-dragging="yes"] .pill:hover { transform: none; box-shadow: var(--shadow-3), var(--inset); }
+/* Nothing animates while it is being moved, on any machine. */
+body[data-dragging="yes"] .mk-blades,
+body[data-dragging="yes"] .mk-bloom,
+body[data-dragging="yes"] .mk-ring { animation-play-state: paused; }

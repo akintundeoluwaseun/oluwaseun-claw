@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from claw.agent.schemas import Capability
 from claw.config import Settings, describe_validation_error
+from claw.permissions.policy import canonical_path
 from claw.permissions.policy import PermissionPolicy, RiskLevel
 
 if TYPE_CHECKING:
@@ -65,6 +66,19 @@ class TaskMemory:
     def corpus(self) -> str:
         return "\n".join(self.seen_text)
 
+    def note_file(self, path: str | Path) -> None:
+        """Record that Claw really opened this file."""
+        self.seen_files.add(str(canonical_path(path)))
+
+    def saw_file(self, location: str) -> bool:
+        """Was this file opened in this task, however the path is spelled?"""
+        if location in self.seen_files:
+            return True
+        try:
+            return str(canonical_path(location)) in self.seen_files
+        except (OSError, ValueError):  # not a usable path (e.g. a URL, or too long)
+            return False
+
 
 @dataclass
 class ToolContext:
@@ -80,11 +94,23 @@ class ToolContext:
     memory: TaskMemory = field(default_factory=TaskMemory)
     llm: Any = None  # the brain adapter, for tools that summarise long documents in chunks
     docs: Any = None  # PdfPipeline (OCR-aware PDF reading with a cache)
+    # Stop and ask the person for something only they can do - a password, a code
+    # sent to their phone, a CAPTCHA. Returns True to carry on, False to stop, and
+    # None when nobody answered in time. None outside a running task.
+    ask_user: Callable[[dict[str, Any]], Awaitable[bool | None]] | None = None
+    #: Recent tasks, for the daily briefing. A callable rather than the database
+    #: itself: a tool can read what happened, never change it.
+    recent_tasks: Callable[[int], list[dict[str, Any]]] | None = None
+    #: What S-CLAW remembers about the person. None when memory is unavailable.
+    memory_store: Any = None
 
 
 Handler = Callable[[ToolArgs, ToolContext], Awaitable[ToolResult]]
 Precheck = Callable[[ToolArgs, ToolContext], None]
 RiskFn = Callable[[ToolArgs, ToolContext], RiskLevel]
+#: One sentence for the approval card: what approving this would actually do,
+#: in terms of what is on screen rather than in terms of the arguments.
+ContextFn = Callable[[ToolArgs, ToolContext], str]
 
 # Words that turn a click into a consequential action that always needs the user's OK.
 CONSEQUENTIAL = re.compile(
@@ -112,9 +138,24 @@ class ToolSpec:
     precheck: Precheck | None = None
     # Some actions are riskier than their tool's default (e.g. clicking a button labelled "Send").
     risk_for: RiskFn | None = None
+    # Some arguments do not say what they do. ["enter"] is one of them.
+    context_for: ContextFn | None = None
 
     def effective_risk(self, args: ToolArgs, ctx: ToolContext) -> RiskLevel:
         return self.risk_for(args, ctx) if self.risk_for else self.risk
+
+    def approval_context(self, args: ToolArgs, ctx: ToolContext) -> str:
+        """What approving this would do, for the person deciding.
+
+        Never raises: a missing sentence costs some clarity, an exception here
+        would cost the approval itself.
+        """
+        if self.context_for is None:
+            return ""
+        try:
+            return self.context_for(args, ctx) or ""
+        except Exception:   # noqa: BLE001 - an explanation is never worth a crash
+            return ""
 
     def parse_args(self, raw: Any) -> ToolArgs:
         if raw is None:

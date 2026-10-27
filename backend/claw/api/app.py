@@ -11,6 +11,7 @@ Security model:
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 import hmac
 import logging
 from contextlib import asynccontextmanager
@@ -28,15 +29,27 @@ from claw import __version__
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.agent.runner import TaskBusy, TaskRunner
 from claw.agent.schemas import PlanRequest, TaskStatus
+from claw.brief import assemble, window
 from claw.browser.session import BrowserSession
+from claw.calendar.reminders import phrase
+from claw.calendar.store import LocalCalendars
 from claw.computer.driver import DesktopSession, default_driver
 from claw.config import ConfigError, ModelSettings, Settings, SettingsStore, describe_validation_error
+from claw.edition import current as current_edition
+from claw.jobs.runner import JobRunner
+from claw.jobs.schedule import BadSchedule, Schedule, next_run
 from claw.logging_setup import log_event
 from claw.documents.pdf_pipeline import PdfPipeline
 from claw.documents.service import DocumentService
-from claw.models.base import ModelAdapter, ModelError, ModelNotFound, ModelStatus
+from claw.models.base import (ChatMessage, ModelAdapter, ModelAuthFailed, ModelError, ModelNotFound,
+                              ModelRateLimited, ModelStatus)
+from claw.models.claw_service import ClawServiceUnconfigured, build_service_adapter
 from claw.models.registry import build_adapter
 from claw.runtime.brain import Brain
+from claw.runtime.hub import DownloadError
+from claw.speech.audio import AudioError
+from claw.speech.base import SpeechUnavailable
+from claw.speech.service import SpeechService, default_store
 from claw.runtime.store import ModelStore
 from claw.permissions.policy import PermissionPolicy
 from claw.storage.db import Database
@@ -44,6 +57,9 @@ from claw.tools.base import ToolError, ToolRegistry
 from claw.tools.registry import build_registry
 
 log = logging.getLogger("claw.api")
+
+# Short, and answerable by any model: the point is that tokens come back at all.
+SELFTEST_PROMPT = "Reply with one word: ready"
 
 TOKEN_HEADER = "x-claw-token"
 _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]"}
@@ -61,14 +77,23 @@ class AppState:
     browser: BrowserSession | None = None
     runner: TaskRunner | None = None
     brain: Brain | None = None
+    speech: SpeechService | None = None
     desktop: DesktopSession | None = None
     docs: DocumentService | None = None
 
     async def think_adapter(self) -> ModelAdapter:
         """The model that plans and decides steps."""
         ms = self.settings.model
-        if ms.mode == "custom":
+        if ms.mode == "service":
+            # Claw Online. The service proposes actions and reads results; this computer
+            # still validates and executes every one of them.
+            return build_service_adapter(current_edition(), ms.request_timeout_s, ms.temperature, ms.model)
+        if ms.mode in ("custom", "cloud"):
+            # Cloud: a hosted model over the internet. No brain is downloaded, started or needed.
             return build_adapter(ms)
+        allowed, why = current_edition().allows_mode("builtin")
+        if not allowed:
+            raise ModelNotFound(why, "Settings → Claw's brain.")
         return await self.brain.adapter(ms.selected, ms.request_timeout_s, ms.temperature)
 
     def vision_fn(self, adapter: ModelAdapter):
@@ -77,7 +102,11 @@ class AppState:
 
     def model_label(self) -> str | None:
         ms = self.settings.model
-        if ms.mode == "custom":
+        if ms.mode == "service":
+            from claw.models.claw_service import DEFAULT_SERVICE_MODEL
+
+            return ms.model or DEFAULT_SERVICE_MODEL
+        if ms.mode in ("custom", "cloud"):
             return ms.model or None
         m = self.brain.active_model(ms.selected)
         return m.name if m else None
@@ -87,6 +116,17 @@ class AppState:
             self.settings.permissions.modes, self.settings.permissions.authorized_folders,
             self.docs.opened_paths if self.docs else None,
         )
+
+
+def _job_moment(value):
+    """A stored timestamp as an aware datetime, or None."""
+    if not value:
+        return None
+    try:
+        when = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
 
 
 def error_response(status: int, code: str, message: str, hint: str = "", details: list[str] | None = None):
@@ -103,6 +143,8 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     state = AppState(data_dir=data_dir, token=token, store=store, db=Database(data_dir / "claw.db"))
     state.desktop = DesktopSession(default_driver())
     state.brain = Brain(ModelStore(data_dir))
+    state.speech = SpeechService(default_store(data_dir),
+                                 hardware_ram_gb=getattr(state.brain.hardware, "total_ram_gb", None))
     try:
         state.settings = store.load()
     except ConfigError as exc:
@@ -158,9 +200,11 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     async def lifespan(_app):
         watcher = asyncio.create_task(idle_watch())
         wa_task = asyncio.create_task(whatsapp_watch())
+        jobs_task = asyncio.create_task(JobRunner(state).loop())
         yield
         watcher.cancel()
         wa_task.cancel()
+        jobs_task.cancel()
         await state.brain.shutdown()
         if state.runner.busy:
             state.runner.cancel(state.runner.current_id)
@@ -170,7 +214,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         state.db.close()
 
     app = FastAPI(
-        title="Oluwaseun Claw backend", version=__version__, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
+        title="S-CLAW backend", version=__version__, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
     )
     app.state.claw = state
 
@@ -210,11 +254,30 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             "settings_ok": state.settings_error is None,
         }
 
+    KEY_KEPT = "__keep__"  # the page sends this back to mean "leave the saved key alone"
+
+    def _public_settings(settings) -> dict:
+        """Settings as the page may see them: the API key is never sent out in full."""
+        data = settings.model_dump(mode="json")
+        key = settings.model.api_key
+        data["model"]["api_key"] = (KEY_KEPT if key else "")
+        data["model"]["api_key_set"] = bool(key)
+        return data
+
+    def _restore_key(raw: dict, current) -> dict:
+        """A page that did not change the key sends the placeholder back; keep what is stored."""
+        model = raw.get("model")
+        if isinstance(model, dict):
+            model.pop("api_key_set", None)
+            if model.get("api_key") == KEY_KEPT:
+                model["api_key"] = current.model.api_key
+        return raw
+
     @app.get("/settings")
     async def get_settings():
         err = state.settings_error
         return {
-            "settings": state.settings.model_dump(mode="json"),
+            "settings": _public_settings(state.settings),
             "error": {"message": err.message, "details": err.problems} if err else None,
             "data_dir": str(state.data_dir),
         }
@@ -225,15 +288,37 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             raw = await request.json()
         except ValueError:
             return error_response(400, "bad_json", "The settings sent were not valid JSON.")
+        if isinstance(raw, dict):
+            raw = _restore_key(raw, state.settings)
         try:
             new_settings = SettingsStore.validate(raw)
         except ConfigError as exc:
             return error_response(422, "invalid_settings", exc.message, details=exc.problems)
+        # One codebase, two editions: the edition decides which ways of thinking exist
+        # here. Refusing the setting is the point - silently using another one is how
+        # an "offline" install ends up sending the user's documents to a server.
+        allowed, why = current_edition().allows_mode(new_settings.model.mode)
+        if not allowed:
+            return error_response(409, "wrong_edition", why)
         store.save(new_settings)
         state.settings = new_settings
         state.settings_error = None
-        log_event(log, "settings saved", provider=new_settings.model.provider, model=new_settings.model.model)
-        return {"settings": new_settings.model_dump(mode="json"), "error": None, "data_dir": str(state.data_dir)}
+        # mode and model only: the key is a credential and never reaches the log.
+        log_event(log, "settings saved", mode=new_settings.model.mode, model=new_settings.model.model)
+        return {"settings": _public_settings(new_settings), "error": None, "data_dir": str(state.data_dir)}
+
+    @app.get("/edition")
+    async def edition():
+        """Which edition this install is, and what it may do.
+
+        The interface uses this to hide what does not exist here rather than offering
+        a brain download in Claw Online or a key field where no key is needed.
+        """
+        ed = current_edition()
+        body = ed.as_dict()
+        body["modes"] = {m: {"allowed": ed.allows_mode(m)[0], "why_not": ed.allows_mode(m)[1]}
+                         for m in ("builtin", "service", "cloud", "custom")}
+        return body
 
     @app.get("/models/status")
     async def model_status():
@@ -246,22 +331,113 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
                 ("Ready" if eng["state"] == "ready" else "Ready (starts when needed)") if info["ready"]
                 else " ".join(state.brain.not_ready(ms.selected))
             )
+            if info["ready"]:
+                reason = "ok"
+            elif not eng["available"]:
+                reason = "unreachable"          # the llama.cpp engine itself is not there
+            elif state.brain.download.status in ("resolving", "downloading", "verifying"):
+                reason = "not_configured"       # a brain is on its way
+            else:
+                reason = "model_missing"        # engine fine, no brain on this computer
             status = ModelStatus(
                 server_reachable=info["engine"]["available"], model_available=info["ready"], provider="builtin",
-                base_url="", model=active["name"] if active else "", message=message,
+                base_url="", model=active["name"] if active else "", message=message, reason=reason,
             )
             return {**status.model_dump(), "mode": "builtin"}
         try:
             adapter = await state.think_adapter()
+        except ClawServiceUnconfigured as exc:
+            # A Claw Online build with no service in it. Not a network problem, and not
+            # something a retry fixes, so it must not read as "unreachable".
+            status = ModelStatus(server_reachable=False, model_available=False, provider=ms.mode,
+                                 base_url="", model="", reason="not_configured",
+                                 message=f"{exc.message} {exc.hint}".strip())
+            return {**status.model_dump(), "mode": ms.mode}
         except ModelError as exc:
             status = ModelStatus(server_reachable=False, model_available=False, provider=ms.mode, base_url="", model="",
-                                 message=f"{exc.message} {exc.hint}".strip())
+                                 reason="error", message=f"{exc.message} {exc.hint}".strip())
             return {**status.model_dump(), "mode": ms.mode}
         return {**(await adapter.status()).model_dump(), "mode": ms.mode}
 
     @app.get("/brain")
     async def get_brain():
         return {"mode": state.settings.model.mode, **state.brain.summary(state.settings.model.selected)}
+
+    # ---------- voice (offline speech recognition) ----------
+    @app.get("/speech")
+    async def speech_status():
+        return state.speech.status(state.settings)
+
+    @app.post("/speech/transcribe")
+    async def speech_transcribe(request: Request):
+        """WAV bytes in, recognised words out. The audio is not stored."""
+        wav = await request.body()
+        try:
+            result = await state.speech.transcribe(wav, state.settings)
+        except AudioError as exc:
+            return error_response(400, "audio", str(exc))
+        except SpeechUnavailable as exc:
+            return error_response(409, "speech_unavailable", exc.message, hint=exc.hint)
+        # The words are the user's, not an instruction to act on: the bar shows them
+        # and the user submits. Marked untrusted for anything downstream.
+        return {"text": result.text, "untrusted": True, **result.as_dict()}
+
+    @app.post("/speech/stream/start")
+    async def speech_stream_start(request: Request):
+        rate = (await _body(request)).get("sample_rate")
+        try:
+            return await state.speech.start_stream(state.settings, int(rate or 16000))
+        except (TypeError, ValueError):
+            return error_response(400, "audio", "The microphone's sample rate was not understood.")
+        except AudioError as exc:
+            return error_response(400, "audio", str(exc))
+        except SpeechUnavailable as exc:
+            return error_response(409, "speech_unavailable", exc.message, hint=exc.hint)
+
+    @app.post("/speech/stream/{stream_id}/chunk")
+    async def speech_stream_chunk(stream_id: str, request: Request):
+        """Raw 16-bit PCM in, the words so far out. Called every few hundred milliseconds."""
+        try:
+            return await state.speech.feed_stream(stream_id, await request.body())
+        except AudioError as exc:
+            return error_response(400, "audio", str(exc))
+        except SpeechUnavailable as exc:
+            return error_response(409, "speech_unavailable", exc.message, hint=exc.hint)
+
+    @app.post("/speech/stream/{stream_id}/finish")
+    async def speech_stream_finish(stream_id: str):
+        try:
+            result = await state.speech.finish_stream(stream_id)
+        except SpeechUnavailable as exc:
+            return error_response(409, "speech_unavailable", exc.message, hint=exc.hint)
+        return {"text": result.text, "untrusted": True, **result.as_dict()}
+
+    @app.post("/speech/stream/cancel")
+    async def speech_stream_cancel():
+        state.speech.cancel_stream()
+        return {"cancelled": True}
+
+    @app.post("/speech/models/download")
+    async def speech_download(request: Request):
+        model_id = (await _body(request)).get("id")
+        try:
+            state.speech.models.start_download(str(model_id))
+        except DownloadError as exc:
+            return error_response(409, "download", str(exc.args[0] if exc.args else exc))
+        return state.speech.status(state.settings)
+
+    @app.post("/speech/models/download/cancel")
+    async def speech_download_cancel():
+        state.speech.models.cancel()
+        return state.speech.status(state.settings)
+
+    @app.post("/speech/models/remove")
+    async def speech_remove(request: Request):
+        model_id = str((await _body(request)).get("id") or "")
+        if state.speech.models.get_installed(model_id) is None and state.speech.models.store.load(model_id) is None:
+            return error_response(404, "not_found", "That voice model is not installed.")
+        state.speech.unload()
+        return {"removed": state.speech.models.remove(model_id), **state.speech.status(state.settings)}
 
     async def _body(request: Request) -> dict:
         try:
@@ -279,6 +455,9 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
 
     @app.post("/brain/download")
     async def brain_download(request: Request):
+        allowed, why = current_edition().allows_mode("builtin")
+        if not allowed:
+            return error_response(409, "wrong_edition", why)
         entry_id = (await _body(request)).get("id")
         try:
             state.brain.start_download(str(entry_id))
@@ -411,13 +590,69 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     async def probe_models(request: Request):
         """Check an unsaved model configuration (used by Settings → Test connection)."""
         try:
-            candidate = ModelSettings.model_validate(await request.json())
+            raw = await request.json()
+            # Testing a connection without retyping the key: the page sends the placeholder
+            # back, exactly as it does when saving, so resolve it to the stored one.
+            if isinstance(raw, dict):
+                raw = _restore_key({"model": raw}, state.settings)["model"]
+            candidate = ModelSettings.model_validate(raw)
         except ValidationError as exc:
             return error_response(422, "invalid_settings", "Model settings are not valid.", details=describe_validation_error(exc))
         except ValueError:
             return error_response(400, "bad_json", "The request was not valid JSON.")
         status = await build_adapter(candidate).status()
         return status.model_dump()
+
+    @app.post("/models/selftest")
+    async def model_selftest(request: Request):
+        """Send a real prompt and report what came back.
+
+        /models/status and /models/probe only ask whether the server is there and
+        whether it lists the model. Neither generates anything, so both can say
+        "Ready" for a configuration that fails the moment a task starts. This one
+        is the only check that proves the model actually answers.
+        """
+        ms = state.settings.model
+        candidate = None
+        try:
+            raw = await request.json()
+        except ValueError:
+            raw = None                      # no body: test the configuration that is saved
+        if isinstance(raw, dict) and raw:
+            try:
+                # Same placeholder dance as /models/probe: the page never holds the key.
+                candidate = ModelSettings.model_validate(_restore_key({"model": raw}, state.settings)["model"])
+            except ValidationError as exc:
+                return error_response(422, "invalid_settings", "Model settings are not valid.",
+                                      details=describe_validation_error(exc))
+            ms = candidate
+        base = {"mode": ms.mode, "model": (ms.model if candidate else state.model_label()) or ms.model or ""}
+        started = time.perf_counter()
+        try:
+            adapter = build_adapter(candidate) if candidate and candidate.mode != "builtin" \
+                else await state.think_adapter()
+            reply = await adapter.chat([ChatMessage(role="user", content=SELFTEST_PROMPT)])
+        except ModelAuthFailed as exc:
+            return {**base, "ok": False, "reason": "auth_failed", "message": f"{exc.message} {exc.hint}".strip()}
+        except ModelRateLimited as exc:
+            return {**base, "ok": False, "reason": "rate_limited", "message": f"{exc.message} {exc.hint}".strip()}
+        except ClawServiceUnconfigured as exc:
+            return {**base, "ok": False, "reason": "not_configured", "message": f"{exc.message} {exc.hint}".strip()}
+        except ModelNotFound as exc:
+            return {**base, "ok": False, "reason": "model_missing", "message": f"{exc.message} {exc.hint}".strip()}
+        except ModelError as exc:
+            return {**base, "ok": False, "reason": "unreachable", "message": f"{exc.message} {exc.hint}".strip()}
+        took = round((time.perf_counter() - started) * 1000)
+        text = (reply or "").strip()
+        log_event(log, "model self-test", mode=ms.mode, ok=bool(text), ms=took)
+        return {
+            **base, "ok": bool(text), "reason": "ok" if text else "error", "ms": took,
+            # The model's own words, kept short. They are shown as a quotation, never
+            # followed as instructions.
+            "reply": text[:300],
+            "message": f"The model replied in {took / 1000:.1f}s." if text
+                       else "The model was reached but returned nothing.",
+        }
 
     @app.post("/tasks/plan")
     async def plan_task(request: Request):
@@ -486,6 +721,133 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             "error": task["error"],
             "approvals": [a for a in state.runner.pending() if a["task_id"] == task_id],
         }
+
+    # ---------- scheduled jobs ----------
+    def job_view(job: dict) -> dict:
+        """A job as the app shows it: schedule in words, when it next runs, what it did last."""
+        try:
+            schedule = Schedule.parse(job["kind"], job.get("minutes"), job.get("at", ""))
+            words, upcoming = schedule.describe(), next_run(
+                schedule, _job_moment(job.get("last_run")), datetime.now(timezone.utc))
+        except BadSchedule as exc:
+            words, upcoming = f"unreadable schedule ({exc})", None
+        return {**job, "enabled": bool(job["enabled"]), "schedule": words,
+                "next_run": upcoming.isoformat() if (upcoming and job["enabled"]) else None,
+                # Said on every job, because a schedule implies a promise this cannot keep.
+                "only_while_running": True}
+
+    @app.get("/jobs")
+    async def jobs_list():
+        rows = await asyncio.to_thread(state.db.jobs)
+        return {"jobs": [job_view(j) for j in rows],
+                "note": "Jobs run only while S-CLAW is open. A computer that is off does nothing."}
+
+    @app.post("/jobs")
+    async def jobs_create(body: dict):
+        name = str((body or {}).get("name", "")).strip()[:80]
+        task_text = str((body or {}).get("task", "")).strip()[:2000]
+        if not name or not task_text:
+            return error_response(400, "bad_request", "A job needs a name and something to do.")
+        try:
+            schedule = Schedule.parse((body or {}).get("kind", ""), (body or {}).get("minutes"),
+                                      (body or {}).get("at", ""))
+        except BadSchedule as exc:
+            return error_response(400, "bad_schedule", str(exc))
+        job_id = await asyncio.to_thread(state.db.add_job, name, task_text, schedule.kind,
+                                         schedule.minutes, schedule.at)
+        log_event(log, "job created", job=name, schedule=schedule.describe())
+        return job_view(await asyncio.to_thread(state.db.job, job_id))
+
+    @app.post("/jobs/{job_id}/enabled")
+    async def jobs_enable(job_id: str, body: dict):
+        ok = await asyncio.to_thread(state.db.set_job_enabled, job_id, bool((body or {}).get("enabled")))
+        if not ok:
+            return error_response(404, "not_found", "There is no such job.")
+        return job_view(await asyncio.to_thread(state.db.job, job_id))
+
+    @app.delete("/jobs/{job_id}")
+    async def jobs_delete(job_id: str):
+        if not await asyncio.to_thread(state.db.delete_job, job_id):
+            return error_response(404, "not_found", "There is no such job.")
+        return {"deleted": job_id}
+
+    @app.get("/jobs/{job_id}/runs")
+    async def jobs_history(job_id: str):
+        if await asyncio.to_thread(state.db.job, job_id) is None:
+            return error_response(404, "not_found", "There is no such job.")
+        return {"runs": await asyncio.to_thread(state.db.job_runs, job_id, 50)}
+
+    @app.post("/jobs/{job_id}/run")
+    async def jobs_run_now(job_id: str):
+        """Run it now, watched — so approvals work normally and you can see it."""
+        job = await asyncio.to_thread(state.db.job, job_id)
+        if job is None:
+            return error_response(404, "not_found", "There is no such job.")
+        try:
+            task_id = state.runner.start(job["task_text"])
+        except TaskBusy:
+            return error_response(409, "busy", "S-CLAW is already doing something.")
+        await asyncio.to_thread(state.db.record_job_run, job_id, "started", "you ran it", task_id)
+        return {"task_id": task_id}
+
+    # ---------- memory ----------
+    # Everything S-CLAW remembers is visible here, removable one at a time or
+    # all at once, and exportable. A memory the person cannot see is a memory
+    # they cannot correct.
+    @app.get("/memory")
+    async def memory_list(query: str = "", kind: str = ""):
+        rows = await asyncio.to_thread(state.db.memories, query or None, kind or None, 500)
+        return {"memories": rows, "kinds": sorted({r["kind"] for r in rows})}
+
+    @app.delete("/memory/{memory_id}")
+    async def memory_forget(memory_id: str):
+        gone = await asyncio.to_thread(state.db.forget, memory_id)
+        if gone is None:
+            return error_response(404, "not_found", "That memory is not there.")
+        log_event(log, "memory forgotten", kind=gone["kind"])
+        return {"forgotten": {"id": gone["id"], "kind": gone["kind"], "subject": gone["subject"]}}
+
+    @app.post("/memory/forget-all")
+    async def memory_forget_all(body: dict | None = None):
+        kind = (body or {}).get("kind") or None
+        removed = await asyncio.to_thread(state.db.forget_all, kind)
+        log_event(log, "memory cleared", kind=kind or "all", removed=removed)
+        return {"removed": removed}
+
+    @app.get("/memory/export")
+    async def memory_export():
+        """Everything remembered, as plain data the person can keep."""
+        rows = await asyncio.to_thread(state.db.memories, None, None, 1000)
+        return {"exported_at": datetime.now(timezone.utc).isoformat(),
+                "app": "S-CLAW", "memories": rows}
+
+    @app.get("/brief")
+    async def brief():
+        """Today, assembled. The same thing the daily_brief tool returns."""
+        now = datetime.now(timezone.utc)
+        store = LocalCalendars(state.data_dir / "calendars")
+        start, end = window(now)
+        events = await asyncio.to_thread(store.between, start, end, None)
+        tasks = await asyncio.to_thread(state.db.list_tasks, 50)
+        return assemble(events, tasks, now).as_dict()
+
+    # ---------- calendar reminders ----------
+    # The app polls this; it does not push. A reminder is only ever shown once:
+    # the app says what it showed, and that is recorded beside the calendars.
+    @app.get("/calendar/due")
+    async def calendar_due():
+        store = LocalCalendars(state.data_dir / "calendars")
+        items = await asyncio.to_thread(store.due, datetime.now(timezone.utc))
+        return {"due": [{**item.as_dict(), "when": phrase(item)} for item in items]}
+
+    @app.post("/calendar/due/seen")
+    async def calendar_seen(body: dict):
+        uids = body.get("uids") if isinstance(body, dict) else None
+        if not isinstance(uids, list) or not all(isinstance(u, str) for u in uids):
+            return error_response(400, "bad_request", "Send a list of event ids as 'uids'.")
+        store = LocalCalendars(state.data_dir / "calendars")
+        marked = await asyncio.to_thread(store.mark_shown, uids[:200])
+        return {"marked": marked}
 
     @app.get("/approvals")
     async def approvals():

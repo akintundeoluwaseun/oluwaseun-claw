@@ -99,3 +99,38 @@ async def test_destructive_step_requires_approval(fake_server):
     fake_server.replies.append(json.dumps(plan_json))
     plan = await make_plan("task", ollama(fake_server.base_url), PermissionPolicy({}, []))
     assert plan.steps[0].permission == Decision.ASK
+
+
+# ---------- a refused key is not an unreachable server ----------
+# These are distinct states on purpose: reporting a rejected credential as
+# "could not connect" sends the user to check their internet when the problem
+# is the key, which is exactly the online/offline confusion being fixed.
+
+@pytest.mark.parametrize("code,reason,needle", [
+    (401, "auth_failed", "refused the API key"),
+    (403, "auth_failed", "refused the API key"),
+    (429, "rate_limited", "rate limiting"),
+])
+async def test_provider_errors_are_told_apart(fake_server, code, reason, needle):
+    fake_server.status_override = code
+    adapter = OpenAICompatAdapter(base_url=fake_server.base_url, model="m", timeout_s=5, temperature=0.2)
+    adapter.api_key = "sk-wrong"
+    st = await adapter.status()
+    assert st.reason == reason
+    assert st.server_reachable is True  # it answered; it just said no
+    assert st.model_available is False
+    assert needle in st.message
+
+
+async def test_a_refused_key_does_not_echo_the_providers_body():
+    """A provider may repeat the key back in its error; it must not reach the user."""
+    from claw.models.base import ModelAuthFailed
+
+    exc = ModelAuthFailed("The AI service refused the API key.", "Check the key and the address in Settings.")
+    assert "sk-" not in f"{exc.message} {exc.hint}"
+
+
+async def test_an_unreachable_server_is_still_unreachable():
+    adapter = OpenAICompatAdapter(base_url="http://127.0.0.1:9", model="m", timeout_s=2, temperature=0.2)
+    st = await adapter.status()
+    assert st.reason == "unreachable" and st.server_reachable is False

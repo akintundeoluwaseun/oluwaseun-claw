@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import Literal
 
-from PIL import Image, ImageEnhance, ImageOps
+from claw.integrations.pillow import Image, ImageEnhance, ImageOps
 from pydantic import Field, field_validator
 
 from claw.agent.schemas import Capability
@@ -35,7 +35,7 @@ def _input_image(ctx: ToolContext, raw: str) -> Path:
                 raise ToolError(f"{p.name} is too large ({probe.width}×{probe.height}).")
     except (OSError, Image.DecompressionBombError) as exc:
         raise ToolError(f"{p.name} could not be opened as a picture (it may be damaged).") from exc
-    ctx.memory.seen_files.add(str(p))
+    ctx.memory.note_file(p)
     return p
 
 
@@ -208,7 +208,7 @@ async def inspect_image(args: InspectArgs, ctx: ToolContext) -> ToolResult:
 
 
 def register_image_tools(reg: ToolRegistry) -> None:
-    F, W = Capability.FILES, RiskLevel.LOCAL_WRITE
+    F, W = Capability.DOCUMENTS, RiskLevel.LOCAL_WRITE
     reg.register(ToolSpec("make_flyer",
                           "Design a promotional flyer (headline, points, contact, pictures) and save it. Uses Photoshop if installed, "
                           "otherwise Claw's built-in editor, and says which.", F, W, FlyerArgs, make_flyer, precheck=check_flyer))

@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import logging
 import os
+import re
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -19,6 +22,8 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from claw.permissions.policy import DEFAULT_MODES, Decision, RiskLevel
+
+log = logging.getLogger("claw.config")
 
 SETTINGS_FILENAME = "settings.json"
 SETTINGS_VERSION = 1
@@ -41,14 +46,61 @@ class ConfigError(Exception):
         self.problems = problems or []
 
 
+#: Where settings, task history and downloaded brains live. The product was
+#: called "Oluwaseun Claw" before it was called S-CLAW; the old folders are
+#: listed so an existing install keeps everything it had.
+APP_DIR_WINDOWS = "S-CLAW"
+APP_DIR_UNIX = ".s-claw"
+LEGACY_DIR_WINDOWS = ("OluwaseunClaw",)
+LEGACY_DIR_UNIX = (".oluwaseun-claw",)
+
+
+def _adopt_old_data(old: Path, new: Path) -> None:
+    """Carry a previous version's folder over to the new name.
+
+    A rename is atomic, so either the whole folder arrives or nothing moves.
+    When it cannot be renamed - a different drive, a file held open, a
+    permission - the contents are copied and **the original is left exactly
+    where it is**. Losing someone's task history to a tidier folder name would
+    be the worst possible trade.
+    """
+    try:
+        os.replace(old, new)
+        log.info("data folder moved from %s to %s", old, new)
+        return
+    except OSError as exc:
+        log.warning("data folder could not be renamed (%s); copying instead", exc)
+    try:
+        shutil.copytree(old, new, dirs_exist_ok=False)
+        (new / "MOVED-FROM.txt").write_text(
+            f"Copied from {old} when the app was renamed to S-CLAW.\n"
+            "The original folder was left in place; delete it once you are satisfied.\n",
+            encoding="utf-8")
+        log.info("data folder copied from %s to %s; the original was kept", old, new)
+    except OSError as exc:
+        # Starting fresh is bad; starting fresh *silently* is worse.
+        log.error("data folder at %s could not be carried over (%s); S-CLAW will start "
+                  "with empty settings and the old folder is untouched", old, exc)
+
+
 def default_data_dir() -> Path:
     override = os.environ.get("CLAW_DATA_DIR")
     if override:
         return Path(override)
     if sys.platform == "win32":
-        base = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
-        return Path(base) / "OluwaseunClaw"
-    return Path.home() / ".oluwaseun-claw"
+        base = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
+        name, legacy = APP_DIR_WINDOWS, LEGACY_DIR_WINDOWS
+    else:
+        base, name, legacy = Path.home(), APP_DIR_UNIX, LEGACY_DIR_UNIX
+    new = base / name
+    if new.exists():
+        return new                     # already on the new name; never merge two folders
+    for old_name in legacy:
+        old = base / old_name
+        if old.is_dir():
+            _adopt_old_data(old, new)
+            break
+    return new
 
 
 def _is_loopback_host(host: str | None) -> bool:
@@ -67,8 +119,13 @@ class ModelSettings(BaseModel):
 
     # How Claw thinks:
     #   builtin — Claw's own brain on this computer; the model is chosen and set up automatically.
+    #   service — the Claw service: the hosted brain Claw Online thinks with. Its address and
+    #             credential come from the build, so the user types no API key.
+    #   cloud   — someone else's hosted model, with the user's own address, model and key.
     #   custom  — developer setting: the provider/address/model below.
-    mode: Literal["builtin", "custom"] = "builtin"
+    # "cloud", not "online": settings files from 0.3.0 use "online" for something else and
+    # are still migrated to builtin below.
+    mode: Literal["builtin", "service", "cloud", "custom"] = "builtin"
     selected: str | None = Field(default=None, max_length=80)  # None: Claw picks the best installed brain
     idle_unload_minutes: int = Field(default=10, ge=1, le=240)  # free memory when Claw is quiet
 
@@ -86,6 +143,17 @@ class ModelSettings(BaseModel):
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     # Remote model servers are off by default: this app is local-first.
     allow_remote_server: bool = False
+    # Cloud mode only. Kept out of logs and masked by the API; it is the user's credential.
+    api_key: str = Field(default="", max_length=400, repr=False)
+
+    @model_validator(mode="after")
+    def _cloud_needs_an_address_and_model(self) -> "ModelSettings":
+        if self.mode == "cloud":
+            if urlparse(self.base_url).scheme != "https":
+                raise ValueError("an online model needs an https address")
+            if not self.model.strip():
+                raise ValueError("choose which online model to use")
+        return self
 
     @field_validator("base_url")
     @classmethod
@@ -107,6 +175,10 @@ class ModelSettings(BaseModel):
     @model_validator(mode="after")
     def _local_only_unless_allowed(self) -> "ModelSettings":
         host = urlparse(self.base_url).hostname
+        # Choosing "cloud" is itself the decision to use a server elsewhere, so it does not
+        # also need the developer switch. Every other mode stays local unless it is turned on.
+        if self.mode == "cloud":
+            return self
         if not self.allow_remote_server and not _is_loopback_host(host):
             raise ValueError(
                 f"model server address '{self.base_url}' is not on this computer. "
@@ -149,7 +221,7 @@ def _looks_like_windows_absolute(path: str) -> bool:
 
 
 BrowserChannel = Literal["msedge", "chrome", "chromium"]
-SearchEngine = Literal["duckduckgo", "bing", "custom"]
+SearchEngine = Literal["duckduckgo", "bing", "searxng", "custom"]
 
 
 def _default_channel() -> str:
@@ -164,16 +236,23 @@ class BrowserSettings(BaseModel):
     headless: bool = False
     search_engine: SearchEngine = "duckduckgo"
     custom_search_url: str = Field(default="", max_length=500)
+    # A SearXNG server the user or their organisation runs. Claw talks to it over
+    # HTTP and never bundles it: SearXNG is AGPL-3.0.
+    searxng_url: str = Field(default="", max_length=500)
     # Reading the user's own browser history is private: it can be asked for or refused, never automatic.
     history_access: Literal["ask", "deny"] = "ask"
     navigation_timeout_s: float = Field(default=30, ge=5, le=120)
 
     @model_validator(mode="after")
-    def _custom_needs_url(self) -> "BrowserSettings":
+    def _chosen_engine_has_an_address(self) -> "BrowserSettings":
         if self.search_engine == "custom":
             parsed = urlparse(self.custom_search_url)
             if parsed.scheme not in ("http", "https") or "{query}" not in self.custom_search_url:
                 raise ValueError("a custom search address must start with http(s):// and contain {query}")
+        if self.search_engine == "searxng":
+            parsed = urlparse(self.searxng_url)
+            if parsed.scheme not in ("http", "https") or not parsed.hostname:
+                raise ValueError("give the address of your SearXNG server, e.g. https://search.example.com")
         return self
 
 
@@ -196,6 +275,10 @@ class DesktopSettings(BaseModel):
     keep_awake_while_running: bool = True
     notifications: bool = True
     close_to_tray: bool = True
+    #: When to show the morning briefing, as "HH:MM"; empty turns it off. It can
+    #: only appear while S-CLAW is running — there is no service behind it, and
+    #: a laptop that stayed shut gets no briefing.
+    brief_at: str = Field(default="", pattern=r"^$|^([01]?\d|2[0-3]):[0-5]\d$")
 
 
 class DocumentSettings(BaseModel):
@@ -216,6 +299,29 @@ class MessagesSettings(BaseModel):
     # Sending a message is always a "Deleting, sending, buying" action: it always asks.
 
 
+class VoiceSettings(BaseModel):
+    """The offline command bar. Recognition is local; nothing is uploaded."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False  # off until the user installs a model: no surprise downloads
+    model: str | None = Field(default=None, max_length=80)  # None: the one installed model
+    # Click-to-record by default. Claw never listens in the background.
+    mode: Literal["click", "push_to_talk"] = "click"
+    push_to_talk: str = Field(default="Ctrl+Shift+V", max_length=60)
+    auto_submit: bool = False  # run the recognised text without a second look
+    keep_recordings: bool = False  # opt-in only; off means audio is never written to disk
+    input_device: str = Field(default="", max_length=200)  # "" = the system default microphone
+
+    @field_validator("push_to_talk")
+    @classmethod
+    def _shortcut_shape(cls, v: str) -> str:
+        v = v.strip()
+        if v and not re.fullmatch(r"(?:(?:Ctrl|Alt|Shift|Super|CommandOrControl)\+){1,3}[A-Za-z0-9]+", v):
+            raise ValueError("must look like 'Ctrl+Shift+V'")
+        return v
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -227,6 +333,7 @@ class Settings(BaseModel):
     desktop: DesktopSettings = Field(default_factory=DesktopSettings)
     documents: DocumentSettings = Field(default_factory=DocumentSettings)
     messages: MessagesSettings = Field(default_factory=MessagesSettings)
+    voice: VoiceSettings = Field(default_factory=VoiceSettings)
 
 
 def describe_validation_error(exc: ValidationError) -> list[str]:

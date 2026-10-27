@@ -93,9 +93,25 @@ class ReportArgs(ToolArgs):
     folder: str | None = Field(default=None, max_length=500)
 
 
+_URL = re.compile(r"^[a-z][a-z0-9+.\-]*://", re.I)
+
+
+def _source_was_opened(location: str, ctx: ToolContext) -> bool:
+    """A source may be cited only if Claw really opened it in this task.
+
+    A file is matched on its canonical path, not the spelling the model used:
+    on Windows the recorded path is case-folded, so a raw string match would
+    reject a file Claw had just read.
+    """
+    if location in ctx.browser.seen_urls:
+        return True
+    if _URL.match(location):
+        return False
+    return ctx.memory.saw_file(location)
+
+
 def check_report(args: ReportArgs, ctx: ToolContext) -> None:
-    seen = ctx.browser.seen_urls | ctx.memory.seen_files
-    unseen = [s.location for s in args.sources if s.location not in seen]
+    unseen = [s.location for s in args.sources if not _source_was_opened(s.location, ctx)]
     if unseen:
         raise ToolError("These sources were not opened during this task, so they can't be cited: " + ", ".join(unseen[:5]))
     resolve_folder(ctx, args.folder)
@@ -107,9 +123,9 @@ def _write_docx(path: Path, args: ReportArgs, stamp: str) -> None:
 
     doc = docx.Document()
     doc.core_properties.title = args.title
-    doc.core_properties.author = "Oluwaseun Claw"
+    doc.core_properties.author = "S-CLAW"
     doc.add_heading(args.title, level=0)
-    note = doc.add_paragraph(f"Prepared by Oluwaseun Claw on {stamp}.")
+    note = doc.add_paragraph(f"Prepared by S-CLAW on {stamp}.")
     note.runs[0].font.size = Pt(9)
     for sec in args.sections:
         doc.add_heading(sec.heading, level=1)
@@ -124,7 +140,7 @@ def _write_docx(path: Path, args: ReportArgs, stamp: str) -> None:
 
 
 def _write_md(path: Path, args: ReportArgs, stamp: str) -> None:
-    lines = [f"# {args.title}", "", f"_Prepared by Oluwaseun Claw on {stamp}._", ""]
+    lines = [f"# {args.title}", "", f"_Prepared by S-CLAW on {stamp}._", ""]
     for sec in args.sections:
         lines += [f"## {sec.heading}", "", sec.body.strip(), ""]
     if args.sources:
@@ -259,8 +275,13 @@ def _count_rows(path: Path) -> int:
 
 
 async def create_spreadsheet(args: SheetArgs, ctx: ToolContext) -> ToolResult:
-    path = _new_path(ctx, args.folder, args.file_name, "." + args.format)
-    await asyncio.to_thread(_write_xlsx if args.format == "xlsx" else _write_csv, path, args)
+    # A name that already says what it is wins over the format default. Asking for
+    # "contacts.csv" used to give "contacts.csv.xlsx": the wrong kind of file, with
+    # two extensions, and no word about it.
+    named = Path(args.file_name).suffix.lower()
+    fmt = named[1:] if named in (".csv", ".xlsx") else args.format
+    path = _new_path(ctx, args.folder, args.file_name, "." + fmt)
+    await asyncio.to_thread(_write_xlsx if fmt == "xlsx" else _write_csv, path, args)
     written = await asyncio.to_thread(_count_rows, path)
     ok = written == len(args.rows)
     checked, found, missing = provenance(args.rows, ctx.memory.corpus())
@@ -325,7 +346,7 @@ async def edit_text_file(args: EditArgs, ctx: ToolContext) -> ToolResult:
 
 
 def register_document_tools(reg: ToolRegistry) -> None:
-    F, W = Capability.FILES, RiskLevel.LOCAL_WRITE
+    F, W = Capability.DOCUMENTS, RiskLevel.LOCAL_WRITE
     reg.register(ToolSpec("write_text_file", "Create a new text file (.txt .md .csv .json .html) in an authorized folder.",
                           F, W, WriteTextArgs, write_text_file, precheck=check_write_text))
     reg.register(ToolSpec("save_report", "Save a report (Word or Markdown) with sections and the sources Claw opened.",
