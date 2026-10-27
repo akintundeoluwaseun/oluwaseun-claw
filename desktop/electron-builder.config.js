@@ -1,17 +1,19 @@
 'use strict';
-// electron-builder settings for Oluwaseun Claw.
+// electron-builder settings for S-CLAW.
 //
 // The build script (scripts/build-release.ps1) first fills a staging folder:
 //   <stage>/backend    frozen Python backend (PyInstaller), so users need no Python
 //   <stage>/engine     llama.cpp llama-server + its DLLs (MIT)
 //   <stage>/tesseract  Tesseract OCR + tessdata (eng, osd) (Apache-2.0)
-//   <stage>/models     the edition's brain: models/<id>/manifest.json + GGUF files
+//   <stage>/models     the edition's brain: models/<id>/manifest.json + GGUF files (Local only)
+//   <stage>/edition.json  which edition this build is (Online or Local)
 // and then runs electron-builder with CLAW_STAGE and CLAW_EDITION set.
 // electron-builder only makes the unpacked app ("dir"); the installer is made by
 // Inno Setup (packaging/claw.iss), because NSIS installers cannot exceed 2 GB and the
 // brains are 3–7 GB.
 
 const path = require('node:path');
+const { CREATOR } = require('./src/creator');
 
 const stage = process.env.CLAW_STAGE || path.resolve(__dirname, '..', 'build', 'stage');
 const edition = process.env.CLAW_EDITION || 'Standard';
@@ -21,11 +23,16 @@ const extra = ['backend', 'engine', 'tesseract', 'models'].map((dir) => ({
   to: dir,
   filter: ['**/*'],
 }));
+// Which edition this build is. claw/edition.py reads it from resources/edition.json and
+// it is the only difference between Claw Online and Claw Local at run time.
+extra.push({ from: path.join(stage, 'edition.json'), to: 'edition.json' });
 
 module.exports = {
-  appId: 'com.oluwaseun.claw',
-  productName: 'Oluwaseun Claw',
-  copyright: 'Copyright © 2026 Oluwaseun Claw contributors',
+  appId: 'com.oluwaseun.sclaw',
+  productName: 'S-CLAW',
+  // Written into the .exe's version resource, where Windows shows it under
+  // Properties > Details. Same string as the installer and the About panel.
+  copyright: CREATOR.copyright,
   directories: { output: path.resolve(__dirname, '..', 'build', `app-${edition.toLowerCase()}`) },
   files: ['src/**/*', 'package.json', '!**/*.map'],
   asar: true,

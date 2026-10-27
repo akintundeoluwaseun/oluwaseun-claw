@@ -1,6 +1,6 @@
 {
-  "name": "oluwaseun-claw",
-  "productName": "Oluwaseun Claw",
+  "name": "s-claw",
+  "productName": "S-CLAW",
   "version": "0.5.0",
   "description": "Local-first AI agent that operates your Windows computer",
   "main": "src/main.js",
@@ -8,12 +8,17 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "check": "node --check src/main.js && node --check src/preload.js && node --check src/preload-quickbar.js && node --check src/backend.js && node --check src/watcher.js && node --check src/renderer/app.js && node --check src/renderer/quickbar.js",
-    "test": "node --test tests/routes.test.js"
+    "check": "node --check src/creator.js && node --check src/main.js && node --check src/preload.js && node --check src/preload-quickbar.js && node --check src/backend.js && node --check src/watcher.js && node --check src/reminders.js && node --check src/renderer/app.js && node --check src/renderer/quickbar.js",
+    "test": "node --test tests/routes.test.js tests/creator.test.js tests/reminders.test.js"
   },
   "devDependencies": {
     "electron": "45.0.0",
     "electron-builder": "^26.17.0",
     "playwright-core": "1.64.1"
-  }
+  },
+  "author": {
+    "name": "Akintunde Oluwaseun Joshua",
+    "url": "https://oluwaseun-joshua-site.vercel.app/"
+  },
+  "homepage": "https://oluwaseun-joshua-site.vercel.app/"
 }
