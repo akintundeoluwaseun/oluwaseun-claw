@@ -123,9 +123,9 @@ def _write_docx(path: Path, args: ReportArgs, stamp: str) -> None:
 
     doc = docx.Document()
     doc.core_properties.title = args.title
-    doc.core_properties.author = "Oluwaseun Claw"
+    doc.core_properties.author = "S-CLAW"
     doc.add_heading(args.title, level=0)
-    note = doc.add_paragraph(f"Prepared by Oluwaseun Claw on {stamp}.")
+    note = doc.add_paragraph(f"Prepared by S-CLAW on {stamp}.")
     note.runs[0].font.size = Pt(9)
     for sec in args.sections:
         doc.add_heading(sec.heading, level=1)
@@ -140,7 +140,7 @@ def _write_docx(path: Path, args: ReportArgs, stamp: str) -> None:
 
 
 def _write_md(path: Path, args: ReportArgs, stamp: str) -> None:
-    lines = [f"# {args.title}", "", f"_Prepared by Oluwaseun Claw on {stamp}._", ""]
+    lines = [f"# {args.title}", "", f"_Prepared by S-CLAW on {stamp}._", ""]
     for sec in args.sections:
         lines += [f"## {sec.heading}", "", sec.body.strip(), ""]
     if args.sources:

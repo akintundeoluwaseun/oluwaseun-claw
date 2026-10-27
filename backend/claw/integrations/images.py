@@ -18,7 +18,7 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageOps
+from claw.integrations.pillow import Image, ImageDraw, ImageEnhance, ImageFont, ImageOps
 
 PRESETS = {
     "square": (1080, 1080),  # Instagram / WhatsApp status square

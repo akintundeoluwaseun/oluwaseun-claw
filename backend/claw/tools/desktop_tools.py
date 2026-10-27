@@ -17,7 +17,7 @@ from pydantic import Field, field_validator
 
 from claw.agent.schemas import Capability
 from claw.computer.driver import ControlInfo, DesktopUnavailable, Snapshot, WindowInfo
-from claw.computer.launcher import choose_app
+from claw.computer.launcher import choose_app, is_system_tool
 from claw.permissions.policy import RiskLevel
 from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec, escalate_by_label
 
@@ -30,6 +30,10 @@ ALLOWED_KEYS = {
 }
 MODIFIERS = {"ctrl", "alt", "shift"}
 # Combinations that could leave Claw's control or change Windows itself.
+# How long an app is given to put a window on screen. A named constant so a test can
+# shorten it instead of waiting the full fifteen seconds for the failure path.
+LAUNCH_TIMEOUT_S = 15.0
+
 BLOCKED_COMBOS = [{"ctrl", "alt", "delete"}, {"alt", "tab"}, {"ctrl", "escape"}, {"ctrl", "shift", "escape"}]
 
 
@@ -101,14 +105,77 @@ def _match_window(windows: list[WindowInfo], title: str | None) -> WindowInfo:
 MESSAGING_APPS = {"whatsapp.exe", "whatsapp.root.exe", "telegram.exe", "teams.exe", "ms-teams.exe", "outlook.exe", "olk.exe",
                   "slack.exe", "discord.exe", "signal.exe", "skype.exe", "zoom.exe", "messenger.exe"}
 
+# The same is true inside a browser, and there the program is only ever the browser.
+# "Open Instagram in Chrome and message John" would otherwise press Enter under the
+# ordinary writing rules, and send on a key press nobody approved.
+BROWSERS = {"chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "vivaldi.exe",
+            "chromium.exe", "iexplore.exe"}
+SENDING_SITES = re.compile(
+    r"\b(whatsapp|telegram|instagram|messenger|facebook|discord|slack|teams|signal|"
+    r"gmail|inbox|outlook|mail|linkedin|twitter|x\.com|reddit chat|skype|viber|wechat)\b",
+    re.I)
+
 
 def _use(ctx: ToolContext, win: WindowInfo) -> None:
     ctx.desktop.last_window = win.handle
     ctx.desktop.last_process = (win.process or "").lower()
+    ctx.desktop.last_title = win.title or ""
 
 
 def _in_messaging_app(ctx: ToolContext) -> bool:
-    return ctx is not None and ctx.desktop is not None and ctx.desktop.last_process in MESSAGING_APPS
+    """Would Enter send something to another person from where Claw is working?
+
+    A false yes costs one extra approval. A false no sends a message nobody
+    approved, so the browser case is decided from the window title, which is
+    where the site's name is.
+    """
+    if ctx is None or ctx.desktop is None:
+        return False
+    process = ctx.desktop.last_process
+    if process in MESSAGING_APPS:
+        return True
+    if process in BROWSERS:
+        return bool(SENDING_SITES.search(ctx.desktop.last_title or ""))
+    return False
+
+
+def _where(ctx: ToolContext) -> str:
+    """Who is on the other side, as far as the window title says.
+
+    Titles read "John Doe - Telegram" or "(2) WhatsApp", so the leading part is
+    the chat and the rest is the app. It is a guess from a title, so the wording
+    stays a guess: the person approving can see the screen, Claw cannot.
+    """
+    title = (ctx.desktop.last_title or "").strip()
+    if not title:
+        return "the window Claw is working in"
+    head = re.split(r"\s+[-\u2013\u2014|]\s+", title)[0].strip()
+    head = re.sub(r"^\(\d+\)\s*", "", head)      # "(2) John Doe" - the unread count
+    return f"'{head or title}'"
+
+
+def sending_context(args, ctx: ToolContext) -> str:
+    """The sentence shown on the approval card for a key press that sends.
+
+    'press_keys: ["enter"]' is true and useless. What the person needs to know
+    before they allow it is who receives the message and what it says - neither
+    of which is in the arguments.
+    """
+    if not _in_messaging_app(ctx):
+        return ""
+    # When the tool carries the text itself, that text is what gets sent. Only a
+    # bare key press has to fall back to what was typed in an earlier step - and
+    # reading last_typed for type_text would quote the *previous* message, because
+    # the handler that records it has not run yet when this card is shown.
+    typed = getattr(args, "text", None) or ctx.desktop.last_typed or ""
+    quoted = " ".join(typed.split())
+    if len(quoted) > 240:
+        quoted = quoted[:240] + "..."
+    where = _where(ctx)
+    app = ctx.desktop.last_process or "that app"
+    lead = f"This sends the message to {where} in {app}."
+    return f"{lead} The message reads: \u201c{quoted}\u201d" if quoted else \
+        f"{lead} Claw did not type the message itself, so check on screen what is in the box."
 
 
 def keys_risk(args, ctx: ToolContext) -> RiskLevel:
@@ -161,14 +228,63 @@ class LaunchArgs(ToolArgs):
 
 
 def check_launch(args: LaunchArgs, ctx: ToolContext) -> None:
-    choose_app(args.name, ctx.start_menu_dirs)
+    # Only refuse here for the reasons that are true before looking at the screen:
+    # a system tool, or a name that matches nothing anywhere. An app with no
+    # Start-menu shortcut may still be running, and launch_app handles that.
+    if is_system_tool(args.name):
+        choose_app(args.name, ctx.start_menu_dirs)      # raises, with the right words
+    try:
+        choose_app(args.name, ctx.start_menu_dirs)
+    except ToolError:
+        if _running_window(ctx, args.name) is None:
+            raise
+
+
+def _running_window(ctx: ToolContext, name: str) -> WindowInfo | None:
+    """An open window of that app, for the many apps with no Start-menu shortcut.
+
+    Store apps, anything pinned to the taskbar only, and anything already open
+    all land here. Switching to a window that exists beats reporting that an app
+    the person is looking at cannot be found.
+    """
+    if ctx.desktop is None:
+        return None
+    try:
+        windows = ctx.desktop.driver.list_windows()
+    except Exception:  # noqa: BLE001 - the desktop may be unavailable; that is not this function's error
+        return None
+    needle = name.strip().lower()
+    for window in windows:
+        title = (window.title or "").lower()
+        process = (window.process or "").lower()
+        if needle in title or needle == process or needle + ".exe" == process:
+            return window
+    return None
 
 
 async def launch_app(args: LaunchArgs, ctx: ToolContext) -> ToolResult:
-    app = choose_app(args.name, ctx.start_menu_dirs)
+    try:
+        app = choose_app(args.name, ctx.start_menu_dirs)
+    except ToolError:
+        # Switching to a window is a way to reach an app without a shortcut. It is
+        # not a way to reach one S-CLAW refuses to open.
+        already = None if is_system_tool(args.name) else _running_window(ctx, args.name)
+        if already is None:
+            raise
+        await _d(ctx, "focus_window", already.handle)
+        await asyncio.sleep(SETTLE_S)
+        active = await _d(ctx, "active_window")
+        ok = active is not None and active.handle == already.handle
+        _use(ctx, already)
+        return ToolResult(
+            ok,
+            f"{args.name} has no Start-menu shortcut, but it was already open: switched to "
+            f"'{already.title}'." if ok
+            else f"{args.name} is open as '{already.title}', but another window stayed in front.",
+            {"app": args.name, "title": already.title, "was_running": True}, verified=ok)
     before = {w.handle for w in await _d(ctx, "list_windows")}
     await _d(ctx, "launch", app.target)
-    deadline = time.monotonic() + 15
+    deadline = time.monotonic() + LAUNCH_TIMEOUT_S
     new: list[WindowInfo] = []
     while time.monotonic() < deadline:
         await asyncio.sleep(0.5)
@@ -176,7 +292,8 @@ async def launch_app(args: LaunchArgs, ctx: ToolContext) -> ToolResult:
         if new:
             break
     if not new:
-        return ToolResult(False, f"Started {app.name}, but no new window appeared within 15 seconds.", {"app": app.name}, False)
+        return ToolResult(False, f"Started {app.name}, but no new window appeared within {LAUNCH_TIMEOUT_S:.0f} seconds.",
+                          {"app": app.name}, False)
     win = new[0]
     _use(ctx, win)
     return ToolResult(True, f"Opened {app.name}: window '{win.title}'.", {"app": app.name, "title": win.title}, True)
@@ -244,6 +361,7 @@ class TypeIntoArgs(ToolArgs):
 async def type_into(args: TypeIntoArgs, ctx: ToolContext) -> ToolResult:
     c = _control(ctx, args.number)
     await _d(ctx, "set_text", args.number, args.text)
+    ctx.desktop.last_typed = args.text
     await asyncio.sleep(0.2)
     value = await _d(ctx, "read", args.number)
     expected = " ".join(args.text.split())
@@ -265,6 +383,7 @@ TYPE_CHUNK = 40  # characters per keyboard burst (~0.4 s): Stop / Ctrl+Alt+X tak
 
 
 async def type_text(args: TypeArgs, ctx: ToolContext) -> ToolResult:
+    ctx.desktop.last_typed = args.text
     for i in range(0, len(args.text), TYPE_CHUNK):
         await _d(ctx, "type_keys", args.text[i:i + TYPE_CHUNK])
     return ToolResult(True, f"Typed {len(args.text)} characters into the active window.", {"chars": len(args.text)}, verified=False)
@@ -456,9 +575,12 @@ def register_desktop_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("click_control", "Click a control by its number from look_at_window.", D, W, ControlArgs, click_control,
                           precheck=check_control, risk_for=click_risk))
     reg.register(ToolSpec("type_into", "Put text into a field by its number from look_at_window.", D, W, TypeIntoArgs, type_into,
-                          precheck=lambda a, c: _control(c, a.number), risk_for=typing_risk))
-    reg.register(ToolSpec("type_text", "Type text into whatever has keyboard focus.", D, W, TypeArgs, type_text, risk_for=typing_risk))
-    reg.register(ToolSpec("press_keys", 'Press a key or shortcut, e.g. ["ctrl", "s"].', D, W, KeysArgs, press_keys, risk_for=keys_risk))
+                          precheck=lambda a, c: _control(c, a.number), risk_for=typing_risk,
+                          context_for=sending_context))
+    reg.register(ToolSpec("type_text", "Type text into whatever has keyboard focus.", D, W, TypeArgs, type_text, risk_for=typing_risk,
+                          context_for=sending_context))
+    reg.register(ToolSpec("press_keys", 'Press a key or shortcut, e.g. ["ctrl", "s"].', D, W, KeysArgs, press_keys, risk_for=keys_risk,
+                          context_for=sending_context))
     reg.register(ToolSpec("read_control", "Read the text in a control by its number.", D, R, ControlArgs, read_control,
                           precheck=lambda a, c: _control(c, a.number)))
     reg.register(ToolSpec("scroll", "Scroll a window up or down.", D, R, ScrollArgs, scroll))

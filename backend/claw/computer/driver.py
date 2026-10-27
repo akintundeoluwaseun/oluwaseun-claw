@@ -166,13 +166,22 @@ class DesktopSession:
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="claw-desktop", initializer=_com_init)
         self.last_window: int | None = None
         self.last_process: str = ""  # program of the window Claw last worked in (for messaging-app rules)
+        # The title as well, because inside a browser the program is only ever
+        # "chrome.exe" and the thing that decides whether Enter sends a message
+        # is which site the tab is on.
+        self.last_title: str = ""
         self.last_controls: list[ControlInfo] = []
+        # The last text Claw typed here. Pressing Enter in a chat sends it, and
+        # "press enter" on its own tells the person approving nothing at all.
+        self.last_typed: str = ""
         self.screenshot_taken = False
 
     def reset_task_state(self) -> None:
         self.last_window = None
+        self.last_title = ""
         self.last_process = ""
         self.last_controls = []
+        self.last_typed = ""
         self.screenshot_taken = False
 
     async def call(self, fn, *args):

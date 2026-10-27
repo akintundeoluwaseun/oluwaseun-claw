@@ -38,17 +38,25 @@ class TaskRunner:
         self.current_id: str | None = None
         self._task: asyncio.Task | None = None
         self.approvals: dict[str, PendingApproval] = {}
+        #: True while a scheduled job is running, so nothing waits for a person.
+        self.unattended = False
 
     @property
     def busy(self) -> bool:
         return self._task is not None and not self._task.done()
 
-    def start(self, task_text: str) -> str:
+    def start(self, task_text: str, unattended: bool = False) -> str:
+        """Run a task. `unattended` means nobody is watching — a scheduled job.
+
+        It is not a convenience flag: it changes the permission policy, because
+        an approval cannot be given by an empty room.
+        """
         if self.busy:
             raise TaskBusy()
         db = self.state.db
+        self.unattended = unattended
         task_id = db.create_task(task_text, self.state.model_label())
-        db.add_event(task_id, "requested_task", {"task": task_text})
+        db.add_event(task_id, "requested_task", {"task": task_text, "unattended": unattended})
         self.current_id = task_id
         self._task = asyncio.create_task(self._run(task_id, task_text), name=f"claw-task-{task_id}")
         return task_id
@@ -105,8 +113,9 @@ class TaskRunner:
         try:
             adapter = await state.think_adapter()
             ctx = ToolContext(
-                settings=settings, policy=state.policy(), data_dir=state.data_dir, browser=state.browser, task_id=task_id,
+                settings=settings, policy=state.policy().unattended() if self.unattended else state.policy(), data_dir=state.data_dir, browser=state.browser, task_id=task_id,
                 desktop=state.desktop, vision=state.vision_fn(adapter), llm=adapter, docs=state.docs.pipeline,
+                ask_user=request_approval, recent_tasks=db.list_tasks, memory_store=db,
             )
             db.update_task(task_id, status="planning")
             emit("model_call", {"provider": adapter.provider, "model": adapter.model, "purpose": "plan"})
