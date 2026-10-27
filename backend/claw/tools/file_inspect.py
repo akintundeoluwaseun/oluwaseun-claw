@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -82,6 +83,12 @@ class FindArgs(ToolArgs):
     extension: str | None = Field(default=None, max_length=10, description="e.g. .pdf")
     folder: str | None = Field(default=None, max_length=500)
     newest_first: bool = True
+    not_modified_in_days: int | None = Field(
+        default=None, ge=1, le=36500,
+        description="Only files untouched for at least this many days, e.g. 30 for old files")
+    modified_in_days: int | None = Field(
+        default=None, ge=1, le=36500,
+        description="Only files changed within this many days, e.g. 7 for this week's files")
 
 
 async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:
@@ -90,6 +97,11 @@ async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:
     if ext and not ext.startswith("."):
         ext = "." + ext
     needle = args.name_contains.lower()
+    # One clock reading for the whole walk, so a long scan cannot move the cut-off
+    # under its own feet and report a file on both sides of it.
+    now = time.time()
+    older_than = now - args.not_modified_in_days * 86400 if args.not_modified_in_days else None
+    newer_than = now - args.modified_in_days * 86400 if args.modified_in_days else None
     hits, scanned = [], 0
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d.lower() not in SKIP_DIRS and not d.startswith(".")]
@@ -106,6 +118,10 @@ async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:
                 st = p.stat()
             except OSError:
                 continue
+            if older_than is not None and st.st_mtime > older_than:
+                continue
+            if newer_than is not None and st.st_mtime < newer_than:
+                continue
             hits.append({"path": str(p), "size": st.st_size, "modified": st.st_mtime})
         if scanned > 50000:
             break
@@ -114,11 +130,17 @@ async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:
     for h in hits:
         h["modified"] = _when(h["modified"])
     text = "\n".join(f"- {h['path']}  {h['size']:,} bytes  {h['modified']}" for h in hits)
-    return ToolResult(True, f"Found {len(hits)} file(s) under {root}.", {"files": hits, "scanned": scanned}, True, text)
+    window = ""
+    if args.not_modified_in_days:
+        window = f", not changed in {args.not_modified_in_days} day(s)"
+    elif args.modified_in_days:
+        window = f", changed in the last {args.modified_in_days} day(s)"
+    return ToolResult(True, f"Found {len(hits)} file(s) under {root}{window}.",
+                      {"files": hits, "scanned": scanned}, True, text)
 
 
 def register_file_inspect_tools(reg: ToolRegistry) -> None:
     F, R = Capability.FILES, RiskLevel.READ_ONLY
     reg.register(ToolSpec("list_folder", "List what is in an authorized folder.", F, R, FolderArgs, list_folder))
     reg.register(ToolSpec("read_file", "Read a file: text, PDF (scanned pages are read with OCR), Word (.docx) or Excel (.xlsx).", F, R, ReadArgs, read_file))
-    reg.register(ToolSpec("find_files", "Find files by name or type inside authorized folders, newest first.", F, R, FindArgs, find_files))
+    reg.register(ToolSpec("find_files", "Find files by name, type or age inside authorized folders, newest first.", F, R, FindArgs, find_files))

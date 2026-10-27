@@ -279,6 +279,48 @@ async def rename_file(args: RenameArgs, ctx: ToolContext) -> ToolResult:
     )
 
 
+# ---------- move_file ----------
+class MoveArgs(ToolArgs):
+    path: str = Field(min_length=1, max_length=500, description="The file to move")
+    destination_folder: str = Field(min_length=1, max_length=500,
+                                    description="An authorized folder to move it into")
+
+
+def check_move(args: MoveArgs, ctx: ToolContext) -> None:
+    _check(ctx, args.path, write=True)
+    _check(ctx, args.destination_folder, write=True)
+
+
+async def move_file(args: MoveArgs, ctx: ToolContext) -> ToolResult:
+    path = _check(ctx, args.path, write=True)
+    if not path.is_file():
+        raise ToolError(f"'{path}' is not a file.")
+    dest_dir = _check(ctx, args.destination_folder, write=True)
+    if not dest_dir.is_dir():
+        raise ToolError(f"The folder '{dest_dir}' does not exist.")
+    target = _check(ctx, str(dest_dir / path.name), write=True)
+    if target == path:
+        return ToolResult(True, f"'{path.name}' is already in that folder.",
+                          {"path": str(path), "moved": False}, verified=True)
+    if target.exists():
+        # Never overwrite. Moving is not a reason to lose the file that is already there.
+        raise ToolError(f"'{path.name}' already exists in that folder. Nothing was moved.")
+    before = path.read_bytes()
+    try:
+        shutil.move(str(path), str(target))      # handles a move across drives too
+    except OSError as exc:
+        raise ToolError(f"The file could not be moved: {exc.strerror}") from exc
+    same = target.is_file() and not path.exists() and target.read_bytes() == before
+    ctx.memory.note_file(target)
+    return ToolResult(
+        same,
+        f"Moved '{path.name}' into {dest_dir.name}. Its contents are unchanged." if same
+        else f"Moved '{path.name}', but the result could not be verified.",
+        {"path": str(target), "previous_path": str(path), "moved": True, "bytes": len(before)},
+        verified=same,
+    )
+
+
 def register_file_ops(reg: ToolRegistry) -> None:
     F = Capability.FILES
     reg.register(ToolSpec("copy_files",
@@ -290,3 +332,5 @@ def register_file_ops(reg: ToolRegistry) -> None:
                           F, RiskLevel.LOCAL_WRITE, NewFolderArgs, create_folder, precheck=check_new_folder))
     reg.register(ToolSpec("rename_file", "Rename a file where it is; never overwrites an existing file.",
                           F, RiskLevel.LOCAL_WRITE, RenameArgs, rename_file, precheck=check_rename))
+    reg.register(ToolSpec("move_file", "Move a file into another authorized folder; never overwrites.",
+                          F, RiskLevel.LOCAL_WRITE, MoveArgs, move_file, precheck=check_move))
