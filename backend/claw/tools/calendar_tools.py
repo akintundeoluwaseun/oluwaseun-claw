@@ -265,8 +265,8 @@ def register_calendar_tools(reg: ToolRegistry) -> None:
         "daily_brief",
         "What today looks like: everything in the calendar for today, and any task "
         "from the last few days that did not finish. Says what it cannot see.",
-        Capability.FILES, RiskLevel.READ_ONLY, BriefArgs, daily_brief))
-    F, R, W = Capability.FILES, RiskLevel.READ_ONLY, RiskLevel.LOCAL_WRITE
+        Capability.ORGANISER, RiskLevel.READ_ONLY, BriefArgs, daily_brief))
+    F, R, W = Capability.ORGANISER, RiskLevel.READ_ONLY, RiskLevel.LOCAL_WRITE
     reg.register(ToolSpec("list_events", "See what is on the calendar over a range of days.",
                           F, R, ListArgs, list_events))
     reg.register(ToolSpec("create_event", "Put something on the calendar.",

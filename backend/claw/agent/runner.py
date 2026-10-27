@@ -12,6 +12,9 @@ from claw.agent.executor import run_agent
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.logging_setup import log_event
 from claw.models.base import ModelError
+#: What to assume for a model whose window Claw cannot read. Conservative on
+#: purpose: trimming a little early costs context, trimming too late costs the run.
+HOSTED_CONTEXT_TOKENS = 32768
 from claw.tools.base import ToolContext
 
 if TYPE_CHECKING:
@@ -125,7 +128,13 @@ class TaskRunner:
             emit("planned", {"steps": len(plan.steps)})
             plan_text = "\n".join(f"{s.index}. {s.description}" for s in plan.steps)
             caps = {s.capability.value for s in plan.steps} - {"reasoning"}
-            outcome = await run_agent(task_text, plan_text, adapter, state.registry, ctx, emit, request_approval, caps or None)
+            # The real window, not a guess: the built-in engine is started with
+            # -c <ctx_size>, and a hosted model is assumed to have more but is
+            # still budgeted, because an unbounded conversation is what hits it.
+            window = (state.brain.engine.ctx_size if settings.model.mode == "builtin"
+                      else HOSTED_CONTEXT_TOKENS)
+            outcome = await run_agent(task_text, plan_text, adapter, state.registry, ctx, emit,
+                                      request_approval, caps or None, window_tokens=window)
             db.update_task(task_id, status=outcome.status, error=outcome.error, result=outcome.summary())
             emit("task_" + outcome.status, {"error": outcome.error} if outcome.error else {})
             log_event(log, "task ended", task_id=task_id, status=outcome.status, steps=len(outcome.steps))

@@ -191,3 +191,31 @@ def test_a_job_that_cannot_work_is_refused_at_the_door(client, body, code):
 
 def test_history_for_a_job_that_is_not_there(client):
     assert client.get("/jobs/nope/runs", headers=HEAD).status_code == 404
+
+
+def test_a_job_cut_short_by_a_restart_is_not_left_reading_running_now(tmp_path):
+    """Found by audit.
+
+    mark_interrupted() repaired tasks but not jobs, so a run that ended because
+    the computer was switched off kept its "started" row for ever. Automations
+    then read "Last: running now" with nothing running, which is the one thing
+    a job list must never say.
+    """
+    db = Database(tmp_path / "claw.db")
+    job_id = db.add_job("Site check", "check it", "every", minutes=30)
+    db.record_job_run(job_id, "started", "", "task-1")
+    assert db.job(job_id)["last_status"] == "started"
+
+    db.mark_interrupted()               # what happens when the backend starts again
+
+    assert db.job(job_id)["last_status"] == "interrupted"
+    assert "stopped before this run finished" in db.job(job_id)["last_detail"]
+    assert [r["status"] for r in db.job_runs(job_id)] == ["interrupted"]
+
+
+def test_a_finished_job_run_is_not_rewritten_by_a_restart(tmp_path):
+    db = Database(tmp_path / "claw.db")
+    job_id = db.add_job("Site check", "check it", "every", minutes=30)
+    db.record_job_run(job_id, "completed", "it is up", "task-1")
+    db.mark_interrupted()
+    assert db.job(job_id)["last_status"] == "completed"

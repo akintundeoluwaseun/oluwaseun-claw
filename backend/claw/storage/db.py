@@ -112,12 +112,27 @@ class Database:
         self._conn.execute("UPDATE meta SET value=? WHERE key='schema_version'", (str(version),))
 
     def mark_interrupted(self) -> int:
-        """Tasks left running when the backend stopped are marked as interrupted, never as done."""
+        """Tasks left running when the backend stopped are marked as interrupted, never as done.
+
+        The same applies to scheduled jobs. A job whose run was cut short keeps
+        its "started" row otherwise, so Automations reads "Last: running now"
+        for a run that ended when the computer was switched off, and the person
+        has no way to tell that from a job that is genuinely working.
+        """
+        now = _now()
         with self._lock:
             cur = self._conn.execute(
                 "UPDATE tasks SET status='interrupted', updated_at=?, error=COALESCE(error, 'The agent stopped before this task finished.') "
                 "WHERE status IN ('planning','running','awaiting_approval')",
-                (_now(),),
+                (now,),
+            )
+            self._conn.execute(
+                "UPDATE job_runs SET status='interrupted', "
+                "detail='S-CLAW stopped before this run finished.' WHERE status='started'")
+            self._conn.execute(
+                "UPDATE jobs SET last_status='interrupted', updated_at=?, "
+                "last_detail='S-CLAW stopped before this run finished.' WHERE last_status='started'",
+                (now,),
             )
             self._conn.commit()
             return cur.rowcount

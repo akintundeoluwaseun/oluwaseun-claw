@@ -346,7 +346,7 @@ async def edit_text_file(args: EditArgs, ctx: ToolContext) -> ToolResult:
 
 
 def register_document_tools(reg: ToolRegistry) -> None:
-    F, W = Capability.FILES, RiskLevel.LOCAL_WRITE
+    F, W = Capability.DOCUMENTS, RiskLevel.LOCAL_WRITE
     reg.register(ToolSpec("write_text_file", "Create a new text file (.txt .md .csv .json .html) in an authorized folder.",
                           F, W, WriteTextArgs, write_text_file, precheck=check_write_text))
     reg.register(ToolSpec("save_report", "Save a report (Word or Markdown) with sections and the sources Claw opened.",

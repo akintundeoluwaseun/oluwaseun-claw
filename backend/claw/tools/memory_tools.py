@@ -138,12 +138,12 @@ def register_memory_tools(reg: ToolRegistry) -> None:
         "Remember something the person has told you about themselves, their work or "
         f"the people they deal with. Kinds: {kinds}. Only what they actually said — "
         "never a conclusion you drew, and never a password, code or card number.",
-        Capability.FILES, RiskLevel.LOCAL_WRITE, RememberArgs, remember, precheck=check_remember))
+        Capability.ORGANISER, RiskLevel.LOCAL_WRITE, RememberArgs, remember, precheck=check_remember))
     reg.register(ToolSpec(
         "recall",
         "Look at what is remembered about the person, their projects and their contacts.",
-        Capability.FILES, RiskLevel.READ_ONLY, RecallArgs, recall))
+        Capability.ORGANISER, RiskLevel.READ_ONLY, RecallArgs, recall))
     reg.register(ToolSpec(
         "forget_this",
         "Remove one thing from memory, for good.",
-        Capability.FILES, RiskLevel.DESTRUCTIVE, ForgetArgs, forget_this))
+        Capability.ORGANISER, RiskLevel.DESTRUCTIVE, ForgetArgs, forget_this))

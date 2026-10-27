@@ -208,7 +208,7 @@ async def inspect_image(args: InspectArgs, ctx: ToolContext) -> ToolResult:
 
 
 def register_image_tools(reg: ToolRegistry) -> None:
-    F, W = Capability.FILES, RiskLevel.LOCAL_WRITE
+    F, W = Capability.DOCUMENTS, RiskLevel.LOCAL_WRITE
     reg.register(ToolSpec("make_flyer",
                           "Design a promotional flyer (headline, points, contact, pictures) and save it. Uses Photoshop if installed, "
                           "otherwise Claw's built-in editor, and says which.", F, W, FlyerArgs, make_flyer, precheck=check_flyer))

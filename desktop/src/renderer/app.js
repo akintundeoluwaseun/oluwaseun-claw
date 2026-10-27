@@ -1286,7 +1286,8 @@ function renderFolders() {
 // you were using S-CLAW has not had its turn.
 const JOB_OUTCOME = {
   completed: 'ran', failed: 'failed', stopped: 'stopped', skipped: 'was skipped',
-  started: 'running now', incomplete: 'did not finish', interrupted: 'was interrupted',
+  started: 'running now', incomplete: 'did not finish',
+  interrupted: 'was cut short when S-CLAW stopped',
 };
 
 function jobWhen(job) {
