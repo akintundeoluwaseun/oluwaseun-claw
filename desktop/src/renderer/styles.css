@@ -255,6 +255,32 @@ a.btn-primary { color: var(--surface); }
 .approval-args dd { margin: 0; word-break: break-word; white-space: pre-wrap; }
 /* What approving this would actually do. It sits above the raw arguments
    because "press enter" is not what the person is being asked to allow. */
+/* ---------- Standing reply ---------- */
+.set-sub { margin: var(--s5) 0 var(--s2); font-size: 15px; }
+.sr-box { margin-top: var(--s2); }
+.sr-live {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--s1) var(--s3); align-items: center;
+  padding: var(--s3); margin-bottom: var(--s3);
+  border: 1px solid var(--amber-line); border-radius: var(--r-sm); background: var(--amber-soft);
+}
+.sr-state { margin: 0; font-weight: 600; font-size: 14px; }
+.sr-live .set-note { grid-column: 1; margin: 0; }
+.sr-live button { grid-row: 1 / 3; grid-column: 2; }
+.sr-go { display: flex; align-items: flex-end; }
+.sr-go .btn { margin-bottom: 2px; }
+.sr-drafts { list-style: none; margin: var(--s3) 0 0; padding: 0; display: grid; gap: var(--s1); }
+.sr-draft {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--s1) var(--s3); align-items: baseline;
+  padding: var(--s2) var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface-2); font-size: 13.5px;
+}
+.sr-chat { font-weight: 600; }
+.sr-why { grid-column: 1; color: var(--ink-3); font-size: 12.5px; }
+.sr-text { grid-column: 1; color: var(--ink-2); }
+#sr-error:empty { display: none; }
+#sr-error { color: var(--red); }
+.btn-sm { padding: 4px var(--s3); font-size: 12.5px; }
+
 /* ---------- Automations ---------- */
 .job-list { list-style: none; margin: var(--s3) 0 0; padding: 0; display: grid; gap: var(--s1); }
 .job-row {

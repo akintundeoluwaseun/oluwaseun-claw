@@ -425,6 +425,44 @@
           <p class="field-note" id="wa-result" aria-live="polite"></p>
           <ul class="wa-list" id="wa-list"></ul>
         </div>
+
+        <h3 class="set-sub">Standing reply</h3>
+        <p class="set-note"><strong>Claw writes these replies. You send them.</strong> For a set
+          number of hours, when a check finds that someone has messaged you, Claw prepares your
+          reply to that chat and puts it here. It never sends a message by itself, and it skips
+          groups, status updates and your own chats.</p>
+        <div class="sr-box" id="sr-box">
+          <div class="sr-live" id="sr-live" hidden>
+            <p class="sr-state" id="sr-state"></p>
+            <p class="set-note" id="sr-account"></p>
+            <button class="btn btn-quiet btn-danger btn-sm" id="sr-stop" type="button">Stop now</button>
+          </div>
+          <div class="sr-new" id="sr-new">
+            <div class="field">
+              <label for="sr-message">Reply with</label>
+              <input id="sr-message" type="text" maxlength="500"
+                     placeholder="Thanks! I'm tied up &mdash; please come back in 3 hours.">
+            </div>
+            <div class="field-pair">
+              <div class="field">
+                <label for="sr-hours">For</label>
+                <select id="sr-hours">
+                  <option value="0.5">30 minutes</option>
+                  <option value="1">1 hour</option>
+                  <option value="2" selected>2 hours</option>
+                  <option value="4">4 hours</option>
+                  <option value="8">8 hours</option>
+                </select>
+              </div>
+              <div class="field sr-go">
+                <button class="btn btn-quiet" id="sr-start" type="button">Start</button>
+              </div>
+            </div>
+            <p class="set-note" id="sr-error" role="alert"></p>
+          </div>
+          <ul class="sr-drafts" id="sr-drafts"></ul>
+          <p class="set-note" id="sr-empty" hidden>No replies prepared yet.</p>
+        </div>
       </section>
 
       <section class="set" id="set-permissions">

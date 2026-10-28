@@ -157,9 +157,11 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
     if interrupted:
         log_event(log, "marked unfinished tasks as interrupted", count=interrupted)
 
+    from claw.integrations.standing_reply import NotAuthorised, StandingReply
     from claw.integrations.whatsapp import CheckStore, check_whatsapp
 
-    wa = {"seq": 0, "result": None, "lock": asyncio.Lock(), "next_auto": 0.0}
+    wa = {"seq": 0, "result": None, "lock": asyncio.Lock(), "next_auto": 0.0, "drafts": []}
+    standing = StandingReply(data_dir / "standing-reply.json")
 
     async def run_whatsapp_check(manual: bool) -> dict:
         async with wa["lock"]:
@@ -169,6 +171,18 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             wa["seq"] += 1
             wa["result"] = {**result.as_dict(), "manual": manual}
             log_event(log, "whatsapp checked", state=result.state, unread=len(result.unread), manual=manual)
+            # A standing reply prepares drafts here and nowhere else. It cannot
+            # send: the drafts wait for the person, and expiry is checked again
+            # inside drafts_for, so a window that closed produces nothing.
+            if result.state == "ok":
+                try:
+                    fresh = await asyncio.to_thread(
+                        standing.drafts_for, [(c.name, c.unread) for c in result.unread])
+                except NotAuthorised:
+                    fresh = []
+                if fresh:
+                    wa["drafts"] = [d.as_dict() for d in fresh] + wa["drafts"][:20]
+                    log_event(log, "standing reply drafted", drafts=len(fresh))
             return wa["result"]
 
     async def whatsapp_watch():
@@ -830,6 +844,36 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         events = await asyncio.to_thread(store.between, start, end, None)
         tasks = await asyncio.to_thread(state.db.list_tasks, 50)
         return assemble(events, tasks, now).as_dict()
+
+    # ---------- standing reply (drafts only; nothing here can send) ----------
+    @app.get("/standing-reply")
+    async def standing_status():
+        return {**standing.status(), "drafts": wa["drafts"],
+                "sends": False,
+                "note": "S-CLAW prepares these replies. You send them."}
+
+    @app.post("/standing-reply")
+    async def standing_start(body: dict):
+        try:
+            hours = float((body or {}).get("hours", 0))
+        except (TypeError, ValueError):
+            return error_response(400, "bad_request", "Say how many hours, as a number.")
+        window = (wa.get("result") or {}).get("window_title") or ""
+        try:
+            auth = await asyncio.to_thread(
+                standing.authorise, str((body or {}).get("message", "")), hours,
+                account_hint=window, only_chats=(body or {}).get("only_chats") or [])
+        except ValueError as exc:
+            return error_response(400, "bad_request", str(exc))
+        log_event(log, "standing reply authorised", minutes=auth.minutes_left())
+        return {**standing.status(), "drafts": wa["drafts"], "sends": False}
+
+    @app.delete("/standing-reply")
+    async def standing_stop():
+        stopped = await asyncio.to_thread(standing.stop)
+        wa["drafts"] = []
+        log_event(log, "standing reply stopped", was_running=stopped)
+        return {**standing.status(), "drafts": [], "sends": False}
 
     # ---------- calendar reminders ----------
     # The app polls this; it does not push. A reminder is only ever shown once:

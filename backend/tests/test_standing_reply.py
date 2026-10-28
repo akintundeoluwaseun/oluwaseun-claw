@@ -146,3 +146,47 @@ def test_a_corrupt_authorisation_file_is_treated_as_none(standing, tmp_path):
     assert not standing.status()["authorised"]
     with pytest.raises(NotAuthorised):
         standing.drafts_for([("Tunde", 1)])
+
+
+# ---------- through the API ----------
+from fastapi.testclient import TestClient          # noqa: E402
+from claw.api.app import create_app                # noqa: E402
+
+TOKEN = "t" * 40
+HEAD = {"X-Claw-Token": TOKEN}
+
+
+@pytest.fixture
+def client(tmp_path):
+    return TestClient(create_app(tmp_path, TOKEN), base_url="http://127.0.0.1")
+
+
+def test_the_app_can_start_see_and_stop_a_standing_reply(client):
+    assert client.get("/standing-reply", headers=HEAD).json()["authorised"] is False
+
+    started = client.post("/standing-reply", headers=HEAD,
+                          json={"message": MSG, "hours": 2}).json()
+    assert started["authorised"] and started["minutes_left"] > 110
+    # The one promise this feature must never break, asserted in the data itself.
+    assert started["sends"] is False
+
+    assert client.get("/standing-reply", headers=HEAD).json()["authorised"]
+    stopped = client.delete("/standing-reply", headers=HEAD).json()
+    assert stopped["authorised"] is False and stopped["drafts"] == []
+
+
+@pytest.mark.parametrize("body", [
+    {"message": "", "hours": 2},
+    {"message": MSG, "hours": 0},
+    {"message": MSG, "hours": 99},
+    {"message": MSG, "hours": "soon"},
+])
+def test_the_api_refuses_what_the_rules_refuse(client, body):
+    res = client.post("/standing-reply", headers=HEAD, json=body)
+    assert res.status_code == 400
+
+
+def test_the_status_says_plainly_that_claw_does_not_send(client):
+    body = client.get("/standing-reply", headers=HEAD).json()
+    assert body["sends"] is False
+    assert "You send them" in body["note"]
