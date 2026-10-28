@@ -65,6 +65,7 @@ const state = {
   modelReady: false,
   busy: false,
   view: 'home',
+  theme: 'system',
   currentTaskId: null,
   run: null,
   draftFolders: [],
@@ -1025,6 +1026,9 @@ async function loadSettings() {
   const res = await api.api('GET', '/settings');
   if (!res.ok) return;
   state.settings = res.body.settings;
+  const desk = res.body.settings.desktop || {};
+  applyTheme(desk.theme || 'system');
+  showTips(desk.show_tips !== false && state.view === 'home');
   const ed = await api.api('GET', '/edition');
   if (ed.ok) applyEdition(ed.body);
   $('data-dir').textContent = `Settings, history and logs are kept in ${res.body.data_dir}`;
@@ -1188,6 +1192,9 @@ function fillSettingsForm(s) {
   $('d-notify').checked = d.notifications !== false;
   $('d-tray').checked = d.close_to_tray !== false;
   $('d-brief').value = d.brief_at || '';
+  applyTheme(d.theme || 'system');
+  // Only on the home screen, and only while it has not been read.
+  showTips(d.show_tips !== false && state.view === 'home');
   state.draftFolders = [...s.permissions.authorized_folders];
   renderFolders();
   $('s-test-result').textContent = '';
@@ -1263,6 +1270,7 @@ function readSettingsForm() {
       notifications: $('d-notify').checked,
       close_to_tray: $('d-tray').checked,
       brief_at: $('d-brief').value || '',
+      theme: $('d-theme').value || 'system',
     },
   };
 }
@@ -1278,6 +1286,245 @@ function renderFolders() {
   });
   $('folder-list').replaceChildren(...items);
   $('folder-empty').hidden = items.length > 0;
+}
+
+// ---------- What Claw can do ----------
+// Every line here describes something that exists. A tour that promises what the
+// product cannot do is worse than no tour: the first thing the person tries is
+// the thing that fails.
+const TIPS = [
+  { title: 'Ask for the result, not the steps',
+    body: 'Describe what you want to end up with. Claw plans it, carries it out one step at a '
+        + 'time, and checks each step actually worked instead of assuming it did.' },
+  { title: 'It works the apps you already have',
+    body: 'There is no WhatsApp or Telegram account to connect. Claw opens the app on your '
+        + 'computer and uses it the way you would — and pressing Send always asks you first, '
+        + 'naming the chat and quoting the message.' },
+  { title: 'It reads your documents',
+    body: 'Open a PDF, Word or Excel file and ask about it. Scanned pages are read on this '
+        + 'computer with OCR, and Claw tells you which words came from a scan and how sure it is.' },
+  { title: 'Calendar and reminders',
+    body: 'Say "put the site visit on Tuesday at 3 and remind me an hour before". It is kept as '
+        + 'an ordinary calendar file, so Outlook and Google can read it too.' },
+  { title: 'It remembers what you tell it',
+    body: 'Preferences, projects, the people you deal with. Never a password, a code or a card '
+        + 'number — those are refused as you say them. Everything stored is listed in Settings, '
+        + 'with a Remove on each line.' },
+  { title: 'Jobs that run on a schedule',
+    body: 'Check a site every hour, write a report each morning. They run while Claw is open — '
+        + 'not when your computer is off, and the app will not pretend otherwise.' },
+  { title: 'Talk instead of typing',
+    body: 'Press the microphone in the task box, or Ctrl+Shift+V anywhere. The words appear for '
+        + 'you to check; nothing runs until you press Start.' },
+  { title: 'It is always one key away',
+    body: 'Ctrl+Shift+Space anywhere in Windows opens the bar. Drag it wherever you like, or '
+        + 'close it with the × and bring it back with the same keys.' },
+];
+
+const tips = { at: 0 };
+
+function renderTip() {
+  const tip = TIPS[tips.at];
+  $('tips-title').textContent = tip.title;
+  $('tips-body').textContent = tip.body;
+  $('tips-next').textContent = tips.at === TIPS.length - 1 ? 'Got it' : 'Next';
+  $('tips-dots').replaceChildren(...TIPS.map((_, i) => {
+    const dot = el('button', { className: 'tips-dot', attrs: { type: 'button', role: 'tab' } });
+    dot.setAttribute('aria-selected', i === tips.at ? 'true' : 'false');
+    dot.setAttribute('aria-label', `Tip ${i + 1} of ${TIPS.length}`);
+    dot.addEventListener('click', () => { tips.at = i; renderTip(); });
+    return dot;
+  }));
+}
+
+function showTips(show) {
+  $('tips').hidden = !show;
+  if (show) renderTip();
+}
+
+/** Close for now. It comes back next launch, which is what "not yet" means. */
+function dismissTips() {
+  showTips(false);
+}
+
+/** Never again — and that is remembered, because a tour you cannot stop is an advert. */
+async function stopTips() {
+  showTips(false);
+  const res = await api.api('GET', '/settings');
+  if (!res.ok) return;
+  const settings = res.body.settings;
+  settings.desktop = { ...settings.desktop, show_tips: false };
+  await api.api('PUT', '/settings', settings);
+}
+
+function nextTip() {
+  if (tips.at === TIPS.length - 1) stopTips();      // "Got it" means do not ask again
+  else { tips.at += 1; renderTip(); }
+}
+
+// ---------- Appearance ----------
+// Three states, not two: "follow Windows" has to stay available, because most
+// people set that once and expect every app to respect it — including when it
+// flips at sunset.
+const THEMES = ['system', 'light', 'dark'];
+
+function systemIsDark() {
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+/** Paint the window, and say what the toggle would do next. */
+function applyTheme(theme) {
+  const choice = THEMES.includes(theme) ? theme : 'system';
+  state.theme = choice;
+  const root = document.documentElement;
+  if (choice === 'system') delete root.dataset.theme;
+  else root.dataset.theme = choice;
+  const dark = choice === 'dark' || (choice === 'system' && systemIsDark());
+  const icon = $('theme-icon');
+  if (icon) icon.setAttribute('href', dark ? '#i-sun' : '#i-moon');
+  const label = $('theme-label');
+  if (label) label.textContent = dark ? 'Light mode' : 'Dark mode';
+  const btn = $('toggle-theme');
+  if (btn) btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+  const select = $('d-theme');
+  if (select && select.value !== choice) select.value = choice;
+}
+
+async function saveTheme(theme) {
+  applyTheme(theme);                 // repaint first; the save is not what the eye waits for
+  const res = await api.api('GET', '/settings');
+  if (!res.ok) return;
+  const settings = res.body.settings;
+  settings.desktop = { ...settings.desktop, theme };
+  await api.api('PUT', '/settings', settings);
+}
+
+/** The sidebar button flips between light and dark, whatever it is now. */
+function flipTheme() {
+  const dark = state.theme === 'dark' || (state.theme === 'system' && systemIsDark());
+  saveTheme(dark ? 'light' : 'dark');
+}
+
+// ---------- Dictation ----------
+// The button is always there. When voice is not set up it says so and opens the
+// right page, because a control that disappears teaches people the feature does
+// not exist — which is what happened before.
+const dictation = { ready: false, recording: false, busy: false,
+                    stream: null, ctx: null, node: null, chunks: [], rate: 16000 };
+
+function micState(state, title) {
+  const btn = $('dictate');
+  btn.dataset.state = state;
+  if (title) btn.title = title;
+}
+
+async function refreshDictation() {
+  const res = await api.api('GET', '/speech');
+  const s = res.ok ? res.body : null;
+  dictation.ready = !!(s && s.ready);
+  if (dictation.ready) micState('idle', 'Dictate (Ctrl+Shift+V)');
+  else if (s && s.enabled) micState('off', s.reason || 'Voice is not ready yet');
+  else micState('off', 'Dictation is off — click to set it up');
+}
+
+function releaseMic() {
+  try { if (dictation.node) dictation.node.disconnect(); } catch { /* already gone */ }
+  try { if (dictation.ctx) dictation.ctx.close(); } catch { /* already closed */ }
+  if (dictation.stream) dictation.stream.getTracks().forEach((t) => t.stop());
+  dictation.node = dictation.ctx = dictation.stream = null;
+}
+
+/** Raw mono samples to a 16-bit WAV, the shape the backend expects. */
+function encodeWav(chunks, rate) {
+  let total = 0;
+  chunks.forEach((c) => { total += c.length; });
+  const pcm = new Int16Array(total);
+  let i = 0;
+  chunks.forEach((c) => {
+    for (let k = 0; k < c.length; k += 1, i += 1) {
+      const v = Math.max(-1, Math.min(1, c[k]));
+      pcm[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
+    }
+  });
+  const buf = new ArrayBuffer(44 + pcm.length * 2);
+  const view = new DataView(buf);
+  const ascii = (off, t) => { for (let k = 0; k < t.length; k += 1) view.setUint8(off + k, t.charCodeAt(k)); };
+  ascii(0, 'RIFF'); view.setUint32(4, 36 + pcm.length * 2, true); ascii(8, 'WAVE');
+  ascii(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  ascii(36, 'data'); view.setUint32(40, pcm.length * 2, true);
+  new Int16Array(buf, 44).set(pcm);
+  return new Uint8Array(buf);
+}
+
+async function startDictation() {
+  if (dictation.recording || dictation.busy) return;
+  try {
+    dictation.stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+    });
+  } catch (err) {
+    micState('off', err && err.name === 'NotAllowedError'
+      ? 'Windows has not given Claw the microphone'
+      : 'No microphone was found');
+    return;
+  }
+  dictation.ctx = new AudioContext();
+  dictation.rate = dictation.ctx.sampleRate;
+  dictation.chunks = [];
+  const src = dictation.ctx.createMediaStreamSource(dictation.stream);
+  dictation.node = dictation.ctx.createScriptProcessor(4096, 1, 1);
+  dictation.node.onaudioprocess = (e) => {
+    if (!dictation.recording) return;
+    dictation.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  };
+  src.connect(dictation.node);
+  dictation.node.connect(dictation.ctx.destination);
+  dictation.recording = true;
+  micState('on', 'Listening — click to stop');
+}
+
+async function stopDictation() {
+  if (!dictation.recording) return;
+  const { chunks, rate } = dictation;
+  dictation.recording = false;
+  dictation.chunks = [];
+  releaseMic();                       // the microphone is freed before recognition runs
+  if (!chunks.length) { micState('idle'); return; }
+  dictation.busy = true;
+  micState('off', 'Working out what you said…');
+  try {
+    const res = await api.transcribe(encodeWav(chunks, rate));
+    if (res && res.ok && res.text) {
+      // The words go into the box. Nothing runs until the person presses Start.
+      const box = $('task-input');
+      box.value = box.value ? `${box.value.trim()} ${res.text}` : res.text;
+      box.focus();
+      updateButtons();
+      micState('idle', 'Check the words, then press Start task');
+    } else {
+      micState('idle', (res && res.message) || 'Claw could not make out any words');
+    }
+  } finally {
+    dictation.busy = false;
+  }
+}
+
+async function onMicClick() {
+  if (!dictation.ready) {
+    // Not set up: take them to the page that sets it up rather than doing nothing.
+    openSettings();
+    showSettingsPanel('set-brain');
+    $('settings-error').replaceChildren(el('div', { className: 'banner-body' }, [
+      el('strong', { text: 'Dictation needs a voice model' }),
+      el('p', { text: 'Turn voice on and download one (the smallest is about 120 MB). '
+                      + 'Then the microphone works here and with Ctrl+Shift+V.' }),
+    ]));
+    $('settings-error').hidden = false;
+    return;
+  }
+  if (dictation.recording) await stopDictation();
+  else await startDictation();
 }
 
 // ---------- Standing reply ----------
@@ -1710,6 +1957,7 @@ function wire() {
   $('settings-scrim').addEventListener('click', closeSettings);
   $('save-settings').addEventListener('click', saveSettings);
   $('s-test').addEventListener('click', testConnection);
+  $('dictate').addEventListener('click', onMicClick);
   $('sr-start').addEventListener('click', startStanding);
   $('sr-stop').addEventListener('click', stopStanding);
   $('job-add').addEventListener('click', addJob);
@@ -1766,6 +2014,18 @@ function wire() {
 
   api.onBackendStatus(applyBackendStatus);
   api.backendStatus().then(applyBackendStatus);
+  refreshDictation();
+  $('tips-close').addEventListener('click', dismissTips);
+  $('tips-never').addEventListener('click', stopTips);
+  $('tips-next').addEventListener('click', nextTip);
+  $('toggle-theme').addEventListener('click', flipTheme);
+  $('d-theme').addEventListener('change', () => saveTheme($('d-theme').value));
+  // Following Windows means following it while the app is open, too.
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)')
+      .addEventListener('change', () => { if (state.theme === 'system') applyTheme('system'); });
+  }
+  api.onSettingsChanged(() => refreshDictation());
   api.onTaskStarted(({ id }) => {
     loadHistory();
     if (state.view === 'home' || !isRunning()) openTask(id);

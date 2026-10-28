@@ -151,8 +151,10 @@ svg { flex-shrink: 0; }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn-primary {
-  background: var(--ink); color: var(--surface); border-color: var(--ink);
-  box-shadow: var(--shadow-1);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ink) 88%, var(--surface)) 0%, var(--ink) 100%);
+  color: var(--surface); border-color: var(--ink);
+  box-shadow: var(--shadow-2), inset 0 1px 0 color-mix(in srgb, var(--surface) 24%, transparent);
+  font-weight: 700;
 }
 .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 86%, var(--brass)); border-color: color-mix(in srgb, var(--ink) 86%, var(--brass)); box-shadow: var(--shadow-2); }
 .btn-quiet { background: var(--raised); border-color: var(--line-2); color: var(--ink); box-shadow: var(--shadow-1), var(--inset); }
@@ -182,16 +184,43 @@ a.btn-primary { color: var(--surface); }
 .banner-inline { margin: 0; }
 
 /* ---------- Home ---------- */
-.home { padding-top: 6vh; }
-.home h1 { font-size: 40px; line-height: 1.12; letter-spacing: -0.015em; max-width: 17ch; }
-.home-sub { margin-top: var(--s3); color: var(--ink-2); font-size: 15px; max-width: 58ch; line-height: 1.6; }
-.composer {
-  margin-top: var(--s7); background: var(--raised); border: 1px solid var(--line-2);
-  border-radius: var(--r-lg); box-shadow: var(--shadow-2), var(--inset);
-  padding: var(--s5) var(--s5) var(--s3);
-  transition: border-color var(--slow) var(--ease), box-shadow var(--slow) var(--ease);
+/* One column, centred, with a width that stops the eye travelling. Before this
+   the content hugged the left edge of a very wide window and the rest of the
+   stage read as something missing rather than as space. */
+.home { padding-top: 7vh; max-width: 760px; margin: 0 auto; }
+.home h1 {
+  font-size: 38px; line-height: 1.14; letter-spacing: -0.018em; max-width: 21ch;
+  text-wrap: balance;      /* no lonely "of?" on a line of its own */
+  /* A quiet vertical sheen: the display face catches a little light at the top. */
+  background: linear-gradient(180deg, var(--ink) 58%, color-mix(in srgb, var(--ink) 72%, var(--ink-2)));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.composer:focus-within { border-color: var(--line-strong); box-shadow: var(--shadow-3), var(--inset); }
+.home-sub { margin-top: var(--s3); color: var(--ink-2); font-size: 15px; max-width: 56ch; line-height: 1.6; }
+.composer {
+  position: relative;
+  margin-top: var(--s6);
+  /* Two stops rather than a flat fill: the box lifts off the page instead of
+     being a slightly different shade of it. */
+  background: linear-gradient(180deg,
+              color-mix(in srgb, var(--raised) 94%, var(--ink-3)) 0%,
+              var(--raised) 46%);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-xl); box-shadow: var(--shadow-3), var(--inset);
+  padding: var(--s5) var(--s5) var(--s3);
+  transition: border-color var(--slow) var(--ease), box-shadow var(--slow) var(--ease),
+              transform var(--slow) var(--ease);
+}
+/* A hairline of light along the top edge, which is most of what makes a surface
+   read as a surface. */
+.composer::before {
+  content: ""; position: absolute; inset: 0 14px auto; height: 1px; border-radius: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ink-3) 45%, transparent), transparent);
+  pointer-events: none;
+}
+.composer:focus-within {
+  border-color: color-mix(in srgb, var(--brass) 40%, var(--line-strong));
+  box-shadow: var(--shadow-3), var(--inset), 0 0 0 3px color-mix(in srgb, var(--brass) 14%, transparent);
+}
 .composer textarea {
   width: 100%; border: 0; outline: none; resize: none; background: transparent; color: var(--ink);
   font: 400 17.5px/1.6 var(--font); letter-spacing: -0.005em; min-height: 80px;
@@ -211,14 +240,87 @@ a.btn-primary { color: var(--surface); }
 .ctx svg { width: 14px; height: 14px; }
 .ctx[data-ok="false"] { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-line); }
 .composer-actions { display: flex; gap: var(--s2); }
-.ideas { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s5); }
+.ideas { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin-top: var(--s5); }
 .idea {
-  border: 1px solid var(--line); background: transparent; border-radius: var(--r-pill);
-  padding: 9px var(--s4); font-size: 12.5px; font-weight: 500; color: var(--ink-2);
-  cursor: pointer; text-align: left;
-  transition: border-color var(--fast) var(--ease), color var(--fast) var(--ease), background-color var(--fast) var(--ease);
+  border: 1px solid var(--line); background: var(--surface-2); border-radius: var(--r);
+  padding: var(--s3) var(--s4); font-size: 13px; font-weight: 500; color: var(--ink-2);
+  cursor: pointer; text-align: left; line-height: 1.45;
+  transition: border-color var(--fast) var(--ease), color var(--fast) var(--ease),
+              background-color var(--fast) var(--ease), transform var(--fast) var(--ease),
+              box-shadow var(--fast) var(--ease);
 }
-.idea:hover { color: var(--ink); border-color: var(--line-strong); background: var(--surface); }
+.idea:hover {
+  color: var(--ink); border-color: var(--line-strong); background: var(--raised);
+  transform: translateY(-1px); box-shadow: var(--shadow-2);
+}
+.idea:active { transform: translateY(0); }
+@media (max-width: 900px) { .ideas { grid-template-columns: 1fr; } }
+
+/* ---------- What Claw can do ----------
+   A card, not a modal: it sits above the task box where the eye already is, and
+   it never blocks the thing the person came to do. */
+.tips {
+  position: relative; margin-bottom: var(--s5); padding: var(--s4) var(--s5) var(--s3);
+  border: 1px solid var(--brass-line); border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--brass-soft), color-mix(in srgb, var(--brass-soft) 40%, var(--surface)));
+  box-shadow: var(--shadow-1);
+  animation: tips-in 320ms var(--ease) both;
+}
+@keyframes tips-in { from { opacity: 0; transform: translateY(-6px); } }
+.tips-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.tips-kicker {
+  font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--brass);
+}
+.tips-close { width: 28px; height: 28px; margin: -4px -8px 0 0; }
+.tips-close svg { width: 15px; height: 15px; }
+.tips-title { font-size: 19px; line-height: 1.25; margin-top: var(--s1); letter-spacing: -0.01em; }
+.tips-body { margin-top: 6px; color: var(--ink-2); font-size: 13.5px; line-height: 1.6; max-width: 62ch; }
+.tips-foot {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--s3);
+  margin-top: var(--s3);
+}
+.tips-dots { display: flex; gap: 6px; }
+.tips-dot {
+  width: 6px; height: 6px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--line-strong); cursor: pointer;
+  transition: background-color var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.tips-dot[aria-selected="true"] { background: var(--brass); transform: scale(1.3); }
+.tips-actions { display: flex; align-items: center; gap: var(--s3); }
+@media (prefers-reduced-motion: reduce) { .tips { animation: none; } }
+
+/* ---------- Dictation ----------
+   Always visible, even before voice is set up: a button that is simply absent
+   teaches people the feature does not exist. When it is not ready it says so
+   and offers to set it up. */
+.mic-btn {
+  position: relative; width: 38px; height: 38px; display: grid; place-items: center;
+  border: 1px solid var(--line-2); border-radius: 50%;
+  background: var(--raised); color: var(--ink-2); cursor: pointer;
+  box-shadow: var(--shadow-1), var(--inset);
+  transition: color var(--fast) var(--ease), border-color var(--fast) var(--ease),
+              background-color var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.mic-btn svg { width: 17px; height: 17px; }
+.mic-btn:hover { color: var(--ink); border-color: var(--line-strong); transform: translateY(-1px); }
+.mic-btn:active { transform: translateY(0); }
+.mic-btn[data-state="off"] { opacity: 0.72; }
+.mic-btn[data-state="on"] {
+  color: var(--red); border-color: var(--red-line); background: var(--red-soft);
+}
+/* A recording light, so it never relies on colour alone. */
+.mic-pip {
+  position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--red); opacity: 0; transform: scale(.5);
+  transition: opacity var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.mic-btn[data-state="on"] .mic-pip { opacity: 1; transform: scale(1); animation: mic-beat 1.4s var(--ease) infinite; }
+@keyframes mic-beat { 50% { opacity: .35; transform: scale(.72); } }
+@media (prefers-reduced-motion: reduce) {
+  .mic-btn, .mic-pip { transition: none; }
+  .mic-btn[data-state="on"] .mic-pip { animation: none; }
+}
 .home-hint { margin-top: var(--s6); color: var(--ink-3); font-size: 12.5px; }
 
 /* ---------- Task view ---------- */

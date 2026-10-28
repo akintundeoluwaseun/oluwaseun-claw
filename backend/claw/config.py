@@ -279,6 +279,13 @@ class DesktopSettings(BaseModel):
     #: only appear while S-CLAW is running — there is no service behind it, and
     #: a laptop that stayed shut gets no briefing.
     brief_at: str = Field(default="", pattern=r"^$|^([01]?\d|2[0-3]):[0-5]\d$")
+    #: "system" follows Windows, which is the right default: most people set
+    #: that once and expect every app to respect it.
+    theme: Literal["system", "light", "dark"] = "system"
+    #: The "what Claw can do" card on the home screen. On until the person has
+    #: read it; dismissing it is permanent, because a tour you cannot turn off
+    #: stops being a tour and becomes an advert.
+    show_tips: bool = True
 
 
 class DocumentSettings(BaseModel):

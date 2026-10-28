@@ -51,6 +51,26 @@ function overlayColors() {
   return nativeTheme.shouldUseDarkColors ? THEME.dark : THEME.light;
 }
 
+/** Repaint the chrome of every window we own after a theme change. */
+function paintWindows() {
+  const c = overlayColors();
+  for (const win of [mainWindow, quickBar]) {
+    if (!win || win.isDestroyed()) continue;
+    win.setBackgroundColor(c.overlay);
+    if (typeof win.setTitleBarOverlay === 'function') {
+      try {
+        win.setTitleBarOverlay({ color: c.overlay, symbolColor: c.symbols, height: 44 });
+      } catch {
+        /* the quick bar is frameless and has no overlay to set */
+      }
+    }
+  }
+  // The bar is its own window with its own document.
+  if (quickBar && !quickBar.isDestroyed()) {
+    quickBar.webContents.send('claw:theme', desktop.theme || 'system');
+  }
+}
+
 function createMainWindow() {
   const c = overlayColors();
   mainWindow = new BrowserWindow({
@@ -287,6 +307,12 @@ async function loadDesktopSettings() {
 
 function applyDesktopSettings(next) {
   desktop = { ...desktop, ...next };
+  // Electron paints the title bar and the native dialogs, not the stylesheet,
+  // so the choice has to reach it too — otherwise a light app keeps a dark
+  // title bar and looks half-finished.
+  const theme = ['system', 'light', 'dark'].includes(desktop.theme) ? desktop.theme : 'system';
+  if (nativeTheme.themeSource !== theme) nativeTheme.themeSource = theme;
+  paintWindows();
   if (quickBar) {
     if (desktop.show_quick_bar && !quickBar.isVisible()) quickBar.showInactive();
     if (!desktop.show_quick_bar && quickBar.isVisible()) quickBar.hide();
@@ -378,6 +404,18 @@ ipcMain.handle('claw:open-output', async (event, taskId, filePath, how) => {
   return err ? { ok: false, message: err } : { ok: true };
 });
 // ---------- IPC: who made this ----------
+// Hiding the bar from the bar itself. It stays hidden until the person brings
+// it back with the shortcut or the tray, and the setting follows so it does not
+// reappear at the next launch and feel broken.
+ipcMain.on('quickbar:hide', (event) => {
+  if (!senderIs(event, quickBar)) return;
+  if (quickBar) quickBar.hide();
+  // The same path the tray menu uses, so the setting, the tray tick and the
+  // window all end up agreeing.
+  updateDesktopSetting('show_quick_bar', false).catch(() => {});
+  notify('The bar is hidden', `Press ${QUICK_SHORTCUT.replace('CommandOrControl', 'Ctrl')} to bring it back, or turn it on again in Settings.`);
+});
+
 ipcMain.handle('claw:creator', (event) => (fromOurWindows(event)
   ? { ...CREATOR, version: app.getVersion() }
   : null));
@@ -702,6 +740,7 @@ app.whenReady().then(async () => {
     const c = overlayColors();
     if (mainWindow && IS_WIN) mainWindow.setTitleBarOverlay({ color: c.overlay, symbolColor: c.symbols });
   });
+  nativeTheme.on('updated', () => { if ((desktop.theme || 'system') === 'system') paintWindows(); });
   lockDownPermissions();
   await startBackend();
   watcher.start();

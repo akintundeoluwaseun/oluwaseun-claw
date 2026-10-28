@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('claw', {
   openDocument: () => ipcRenderer.invoke('claw:open-document'),
   saveSearchable: (docId, name) => ipcRenderer.invoke('claw:save-searchable', docId, name),
   saveText: (name, text) => ipcRenderer.invoke('claw:save-text', name, text),
+  // Dictation in the main window. The same handlers the quick bar uses; they
+  // already accept either of our windows.
+  transcribe: (wav) => ipcRenderer.invoke('voice:transcribe', wav),
   showDocument: (docId) => ipcRenderer.invoke('claw:show-file', docId),
   importBrain: () => ipcRenderer.invoke('claw:import-brain'),
   confirm: (title, detail, okLabel) => ipcRenderer.invoke('claw:confirm', title, detail, okLabel),

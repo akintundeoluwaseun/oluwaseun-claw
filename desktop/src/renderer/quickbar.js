@@ -373,21 +373,40 @@ async function stopRecording(cancelled) {
   }
 }
 
-$('mic').addEventListener('click', () => (voice.recording ? stopRecording(false) : startRecording()));
+$('mic').addEventListener('click', () => {
+  if (!voice.enabled) { q.openApp(); return; }   // not set up: take them where it is
+  if (voice.recording) stopRecording(false);
+  else startRecording();
+});
 $('mic-cancel').addEventListener('click', () => stopRecording(true));
 q.onPushToTalk((down) => {
   if (down) startRecording();
   else stopRecording(false);
 });
 
+// The bar is a separate window, so it is told the theme rather than reading it.
+function paintBar(theme) {
+  const root = document.documentElement;
+  if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
+  else delete root.dataset.theme;
+}
+if (q.onTheme) q.onTheme(paintBar);
+
 q.voiceStatus().then((s) => {
   voice.enabled = !!(s && s.ready);
   voice.live = !!(s && s.streaming);
-  $('mic').hidden = !(s && s.enabled);
-  if (s && s.enabled && !s.ready) {
-    $('mic').disabled = true;
-    $('mic').title = s.reason || 'Voice input is not ready';
+  // The microphone stays on the bar whether or not voice is set up. Hiding it
+  // meant nobody knew dictation existed; now it is visible, quiet when it is
+  // not ready, and pressing it opens the app where it can be set up.
+  $('mic').dataset.state = voice.enabled ? 'ready' : 'off';
+  if (!voice.enabled) {
+    $('mic').title = (s && s.reason) || 'Dictation is not set up yet — click to open Claw and turn it on';
   }
+});
+
+$('pill-hide').addEventListener('click', (e) => {
+  e.stopPropagation();                 // the pill underneath would open the panel
+  q.hideBar();
 });
 
 window.addEventListener('beforeunload', releaseMic);

@@ -51,7 +51,8 @@ SETTINGS = {
     "agent": {"max_steps": 20, "step_timeout_s": 60, "approval_timeout_s": 600,
               "max_consecutive_failures": 3},
     "desktop": {"start_with_windows": False, "show_quick_bar": True, "keep_awake_while_running": True,
-                "notifications": True, "close_to_tray": True, "brief_at": "08:00"},
+                "notifications": True, "close_to_tray": True, "brief_at": "08:00",
+                "theme": "system", "show_tips": True},
     "documents": {"ocr_language": "eng"},
     "messages": {"whatsapp_read": "ask", "show_previews": False, "check_every_minutes": 0, "notify": True},
     "voice": {"enabled": True, "model": "zipformer-en-stream", "mode": "click",
@@ -98,7 +99,7 @@ EDITIONS = {
 ROUTES = {
     "/settings": {"settings": SETTINGS, "error": None,
                   "data_dir": "C:\\Users\\Seun\\AppData\\Roaming\\S-CLAW"},
-    "/speech": VOICE,
+    "/speech": {**VOICE, "enabled": True, "ready": True},
     "/brain": {"mode": "cloud",
                "hardware": {"total_ram_gb": 16.0, "available_ram_gb": 11.2, "cpu_cores": 8,
                             "gpu_name": None, "gpu_vram_gb": None},
@@ -122,7 +123,7 @@ ROUTES = {
                        "model": "hosted-model", "message": "Ready", "available_models": [],
                        "reason": "ok", "mode": "cloud"},
     "/brief": {"day": "2026-11-03", "headline": "One thing today: Site visit at 15:00.",
-               "agenda": [{"summary": "Site visit", "at": "15:00", "location": "Lekki",
+               "agenda": [{"summary": "Site visit", "at": "15:00", "location": "Meeting room 2",
                            "all_day": False, "past": False, "starts_at": None}],
                "unfinished": [], "not_included": [], "made_at": "", "text": ""},
     "/calendar/due": {"due": []},
@@ -132,9 +133,9 @@ ROUTES = {
         "minutes_left": 97, "drafts_made": 2, "account_hint": "WhatsApp",
         "sends": False, "note": "S-CLAW prepares these replies. You send them.",
         "drafts": [
-            {"chat": "Tunde", "message": "Thanks! I'm tied up — please come back in 3 hours.",
+            {"chat": "Daniel Ward", "message": "Thanks! I'm tied up — please come back in 3 hours.",
              "because": "2 unread message(s)"},
-            {"chat": "Amaka", "message": "Thanks! I'm tied up — please come back in 3 hours.",
+            {"chat": "Priya Raman", "message": "Thanks! I'm tied up — please come back in 3 hours.",
              "because": "a new message"},
         ]},
     "/jobs": {"note": "Jobs run only while S-CLAW is open. A computer that is off does nothing.",
@@ -160,10 +161,10 @@ ROUTES = {
     "/memory": {"memories": [
         {"id": "1", "kind": "preference", "subject": "me", "fact": "prefers meetings after 10am",
          "source": "you told S-CLAW", "updated_at": "2026-10-24T09:12:00Z", "task_id": None},
-        {"id": "2", "kind": "contact", "subject": "Tunde",
-         "fact": "site engineer on the Lekki project; reachable on WhatsApp",
+        {"id": "2", "kind": "contact", "subject": "Daniel Ward",
+         "fact": "project manager at Northwind; reachable on WhatsApp",
          "source": "you told S-CLAW", "updated_at": "2026-10-22T16:40:00Z", "task_id": None},
-        {"id": "3", "kind": "project", "subject": "Lekki", "fact": "hand-over is in March",
+        {"id": "3", "kind": "project", "subject": "Northwind", "fact": "hand-over is in March",
          "source": "you told S-CLAW", "updated_at": "2026-10-20T11:05:00Z", "task_id": None},
         {"id": "4", "kind": "decision", "subject": "installers",
          "fact": "Inno Setup rather than NSIS, because of the 2 GB limit",
@@ -286,6 +287,22 @@ async def main(out: Path, renderer: Path) -> int:
                 await page.goto(f"{base}/index.html")
                 await page.wait_for_timeout(1200)
                 await page.screenshot(path=str(out / f"app-home-{theme}.png"))
+                # The chosen theme, through the control a person would use. Setting
+                # data-theme by hand photographs the colours but not the button's
+                # own state, and the two disagreeing is exactly the bug worth
+                # catching here.
+                other = "light" if theme == "dark" else "dark"
+                await page.click("#toggle-theme")
+                await page.wait_for_timeout(400)
+                await page.screenshot(path=str(out / f"app-forced-{other}.png"))
+                await page.click("#toggle-theme")
+                await page.wait_for_timeout(250)
+                # The same screen with a task typed, so the primary action is
+                # photographed enabled rather than greyed out.
+                await page.fill("#task-input", "Open Telegram and tell John I am running late")
+                await page.wait_for_timeout(350)
+                await page.screenshot(path=str(out / f"app-home-typed-{theme}.png"))
+                await page.fill("#task-input", "")
                 # The briefing time lives in the Background panel; photographed so the
                 # wording about "only while S-CLAW is running" can be read.
                 for view in ("tasks", "documents"):
@@ -370,6 +387,11 @@ async def main(out: Path, renderer: Path) -> int:
             await page.goto(f"{base}/quickbar.html")
             await page.wait_for_timeout(900)
             await page.screenshot(path=str(out / "bar-collapsed.png"), omit_background=True)
+            # The hide control appears on hover, so hovering is the only way to
+            # photograph what a person actually sees when they reach for it.
+            await page.hover("#pill")
+            await page.wait_for_timeout(350)
+            await page.screenshot(path=str(out / "bar-hover.png"), omit_background=True)
             await page.evaluate("document.body.dataset.mode = 'expanded'")
             await page.wait_for_timeout(400)
             await page.screenshot(path=str(out / "bar-expanded.png"), omit_background=True)
