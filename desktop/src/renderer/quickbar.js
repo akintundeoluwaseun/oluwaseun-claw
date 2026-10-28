@@ -21,10 +21,21 @@ let dragFrom = null;
 let dragPending = null;
 let dragFrame = 0;
 
+// The field, the controls and the microphone are for using, not for grabbing.
+// The collapsed pill is the deliberate exception: it IS the whole bar, so a guard
+// that excludes every button excludes the only thing there is to grab, and the
+// bar cannot be moved at all. Its click handler already ignores a press that
+// turned into a drag, so letting it do both costs nothing.
+const NO_GRAB = 'input, a, .link, #pill-hide, #pill-stop, #mic, #mic-cancel, #run, #open-app';
+
+/** Can a press here start a drag? */
+function grabbable(target) {
+  return !target.closest(NO_GRAB);
+}
+
 function startDrag(e) {
   if (e.button !== 0) return;
-  // The field, the buttons and the microphone are for using, not for grabbing.
-  if (e.target.closest('input, button, a, .link')) return;
+  if (!grabbable(e.target)) return;
   dragFrom = { x: e.screenX, y: e.screenY };
   dragged = false;
   document.body.dataset.dragging = 'maybe';
@@ -71,7 +82,7 @@ window.addEventListener('blur', endDrag);
 // there would be two different things at once.
 document.addEventListener('dblclick', (e) => {
   if (document.body.dataset.mode !== 'expanded') return;
-  if (!e.target.closest('input, button, a, .link')) q.resetPosition();
+  if (grabbable(e.target)) q.resetPosition();
 });
 
 function setMode(mode) {

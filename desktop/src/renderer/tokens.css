@@ -23,12 +23,17 @@
 }
 
 :root {
-  /* --- surfaces, light: warm paper rather than clinical white --- */
-  --bg: #efece6;
-  --surface: #fffdf9;
-  --surface-2: #f7f4ee;
-  --surface-3: #efebe3;
-  --raised: #ffffff;
+  /* --- surfaces, light: warm paper rather than clinical white ---
+     There is deliberately no pure white here. #ffffff on a bright screen is
+     what makes an interface glare, and --raised used to be exactly that, with
+     --surface a hair off it, so most of the window sat above 98% luminance.
+     Everything is a few percent down and a little warmer. Measured against
+     --ink the worst of these is still 13.7:1, well past WCAG AA. */
+  --bg: #e9e5db;
+  --surface: #f8f5ee;
+  --surface-2: #f0ece2;
+  --surface-3: #e7e1d5;
+  --raised: #fdfbf5;
 
   /* --- text --- */
   --ink: #1a1714;
