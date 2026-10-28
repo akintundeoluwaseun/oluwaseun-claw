@@ -213,11 +213,18 @@ Two defects found while doing it:
 | Control matching against real apps | `pywinauto` cannot import here | `docs/WINDOWS_ACCEPTANCE.md`, now with a name-targeting step |
 | Everything model-related | no weights, no provider, no service | a 2B GGUF on a Windows laptop |
 
-**Next step, cheapest and most valuable:** put the standing reply in front of a
-person — a small Settings panel that shows which WhatsApp window it is for, the
-expiry counting down, the drafts waiting, and a Stop button. The rules are
-tested; what is missing is the surface, and without it the feature cannot be
-used or audited by the person it belongs to.
+**Done since this was written:** the standing reply now has that surface —
+Settings → Messages, under "Standing reply". It shows which window is being
+watched, the expiry counting down, every prepared reply with the reason it was
+drafted and a Copy button, and a Stop now control. `GET/POST/DELETE
+/standing-reply` back it, drafting happens only inside a successful WhatsApp
+check, and the status carries `"sends": false` so nothing downstream can imply
+otherwise.
+
+**Next step:** confirm the whole path on a Windows machine with a **test**
+WhatsApp account — that the chat list parses, that a group is really excluded,
+and that a window which expires while the app is closed produces nothing when it
+reopens. Until then the rules are proven and the reading of the real app is not.
 
 ## Change control
 

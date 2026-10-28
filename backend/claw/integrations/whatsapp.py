@@ -56,6 +56,9 @@ class WhatsAppCheck:
     unread: list[UnreadChat] = field(default_factory=list)
     checked_at: float = field(default_factory=time.time)
     previews_shown: bool = False
+    #: The title of the window this was read from. The person has to be able to
+    #: see which WhatsApp a standing reply would answer for.
+    window_title: str = ""
 
     def as_dict(self) -> dict:
         d = asdict(self)
@@ -188,7 +191,8 @@ async def check_whatsapp(call, driver: DesktopDriver, store: CheckStore, *, with
         "unreadable": "Claw couldn't read WhatsApp's chat list (the window may be minimised, or WhatsApp changed its layout). "
                       "Nothing is assumed about unread messages.",
     }
-    check = WhatsAppCheck(state, messages.get(state, ""), checked, unread, previews_shown=with_previews)
+    check = WhatsAppCheck(state, messages.get(state, ""), checked, unread, previews_shown=with_previews,
+                          window_title=(win.title or "").strip() if win else "")
     if state == "ok":
         store.mark_new(check)
         check.message = check.summary()

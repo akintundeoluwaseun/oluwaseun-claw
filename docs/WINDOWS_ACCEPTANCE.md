@@ -182,3 +182,26 @@ ever run unattended on a real machine**. On Windows:
 
 A failure at step 3 is a stop-ship: it means an unattended job can do something
 nobody approved.
+
+## Standing reply (added 27 Oct)
+
+Draft-only; **S-CLAW cannot send a WhatsApp message**, so nothing here should
+ever produce one. Use a **test account**, not your own, and a second phone you
+control as the sender.
+
+1. Open WhatsApp Desktop, linked. Settings → Messages → set "Checking WhatsApp
+   in tasks" to Go ahead and a background interval.
+2. Under **Standing reply**, type a reply, choose 30 minutes, press Start.
+   Expect the amber box: "Replying for you — 30 minutes left", and the window
+   title under it.
+3. From the other phone, message the test account. Wait for a background check.
+   Expect one prepared reply for that chat, with "1 unread message(s)" and a
+   working Copy button. Expect **no message to be sent**.
+4. Message again from the same phone. Expect **no second draft** for that chat.
+5. Have someone message a **group** the test account is in. Expect **no draft**.
+6. Press **Stop now**. Message again. Expect no draft at all.
+7. Start a 30-minute window, close S-CLAW, wait for it to expire, reopen.
+   Expect the panel to show no standing reply and produce no drafts.
+
+Step 5 is the one that matters most: a group reply from an automatic rule is the
+most embarrassing failure this feature can have.

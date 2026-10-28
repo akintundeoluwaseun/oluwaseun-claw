@@ -1280,6 +1280,66 @@ function renderFolders() {
   $('folder-empty').hidden = items.length > 0;
 }
 
+// ---------- Standing reply ----------
+// Everything here is about what Claw has prepared. There is no send button,
+// because there is nothing on the other side of it: the backend has no way to
+// send a WhatsApp message, and this panel must not imply otherwise.
+function draftRow(d) {
+  const copy = el('button', { className: 'link', text: 'Copy' });
+  copy.addEventListener('click', async () => {
+    const res = await api.copyText(d.message);
+    copy.textContent = res && res.ok ? 'Copied' : 'Could not copy';
+    setTimeout(() => { copy.textContent = 'Copy'; }, 1800);
+  });
+  return el('li', { className: 'sr-draft' }, [
+    el('span', { className: 'sr-chat', text: d.chat }),
+    copy,
+    el('span', { className: 'sr-why', text: d.because }),
+    el('span', { className: 'sr-text', text: `“${d.message}”` }),
+  ]);
+}
+
+function renderStanding(body) {
+  const live = !!body.authorised;
+  $('sr-live').hidden = !live;
+  $('sr-new').hidden = live;
+  if (live) {
+    const mins = body.minutes_left || 0;
+    const left = mins >= 60
+      ? `${Math.floor(mins / 60)}h ${mins % 60}m left`
+      : `${mins} minute${mins === 1 ? '' : 's'} left`;
+    $('sr-state').textContent = `Replying for you — ${left}`;
+    $('sr-account').textContent = body.account_hint
+      ? `Watching: ${body.account_hint}. ${body.drafts_made || 0} prepared so far.`
+      : `${body.drafts_made || 0} prepared so far. Claw will name the window once it has read it.`;
+  }
+  const drafts = body.drafts || [];
+  $('sr-drafts').replaceChildren(...drafts.map(draftRow));
+  $('sr-empty').hidden = drafts.length > 0 || !live;
+}
+
+async function loadStanding() {
+  const res = await api.api('GET', '/standing-reply');
+  if (res.ok) renderStanding(res.body);
+}
+
+async function startStanding() {
+  const body = { message: $('sr-message').value.trim(), hours: Number($('sr-hours').value) };
+  const res = await api.api('POST', '/standing-reply', body);
+  if (!res.ok) {
+    $('sr-error').textContent = (res.body && res.body.error && res.body.error.message)
+      || 'That could not be started.';
+    return;
+  }
+  $('sr-error').textContent = '';
+  renderStanding(res.body);
+}
+
+async function stopStanding() {
+  const res = await api.api('DELETE', '/standing-reply');
+  if (res.ok) renderStanding(res.body);
+}
+
 // ---------- Automations ----------
 // Each job shows its schedule, when it next runs, and what happened last time.
 // "Ran" and "was skipped" are different words on purpose: a job skipped because
@@ -1473,6 +1533,7 @@ function openSettings() {
   fillAbout();
   loadMemories();
   loadJobs();
+  loadStanding();
   $('settings').hidden = false;
   $('settings-scrim').hidden = false;
   $('close-settings').focus();
@@ -1649,6 +1710,8 @@ function wire() {
   $('settings-scrim').addEventListener('click', closeSettings);
   $('save-settings').addEventListener('click', saveSettings);
   $('s-test').addEventListener('click', testConnection);
+  $('sr-start').addEventListener('click', startStanding);
+  $('sr-stop').addEventListener('click', stopStanding);
   $('job-add').addEventListener('click', addJob);
   $('job-kind').addEventListener('change', () => {
     const every = $('job-kind').value === 'every';

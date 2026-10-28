@@ -126,6 +126,17 @@ ROUTES = {
                            "all_day": False, "past": False, "starts_at": None}],
                "unfinished": [], "not_included": [], "made_at": "", "text": ""},
     "/calendar/due": {"due": []},
+    # A live standing reply with two prepared drafts, as the panel really reads.
+    "/standing-reply": {
+        "authorised": True, "message": "Thanks! I'm tied up — please come back in 3 hours.",
+        "minutes_left": 97, "drafts_made": 2, "account_hint": "WhatsApp",
+        "sends": False, "note": "S-CLAW prepares these replies. You send them.",
+        "drafts": [
+            {"chat": "Tunde", "message": "Thanks! I'm tied up — please come back in 3 hours.",
+             "because": "2 unread message(s)"},
+            {"chat": "Amaka", "message": "Thanks! I'm tied up — please come back in 3 hours.",
+             "because": "a new message"},
+        ]},
     "/jobs": {"note": "Jobs run only while S-CLAW is open. A computer that is off does nothing.",
               "jobs": [
                   {"id": "1", "name": "Site check", "task_text": "check whether oluwaseun-joshua-site.vercel.app is up",
@@ -290,6 +301,14 @@ async def main(out: Path, renderer: Path) -> int:
                 # "Test connection" now sends a real prompt and quotes the answer, instead
                 # of saying the model "answered" after a check that generated nothing.
                 # Who made it, and the badge that opens the site.
+                await page.click('.set-tab[data-panel="set-messages"]')
+                await page.wait_for_timeout(400)
+                # The standing reply sits below the WhatsApp box; photograph the
+                # section itself rather than whatever happens to be in view.
+                sr = page.locator("#sr-box")
+                await sr.scroll_into_view_if_needed()
+                await page.wait_for_timeout(300)
+                await page.screenshot(path=str(out / f"app-standing-{theme}.png"))
                 await page.click('.set-tab[data-panel="set-jobs"]')
                 await page.wait_for_timeout(500)
                 await page.screenshot(path=str(out / f"app-jobs-{theme}.png"))
