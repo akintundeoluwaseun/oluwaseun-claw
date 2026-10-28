@@ -41,6 +41,27 @@ body[data-phase="working"] .pill { border-color: var(--brass-line); }
 body[data-phase="attention"] .pill { border-color: var(--amber-line); background: var(--amber-soft); }
 body[data-phase="attention"] .pill-meta { color: var(--amber); font-weight: 700; }
 
+/* Putting the bar away.
+   It sits on top of everything the person is doing, so "make it go away" has to
+   be one click, not a trip to Settings. It appears on hover, and on focus for
+   anyone using the keyboard. */
+.pill-hide {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  /* Tucked against the pill rather than floating beside it: on its own in empty
+     space it read as a stray mark rather than part of the bar. */
+  margin-left: -6px; align-self: flex-start; margin-top: -2px;
+  border: 1px solid var(--line-2); border-radius: 50%;
+  background: var(--surface); color: var(--ink-3); cursor: pointer;
+  box-shadow: var(--shadow-2);
+  opacity: 0; transform: scale(.7);
+  transition: opacity 140ms var(--ease), transform 140ms var(--ease),
+              color 140ms var(--ease), border-color 140ms var(--ease);
+}
+.pill-hide svg { width: 11px; height: 11px; }
+body:hover .pill-hide, .pill-hide:focus-visible { opacity: 1; transform: scale(1); }
+.pill-hide:hover { color: var(--ink); border-color: var(--line-2); background: var(--surface-2); }
+body[data-mode="expanded"] .pill-hide { display: none; }
+
 .pill-stop {
   display: none; width: 40px; height: 40px; margin-left: var(--s1); border-radius: 50%;
   border: 1px solid var(--red-line); background: var(--surface); color: var(--red);
@@ -49,7 +70,28 @@ body[data-phase="attention"] .pill-meta { color: var(--amber); font-weight: 700;
 }
 .pill-stop svg { width: 14px; height: 14px; fill: currentColor; }
 .pill-stop:hover { background: var(--red-soft); border-color: var(--red); }
-body[data-phase="working"] .pill-stop, body[data-phase="attention"] .pill-stop { display: inline-flex; }
+body[data-phase="working"] .pill-stop, body[data-phase="attention"] /* Putting the bar away.
+   It sits on top of everything the person is doing, so "make it go away" has to
+   be one click, not a trip to Settings. It appears on hover, and on focus for
+   anyone using the keyboard. */
+.pill-hide {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  /* Tucked against the pill rather than floating beside it: on its own in empty
+     space it read as a stray mark rather than part of the bar. */
+  margin-left: -6px; align-self: flex-start; margin-top: -2px;
+  border: 1px solid var(--line-2); border-radius: 50%;
+  background: var(--surface); color: var(--ink-3); cursor: pointer;
+  box-shadow: var(--shadow-2);
+  opacity: 0; transform: scale(.7);
+  transition: opacity 140ms var(--ease), transform 140ms var(--ease),
+              color 140ms var(--ease), border-color 140ms var(--ease);
+}
+.pill-hide svg { width: 11px; height: 11px; }
+body:hover .pill-hide, .pill-hide:focus-visible { opacity: 1; transform: scale(1); }
+.pill-hide:hover { color: var(--ink); border-color: var(--line-2); background: var(--surface-2); }
+body[data-mode="expanded"] .pill-hide { display: none; }
+
+.pill-stop { display: inline-flex; }
 body[data-phase="working"] .pill, body[data-phase="attention"] .pill { max-width: 276px; }
 
 /* ---------- Expanded panel ---------- */
@@ -64,7 +106,28 @@ body[data-phase="working"] .pill, body[data-phase="attention"] .pill { max-width
   animation: drop 180ms var(--ease);
 }
 @keyframes drop { from { opacity: 0; transform: translateY(-6px) scale(0.985); } }
-body[data-mode="expanded"] .pill, body[data-mode="expanded"] .pill-stop { display: none; }
+body[data-mode="expanded"] .pill, body[data-mode="expanded"] /* Putting the bar away.
+   It sits on top of everything the person is doing, so "make it go away" has to
+   be one click, not a trip to Settings. It appears on hover, and on focus for
+   anyone using the keyboard. */
+.pill-hide {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  /* Tucked against the pill rather than floating beside it: on its own in empty
+     space it read as a stray mark rather than part of the bar. */
+  margin-left: -6px; align-self: flex-start; margin-top: -2px;
+  border: 1px solid var(--line-2); border-radius: 50%;
+  background: var(--surface); color: var(--ink-3); cursor: pointer;
+  box-shadow: var(--shadow-2);
+  opacity: 0; transform: scale(.7);
+  transition: opacity 140ms var(--ease), transform 140ms var(--ease),
+              color 140ms var(--ease), border-color 140ms var(--ease);
+}
+.pill-hide svg { width: 11px; height: 11px; }
+body:hover .pill-hide, .pill-hide:focus-visible { opacity: 1; transform: scale(1); }
+.pill-hide:hover { color: var(--ink); border-color: var(--line-2); background: var(--surface-2); }
+body[data-mode="expanded"] .pill-hide { display: none; }
+
+.pill-stop { display: none; }
 body[data-mode="expanded"] .panel { display: grid; }
 .panel .mark { width: 30px; height: 30px; }
 .panel input {
@@ -101,6 +164,9 @@ body[data-mode="expanded"] .panel { display: grid; }
 }
 .mic:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
 .mic:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Voice not set up yet: visible, quiet, and it explains itself when pressed. */
+.mic[data-state="off"] { opacity: .55; }
+.mic[data-state="off"]:hover { opacity: .9; }
 .mic svg { width: 16px; height: 16px; fill: currentColor; }
 
 /* A recording indicator that does not rely on colour alone. */

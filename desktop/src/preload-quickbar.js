@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('quick', {
   run: (task) => ipcRenderer.invoke('quickbar:run', task),
   setMode: (mode) => ipcRenderer.send('quickbar:mode', mode),
   openApp: () => ipcRenderer.send('quickbar:open-app'),
+  hideBar: () => ipcRenderer.send('quickbar:hide'),
   stop: () => ipcRenderer.send('quickbar:stop'),
   // Moving the bar: the renderer decides what is a drag, the main process moves the window.
   dragBegin: () => ipcRenderer.send('quickbar:drag-begin'),
@@ -30,6 +31,11 @@ contextBridge.exposeInMainWorld('quick', {
     const l = (_e, down) => cb(down);
     ipcRenderer.on('voice:push-to-talk', l);
     return () => ipcRenderer.removeListener('voice:push-to-talk', l);
+  },
+  onTheme: (cb) => {
+    const listener = (_e, theme) => cb(theme);
+    ipcRenderer.on('claw:theme', listener);
+    return () => ipcRenderer.removeListener('claw:theme', listener);
   },
   onStatus: (cb) => {
     const l = (_e, s) => cb(s);

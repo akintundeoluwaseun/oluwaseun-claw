@@ -36,6 +36,10 @@
     <span class="pill-text" id="pill-text">Ask Claw</span>
     <span class="pill-meta" id="pill-meta"></span>
   </button>
+  <button class="pill-hide" id="pill-hide" type="button" aria-label="Hide the bar"
+          title="Hide the bar (Ctrl+Shift+Space brings it back)">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m5 5 6 6M11 5l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>
+  </button>
   <button class="pill-stop" id="pill-stop" type="button" aria-label="Stop the current task" title="Stop">
     <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1.5"/></svg>
   </button>
@@ -44,7 +48,7 @@
     <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#claw-mark"/></svg>
     <label class="sr-only" for="task">Task for Claw</label>
     <input id="task" type="text" maxlength="4000" spellcheck="true" placeholder="Give Claw a task, then get on with your day">
-    <button class="mic" id="mic" type="button" hidden aria-label="Dictate a task" title="Dictate">
+    <button class="mic" id="mic" type="button" aria-label="Dictate a task" title="Dictate">
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="M8 1.5a2 2 0 0 0-2 2v4a2 2 0 1 0 4 0v-4a2 2 0 0 0-2-2z"/>
         <path d="M3.5 7a.5.5 0 0 1 1 0 3.5 3.5 0 0 0 7 0 .5.5 0 0 1 1 0 4.5 4.5 0 0 1-4 4.47V13h2a.5.5 0 0 1 0 1H5.5a.5.5 0 0 1 0-1h2v-1.53A4.5 4.5 0 0 1 3.5 7z"/>

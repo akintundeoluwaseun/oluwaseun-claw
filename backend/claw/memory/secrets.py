@@ -9,7 +9,7 @@ What is refused, and why each one:
                   something asks for a credential it calls `pause_for_me` and
                   the person types it themselves.
   card numbers    checked with the Luhn algorithm, so an order number or a
-                  Nigerian phone number is not mistaken for a card.
+                  phone number or an order number is not mistaken for a card.
   private keys    an SSH or PEM block is unmistakable and catastrophic.
   long random     a 24-character string with no words in it is a token, whatever
                   the sentence around it claims.
