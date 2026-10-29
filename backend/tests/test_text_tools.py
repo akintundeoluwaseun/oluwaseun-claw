@@ -6,6 +6,7 @@ than "it produced something".
 """
 
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -299,9 +300,27 @@ async def test_disk_space_refuses_an_unauthorized_folder(tool_ctx, tmp_path):
         await call(tool_ctx, "disk_space", path=str(tmp_path / "elsewhere"))
 
 
+def _my_process_name() -> str:
+    """What the operating system calls THIS process.
+
+    Not the same as the interpreter's filename. Launched through a console
+    script - `.venv/bin/pytest`, which is what a contributor types - the process
+    is called "pytest" while sys.executable still points at python, so asking
+    for `Path(sys.executable).name` asks about a program that genuinely is not
+    running. is_program_running reads `ps -eo comm=`, so the test asks the same
+    source the tool does.
+    """
+    if sys.platform == "win32":
+        return Path(sys.executable).name  # python.exe really is the process
+    out = subprocess.run(["/bin/ps", "-p", str(os.getpid()), "-o", "comm="],
+                         capture_output=True, text=True, check=False, timeout=10)
+    name = Path(out.stdout.strip().splitlines()[-1].strip()).name if out.stdout.strip() else ""
+    return name or Path(sys.executable).name
+
+
 async def test_this_process_is_running(tool_ctx):
     """The one program certainly running is the one asking."""
-    me = Path(sys.executable).name
+    me = _my_process_name()
     r = await call(tool_ctx, "is_program_running", program=me)
     assert r.data["running"] is True and r.data["processes_checked"] > 0
 
