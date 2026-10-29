@@ -7,6 +7,7 @@ import logging
 
 from pydantic import ValidationError
 
+from claw.agent.executor import REPLY_TOKENS, estimate_tokens
 from claw.agent.schemas import ModelPlan, Plan, PlanStep
 from claw.config import describe_validation_error
 from claw.logging_setup import log_event
@@ -53,14 +54,52 @@ class PlanningFailed(Exception):
         self.details = details or []
 
 
+async def _window(adapter: ModelAdapter) -> int | None:
+    """What the model server will accept, when it is willing to say."""
+    if not hasattr(adapter, "context_window"):
+        return None
+    try:
+        return await adapter.context_window()
+    except Exception:  # not knowing the window must never fail the plan
+        return None
+
+
+def _prompt_tokens(messages: list[ChatMessage], schema: dict) -> int:
+    body = sum(estimate_tokens(m.content) for m in messages)
+    # The schema is sent with the request and counts against the same window.
+    return body + estimate_tokens(json.dumps(schema)) + REPLY_TOKENS
+
+
 async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy) -> Plan:
     schema = ModelPlan.model_json_schema()
     messages = [
         ChatMessage(role="system", content=SYSTEM_PROMPT),
         ChatMessage(role="user", content=f"User request:\n<<<\n{task}\n>>>"),
     ]
+    # A model too small to hold the planning prompt cannot be planned with, and
+    # should say so in those words. Without this the server answers 400 and the
+    # person sees a bare "model server returned an error (400)", which tells
+    # them nothing they can act on. Found on Windows by a 2048-token model
+    # meeting a 2158-token prompt.
+    window = await _window(adapter)
+    if window:
+        need = _prompt_tokens(messages, schema)
+        if need > window:
+            raise PlanningFailed(
+                "This model's context is too small for Claw to plan with.",
+                [f"The model accepts about {window} tokens.",
+                 f"Planning this task needs about {need}.",
+                 "Choose a model with a larger context, or start the engine with a bigger -c."],
+            )
     last_problems: list[str] = []
     for attempt in range(1, MAX_ATTEMPTS + 1):
+        # Each rejected reply adds the reply and a correction, so the prompt
+        # grows with every retry. Against a small window that turns one
+        # recoverable bad answer into a hard failure, so older corrections go
+        # first and the request itself always stays.
+        if window:
+            while len(messages) > 2 and _prompt_tokens(messages, schema) > window:
+                del messages[2:4]
         try:
             raw = await adapter.chat(messages, json_schema=schema)
         except ModelResponseError as exc:
