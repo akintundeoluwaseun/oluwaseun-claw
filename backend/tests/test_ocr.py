@@ -19,7 +19,7 @@ from tests.test_documents import make_pdf
 ENGINE = TesseractEngine()
 needs_ocr = pytest.mark.skipif(not ENGINE.available()[0], reason="Tesseract not installed here")
 
-INVOICE = ["INVOICE NUMBER 4471", "Customer: Adebayo Stores, Ado Ekiti", "Total due: 45,000 naira", "Payment by 30 November 2026"]
+INVOICE = ["INVOICE NUMBER 4471", "Customer: Riverside Stores", "Total due: 45,000 USD", "Payment by 30 November 2026"]
 MINUTES = ["MEETING MINUTES", "The committee approved the new budget.", "Next meeting: Friday at 10 AM."]
 
 
@@ -30,7 +30,7 @@ def pipe(tmp_path):
 
 # 1. Normal text-based PDF: no OCR at all
 def test_text_pdf_uses_embedded_text_without_ocr(tmp_path, monkeypatch):
-    make_pdf(tmp_path / "t.pdf", "Quarterly sales grew twelve percent in Ekiti State")
+    make_pdf(tmp_path / "t.pdf", "Quarterly sales grew twelve percent in the eastern region")
     engine = TesseractEngine()
     monkeypatch.setattr(engine, "recognize", lambda *a, **k: pytest.fail("OCR must not run on text pages"))
     r = PdfPipeline(tmp_path / "c", engine).read(tmp_path / "t.pdf")
@@ -45,7 +45,7 @@ def test_clear_scan(tmp_path, pipe):
     r = pipe.read(tmp_path / "s.pdf", progress=lambda st, d, t: stages.append(st))
     p = r.pages[0]
     assert p.source == "ocr" and p.status == "ok" and p.confidence > 80
-    for needle in ("INVOICE NUMBER 4471", "Adebayo Stores", "45,000 naira"):
+    for needle in ("INVOICE NUMBER 4471", "Riverside Stores", "45,000 USD"):
         assert needle in p.text
     assert "ocr" in stages and stages[-1] == "done"
 
@@ -66,14 +66,14 @@ def test_multi_page_order(tmp_path, pipe):
 def test_rotated_scan_is_turned_upright(tmp_path, pipe):
     scanned_pdf(tmp_path / "r.pdf", [page_image(INVOICE, rotate=90)])
     p = pipe.read(tmp_path / "r.pdf").pages[0]
-    assert p.rotation in (90, 270) and "Adebayo Stores" in p.text and "turned" in p.note
+    assert p.rotation in (90, 270) and "Riverside Stores" in p.text and "turned" in p.note
 
 
 @needs_ocr
 def test_slightly_skewed_scan(tmp_path, pipe):
     scanned_pdf(tmp_path / "k.pdf", [page_image(INVOICE, rotate=3)])
     p = pipe.read(tmp_path / "k.pdf").pages[0]
-    assert p.source == "ocr" and "Adebayo" in p.text and "45,000" in p.text
+    assert p.source == "ocr" and "Riverside" in p.text and "45,000" in p.text
 
 
 # 5. Mixed PDF: text pages read directly, scanned pages OCR'd, order kept
@@ -137,7 +137,7 @@ def test_cache_avoids_second_ocr(tmp_path, monkeypatch):
     PdfPipeline(tmp_path / "c", engine).read(tmp_path / "s.pdf")
     monkeypatch.setattr(engine, "recognize", lambda *a, **k: pytest.fail("cached document was OCR'd again"))
     again = PdfPipeline(tmp_path / "c", engine).read(tmp_path / "s.pdf")
-    assert "Adebayo" in again.pages[0].text
+    assert "Riverside" in again.pages[0].text
 
 
 @needs_ocr
@@ -168,7 +168,7 @@ def test_searchable_pdf_copy(tmp_path, pipe):
     fresh = PdfPipeline(tmp_path / "other-cache", TesseractEngine(exe="", tessdata=None)).read(out)
     # The copy now has a real text layer: readable even with no OCR engine at all.
     assert [p.source for p in fresh.pages] == ["text", "text"]
-    assert "Adebayo" in fresh.pages[1].text
+    assert "Riverside" in fresh.pages[1].text
     with pytest.raises(FileExistsError):
         pipe.searchable_pdf(tmp_path / "m.pdf", out)  # never overwrites
 

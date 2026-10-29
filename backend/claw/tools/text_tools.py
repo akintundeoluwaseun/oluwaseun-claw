@@ -445,7 +445,7 @@ SEPARATOR_WORDS = {"tab": "\t", "comma": ",", "semicolon": ";", "pipe": "|", "ba
 def _split_lines(text: str, columns: int, sep: str | None) -> tuple[list[list[str]], str]:
     sep = SEPARATOR_WORDS.get((sep or "").lower(), sep) or None
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    # Strip the bullets and numbering people paste in, so "1. Adebayo" is one field.
+    # Strip the bullets and numbering people paste in, so "1. Riverside" is one field.
     lines = [re.sub(r"^(?:[-*•]|\d+[.)])\s+", "", ln) for ln in lines]
     candidates = [sep] if sep else ["\t", " | ", "|", ";", ",", " - "]
     best, used = None, ""

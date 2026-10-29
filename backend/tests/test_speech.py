@@ -326,11 +326,11 @@ async def test_recognised_text_is_not_written_to_disk(tmp_path, caplog):
     """The words are private: the log records how many, never which."""
     store = VoiceModelStore(tmp_path / "voice-models")
     install(store)
-    svc = SpeechService(store, engine=FakeEngine(text="open techdesk and prepare a sale"))
+    svc = SpeechService(store, engine=FakeEngine(text="open the sales app and prepare a sale"))
     with caplog.at_level("INFO"):
         await svc.transcribe(tone(seconds=0.5), voice_settings())
     logged = " ".join(r.getMessage() for r in caplog.records)
-    assert "techdesk" not in logged.lower()
+    assert "sales app" not in logged.lower()
     assert not list((tmp_path).rglob("*.wav"))
 
 

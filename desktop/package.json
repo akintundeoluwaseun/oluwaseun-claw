@@ -9,7 +9,7 @@
   "scripts": {
     "start": "electron .",
     "check": "node --check src/creator.js && node --check src/main.js && node --check src/preload.js && node --check src/preload-quickbar.js && node --check src/backend.js && node --check src/watcher.js && node --check src/reminders.js && node --check src/renderer/app.js && node --check src/renderer/quickbar.js",
-    "test": "node --test tests/routes.test.js tests/creator.test.js tests/reminders.test.js tests/theme.test.js"
+    "test": "node --test tests/routes.test.js tests/creator.test.js tests/reminders.test.js tests/theme.test.js tests/quickbar-drag.test.js tests/quickbar-css.test.js"
   },
   "devDependencies": {
     "electron": "45.0.0",

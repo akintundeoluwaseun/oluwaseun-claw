@@ -31,9 +31,9 @@ def folder(tool_ctx):
 @needs_ocr
 async def test_d_flyer_builtin_verified(tool_ctx, folder):
     photo = make_photo(folder / "shop.jpg")
-    r = await call(tool_ctx, "make_flyer", title="TechDesk Shop Manager", subtitle="Run your repair shop from one app",
+    r = await call(tool_ctx, "make_flyer", title="Riverside Shop Manager", subtitle="Run your repair shop from one app",
                    points=["Sales and receipts", "Repair tickets", "Works offline"], contact="WhatsApp 0807 000 0000",
-                   size="square", images=[str(photo)], file_name="techdesk flyer")
+                   size="square", images=[str(photo)], file_name="sales app flyer")
     assert r.ok and r.verified, r.summary
     assert "built-in image editor (Photoshop was not used)" in r.summary
     out = Path(r.data["path"])
@@ -43,13 +43,13 @@ async def test_d_flyer_builtin_verified(tool_ctx, folder):
     with Image.open(out) as img:  # the photo is really on the flyer: the hero area is not plain background
         hero = img.crop((100, 100, 900, 400)).convert("RGB")
         assert len(set(hero.getdata())) > 2
-    again = await call(tool_ctx, "make_flyer", title="TechDesk Shop Manager", size="square", file_name="techdesk flyer")
+    again = await call(tool_ctx, "make_flyer", title="Riverside Shop Manager", size="square", file_name="sales app flyer")
     assert again.data["path"] != str(out)  # never overwrites
 
 
 async def test_flyer_formats_and_sizes(tool_ctx, folder):
     for size, fmt in (("a5", "jpg"), ("story", "pdf")):
-        r = await call(tool_ctx, "make_flyer", title="Ado Ekiti Phone Repairs", size=size, format=fmt, file_name=f"f-{size}")
+        r = await call(tool_ctx, "make_flyer", title="Riverside Phone Repairs", size=size, format=fmt, file_name=f"f-{size}")
         assert r.ok and Path(r.data["path"]).suffix == f".{fmt}"
         if fmt == "jpg":
             assert (r.data["width"], r.data["height"]) == im.PRESETS["a5"]

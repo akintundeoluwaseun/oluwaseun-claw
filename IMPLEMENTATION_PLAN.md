@@ -53,7 +53,7 @@ Decided with the user: two installers, **Standard** and **Pro**, each with the b
 ## v0.6 — master prompt 2 (phases; details in docs/AUDIT_V06.md)
 - **A ✅** Windows control hardening, Notepad (Test A), browser forms/downloads (Test B), file copies.
 - **B ✅** WhatsApp unread check via the official WhatsApp Desktop app (UI Automation), notifications, last-check time.
-- **C ✅** TechDesk-enterprise test sale (through the app's screen): search product, read real price, quantity, total, approval, submit, verify; cancel path.
+- **C — removed** A sale driven through one specific local app's screen. Built and tested, then taken out: it tied the product to one shop in one country, and S-CLAW is meant to be usable anywhere. The generic desktop tools it was built on (read_control, choose_menu, click_control) remain.
 - **D ✅** Image editing: Photoshop when installed (scripting/UI), Pillow-based fallback clearly labelled.
 - **E** Video: images + text + audio → MP4 (FFmpeg), verified duration, size, codec, A/V sync.
 - **F** Calendar apps on the PC (Windows Calendar/Outlook UI, .ics files); meeting brief; whisper.cpp transcription.
