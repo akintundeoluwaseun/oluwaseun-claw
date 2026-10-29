@@ -182,20 +182,51 @@ def test_the_service_adapter_carries_the_built_in_credential_not_the_users():
 # ---------- Claw Local with the network switched off ----------
 @pytest.fixture
 def no_network(monkeypatch):
-    """Refuse every socket that is not loopback, the way an unplugged machine does."""
+    """Refuse every socket that is not loopback, the way an unplugged machine does.
+
+    Three doors, not one. Blocking socket.socket.connect is enough on Linux,
+    where asyncio reaches the network through a selector loop that calls it.
+    Windows defaults to the proactor loop, which connects through overlapped
+    I/O and never touches socket.connect - so on Windows the guard saw nothing,
+    recorded nothing, and this fixture quietly stopped testing what it claims
+    to test. Both event loops are patched as well as the raw socket.
+    """
+    import asyncio.proactor_events
+    import asyncio.selector_events
     import socket
 
-    real_connect = socket.socket.connect
     reached: list[str] = []
 
+    def host_of(address) -> str:
+        return address[0] if isinstance(address, tuple) else str(address)
+
+    def blocked(address) -> bool:
+        host = host_of(address)
+        if host in ("127.0.0.1", "::1", "localhost"):
+            return False
+        reached.append(host)
+        return True
+
+    real_connect = socket.socket.connect
+
     def guard(self, address, *a, **kw):
-        host = address[0] if isinstance(address, tuple) else str(address)
-        if host not in ("127.0.0.1", "::1", "localhost"):
-            reached.append(host)
+        if blocked(address):
             raise OSError(101, "Network is unreachable")
         return real_connect(self, address, *a, **kw)
 
     monkeypatch.setattr(socket.socket, "connect", guard)
+
+    for loop_cls in (asyncio.selector_events.BaseSelectorEventLoop,
+                     asyncio.proactor_events.BaseProactorEventLoop):
+        real_sock_connect = loop_cls.sock_connect
+
+        def guard_async(self, sock, address, *a, _real=real_sock_connect, **kw):
+            if blocked(address):
+                raise OSError(101, "Network is unreachable")
+            return _real(self, sock, address, *a, **kw)
+
+        monkeypatch.setattr(loop_cls, "sock_connect", guard_async)
+
     return reached
 
 

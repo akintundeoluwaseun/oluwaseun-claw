@@ -65,6 +65,30 @@ class OpenAICompatAdapter(ModelAdapter):
             raise ModelResponseError("The model server returned an unexpected model list.")
         return [ModelInfo(name=m["id"]) for m in items if isinstance(m, dict) and isinstance(m.get("id"), str)]
 
+    async def context_window(self) -> int | None:
+        """How many tokens this server will actually accept, or None if it won't say.
+
+        Worth asking rather than assuming, because llama.cpp clamps -c DOWN to
+        the model's trained context: starting the engine with -c 8192 and a
+        model trained at 2048 gives a server with 2048, and nothing told Claw.
+        Budgeting against the figure that was requested rather than the one in
+        force means a long run is cut off by a 400 from the server instead of
+        being trimmed to fit.
+
+        /props is llama-server's own report and sits at the root, not under the
+        version prefix. Anything else answers 404, which is not an error worth
+        raising: a provider that will not say simply gets the caller's default.
+        """
+        try:
+            data = await self._request("GET", "/props", timeout=10)
+        except ModelError:
+            return None
+        for value in (data.get("n_ctx"),
+                      (data.get("default_generation_settings") or {}).get("n_ctx")):
+            if isinstance(value, int) and value > 0:
+                return value
+        return None
+
     async def chat(self, messages: list[ChatMessage], json_schema: dict[str, Any] | None = None) -> str:
         self.require_model()
         body: dict[str, Any] = {

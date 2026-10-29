@@ -128,11 +128,29 @@ class TaskRunner:
             emit("planned", {"steps": len(plan.steps)})
             plan_text = "\n".join(f"{s.index}. {s.description}" for s in plan.steps)
             caps = {s.capability.value for s in plan.steps} - {"reasoning"}
-            # The real window, not a guess: the built-in engine is started with
-            # -c <ctx_size>, and a hosted model is assumed to have more but is
-            # still budgeted, because an unbounded conversation is what hits it.
-            window = (state.brain.engine.ctx_size if settings.model.mode == "builtin"
-                      else HOSTED_CONTEXT_TOKENS)
+            # Ask the server what it will accept, and only fall back to what was
+            # requested. The built-in engine starts llama-server with -c
+            # <ctx_size>, but llama.cpp clamps that DOWN to the model's trained
+            # context: a model trained at 2048 gives a 2048-token server however
+            # large the flag was, and nothing says so. Budgeting against the
+            # requested figure then builds a prompt the server rejects outright,
+            # which a person sees as the task failing rather than as a long
+            # conversation being trimmed. A hosted model usually will not answer
+            # /props, and gets the conservative default.
+            asked = (state.brain.engine.ctx_size if settings.model.mode == "builtin"
+                     else HOSTED_CONTEXT_TOKENS)
+            window = asked
+            reported = None
+            if hasattr(adapter, "context_window"):
+                try:
+                    reported = await adapter.context_window()
+                except Exception:  # never let a window probe fail the task
+                    reported = None
+            if reported:
+                window = reported
+                if reported != asked:
+                    log_event(log, "model window differs from the one requested",
+                              task_id=task_id, asked=asked, actual=reported)
             outcome = await run_agent(task_text, plan_text, adapter, state.registry, ctx, emit,
                                       request_approval, caps or None, window_tokens=window)
             db.update_task(task_id, status=outcome.status, error=outcome.error, result=outcome.summary())
