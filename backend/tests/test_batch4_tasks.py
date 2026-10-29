@@ -72,11 +72,11 @@ async def test_find_files_and_summarize(tool_ctx, fake_server, tmp_path):
     folder = tmp_path / "saved"
     make_pdf(folder / "old.pdf", "Old notes")
     time.sleep(0.05)
-    make_pdf(folder / "latest.pdf", "Board approved budget of 2 million naira")
+    make_pdf(folder / "latest.pdf", "Board approved budget of 2 million USD")
     out, rec = await run(tool_ctx, fake_server, [
         act("find_files", extension=".pdf"),
         act("read_file", path=str(folder / "latest.pdf")),
-        act("write_text_file", file_name="latest summary.md", text="# Summary\nThe board approved a budget of 2 million naira."),
+        act("write_text_file", file_name="latest summary.md", text="# Summary\nThe board approved a budget of 2 million USD."),
         finish("Summarised latest.pdf into latest summary.md."),
     ], "Find the latest PDF in my folder and summarize it")
     assert out.status == "completed" and out.files[0]["path"].endswith("latest summary.md")
@@ -90,7 +90,7 @@ async def test_extract_webpage_to_spreadsheet_and_injection_guard(tool_ctx, fake
     out, rec = await run(tool_ctx, fake_server, [
         act("open_url", url=site.base_url + "/directory"),
         act("read_page"),
-        act("create_spreadsheet", file_name="ado ekiti businesses", columns=["Name", "Type", "Phone", "Email"], rows=rows),
+        act("create_spreadsheet", file_name="city businesses", columns=["Name", "Type", "Phone", "Email"], rows=rows),
         finish("Saved 3 businesses."),
     ], "Collect the businesses on this directory page into a spreadsheet")
     assert out.status == "completed", out.summary()

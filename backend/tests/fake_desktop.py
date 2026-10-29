@@ -104,7 +104,7 @@ class FakeDesktop(DesktopDriver):
     # ---- TechDesk stand-in (a GUESS at TechDesk's screens; the real app is unverified) ----
     TD_PRODUCTS = [("Phone charger (Type-C)", 3500), ("Phone charger (iPhone)", 4500), ("USB cable", 1500), ("Power bank 10000mAh", 12000)]
 
-    def add_techdesk(self, pin=False, total_bug=False, shortcut=True):
+    def add_sales_app(self, pin=False, total_bug=False, shortcut=True):
         self.td = {"page": "dashboard", "form": None, "search": "", "sales": [], "pin": pin, "bug": total_bug, "flash": ""}
         h = self.next_handle
         self.next_handle += 1
@@ -124,17 +124,17 @@ class FakeDesktop(DesktopDriver):
                 if t["flash"]:
                     c.append({"role": "Text", "name": t["flash"]})
                 for inv, items, total in t["sales"]:
-                    c += [{"role": "ListItem", "name": inv}, {"role": "Text", "name": items}, {"role": "Text", "name": f"₦{total:,}"}]
+                    c += [{"role": "ListItem", "name": inv}, {"role": "Text", "name": items}, {"role": "Text", "name": f"${total:,}"}]
             if t["form"] is not None:
                 c += [{"role": "Text", "name": "New Sale"}, {"role": "Edit", "name": "Search products", "value": t["search"]}]
                 if t["search"]:
                     for name, price in self.TD_PRODUCTS:
                         if all(w in name.lower() for w in t["search"].lower().split()):
-                            c += [{"role": "ListItem", "name": name, "td_add": name}, {"role": "Text", "name": f"₦{price:,}"}]
+                            c += [{"role": "ListItem", "name": name, "td_add": name}, {"role": "Text", "name": f"${price:,}"}]
                 for line in t["form"]:
                     c += [{"role": "Text", "name": line["name"]}, {"role": "Edit", "name": "Qty", "value": str(line["qty"]), "td_qty": line["name"]}]
                 total = sum(dict(self.TD_PRODUCTS)[l["name"]] * l["qty"] for l in t["form"]) - (500 if t["bug"] and t["form"] else 0)
-                c += [{"role": "Text", "name": "Total"}, {"role": "Text", "name": f"₦{total:,}"},
+                c += [{"role": "Text", "name": "Total"}, {"role": "Text", "name": f"${total:,}"},
                       {"role": "Button", "name": "Complete Sale"}, {"role": "Button", "name": "Cancel"}]
         self.windows[self._td_handle]["controls"] = c
 
@@ -193,8 +193,8 @@ class FakeDesktop(DesktopDriver):
 
     def launch(self, target):
         self.launched.append(target)
-        if "techdesk" in target.lower():
-            self.add_techdesk()
+        if "sales app" in target.lower():
+            self.add_sales_app()
             return
         if target == "whatsapp:":
             if not self.whatsapp_installed:

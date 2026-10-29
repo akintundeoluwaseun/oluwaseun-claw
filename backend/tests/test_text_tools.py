@@ -81,10 +81,10 @@ async def test_search_whole_words(tool_ctx, folder):
 # ---------- e-mail addresses ----------
 async def test_extract_emails_deduplicates_and_saves(tool_ctx, folder):
     p = folder / "contacts.txt"
-    p.write_text("Write to adebayo@example.com or ADEBAYO@Example.com.\n"
-                 "Ngozi: ngozi.obi@mail.example.ng\nnot-an-address@\n", encoding="utf-8")
+    p.write_text("Write to daniel@example.com or DANIEL@Example.com.\n"
+                 "Maria: maria.obi@mail.example.com\nnot-an-address@\n", encoding="utf-8")
     r = await call(tool_ctx, "extract_emails", path=str(p), save_as="found.txt")
-    assert r.data["emails"] == ["adebayo@example.com", "ngozi.obi@mail.example.ng"]
+    assert r.data["emails"] == ["daniel@example.com", "maria.obi@mail.example.com"]
     saved = Path(r.data["saved_to"])
     assert saved.read_text(encoding="utf-8").splitlines() == r.data["emails"]
 
@@ -143,19 +143,19 @@ async def test_compare_can_ignore_whitespace(tool_ctx, folder):
 # ---------- sorting ----------
 async def test_sort_lines_into_a_new_file(tool_ctx, folder):
     p = folder / "names.txt"
-    p.write_text("Yusuf\nadebayo\nNgozi\nadebayo\n", encoding="utf-8")
+    p.write_text("Victor\ndaniel\nMaria\ndaniel\n", encoding="utf-8")
     r = await call(tool_ctx, "sort_lines", path=str(p), file_name="sorted.txt", remove_duplicates=True)
     out = Path(r.data["path"])
-    assert out.read_text(encoding="utf-8").splitlines() == ["adebayo", "Ngozi", "Yusuf"]
+    assert out.read_text(encoding="utf-8").splitlines() == ["daniel", "Maria", "Victor"]
     assert r.data["duplicates_removed"] == 1
-    assert p.read_text(encoding="utf-8").splitlines() == ["Yusuf", "adebayo", "Ngozi", "adebayo"]
+    assert p.read_text(encoding="utf-8").splitlines() == ["Victor", "daniel", "Maria", "daniel"]
 
 
 async def test_sort_keeps_a_header_row(tool_ctx, folder):
     p = folder / "table.csv"
-    p.write_text("Name\nYusuf\nAdebayo\n", encoding="utf-8")
+    p.write_text("Name\nVictor\nDaniel\n", encoding="utf-8")
     r = await call(tool_ctx, "sort_lines", path=str(p), file_name="s.csv", skip_first_line=True)
-    assert Path(r.data["path"]).read_text(encoding="utf-8").splitlines() == ["Name", "Adebayo", "Yusuf"]
+    assert Path(r.data["path"]).read_text(encoding="utf-8").splitlines() == ["Name", "Daniel", "Victor"]
 
 
 # ---------- CSV arithmetic ----------
@@ -215,24 +215,24 @@ async def test_divide_by_zero_leaves_the_cell_blank(tool_ctx, products):
 
 # ---------- a list into a table ----------
 async def test_list_to_table_splits_and_strips_bullets(tool_ctx, folder):
-    text = ("- Adebayo Okafor, adebayo@example.com, 0801 000 0001\n"
+    text = ("- Daniel Okafor, daniel@example.com, 0801 000 0001\n"
             "- Chidinma Eze, chidinma@example.com, 0802 000 0002\n")
     r = await call(tool_ctx, "list_to_table", text=text,
                    columns=["Name", "Email", "Phone"], file_name="contacts.csv",
                    folder=str(folder))
     lines = Path(r.data["path"]).read_text(encoding="utf-8-sig").splitlines()
     assert lines[0] == "Name,Email,Phone"
-    assert lines[1] == "Adebayo Okafor,adebayo@example.com,0801 000 0001"
+    assert lines[1] == "Daniel Okafor,daniel@example.com,0801 000 0001"
     assert r.data["rows"] == 2
 
 
 async def test_list_to_table_accepts_the_word_tab(tool_ctx, folder):
     """A tab cannot be passed as itself: tool arguments arrive stripped of whitespace."""
-    r = await call(tool_ctx, "list_to_table", text="Adebayo\tLagos\nNgozi\tAbuja",
+    r = await call(tool_ctx, "list_to_table", text="Daniel\tLagos\nMaria\tAbuja",
                    columns=["Name", "City"], file_name="t.csv", folder=str(folder),
                    separator="tab")
     lines = Path(r.data["path"]).read_text(encoding="utf-8-sig").splitlines()
-    assert lines[1] == "Adebayo,Lagos" and r.data["rows"] == 2
+    assert lines[1] == "Daniel,Lagos" and r.data["rows"] == 2
 
 
 async def test_combine_without_a_divider(tool_ctx, folder):

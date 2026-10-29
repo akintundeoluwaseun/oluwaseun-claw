@@ -123,10 +123,10 @@ def test_history_search_covers_answers_and_errors(make_client, data_dir):
     c = make_client()
     db = c.app.state.claw.db
     t1 = db.create_task("Research hotels", None)
-    db.update_task(t1, status="completed", result={"final_answer": "Saved Ekiti Grand Hotel contacts"})
+    db.update_task(t1, status="completed", result={"final_answer": "Saved Riverside Grand Hotel contacts"})
     t2 = db.create_task("Open the app", None)
     db.update_task(t2, status="failed", error="Windows is locked")
-    assert [t["id"] for t in c.get("/tasks", params={"q": "ekiti grand"}).json()["tasks"]] == [t1]
+    assert [t["id"] for t in c.get("/tasks", params={"q": "riverside grand"}).json()["tasks"]] == [t1]
     assert [t["id"] for t in c.get("/tasks", params={"q": "locked"}).json()["tasks"]] == [t2]
 
 

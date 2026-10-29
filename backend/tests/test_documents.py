@@ -52,8 +52,8 @@ def folder(tool_ctx, tmp_path):
 
 
 def test_read_pdf_docx_xlsx(tmp_path):
-    make_pdf(tmp_path / "a.pdf", "Invoice total 45000 naira")
-    assert "Invoice total 45000 naira" in read_document(tmp_path / "a.pdf")
+    make_pdf(tmp_path / "a.pdf", "Invoice total 45000 USD")
+    assert "Invoice total 45000 USD" in read_document(tmp_path / "a.pdf")
     d = docx.Document()
     d.add_paragraph("Meeting notes for Monday")
     t = d.add_table(rows=1, cols=2)
@@ -107,9 +107,9 @@ async def test_report_only_cites_opened_sources(tool_ctx, folder, site):
 
 
 async def test_spreadsheet_provenance_and_formula_safety(tool_ctx, folder):
-    tool_ctx.memory.seen_text.append("Ekiti Grand Hotel  0803 111 2233  info@ekitigrand.example")
+    tool_ctx.memory.seen_text.append("Riverside Hotel  0803 111 2233  info@riversidegrand.example")
     r = await call(tool_ctx, "create_spreadsheet", file_name="hotels", columns=["Name", "Phone", "Email"],
-                   rows=[["Ekiti Grand Hotel", "0803 111 2233", "info@ekitigrand.example"],
+                   rows=[["Riverside Hotel", "0803 111 2233", "info@riversidegrand.example"],
                          ["Made Up Hotel", "0800 000 0000", "=HYPERLINK(\"http://evil\")"]])
     assert r.verified and r.data["rows"] == 2
     assert r.data["checked"] == 6 and r.data["found"] == 3
@@ -118,9 +118,9 @@ async def test_spreadsheet_provenance_and_formula_safety(tool_ctx, folder):
     ws = load_workbook(r.data["path"]).active
     assert ws["A1"].value == "Name" and ws["A1"].font.bold
     assert ws["C3"].value.startswith("'=")  # stored as text, not a formula
-    c = await call(tool_ctx, "create_spreadsheet", file_name="hotels", format="csv", columns=["Name"], rows=[["Ekiti Grand Hotel"]])
+    c = await call(tool_ctx, "create_spreadsheet", file_name="hotels", format="csv", columns=["Name"], rows=[["Riverside Hotel"]])
     with open(c.data["path"], encoding="utf-8-sig", newline="") as fh:
-        assert list(csv.reader(fh)) == [["Name"], ["Ekiti Grand Hotel"]]
+        assert list(csv.reader(fh)) == [["Name"], ["Riverside Hotel"]]
 
 
 def test_spreadsheet_row_width_checked():
@@ -196,8 +196,8 @@ async def test_unseen_source_is_still_refused(tool_ctx, folder):
 @pytest.mark.parametrize("label,text,needles", [
     ("plain", "Quarterly sales grew 12 percent", ["12 percent"]),
     ("percent_sign", "Operating margin rose to 12.5% this financial year", ["12.5%"]),
-    ("money_and_date", "Total due: 45,000 naira by 30 November 2026", ["45,000", "30 November 2026"]),
-    ("hyphen_and_name", "Ado-Ekiti branch grew 7 percent", ["Ado-Ekiti", "7 percent"]),
+    ("money_and_date", "Total due: 45,000 USD by 30 November 2026", ["45,000", "30 November 2026"]),
+    ("hyphen_and_name", "Riverside branch grew 7 percent", ["Riverside", "7 percent"]),
 ])
 def test_text_pdf_keeps_numbers_and_characters(tmp_path, label, text, needles):
     make_pdf(tmp_path / f"{label}.pdf", text)
@@ -227,9 +227,9 @@ def test_empty_and_malformed_documents_are_reported_not_silently_empty(tmp_path)
 
 def test_text_reader_keeps_unicode_and_non_breaking_spaces(tmp_path):
     p = tmp_path / "notes.txt"
-    p.write_text("Caf\u00e9 Ado-Ekiti\u2014total 45\u00a0000 naira\n", encoding="utf-8")
+    p.write_text("Caf\u00e9 Riverside\u2014total 45\u00a0000 USD\n", encoding="utf-8")
     got = read_document(p)
-    assert "Caf\u00e9" in got and "Ado-Ekiti" in got
+    assert "Caf\u00e9" in got and "Riverside" in got
     assert "45\u00a0000" in got or "45 000" in got  # NBSP kept, or folded to a plain space
 
 
