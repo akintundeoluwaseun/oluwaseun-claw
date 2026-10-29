@@ -1893,8 +1893,19 @@ function wire() {
   $('plan-btn').addEventListener('click', planTask);
   $('run-btn').addEventListener('click', () => runTask());
   $('stop-btn').addEventListener('click', stopRun);
-  $('run-again').addEventListener('click', () => {
-    if (state.run && !isRunning()) runTask(state.run.title);
+  $('run-again').addEventListener('click', async () => {
+    if (!state.run || isRunning()) return;
+    // The title on screen is not always the task that was asked. A scheduled
+    // job's run is labelled with the job's name, and a run picked up after a
+    // restart falls back to "Running task", so re-running the label would run
+    // something the person never typed. Ask the backend what was actually asked.
+    const t = await api.api('GET', `/tasks/${state.run.id}`);
+    const text = t.ok ? String(t.body.task_text || '').trim() : '';
+    if (!text) {
+      showError(t.body, 'That task could not be read again, so it was not re-run.');
+      return;
+    }
+    runTask(text);
   });
   $('approve-btn').addEventListener('click', () => answerApproval(true));
   $('deny-btn').addEventListener('click', () => answerApproval(false));

@@ -24,6 +24,31 @@ from claw.models.base import (
 )
 
 
+# Where the OpenAI-shaped routes live under a given address.
+#
+# The path used to be hardcoded as "/v1/...", which quietly demanded that the
+# address be given without its own "/v1". Every provider documents its address
+# WITH the version in it - x.ai says https://api.x.ai/v1 - so pasting what the
+# documentation says produced https://api.x.ai/v1/v1/chat/completions and a 404
+# that looked like a bad key. Google is worse: its OpenAI-compatible routes sit
+# under /v1beta/openai, so no amount of retyping could ever reach them.
+#
+# So the version is derived from the address instead of assumed: if the address
+# already ends in a version segment, the routes hang directly off it.
+_VERSIONED = re.compile(r"/(v\d+[a-z0-9]*|openai)/?$", re.IGNORECASE)
+
+
+def api_root(base_url: str) -> str:
+    """The address with any trailing slash removed, ready for a route."""
+    return base_url.rstrip("/")
+
+
+def route(base_url: str, name: str) -> str:
+    """The path to `name` ("models", "chat/completions") under this address."""
+    root = api_root(base_url)
+    return f"/{name}" if _VERSIONED.search(root) else f"/v1/{name}"
+
+
 class OpenAICompatAdapter(ModelAdapter):
     provider = "openai_compatible"
     api_key: str = ""  # Claw's own engine uses a random key per launch
@@ -34,7 +59,7 @@ class OpenAICompatAdapter(ModelAdapter):
         return "Start the server with that model loaded, or pick a model the server lists."
 
     async def list_models(self) -> list[ModelInfo]:
-        data = await self._request("GET", "/v1/models", timeout=10)
+        data = await self._request("GET", route(self.base_url, "models"), timeout=10)
         items = data.get("data")
         if not isinstance(items, list):
             raise ModelResponseError("The model server returned an unexpected model list.")
@@ -52,7 +77,8 @@ class OpenAICompatAdapter(ModelAdapter):
         if json_schema is not None:
             # llama-server: schema-constrained JSON via response_format.json_object.schema
             body["response_format"] = {"type": "json_object", "schema": json_schema}
-        data = await self._request("POST", "/v1/chat/completions", json=body, timeout=self.timeout_s)
+        data = await self._request("POST", route(self.base_url, "chat/completions"),
+                                   json=body, timeout=self.timeout_s)
         try:
             content = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
@@ -75,14 +101,15 @@ class OpenAICompatAdapter(ModelAdapter):
             "max_tokens": 800,
             "stream": False,
         }
-        data = await self._request("POST", "/v1/chat/completions", json=body, timeout=self.timeout_s)
+        data = await self._request("POST", route(self.base_url, "chat/completions"),
+                                   json=body, timeout=self.timeout_s)
         try:
             return str(data["choices"][0]["message"]["content"])
         except (KeyError, IndexError, TypeError) as exc:
             raise ModelResponseError("The brain returned no description of the image.") from exc
 
     async def _request(self, method: str, path: str, *, timeout: float, json: Any = None) -> dict[str, Any]:
-        url = f"{self.base_url}{path}"
+        url = f"{api_root(self.base_url)}{path}"
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
         try:
             async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
