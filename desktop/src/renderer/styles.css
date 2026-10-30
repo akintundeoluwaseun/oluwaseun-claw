@@ -775,6 +775,14 @@ input[type="search"]#doc-q { border: 0; background: transparent; height: auto; p
    costs no layout. Reduced motion stops all of it.
 */
 .mark, .brand-mark { --level: 0; }
+
+/* The tile behind the mark follows the theme: --mk-tile-fill in tokens.css.
+   It cannot be set from here. The mark is a <symbol> drawn through <use>, and a
+   selector outside that tree does not match inside it - `.mark .mk-tile` looked
+   correct, changed nothing, and the icon kept its black square. What does cross
+   the boundary is inheritance, so the var() sits in a style attribute on the
+   rect itself, in quickbar.html and index.html. */
+
 .mk-blades, .mk-bloom, .mk-ring { transform-origin: 50% 50%; transform-box: fill-box; }
 
 /* idle: a slow settle on first paint, then nothing */

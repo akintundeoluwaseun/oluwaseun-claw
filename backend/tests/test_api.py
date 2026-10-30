@@ -60,7 +60,17 @@ def test_damaged_settings_file_reported_not_crash(make_client, data_dir):
 
 
 def test_probe_unsaved_config(make_client, fake_server):
-    r = make_client().post("/models/probe", json={"base_url": fake_server.base_url, "model": "qwen2.5:7b"})
+    """Says which mode it is probing, because that is what decides whether there
+    is an address to probe at all.
+
+    This used to leave the mode at its default of "builtin" and still expect the
+    address to be dialled. Both Test-connection buttons in Settings send an
+    explicit mode ("custom" for a local server, "cloud" for a hosted one); this
+    test was the only caller that did not, and the endpoint no longer contacts
+    an address in a mode that never uses one. See test_settings_switch_to_local.
+    """
+    r = make_client().post("/models/probe", json={
+        "mode": "custom", "base_url": fake_server.base_url, "model": "qwen2.5:7b"})
     assert r.status_code == 200 and r.json()["model_available"] is True
 
 

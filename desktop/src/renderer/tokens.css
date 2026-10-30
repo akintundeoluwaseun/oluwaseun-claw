@@ -30,6 +30,13 @@
      Everything is a few percent down and a little warmer. Measured against
      --ink the worst of these is still 13.7:1, well past WCAG AA. */
   --bg: #e9e5db;
+  /* The mark carries a tile behind its blades. Those blades are white-to-lavender
+     gradients, so on a light surface they need something dark behind them or they
+     disappear. On a dark surface they do not - and a near-black tile sitting on an
+     already-dark panel is just a black block, which is what the quick bar showed:
+     an icon with a visible black background, all day, on the desktop. So the tile
+     is a theme token, not a fixed colour. */
+  --mk-tile-fill: #141519;
   --surface: #f8f5ee;
   --surface-2: #f0ece2;
   --surface-3: #e7e1d5;
@@ -92,6 +99,9 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #101113;
+    /* No tile on a dark surface: the blades already read, and a near-black
+       square on a near-black panel is the black background people saw. */
+    --mk-tile-fill: transparent;
     --surface: #17191d;
     --surface-2: #1d2025;
     --surface-3: #23272d;
@@ -130,6 +140,7 @@
 
 :root[data-theme="dark"] {
   --bg: #101113;
+  --mk-tile-fill: transparent;
   --surface: #17191d;
   --surface-2: #1d2025;
   --surface-3: #23272d;

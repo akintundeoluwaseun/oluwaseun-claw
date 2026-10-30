@@ -175,9 +175,16 @@ class ModelSettings(BaseModel):
     @model_validator(mode="after")
     def _local_only_unless_allowed(self) -> "ModelSettings":
         host = urlparse(self.base_url).hostname
-        # Choosing "cloud" is itself the decision to use a server elsewhere, so it does not
-        # also need the developer switch. Every other mode stays local unless it is turned on.
-        if self.mode == "cloud":
+        # Only "custom" reaches the address in these settings. "builtin" asks the
+        # managed brain for an adapter and "service" uses the address compiled into
+        # the edition, so for those two this field is never dialled and must not be
+        # able to veto a save. It did: someone who had tried an online model still
+        # had that provider's address here, the page sent the whole object back when
+        # they chose the local brain, and this rule refused it - so the one move that
+        # takes a person OFF a remote server was the move it blocked. Choosing
+        # "cloud" is itself the decision to use a server elsewhere, so it does not
+        # need the developer switch either.
+        if self.mode != "custom":
             return self
         if not self.allow_remote_server and not _is_loopback_host(host):
             raise ValueError(

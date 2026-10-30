@@ -404,9 +404,16 @@ function isRunning() {
   return !!(state.run && ACTIVE.has(state.run.status));
 }
 
+/* One character is a task. "hi" is two, and it is the first thing anyone types
+   to find out whether the thing is alive - which the old minimum of three
+   refused, through a disabled button that gave no reason. A button that will
+   not press and will not say why reads as a broken program. Empty is still
+   nothing to run. */
+const MIN_TASK = 1;
+
 function updateButtons() {
   const text = $('task-input').value.trim();
-  const blocked = state.busy || state.backend.state !== 'ready' || text.length < 3;
+  const blocked = state.busy || state.backend.state !== 'ready' || text.length < MIN_TASK;
   $('plan-btn').disabled = blocked;
   $('run-btn').disabled = blocked;
   $('plan-btn').textContent = state.busy ? 'Planning…' : 'Plan only';
@@ -415,7 +422,7 @@ function updateButtons() {
 // ---------- Plan only ----------
 async function planTask() {
   const task = $('task-input').value.trim();
-  if (task.length < 3 || state.busy) return;
+  if (task.length < MIN_TASK || state.busy) return;
   clearError();
   state.busy = true;
   updateButtons();
@@ -496,17 +503,28 @@ function renderAudit(events) {
 // ---------- Running tasks ----------
 async function runTask(taskText) {
   const task = (taskText ?? $('task-input').value).trim();
-  if (task.length < 3 || state.busy) return;
-  clearError();
-  const res = await api.api('POST', '/tasks/run', { task });
-  if (!res.ok) {
-    showError(res.body, 'The task could not be started.');
-    return;
-  }
-  $('task-input').value = '';
+  if (task.length < MIN_TASK || state.busy) return;
+  /* Claimed before the first await, not after it. This function read state.busy
+     and never set it, so every press between the request leaving and the reply
+     arriving started another task - which is how pressing Run again, or Try
+     again, produced a pile of identical runs instead of one. The flag has to be
+     taken synchronously; a guard on the far side of an await guards nothing. */
+  state.busy = true;
   updateButtons();
-  startWatching(res.body.id, task);
-  loadHistory();
+  clearError();
+  try {
+    const res = await api.api('POST', '/tasks/run', { task });
+    if (!res.ok) {
+      showError(res.body, 'The task could not be started.');
+      return;
+    }
+    $('task-input').value = '';
+    startWatching(res.body.id, task);
+    loadHistory();
+  } finally {
+    state.busy = false;
+    updateButtons();
+  }
 }
 
 function startWatching(id, title) {
@@ -1892,7 +1910,7 @@ function wire() {
   $('run-btn').addEventListener('click', () => runTask());
   $('stop-btn').addEventListener('click', stopRun);
   $('run-again').addEventListener('click', async () => {
-    if (!state.run || isRunning()) return;
+    if (!state.run || isRunning() || state.busy) return;
     // The title on screen is not always the task that was asked. A scheduled
     // job's run is labelled with the job's name, and a run picked up after a
     // restart falls back to "Running task", so re-running the label would run
