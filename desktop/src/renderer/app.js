@@ -1040,7 +1040,12 @@ async function checkWhatsAppNow() {
 // ---------- Settings ----------
 async function loadSettings() {
   const res = await api.api('GET', '/settings');
-  if (!res.ok) return;
+  if (!res.ok) {
+    // Returning quietly here leaves the page showing whatever it showed before
+    // - which looks exactly like a setting that reverted on its own.
+    showError(res.body, 'Your settings could not be read, so this page may be out of date.');
+    return;
+  }
   state.settings = res.body.settings;
   const desk = res.body.settings.desktop || {};
   applyTheme(desk.theme || 'system');
@@ -1367,7 +1372,10 @@ function dismissTips() {
 async function stopTips() {
   showTips(false);
   const res = await api.api('GET', '/settings');
-  if (!res.ok) return;
+  if (!res.ok) {
+    showError(res.body, 'That could not be saved, so the tips will come back next launch.');
+    return;
+  }
   const settings = res.body.settings;
   settings.desktop = { ...settings.desktop, show_tips: false };
   await api.api('PUT', '/settings', settings);
@@ -1409,7 +1417,12 @@ function applyTheme(theme) {
 async function saveTheme(theme) {
   applyTheme(theme);                 // repaint first; the save is not what the eye waits for
   const res = await api.api('GET', '/settings');
-  if (!res.ok) return;
+  if (!res.ok) {
+    // The screen has already changed, so silence here is a lie that lasts until
+    // the next launch puts the old theme back.
+    showError(res.body, 'The theme was changed on screen but could not be saved.');
+    return;
+  }
   const settings = res.body.settings;
   settings.desktop = { ...settings.desktop, theme };
   await api.api('PUT', '/settings', settings);
@@ -1737,7 +1750,10 @@ async function loadMemories() {
 
 async function exportMemories() {
   const res = await api.api('GET', '/memory/export');
-  if (!res.ok) return;
+  if (!res.ok) {
+    showError(res.body, 'Your memories could not be exported.');
+    return;
+  }
   // Saved through the same path as every other file Claw writes.
   const name = `s-claw-memory-${new Date().toISOString().slice(0, 10)}.json`;
   await api.saveText(name, JSON.stringify(res.body, null, 2));
