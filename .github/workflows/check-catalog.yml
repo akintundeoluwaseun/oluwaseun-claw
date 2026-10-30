@@ -1,0 +1,31 @@
+# Does every brain in the catalogue still exist, with the files it claims?
+#
+# The workspace where the tests run cannot reach huggingface.co, so a wrong
+# repository id or a pattern that matches nothing survives every test and is
+# found by a 40-minute Windows build, or by someone whose download fails. This
+# asks the Hugging Face API directly. It needs no Windows and no secrets, so it
+# costs seconds on a Linux runner.
+name: Check the brain catalogue
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidates:
+        description: "Extra repository ids to try, space separated (for choosing a new brain)"
+        type: string
+        default: ""
+  schedule:
+    # Weekly: a repository can be renamed or withdrawn long after it was added.
+    - cron: "37 6 * * 1"
+
+jobs:
+  catalogue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve every catalogue entry
+        run: python backend/packaging/check_catalog.py ${{ inputs.candidates }}
