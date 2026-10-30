@@ -82,14 +82,6 @@
       <svg class="brand-mark" aria-hidden="true"><use href="#claw-mark"/></svg>
       <span class="brand-name">S<span class="brand-dash">-</span>CLAW</span>
     </div>
-    <div class="titlebar-status">
-      <button class="status-chip" id="backend-pill" data-state="starting" type="button" title="Agent status">
-        <span class="dot"></span><span class="pill-text">Starting</span>
-      </button>
-      <button class="status-chip" id="model-pill" data-state="unknown" type="button" title="Model status">
-        <svg class="chip-icon" aria-hidden="true"><use href="#i-chip"/></svg><span class="pill-text">Checking model</span>
-      </button>
-    </div>
   </header>
 
   <div class="shell">
@@ -107,6 +99,14 @@
       <nav class="history" id="history-list" aria-label="Task history"></nav>
       <p id="history-empty" class="history-empty">Tasks you give Claw are kept here.</p>
       <div class="sidebar-foot">
+        <div class="status-rail">
+          <button class="status-chip" id="backend-pill" data-state="starting" type="button" title="Agent status">
+            <span class="dot"></span><span class="pill-text">Starting</span>
+          </button>
+          <button class="status-chip" id="model-pill" data-state="unknown" type="button" title="Model status">
+            <svg class="chip-icon" aria-hidden="true"><use href="#i-chip"/></svg><span class="pill-text">Checking model</span>
+          </button>
+        </div>
         <button class="ghost-row" id="open-docs" type="button">
           <svg aria-hidden="true"><use href="#i-doc"/></svg><span>Documents</span>
         </button>
@@ -142,28 +142,11 @@
       <!-- Home: one big task box -->
       <section class="home" id="home" aria-labelledby="home-title">
         <!-- What Claw can do. Shown until the person says they have read it. -->
-        <aside class="tips" id="tips" hidden aria-label="What Claw can do">
-          <div class="tips-top">
-            <span class="tips-kicker">Did you know</span>
-            <button class="icon-btn tips-close" id="tips-close" type="button" aria-label="Close">
-              <svg aria-hidden="true"><use href="#i-x"/></svg>
-            </button>
-          </div>
-          <h2 class="tips-title" id="tips-title"></h2>
-          <p class="tips-body" id="tips-body"></p>
-          <div class="tips-foot">
-            <div class="tips-dots" id="tips-dots" role="tablist" aria-label="Tips"></div>
-            <div class="tips-actions">
-              <button class="link" id="tips-never" type="button">Don't show again</button>
-              <button class="btn btn-quiet btn-sm" id="tips-next" type="button">Next</button>
-            </div>
-          </div>
-        </aside>
         <h1 id="home-title">What should Claw take care of?</h1>
-        <p class="home-sub">Describe the result you want. Claw works through it step by step and asks before anything that matters.</p>
+        <p class="home-sub">Describe the result. Claw plans it, asks before anything that matters, and checks each step.</p>
         <div class="composer">
           <label class="sr-only" for="task-input">Task</label>
-          <textarea id="task-input" rows="3" maxlength="4000"
+          <textarea id="task-input" rows="2" maxlength="4000"
             placeholder="Search for free motion graphics templates, compare them, and save the useful links"></textarea>
           <div class="composer-bar">
             <div class="composer-context">
@@ -182,11 +165,29 @@
           </div>
         </div>
         <div class="ideas" aria-label="Example tasks">
-          <button class="idea" type="button">Find the website I visited yesterday about AI video generation</button>
-          <button class="idea" type="button">Search for free motion graphics templates and save the useful links</button>
-          <button class="idea" type="button">Put Friday's team call in my calendar and remind me an hour before</button>
+          <span class="ideas-label">Try</span>
           <button class="idea" type="button">Read this PDF invoice and tell me the total and the due date</button>
+          <button class="idea" type="button">Put Friday's team call in my calendar and remind me an hour before</button>
+          <button class="idea" type="button">Search for free motion graphics templates and save the useful links</button>
+          <button class="idea" type="button">Find the website I visited yesterday about AI video generation</button>
         </div>
+        <aside class="tips" id="tips" hidden aria-label="What Claw can do">
+          <div class="tips-top">
+            <span class="tips-kicker">Did you know</span>
+            <button class="icon-btn tips-close" id="tips-close" type="button" aria-label="Close">
+              <svg aria-hidden="true"><use href="#i-x"/></svg>
+            </button>
+          </div>
+          <h2 class="tips-title" id="tips-title"></h2>
+          <p class="tips-body" id="tips-body"></p>
+          <div class="tips-foot">
+            <div class="tips-dots" id="tips-dots" role="tablist" aria-label="Tips"></div>
+            <div class="tips-actions">
+              <button class="link" id="tips-never" type="button">Don't show again</button>
+              <button class="btn btn-quiet btn-sm" id="tips-next" type="button">Next</button>
+            </div>
+          </div>
+        </aside>
         <p class="home-hint" id="home-hint"></p>
       </section>
 
