@@ -145,5 +145,5 @@ Get-ChildItem $out | Where-Object { $_.Name -like "*$label*" } | ForEach-Object 
 $built = Get-ChildItem $out | Where-Object { $_.Name -like "*$label*" }
 $totalMB = [math]::Round((($built | Measure-Object Length -Sum).Sum) / 1MB, 1)
 foreach ($f in $built) { Write-Host ("   {0,-52} {1,8:N1} MB" -f $f.Name, ($f.Length / 1MB)) }
-Write-Host "S-CLAW $Edition: $($built.Count) file(s), $totalMB MB in total"
+Write-Host "S-CLAW ${Edition}: $($built.Count) file(s), $totalMB MB in total"
 Write-Host "Done. Installers are in $out"

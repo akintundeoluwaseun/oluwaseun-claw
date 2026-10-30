@@ -48,6 +48,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A syntax error in a packaging script used to surface only when the script
+      # ran - after the suite had passed and the brain had downloaded, seven
+      # minutes in, to report a missing brace. PowerShell can say so in a second,
+      # so it says so first.
+      - name: Check the packaging scripts parse
+        run: |
+          $problems = @()
+          foreach ($f in Get-ChildItem scripts -Filter *.ps1) {
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              $f.FullName, [ref]$null, [ref]$errors)
+            foreach ($e in $errors) {
+              $line = $e.Extent.StartLineNumber
+              Write-Output "::error file=scripts/$($f.Name),line=${line}::$($e.Message)"
+              $problems += "$($f.Name):$line"
+            }
+          }
+          if ($problems.Count) {
+            Write-Output "::error title=Packaging scripts do not parse::$($problems -join ', ')"
+            exit 1
+          }
+          $n = (Get-ChildItem scripts -Filter *.ps1).Count
+          Write-Output "::notice title=Packaging scripts parse::$n file(s) checked"
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
