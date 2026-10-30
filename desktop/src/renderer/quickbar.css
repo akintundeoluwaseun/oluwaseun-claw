@@ -38,7 +38,19 @@ body {
 body[data-phase="working"] .pill .mark { animation: breathe 1.8s var(--ease) infinite; }
 @keyframes breathe { 50% { transform: scale(0.86); opacity: 0.75; } }
 body[data-phase="working"] .pill { border-color: var(--brass-line); }
-body[data-phase="attention"] .pill { border-color: var(--amber-line); background: var(--amber-soft); }
+/* The one state that has to win an argument with whatever is behind it.
+   Everywhere else amber sits inside the app, on a surface we chose; here the
+   bar floats on someone's desktop - a wallpaper, a bright document, anything -
+   and the panel tint that reads as "attention" indoors came out as a murky
+   olive out there. A full-strength edge and a ring carry it instead, so the
+   thing that means "Claw is blocked, waiting for you" is visible without
+   anything blinking. */
+body[data-phase="attention"] .pill {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber-soft) 82%, var(--amber) 18%);
+  box-shadow: var(--shadow-2), 0 0 0 3px color-mix(in srgb, var(--amber) 26%, transparent);
+}
+body[data-phase="attention"] .pill-text { color: var(--ink); font-weight: 650; }
 body[data-phase="attention"] .pill-meta { color: var(--amber); font-weight: 700; }
 
 /* Putting the bar away.
