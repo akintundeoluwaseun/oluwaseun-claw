@@ -77,7 +77,14 @@
 
   /* --- type --- */
   --font: "Manrope", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-  --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  /* Headings are the same family as everything else, set tighter and heavier.
+     This used to be a Palatino/Georgia serif stack, which put a book face on
+     every title in a tool whose body text is a geometric sans - two voices in
+     one window, and the older one doing the talking. On a dark technical
+     surface it read as a word processor rather than something that drives the
+     computer. One family, two weights, does the same job without the costume. */
+  --display: "Manrope", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --display-track: -0.022em;
   --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
 
   /* --- rhythm: one scale, used everywhere --- */
