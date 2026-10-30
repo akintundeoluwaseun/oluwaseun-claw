@@ -658,8 +658,12 @@ input::placeholder { color: var(--ink-3); }
 .docs-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s5); }
 .docs-head h2 { font-size: 22px; letter-spacing: -0.01em; }
 .docs-sub { color: var(--ink-2); font-size: 13px; margin-top: var(--s2); max-width: 56ch; line-height: 1.6; }
+/* Fills the room it is given. As a fixed-height box near the top of a tall
+   window it left most of the screen as a black void below it, which is the
+   thing that makes a view look unfinished rather than empty-on-purpose. */
 .doc-empty {
-  display: grid; justify-items: center; gap: var(--s1); text-align: center; padding: var(--s9) var(--s6);
+  display: grid; align-content: center; justify-items: center; gap: var(--s1);
+  text-align: center; padding: var(--s9) var(--s6); min-height: min(52vh, 440px);
   border: 1px dashed var(--line-2); border-radius: var(--r-lg); color: var(--ink-2); background: var(--surface);
 }
 .doc-empty svg { width: 30px; height: 30px; color: var(--ink-3); margin-bottom: var(--s1); }

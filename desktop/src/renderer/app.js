@@ -37,6 +37,25 @@ const TOOL_LABEL = {
   make_flyer: 'Made a flyer', edit_image: 'Edited a picture', inspect_image: 'Checked a picture',
   fill_field: 'Filled in a form field', download_file: 'Downloaded a file', copy_files: 'Copied files',
   check_file: 'Checked a file', scroll: 'Scrolled', choose_menu: 'Chose a menu item', wait_for_window: 'Waited for a window',
+  /* Calendar, memory, files and the small utilities. A third of the registry
+     had no entry here, so a third of everything Claw did announced itself to
+     the person as a raw identifier with underscores in it - "read_document",
+     "add_computed_column". A test in backend/tests keeps this list and the
+     registry in step, because the failure is silent: a new tool simply shows
+     its own variable name. */
+  create_event: 'Added a calendar event', cancel_event: 'Cancelled a calendar event',
+  list_events: 'Checked the calendar', find_free_time: 'Looked for a free slot',
+  daily_brief: 'Looked at your day', current_time: 'Checked the time',
+  remember: 'Remembered something', recall: 'Looked at what it remembers',
+  forget_this: 'Forgot something',
+  create_folder: 'Made a folder', move_file: 'Moved a file', rename_file: 'Renamed a file',
+  combine_files: 'Joined files together', compare_files: 'Compared two files',
+  search_in_file: 'Searched inside a file', count_text: 'Counted words and lines',
+  sort_lines: 'Sorted a file', list_to_table: 'Turned a list into a table',
+  add_computed_column: 'Added a worked-out column', summarize_column: 'Summed up a column',
+  extract_emails: 'Collected e-mail addresses', compose_mail: 'Opened a draft e-mail',
+  disk_space: 'Checked free space', is_program_running: 'Checked whether a program is running',
+  pause_for_me: 'Waited for you',
 };
 const TOOL_ASK = {
   web_search: 'Search the web', open_url: 'Open a page', save_links: 'Save links to a file', click_button: 'Click a button',
@@ -48,6 +67,14 @@ const TOOL_ASK = {
   check_whatsapp: 'Check your WhatsApp chats', send_whatsapp_message: 'Send a WhatsApp message',
   make_flyer: 'Make a flyer', edit_image: 'Save an edited picture',
   fill_field: 'Fill in a form field', download_file: 'Download a file', copy_files: 'Copy files', choose_menu: 'Choose a menu item',
+  /* Only the ones that can stop and ask: a READ_ONLY tool never reaches an
+     approval card, so giving it a question here would be dead text. */
+  create_event: 'Add a calendar event', cancel_event: 'Cancel a calendar event',
+  remember: 'Remember something about you', forget_this: 'Forget something, for good',
+  create_folder: 'Make a folder', move_file: 'Move a file', rename_file: 'Rename a file',
+  combine_files: 'Join files into a new one', sort_lines: 'Sort a file into a new one',
+  list_to_table: 'Turn a list into a table', add_computed_column: 'Add a worked-out column',
+  extract_emails: 'Save the e-mail addresses it found', compose_mail: 'Open a draft e-mail',
 };
 const OUTCOME = {
   verified: ['Done', 'ok', 'check'], done_unverified: ['Done, not checked', 'warn-done', 'check'],
@@ -596,7 +623,7 @@ function collectSteps(events) {
   const notes = [];
   for (const e of events) {
     const d = e.data || {};
-    if (e.kind === 'planned') notes.push({ at: e.id, text: `Made a plan with ${d.steps} step(s)` });
+    if (e.kind === 'planned') notes.push({ at: e.id, text: `Made a plan: ${d.steps} ${d.steps === 1 ? 'step' : 'steps'}` });
     if (e.kind === 'model_reply_rejected') notes.push({ at: e.id, text: "Claw's reply wasn't usable, so it tried again" });
     if (e.kind === 'replanned') notes.push({ at: e.id, text: `Changed approach: ${d.diagnosis}` });
     if (e.kind === 'injection_warning') notes.push({ at: e.id, text: 'Something Claw read tried to give it orders. Claw ignored it and will ask before any change.', warn: true });
