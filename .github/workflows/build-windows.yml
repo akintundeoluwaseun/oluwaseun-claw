@@ -11,9 +11,9 @@ on:
         options: [Online, Local]
         default: Local
       brain:
-        description: "Local only: Light = 2B (~1.8 GB), Standard = 4B (~3.4 GB), Pro = 8B (~6 GB)"
+        description: "Local only: Tiny = 0.6B text-only (~0.4 GB, proves offline runs), Light = 2B (~1.8 GB), Standard = 4B (~3.4 GB), Pro = 8B (~6 GB)"
         type: choice
-        options: [Light, Standard, Pro]
+        options: [Tiny, Light, Standard, Pro]
         default: Standard
       no_brain:
         description: "Local only: ship WITHOUT a brain (~250 MB). The app downloads one on first run, or uses your own online model. For trying Claw on a metered connection."
@@ -126,7 +126,7 @@ jobs:
       - name: Download the brain (licence + checksum verified)
         if: env.EDITION == 'Local' && !inputs.no_brain
         run: |
-          $id = @{ Light = 'qwen3-vl-2b'; Standard = 'qwen3-vl-4b'; Pro = 'qwen3-vl-8b' }[$env:BRAIN]
+          $id = @{ Tiny = 'qwen3-0.6b'; Light = 'qwen3-vl-2b'; Standard = 'qwen3-vl-4b'; Pro = 'qwen3-vl-8b' }[$env:BRAIN]
           $log = "$env:RUNNER_TEMP\brain.log"
           try {
             # C: on purpose. The workspace, the staging copy, the unpacked app and the
@@ -168,7 +168,7 @@ jobs:
               # brains cannot fit and are split straight away, rather than wasting
               # a 6 GB build to prove it.
               $limit = 2GB
-              if ($env:BRAIN -eq 'Light') {
+              if ($env:BRAIN -in @('Tiny', 'Light')) {
                 Write-Output "::notice title=Trying a single file::Light brain, no parts unless it does not fit"
                 ./scripts/build-release.ps1 -Edition Local -Brain $env:BRAIN -ModelDir $env:MODEL_DIR *>&1 | Tee-Object -FilePath $log
                 $made = (Get-ChildItem build\installers -Filter *Setup.exe | Measure-Object Length -Maximum).Maximum

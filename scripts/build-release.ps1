@@ -22,7 +22,7 @@
 # -ModelDir is given.
 param(
   [ValidateSet('Online', 'Local')][string]$Edition = 'Local',
-  [ValidateSet('Light', 'Standard', 'Pro')][string]$Brain = 'Standard',
+  [ValidateSet('Tiny', 'Light', 'Standard', 'Pro')][string]$Brain = 'Standard',
   # Claw Online only. The service this build talks to; no user ever types it.
   [string]$ServiceUrl = '',
   [string]$ServiceToken = '',
@@ -37,7 +37,7 @@ $backend = Join-Path $root 'backend'
 $desktop = Join-Path $root 'desktop'
 $stage = Join-Path $root "build\stage-$($Edition.ToLower())"
 $out = Join-Path $root 'build\installers'
-$modelId = @{ Light = 'qwen3-vl-2b'; Standard = 'qwen3-vl-4b'; Pro = 'qwen3-vl-8b' }[$Brain]
+$modelId = @{ Tiny = 'qwen3-0.6b'; Light = 'qwen3-vl-2b'; Standard = 'qwen3-vl-4b'; Pro = 'qwen3-vl-8b' }[$Brain]
 $version = (Get-Content (Join-Path $desktop 'package.json') | ConvertFrom-Json).version
 $online = $Edition -eq 'Online'
 
