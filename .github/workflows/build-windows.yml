@@ -228,7 +228,14 @@ jobs:
           } else {
             if ($ed.id -ne 'local' -or -not $ed.local_inference) { Write-Output "::error title=Wrong edition::Claw Local reports $($ed.id)/local_inference=$($ed.local_inference)"; exit 1 }
             if (-not (Test-Path $engine)) { Write-Output '::error title=Local has no engine::llama-server.exe is missing, so it cannot think offline'; exit 1 }
-            if ($weights.Count -eq 0) { Write-Output '::error title=Local has no brain::no .gguf weights were packaged'; exit 1 }
+            if ($env:NO_BRAIN) {
+              # A no-brain build must carry the engine and NO weights: that is the
+              # whole point of it, and one that quietly shipped 1.8 GB would be a
+              # worse failure than one that shipped none.
+              if ($weights.Count -gt 0) { Write-Output "::error title=No-brain build carries weights::$($weights.Count) .gguf file(s), $weightMB MB - it was meant to be about 250 MB"; exit 1 }
+            } elseif ($weights.Count -eq 0) {
+              Write-Output '::error title=Local has no brain::no .gguf weights were packaged'; exit 1
+            }
           }
           $voice = Invoke-RestMethod http://127.0.0.1:18765/speech -Headers $h
           $live = ($voice.catalog | Where-Object { $_.kind -eq 'streaming' }).id -join ','
