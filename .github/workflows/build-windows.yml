@@ -15,6 +15,10 @@ on:
         type: choice
         options: [Light, Standard, Pro]
         default: Standard
+      no_brain:
+        description: "Local only: ship WITHOUT a brain (~250 MB). The app downloads one on first run, or uses your own online model. For trying Claw on a metered connection."
+        type: boolean
+        default: false
       service_url:
         description: "Online only: the https address of the Claw service this build thinks with. No default; the build fails without it."
         type: string
@@ -35,6 +39,7 @@ jobs:
     timeout-minutes: 240
     env:
       EDITION: ${{ inputs.edition || 'Local' }}
+      NO_BRAIN: ${{ inputs.no_brain && 'yes' || '' }}
       BRAIN: ${{ inputs.brain || 'Standard' }}
       SERVICE_URL: ${{ inputs.service_url }}
       # A tag push publishes; a manual run only publishes when asked.
@@ -119,7 +124,7 @@ jobs:
           }
 
       - name: Download the brain (licence + checksum verified)
-        if: env.EDITION == 'Local'
+        if: env.EDITION == 'Local' && !inputs.no_brain
         run: |
           $id = @{ Light = 'qwen3-vl-2b'; Standard = 'qwen3-vl-4b'; Pro = 'qwen3-vl-8b' }[$env:BRAIN]
           $log = "$env:RUNNER_TEMP\brain.log"
@@ -145,6 +150,12 @@ jobs:
             if ($env:EDITION -eq 'Online') {
               # No engine and no weights: one small file, and nothing to split.
               ./scripts/build-release.ps1 -Edition Online -ServiceUrl $env:SERVICE_URL *>&1 | Tee-Object -FilePath $log
+            } elseif ($env:NO_BRAIN) {
+              # The app and the engine, no weights: about 250 MB, one file, nothing
+              # to split. For a metered connection - install this, then either
+              # connect your own online model or fetch a brain from inside the app,
+              # when it suits you, rather than in one 2 GB go.
+              ./scripts/build-release.ps1 -Edition Local -Brain $env:BRAIN -NoBrain *>&1 | Tee-Object -FilePath $log
             } else {
               # Split only when it has to be split. A GitHub release asset cannot
               # exceed 2 GiB, and nobody on a metered connection should be asked to
