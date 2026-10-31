@@ -614,6 +614,15 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             return error_response(422, "invalid_settings", "Model settings are not valid.", details=describe_validation_error(exc))
         except ValueError:
             return error_response(400, "bad_json", "The request was not valid JSON.")
+        # Only "custom" and "cloud" have an address to test. "builtin" thinks through
+        # the managed brain and "service" through the address compiled into the
+        # edition, so for those two the base_url in this request is never dialled
+        # for real work - and must not be dialled here either. Building an adapter
+        # from it regardless would make this endpoint the one place an arbitrary
+        # host could be contacted while the saved mode is local, which is exactly
+        # the thing the settings rule exists to prevent.
+        if candidate.mode not in ("custom", "cloud"):
+            return await model_status()
         status = await build_adapter(candidate).status()
         return status.model_dump()
 

@@ -37,6 +37,25 @@ const TOOL_LABEL = {
   make_flyer: 'Made a flyer', edit_image: 'Edited a picture', inspect_image: 'Checked a picture',
   fill_field: 'Filled in a form field', download_file: 'Downloaded a file', copy_files: 'Copied files',
   check_file: 'Checked a file', scroll: 'Scrolled', choose_menu: 'Chose a menu item', wait_for_window: 'Waited for a window',
+  /* Calendar, memory, files and the small utilities. A third of the registry
+     had no entry here, so a third of everything Claw did announced itself to
+     the person as a raw identifier with underscores in it - "read_document",
+     "add_computed_column". A test in backend/tests keeps this list and the
+     registry in step, because the failure is silent: a new tool simply shows
+     its own variable name. */
+  create_event: 'Added a calendar event', cancel_event: 'Cancelled a calendar event',
+  list_events: 'Checked the calendar', find_free_time: 'Looked for a free slot',
+  daily_brief: 'Looked at your day', current_time: 'Checked the time',
+  remember: 'Remembered something', recall: 'Looked at what it remembers',
+  forget_this: 'Forgot something',
+  create_folder: 'Made a folder', move_file: 'Moved a file', rename_file: 'Renamed a file',
+  combine_files: 'Joined files together', compare_files: 'Compared two files',
+  search_in_file: 'Searched inside a file', count_text: 'Counted words and lines',
+  sort_lines: 'Sorted a file', list_to_table: 'Turned a list into a table',
+  add_computed_column: 'Added a worked-out column', summarize_column: 'Summed up a column',
+  extract_emails: 'Collected e-mail addresses', compose_mail: 'Opened a draft e-mail',
+  disk_space: 'Checked free space', is_program_running: 'Checked whether a program is running',
+  pause_for_me: 'Waited for you',
 };
 const TOOL_ASK = {
   web_search: 'Search the web', open_url: 'Open a page', save_links: 'Save links to a file', click_button: 'Click a button',
@@ -48,6 +67,14 @@ const TOOL_ASK = {
   check_whatsapp: 'Check your WhatsApp chats', send_whatsapp_message: 'Send a WhatsApp message',
   make_flyer: 'Make a flyer', edit_image: 'Save an edited picture',
   fill_field: 'Fill in a form field', download_file: 'Download a file', copy_files: 'Copy files', choose_menu: 'Choose a menu item',
+  /* Only the ones that can stop and ask: a READ_ONLY tool never reaches an
+     approval card, so giving it a question here would be dead text. */
+  create_event: 'Add a calendar event', cancel_event: 'Cancel a calendar event',
+  remember: 'Remember something about you', forget_this: 'Forget something, for good',
+  create_folder: 'Make a folder', move_file: 'Move a file', rename_file: 'Rename a file',
+  combine_files: 'Join files into a new one', sort_lines: 'Sort a file into a new one',
+  list_to_table: 'Turn a list into a table', add_computed_column: 'Add a worked-out column',
+  extract_emails: 'Save the e-mail addresses it found', compose_mail: 'Open a draft e-mail',
 };
 const OUTCOME = {
   verified: ['Done', 'ok', 'check'], done_unverified: ['Done, not checked', 'warn-done', 'check'],
@@ -404,9 +431,16 @@ function isRunning() {
   return !!(state.run && ACTIVE.has(state.run.status));
 }
 
+/* One character is a task. "hi" is two, and it is the first thing anyone types
+   to find out whether the thing is alive - which the old minimum of three
+   refused, through a disabled button that gave no reason. A button that will
+   not press and will not say why reads as a broken program. Empty is still
+   nothing to run. */
+const MIN_TASK = 1;
+
 function updateButtons() {
   const text = $('task-input').value.trim();
-  const blocked = state.busy || state.backend.state !== 'ready' || text.length < 3;
+  const blocked = state.busy || state.backend.state !== 'ready' || text.length < MIN_TASK;
   $('plan-btn').disabled = blocked;
   $('run-btn').disabled = blocked;
   $('plan-btn').textContent = state.busy ? 'Planning…' : 'Plan only';
@@ -415,7 +449,7 @@ function updateButtons() {
 // ---------- Plan only ----------
 async function planTask() {
   const task = $('task-input').value.trim();
-  if (task.length < 3 || state.busy) return;
+  if (task.length < MIN_TASK || state.busy) return;
   clearError();
   state.busy = true;
   updateButtons();
@@ -496,17 +530,28 @@ function renderAudit(events) {
 // ---------- Running tasks ----------
 async function runTask(taskText) {
   const task = (taskText ?? $('task-input').value).trim();
-  if (task.length < 3 || state.busy) return;
-  clearError();
-  const res = await api.api('POST', '/tasks/run', { task });
-  if (!res.ok) {
-    showError(res.body, 'The task could not be started.');
-    return;
-  }
-  $('task-input').value = '';
+  if (task.length < MIN_TASK || state.busy) return;
+  /* Claimed before the first await, not after it. This function read state.busy
+     and never set it, so every press between the request leaving and the reply
+     arriving started another task - which is how pressing Run again, or Try
+     again, produced a pile of identical runs instead of one. The flag has to be
+     taken synchronously; a guard on the far side of an await guards nothing. */
+  state.busy = true;
   updateButtons();
-  startWatching(res.body.id, task);
-  loadHistory();
+  clearError();
+  try {
+    const res = await api.api('POST', '/tasks/run', { task });
+    if (!res.ok) {
+      showError(res.body, 'The task could not be started.');
+      return;
+    }
+    $('task-input').value = '';
+    startWatching(res.body.id, task);
+    loadHistory();
+  } finally {
+    state.busy = false;
+    updateButtons();
+  }
 }
 
 function startWatching(id, title) {
@@ -578,7 +623,7 @@ function collectSteps(events) {
   const notes = [];
   for (const e of events) {
     const d = e.data || {};
-    if (e.kind === 'planned') notes.push({ at: e.id, text: `Made a plan with ${d.steps} step(s)` });
+    if (e.kind === 'planned') notes.push({ at: e.id, text: `Made a plan: ${d.steps} ${d.steps === 1 ? 'step' : 'steps'}` });
     if (e.kind === 'model_reply_rejected') notes.push({ at: e.id, text: "Claw's reply wasn't usable, so it tried again" });
     if (e.kind === 'replanned') notes.push({ at: e.id, text: `Changed approach: ${d.diagnosis}` });
     if (e.kind === 'injection_warning') notes.push({ at: e.id, text: 'Something Claw read tried to give it orders. Claw ignored it and will ask before any change.', warn: true });
@@ -1022,7 +1067,12 @@ async function checkWhatsAppNow() {
 // ---------- Settings ----------
 async function loadSettings() {
   const res = await api.api('GET', '/settings');
-  if (!res.ok) return;
+  if (!res.ok) {
+    // Returning quietly here leaves the page showing whatever it showed before
+    // - which looks exactly like a setting that reverted on its own.
+    showError(res.body, 'Your settings could not be read, so this page may be out of date.');
+    return;
+  }
   state.settings = res.body.settings;
   const desk = res.body.settings.desktop || {};
   applyTheme(desk.theme || 'system');
@@ -1349,7 +1399,10 @@ function dismissTips() {
 async function stopTips() {
   showTips(false);
   const res = await api.api('GET', '/settings');
-  if (!res.ok) return;
+  if (!res.ok) {
+    showError(res.body, 'That could not be saved, so the tips will come back next launch.');
+    return;
+  }
   const settings = res.body.settings;
   settings.desktop = { ...settings.desktop, show_tips: false };
   await api.api('PUT', '/settings', settings);
@@ -1391,7 +1444,12 @@ function applyTheme(theme) {
 async function saveTheme(theme) {
   applyTheme(theme);                 // repaint first; the save is not what the eye waits for
   const res = await api.api('GET', '/settings');
-  if (!res.ok) return;
+  if (!res.ok) {
+    // The screen has already changed, so silence here is a lie that lasts until
+    // the next launch puts the old theme back.
+    showError(res.body, 'The theme was changed on screen but could not be saved.');
+    return;
+  }
   const settings = res.body.settings;
   settings.desktop = { ...settings.desktop, theme };
   await api.api('PUT', '/settings', settings);
@@ -1719,7 +1777,10 @@ async function loadMemories() {
 
 async function exportMemories() {
   const res = await api.api('GET', '/memory/export');
-  if (!res.ok) return;
+  if (!res.ok) {
+    showError(res.body, 'Your memories could not be exported.');
+    return;
+  }
   // Saved through the same path as every other file Claw writes.
   const name = `s-claw-memory-${new Date().toISOString().slice(0, 10)}.json`;
   await api.saveText(name, JSON.stringify(res.body, null, 2));
@@ -1892,7 +1953,7 @@ function wire() {
   $('run-btn').addEventListener('click', () => runTask());
   $('stop-btn').addEventListener('click', stopRun);
   $('run-again').addEventListener('click', async () => {
-    if (!state.run || isRunning()) return;
+    if (!state.run || isRunning() || state.busy) return;
     // The title on screen is not always the task that was asked. A scheduled
     // job's run is labelled with the job's name, and a run picked up after a
     // restart falls back to "Running task", so re-running the label would run

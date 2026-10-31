@@ -31,12 +31,39 @@ class CatalogEntry:
     min_ram_gb: float  # system memory for CPU use
     min_vram_gb: float  # or GPU memory
     description: str
+    #: Whether Claw may put this forward by itself. The Tiny brain exists so a
+    #: person can find out that offline thinking runs at all without spending
+    #: gigabytes; it is too weak to be anybody's actual brain, so it is offered
+    #: only when chosen on purpose, never recommended - least of all to someone
+    #: on a small machine, who would otherwise be handed the worst brain in the
+    #: catalogue and told it was the best their computer could manage.
+    recommendable: bool = True
 
     def as_dict(self) -> dict:
         return asdict(self)
 
 
 CATALOG = [
+    CatalogEntry(
+        id="qwen3-0.6b",
+        name="Tiny brain",
+        edition="Tiny",
+        repo="Qwen/Qwen3-0.6B-GGUF",
+        model_pattern=r"q4_k_m\.gguf$",
+        # Text only: no vision encoder, which is most of what makes the others
+        # large. It cannot read a screenshot, and it is not meant to.
+        mmproj_pattern=None,
+        approx_download_gb=0.4,
+        min_ram_gb=2,
+        min_vram_gb=1,
+        description=(
+            "About 400 MB, for proving offline thinking runs on this computer "
+            "without spending gigabytes. It is genuinely small: expect short, "
+            "shaky answers and tasks it cannot plan. Not a working brain - a "
+            "way to find out whether the engine starts before committing to one."
+        ),
+        recommendable=False,
+    ),
     CatalogEntry(
         id="qwen3-vl-2b",
         name="Light brain",
@@ -89,7 +116,8 @@ def fits(entry: CatalogEntry, hw: Hardware) -> bool:
 
 def recommended(hw: Hardware) -> CatalogEntry:
     """The largest brain that fits; the smallest one if nothing clearly fits."""
-    fitting = [e for e in CATALOG if fits(e, hw)]
+    choosable = [e for e in CATALOG if e.recommendable]
+    fitting = [e for e in choosable if fits(e, hw)]
     if fitting:
         return max(fitting, key=lambda e: e.min_ram_gb)
-    return min(CATALOG, key=lambda e: e.min_ram_gb)
+    return min(choosable, key=lambda e: e.min_ram_gb)

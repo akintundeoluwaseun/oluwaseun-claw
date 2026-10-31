@@ -32,13 +32,25 @@ def test_damaged_json_is_explained(tmp_path):
 
 
 def test_remote_model_server_rejected_by_default():
+    """Checked under "custom", which is the mode that dials this address.
+
+    This test used to leave the mode at its default of "builtin" and still
+    expect a refusal, which made it look as though the rule covered every mode.
+    It did, and that was the defect: a person who had tried an online model
+    could not switch back to the local brain, because the settings page sends
+    the whole object and the leftover provider address failed this rule on a
+    mode that never uses it. See test_settings_switch_to_local.py.
+    """
     with pytest.raises(ConfigError) as exc:
-        SettingsStore.validate({"model": {"base_url": "http://203.0.113.5:11434"}})
+        SettingsStore.validate({"model": {"mode": "custom", "model": "x",
+                                          "base_url": "http://203.0.113.5:11434"}})
     assert any("not on this computer" in p for p in exc.value.problems)
 
 
 def test_remote_model_server_allowed_when_opted_in():
-    s = SettingsStore.validate({"model": {"base_url": "http://203.0.113.5:11434", "allow_remote_server": True}})
+    s = SettingsStore.validate({"model": {"mode": "custom", "model": "x",
+                                          "base_url": "http://203.0.113.5:11434",
+                                          "allow_remote_server": True}})
     assert s.model.allow_remote_server
 
 

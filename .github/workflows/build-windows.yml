@@ -11,10 +11,14 @@ on:
         options: [Online, Local]
         default: Local
       brain:
-        description: "Local only: Light = 2B (~1.8 GB), Standard = 4B (~3.4 GB), Pro = 8B (~6 GB)"
+        description: "Local only: Tiny = 0.6B text-only (~0.4 GB, proves offline runs), Light = 2B (~1.8 GB), Standard = 4B (~3.4 GB), Pro = 8B (~6 GB)"
         type: choice
-        options: [Light, Standard, Pro]
+        options: [Tiny, Light, Standard, Pro]
         default: Standard
+      no_brain:
+        description: "Local only: ship WITHOUT a brain (~250 MB). The app downloads one on first run, or uses your own online model. For trying Claw on a metered connection."
+        type: boolean
+        default: false
       service_url:
         description: "Online only: the https address of the Claw service this build thinks with. No default; the build fails without it."
         type: string
@@ -35,6 +39,7 @@ jobs:
     timeout-minutes: 240
     env:
       EDITION: ${{ inputs.edition || 'Local' }}
+      NO_BRAIN: ${{ inputs.no_brain && 'yes' || '' }}
       BRAIN: ${{ inputs.brain || 'Standard' }}
       SERVICE_URL: ${{ inputs.service_url }}
       # A tag push publishes; a manual run only publishes when asked.
@@ -47,6 +52,30 @@ jobs:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+
+      # A syntax error in a packaging script used to surface only when the script
+      # ran - after the suite had passed and the brain had downloaded, seven
+      # minutes in, to report a missing brace. PowerShell can say so in a second,
+      # so it says so first.
+      - name: Check the packaging scripts parse
+        run: |
+          $problems = @()
+          foreach ($f in Get-ChildItem scripts -Filter *.ps1) {
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              $f.FullName, [ref]$null, [ref]$errors)
+            foreach ($e in $errors) {
+              $line = $e.Extent.StartLineNumber
+              Write-Output "::error file=scripts/$($f.Name),line=${line}::$($e.Message)"
+              $problems += "$($f.Name):$line"
+            }
+          }
+          if ($problems.Count) {
+            Write-Output "::error title=Packaging scripts do not parse::$($problems -join ', ')"
+            exit 1
+          }
+          $n = (Get-ChildItem scripts -Filter *.ps1).Count
+          Write-Output "::notice title=Packaging scripts parse::$n file(s) checked"
 
       - uses: actions/setup-python@v5
         with:
@@ -95,9 +124,9 @@ jobs:
           }
 
       - name: Download the brain (licence + checksum verified)
-        if: env.EDITION == 'Local'
+        if: env.EDITION == 'Local' && !inputs.no_brain
         run: |
-          $id = @{ Light = 'qwen3-vl-2b'; Standard = 'qwen3-vl-4b'; Pro = 'qwen3-vl-8b' }[$env:BRAIN]
+          $id = @{ Tiny = 'qwen3-0.6b'; Light = 'qwen3-vl-2b'; Standard = 'qwen3-vl-4b'; Pro = 'qwen3-vl-8b' }[$env:BRAIN]
           $log = "$env:RUNNER_TEMP\brain.log"
           try {
             # C: on purpose. The workspace, the staging copy, the unpacked app and the
@@ -121,6 +150,12 @@ jobs:
             if ($env:EDITION -eq 'Online') {
               # No engine and no weights: one small file, and nothing to split.
               ./scripts/build-release.ps1 -Edition Online -ServiceUrl $env:SERVICE_URL *>&1 | Tee-Object -FilePath $log
+            } elseif ($env:NO_BRAIN) {
+              # The app and the engine, no weights: about 250 MB, one file, nothing
+              # to split. For a metered connection - install this, then either
+              # connect your own online model or fetch a brain from inside the app,
+              # when it suits you, rather than in one 2 GB go.
+              ./scripts/build-release.ps1 -Edition Local -Brain $env:BRAIN -NoBrain *>&1 | Tee-Object -FilePath $log
             } else {
               # Split only when it has to be split. A GitHub release asset cannot
               # exceed 2 GiB, and nobody on a metered connection should be asked to
@@ -133,7 +168,7 @@ jobs:
               # brains cannot fit and are split straight away, rather than wasting
               # a 6 GB build to prove it.
               $limit = 2GB
-              if ($env:BRAIN -eq 'Light') {
+              if ($env:BRAIN -in @('Tiny', 'Light')) {
                 Write-Output "::notice title=Trying a single file::Light brain, no parts unless it does not fit"
                 ./scripts/build-release.ps1 -Edition Local -Brain $env:BRAIN -ModelDir $env:MODEL_DIR *>&1 | Tee-Object -FilePath $log
                 $made = (Get-ChildItem build\installers -Filter *Setup.exe | Measure-Object Length -Maximum).Maximum
@@ -193,7 +228,14 @@ jobs:
           } else {
             if ($ed.id -ne 'local' -or -not $ed.local_inference) { Write-Output "::error title=Wrong edition::Claw Local reports $($ed.id)/local_inference=$($ed.local_inference)"; exit 1 }
             if (-not (Test-Path $engine)) { Write-Output '::error title=Local has no engine::llama-server.exe is missing, so it cannot think offline'; exit 1 }
-            if ($weights.Count -eq 0) { Write-Output '::error title=Local has no brain::no .gguf weights were packaged'; exit 1 }
+            if ($env:NO_BRAIN) {
+              # A no-brain build must carry the engine and NO weights: that is the
+              # whole point of it, and one that quietly shipped 1.8 GB would be a
+              # worse failure than one that shipped none.
+              if ($weights.Count -gt 0) { Write-Output "::error title=No-brain build carries weights::$($weights.Count) .gguf file(s), $weightMB MB - it was meant to be about 250 MB"; exit 1 }
+            } elseif ($weights.Count -eq 0) {
+              Write-Output '::error title=Local has no brain::no .gguf weights were packaged'; exit 1
+            }
           }
           $voice = Invoke-RestMethod http://127.0.0.1:18765/speech -Headers $h
           $live = ($voice.catalog | Where-Object { $_.kind -eq 'streaming' }).id -join ','

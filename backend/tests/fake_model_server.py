@@ -20,6 +20,9 @@ class FakeModelServer:
         self.requests: list[dict] = []
         self.status_override: int | None = None
         self.default_reply = "{}"
+        # What /props reports as the context in force; None serves a 404,
+        # the way a hosted provider without that route does.
+        self.n_ctx: int | None = 8192
         # Downloads (/api/pull): which tags exist in the "library" (None = any), and pacing.
         self.library: set[str] | None = None
         self.pull_steps = 4
@@ -47,6 +50,14 @@ class FakeModelServer:
                     self._send(200, {"models": [{"name": m, "size": 123, "details": {}} for m in server.models]})
                 elif self.path == "/v1/models":
                     self._send(200, {"object": "list", "data": [{"id": m} for m in server.models]})
+                elif self.path == "/props":
+                    # llama-server reports the context actually in force here, which
+                    # is not always the one -c asked for. None = a provider that
+                    # does not offer this route at all.
+                    if server.n_ctx is None:
+                        self._send(404, {"error": "not found"})
+                    else:
+                        self._send(200, {"default_generation_settings": {"n_ctx": server.n_ctx}})
                 else:
                     self._send(404, {"error": "not found"})
 

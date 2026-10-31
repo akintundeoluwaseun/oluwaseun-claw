@@ -315,3 +315,20 @@ def test_engine_dies_if_backend_is_killed(tmp_path):
         time.sleep(0.1)
     alive = os.path.exists(f"/proc/{engine_pid}") and "Z" not in open(f"/proc/{engine_pid}/stat").read().split()[2]
     assert not alive, "engine outlived a killed backend"
+
+
+def test_the_tiny_brain_is_offered_but_never_recommended():
+    """It exists to answer "does offline work here?" for 400 MB, not to be used.
+
+    Recommending it would be worst for the people most likely to receive it:
+    someone on a 2 GB machine would be handed the weakest brain in the
+    catalogue and told it was the best their computer could manage.
+    """
+    tiny = catalog.get("qwen3-0.6b")
+    assert tiny is not None and tiny.recommendable is False
+    assert tiny.mmproj_pattern is None, "the tiny brain is text only; that is why it is small"
+    assert tiny in catalog.CATALOG, "it must still be choosable on purpose"
+    for ram in (1, 2, 4, 8, 16, 64):
+        assert catalog.recommended(hw(ram=ram)).id != "qwen3-0.6b", (
+            f"recommended the diagnostic brain to a machine with {ram} GB"
+        )

@@ -21,7 +21,9 @@ body {
   overflow: hidden;
 }
 h1, h2, h3, h4, p { margin: 0; }
-h1, h2, .home h1, .task-head h2, .docs-head h2 { font-family: var(--display); font-weight: 600; }
+h1, h2, .home h1, .task-head h2, .docs-head h2 {
+  font-family: var(--display); font-weight: 650; letter-spacing: var(--display-track);
+}
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; border-radius: var(--r-sm); }
 svg { flex-shrink: 0; }
@@ -35,13 +37,17 @@ svg { flex-shrink: 0; }
 *::-webkit-scrollbar-track { background: transparent; }
 
 /* ---------- Title bar (native window buttons sit on the right) ---------- */
+/* 44px to match the Windows overlay exactly, and nothing in it but the name.
+   It carried the two live status chips, which put the answer to "is this thing
+   working?" in the strip you use to drag the window. They are in the sidebar
+   now, above Settings. */
 .titlebar {
-  height: 46px; flex-shrink: 0; display: flex; align-items: center; gap: var(--s4);
-  padding: 0 152px 0 var(--s5); background: var(--surface);
+  height: 44px; flex-shrink: 0; display: flex; align-items: center; gap: var(--s4);
+  padding: 0 152px 0 var(--s4); background: var(--surface);
   border-bottom: 1px solid var(--line);
   -webkit-app-region: drag;
 }
-.titlebar-brand { display: flex; align-items: center; gap: 10px; width: 252px; }
+.titlebar-brand { display: flex; align-items: center; gap: 9px; }
 .brand-mark { width: 22px; height: 22px; }
 .brand-name {
   font-family: var(--display); font-weight: 600; font-size: 14px;
@@ -50,12 +56,16 @@ svg { flex-shrink: 0; }
 /* The hyphen is the one piece of colour in the wordmark. */
 .brand-dash { color: var(--brass); }
 .titlebar-status { display: flex; gap: var(--s2); -webkit-app-region: no-drag; }
+/* Rows now, not pills: in a 286px column a pill with a rounded cap wastes the
+   width it is given and lines up with nothing. These sit on the same left edge
+   as Documents and Settings below them. */
 .status-chip {
-  display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 12px;
-  border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--surface-2);
-  font-size: 12px; font-weight: 600; color: var(--ink-2); cursor: default; max-width: 300px;
-  transition: border-color var(--fast) var(--ease), background-color var(--fast) var(--ease);
+  display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; width: 100%;
+  border: 0; border-radius: var(--r-sm); background: transparent;
+  font-size: 12px; font-weight: 600; color: var(--ink-3); cursor: default; text-align: left;
+  transition: background-color var(--fast) var(--ease), color var(--fast) var(--ease);
 }
+.status-chip:hover { background: var(--surface-2); }
 .status-chip .pill-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); }
 .status-chip .chip-icon { width: 14px; height: 14px; }
@@ -98,7 +108,11 @@ svg { flex-shrink: 0; }
 .search input::placeholder { color: var(--ink-3); }
 .search:focus-within { border-color: var(--brass); background: var(--surface); }
 
-.history { flex: 1; overflow-y: auto; margin: 0 calc(var(--s1) * -1); padding: 0 var(--s1); }
+/* Was flex:1, which made the list claim the whole column whether or not it had
+   anything in it - so the "nothing here yet" line was pushed into the middle of
+   an empty sidebar, floating between the search box and the nav. It now takes
+   only the height it needs, and the footer is what holds the bottom. */
+.history { flex: 0 1 auto; min-height: 0; overflow-y: auto; margin: 0 calc(var(--s1) * -1); padding: 0 var(--s1); }
 .history-group { margin-top: var(--s4); }
 .history-group > h3 {
   font-family: var(--font); font-size: 11px; font-weight: 700; color: var(--ink-3);
@@ -123,8 +137,13 @@ svg { flex-shrink: 0; }
 .history-item[data-tone="live"] .h-dot { background: var(--brass); box-shadow: 0 0 0 3px var(--brass-soft); }
 .h-text { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .h-sub { grid-column: 2; font-size: 11px; color: var(--ink-3); margin-top: -5px; }
-.history-empty { color: var(--ink-3); font-size: 12px; padding: var(--s5) 10px; line-height: 1.6; }
-.sidebar-foot { border-top: 1px solid var(--line); padding-top: var(--s2); margin-top: var(--s2); }
+.history-empty { color: var(--ink-3); font-size: 12px; padding: var(--s4) 10px 0; line-height: 1.55; }
+.sidebar-foot { border-top: 1px solid var(--line); padding-top: var(--s2); margin-top: auto; }
+/* The two live states used to float in the middle of the title bar, which is
+   chrome: the place you look to drag a window, not the place you look to find
+   out whether the thing is working. Here they sit directly above Settings,
+   which is where you go when one of them is wrong. */
+.status-rail { display: grid; gap: 2px; padding: 0 2px var(--s2); }
 .ghost-row {
   display: flex; align-items: center; gap: 10px; width: 100%; height: 38px; padding: 0 10px;
   border: 0; border-radius: var(--r-sm); background: transparent; cursor: pointer;
@@ -136,8 +155,22 @@ svg { flex-shrink: 0; }
 .ghost-row[aria-current="true"] { background: var(--surface-3); color: var(--ink); }
 
 /* ---------- Stage ---------- */
-.stage { overflow-y: auto; padding: var(--s7) var(--s8) var(--s9); position: relative; }
-.stage > * { max-width: 768px; margin-left: auto; margin-right: auto; }
+/* The window had no vertical structure: every view was a column pinned to the
+   top of a tall box, so each screen ended in a third to a half of nothing. The
+   stage is now a centring grid. Short content sits in the middle of the room it
+   has; long content pushes to the top and scrolls as before, because `safe`
+   stops a tall child being centred past the top edge where it cannot be
+   scrolled back to. */
+.stage {
+  overflow-y: auto; position: relative;
+  display: grid; align-content: safe center; justify-items: center;
+  gap: var(--s5); padding: var(--s6) var(--s7) var(--s7);
+}
+.stage > * { width: 100%; max-width: 720px; }
+/* Views that are lists rather than compositions keep their top alignment: a
+   document list drifting to the middle of the window as it empties is worse
+   than one that stays put. */
+body[data-view="docs"] .stage, body[data-view="task"] .stage { align-content: start; }
 
 /* ---------- Buttons ---------- */
 .btn {
@@ -187,18 +220,20 @@ a.btn-primary { color: var(--surface); }
 /* One column, centred, with a width that stops the eye travelling. Before this
    the content hugged the left edge of a very wide window and the rest of the
    stage read as something missing rather than as space. */
-.home { padding-top: 7vh; max-width: 760px; margin: 0 auto; }
+/* No top padding at all now: the stage centres this block, so pushing it down
+   from inside would only move it off centre again. */
+.home { display: grid; gap: var(--s4); }
 .home h1 {
-  font-size: 29px; line-height: 1.14; letter-spacing: -0.018em; max-width: 32ch;
+  font-size: 26px; line-height: 1.15; letter-spacing: -0.021em; max-width: 30ch;
   text-wrap: balance;      /* no lonely "of?" on a line of its own */
   /* A quiet vertical sheen: the display face catches a little light at the top. */
   background: linear-gradient(180deg, var(--ink) 58%, color-mix(in srgb, var(--ink) 72%, var(--ink-2)));
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.home-sub { margin-top: var(--s3); color: var(--ink-2); font-size: 14px; max-width: 56ch; line-height: 1.6; }
+.home-sub { margin-top: calc(var(--s2) * -1); color: var(--ink-2); font-size: 13px; max-width: 60ch; line-height: 1.55; }
 .composer {
   position: relative;
-  margin-top: var(--s6);
+  margin-top: var(--s2);
   /* Two stops rather than a flat fill: the box lifts off the page instead of
      being a slightly different shade of it. */
   background: linear-gradient(180deg,
@@ -223,7 +258,7 @@ a.btn-primary { color: var(--surface); }
 }
 .composer textarea {
   width: 100%; border: 0; outline: none; resize: none; background: transparent; color: var(--ink);
-  font: 400 15px/1.6 var(--font); letter-spacing: -0.005em; min-height: 80px;
+  font: 400 14.5px/1.55 var(--font); letter-spacing: -0.005em; min-height: 54px;
 }
 .composer textarea::placeholder { color: var(--ink-3); }
 .composer-bar {
@@ -240,30 +275,41 @@ a.btn-primary { color: var(--surface); }
 .ctx svg { width: 14px; height: 14px; }
 .ctx[data-ok="false"] { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-line); }
 .composer-actions { display: flex; gap: var(--s2); }
-.ideas { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin-top: var(--s5); }
+/* Four full sentences in four large boxes is a wall of text where a nudge was
+   wanted. They are suggestions, so they look like suggestions: one line each,
+   truncated, under a quiet label. */
+.ideas {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2);
+  margin-top: var(--s2);
+}
+.ideas-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--ink-3); margin-right: var(--s1);
+}
 .idea {
-  border: 1px solid var(--line); background: var(--surface-2); border-radius: var(--r);
-  padding: var(--s3) var(--s4); font-size: 13px; font-weight: 500; color: var(--ink-2);
-  cursor: pointer; text-align: left; line-height: 1.45;
+  border: 1px solid var(--line); background: transparent; border-radius: var(--r-pill);
+  padding: 6px 13px; font-size: 12.5px; font-weight: 500; color: var(--ink-3);
+  cursor: pointer; text-align: left; line-height: 1.3;
+  max-width: 34ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: border-color var(--fast) var(--ease), color var(--fast) var(--ease),
-              background-color var(--fast) var(--ease), transform var(--fast) var(--ease),
-              box-shadow var(--fast) var(--ease);
+              background-color var(--fast) var(--ease);
 }
-.idea:hover {
-  color: var(--ink); border-color: var(--line-strong); background: var(--raised);
-  transform: translateY(-1px); box-shadow: var(--shadow-2);
-}
+.idea:hover { color: var(--ink); border-color: var(--line-strong); background: var(--surface-2); }
 .idea:active { transform: translateY(0); }
-@media (max-width: 900px) { .ideas { grid-template-columns: 1fr; } }
+
 
 /* ---------- What Claw can do ----------
    A card, not a modal: it sits above the task box where the eye already is, and
    it never blocks the thing the person came to do. */
+/* Quiet. It was the brightest and largest thing on the screen at first launch -
+   an advert for the program you have already opened, sitting above the box you
+   opened it to type in. It still says the same words; it no longer shouts them
+   over the task box, and the brass is gone so that colour can go back to
+   meaning "this needs you". */
 .tips {
-  position: relative; margin-bottom: var(--s5); padding: var(--s4) var(--s5) var(--s3);
-  border: 1px solid var(--brass-line); border-radius: var(--r-lg);
-  background: linear-gradient(180deg, var(--brass-soft), color-mix(in srgb, var(--brass-soft) 40%, var(--surface)));
-  box-shadow: var(--shadow-1);
+  position: relative; margin-bottom: 0; margin-top: var(--s3); padding: var(--s3) var(--s4);
+  border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--surface-2);
   animation: tips-in 320ms var(--ease) both;
 }
 @keyframes tips-in { from { opacity: 0; transform: translateY(-6px); } }
@@ -274,8 +320,8 @@ a.btn-primary { color: var(--surface); }
 }
 .tips-close { width: 28px; height: 28px; margin: -4px -8px 0 0; }
 .tips-close svg { width: 15px; height: 15px; }
-.tips-title { font-size: 17px; line-height: 1.25; margin-top: var(--s1); letter-spacing: -0.01em; }
-.tips-body { margin-top: 6px; color: var(--ink-2); font-size: 13px; line-height: 1.6; max-width: 62ch; }
+.tips-title { font-size: 14px; line-height: 1.25; margin-top: var(--s1); letter-spacing: -0.01em; }
+.tips-body { margin-top: 4px; color: var(--ink-3); font-size: 12.5px; line-height: 1.6; max-width: 62ch; }
 .tips-foot {
   display: flex; justify-content: space-between; align-items: center; gap: var(--s3);
   margin-top: var(--s3);
@@ -286,7 +332,7 @@ a.btn-primary { color: var(--surface); }
   background: var(--line-strong); cursor: pointer;
   transition: background-color var(--fast) var(--ease), transform var(--fast) var(--ease);
 }
-.tips-dot[aria-selected="true"] { background: var(--brass); transform: scale(1.3); }
+.tips-dot[aria-selected="true"] { background: var(--ink-3); transform: scale(1.3); }
 .tips-actions { display: flex; align-items: center; gap: var(--s3); }
 @media (prefers-reduced-motion: reduce) { .tips { animation: none; } }
 
@@ -649,8 +695,12 @@ input::placeholder { color: var(--ink-3); }
 .docs-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s5); }
 .docs-head h2 { font-size: 22px; letter-spacing: -0.01em; }
 .docs-sub { color: var(--ink-2); font-size: 13px; margin-top: var(--s2); max-width: 56ch; line-height: 1.6; }
+/* Fills the room it is given. As a fixed-height box near the top of a tall
+   window it left most of the screen as a black void below it, which is the
+   thing that makes a view look unfinished rather than empty-on-purpose. */
 .doc-empty {
-  display: grid; justify-items: center; gap: var(--s1); text-align: center; padding: var(--s9) var(--s6);
+  display: grid; align-content: center; justify-items: center; gap: var(--s1);
+  text-align: center; padding: var(--s9) var(--s6); min-height: min(52vh, 440px);
   border: 1px dashed var(--line-2); border-radius: var(--r-lg); color: var(--ink-2); background: var(--surface);
 }
 .doc-empty svg { width: 30px; height: 30px; color: var(--ink-3); margin-bottom: var(--s1); }
@@ -775,6 +825,14 @@ input[type="search"]#doc-q { border: 0; background: transparent; height: auto; p
    costs no layout. Reduced motion stops all of it.
 */
 .mark, .brand-mark { --level: 0; }
+
+/* The tile behind the mark follows the theme: --mk-tile-fill in tokens.css.
+   It cannot be set from here. The mark is a <symbol> drawn through <use>, and a
+   selector outside that tree does not match inside it - `.mark .mk-tile` looked
+   correct, changed nothing, and the icon kept its black square. What does cross
+   the boundary is inheritance, so the var() sits in a style attribute on the
+   rect itself, in quickbar.html and index.html. */
+
 .mk-blades, .mk-bloom, .mk-ring { transform-origin: 50% 50%; transform-box: fill-box; }
 
 /* idle: a slow settle on first paint, then nothing */

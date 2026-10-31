@@ -72,22 +72,33 @@ class PermissionPolicy:
         return clone
 
     def check_path(self, candidate: str | os.PathLike[str], write: bool = False) -> Path:
-        """Return the canonical path if it lies inside an authorized folder.
+        """Return the path, as the person spelled it, if it lies inside an authorized folder.
 
         Symlinks and '..' segments are resolved before the check, so a path
-        cannot escape an authorized folder by traversal.
+        cannot escape an authorized folder by traversal. The containment check
+        is done on the case-folded form; what comes back keeps its real case,
+        because the caller is about to create or move a file with it.
         """
         raw = str(candidate)
         if not raw or "\x00" in raw:
             raise PathNotAuthorized(raw, "the path is empty or contains invalid characters")
-        resolved = _canonical(Path(raw))
-        if resolved in self.extra_files and not write:
-            return resolved
+        # Two spellings of the same path, and they do different jobs. The folded
+        # one answers "is this inside a folder you authorized?", because Windows
+        # considers C:\\Users\\x and c:/users/x the same file. The real one is what
+        # gets created, moved and shown. Returning the folded one - which is what
+        # this used to do - meant every file tool on Windows worked on a path
+        # whose case had been destroyed: asking for a folder called "Claw Test"
+        # produced one called "claw test", and the summary said so too. On Linux
+        # normcase does nothing, so nothing here showed it.
+        real = Path(raw).expanduser().resolve(strict=False)
+        folded = _canonical(real)
+        if folded in self.extra_files and not write:
+            return real
         if not self.authorized_roots:
             raise PathNotAuthorized(raw, "no folders have been authorized in Settings")
         for root in self.authorized_roots:
-            if _is_within(resolved, root):
-                return resolved
+            if _is_within(folded, root):
+                return real
         raise PathNotAuthorized(raw, "it is outside the folders you authorized")
 
 
