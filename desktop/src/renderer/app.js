@@ -300,11 +300,30 @@ function renderReady() {
     return;
   } else {
     const failed = b.download.status === 'failed' ? `${b.download.message} ` : '';
-    $('ready-title').textContent = failed ? "The brain download didn't finish" : 'Give Claw a brain';
+    $('ready-title').textContent = failed ? "The brain download didn't finish" : 'Choose a brain for this computer';
     $('ready-detail').textContent = failed
       ? `${failed}You can try again; it continues where it stopped.`
-      : `Claw thinks on this computer, so it needs its brain once: the ${rec.name} (about ${rec.approx_download_gb} GB from Hugging Face; its licence is checked before downloading). After that, nothing you do is sent anywhere.`;
-    actions.push(brainAction(failed ? 'Try again' : `Download ${rec.name} · ${rec.approx_download_gb} GB`, true, () => startDownload(rec)));
+      : `Claw thinks on this computer, so it needs one brain, downloaded once (free, from Hugging Face, checked before use). This computer has ${b.hardware_text || 'unknown memory'}. Bigger brains are smarter but slower and need more memory.`;
+    if (failed) {
+      actions.push(brainAction('Try again', true, () => startDownload(rec)));
+    } else {
+      // One installer for everyone; the brain is the part that differs. Each choice
+      // says what memory it needs and whether it suits this computer.
+      const choices = b.catalog.filter((e) => e.recommendable);
+      $('ready-actions').replaceChildren();
+      const list = el('div', { className: 'brain-picks' }, choices.map((e) => {
+        const best = e.id === b.recommended;
+        const tag = best ? 'Best for this computer' : e.fits ? 'Fits this computer' : `Needs ${e.min_ram_gb} GB memory`;
+        const btn = el('button', { className: `brain-pick${best ? ' is-best' : ''}${e.fits ? '' : ' is-big'}`, attrs: { type: 'button' } }, [
+          el('span', { className: 'bp-name', text: e.name }),
+          el('span', { className: 'bp-size', text: `${e.approx_download_gb} GB download · for ${e.min_ram_gb} GB+ memory` }),
+          el('span', { className: 'bp-tag', text: tag }),
+        ]);
+        btn.addEventListener('click', () => startDownload(e));
+        return btn;
+      }));
+      actions.push(list);
+    }
     actions.push(brainAction('Use a GGUF file I have', false, importBrain));
   }
   $('ready-actions').replaceChildren(...actions);

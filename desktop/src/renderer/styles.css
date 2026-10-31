@@ -1271,3 +1271,21 @@ body[data-view="task"] .stage { padding-bottom: var(--s4); }
 #ph-status[data-tone="ok"] { color: var(--green); }
 #ph-status[data-tone="bad"] { color: var(--red); }
 .phone-qr img { display: block; width: 200px; height: 200px; border-radius: 14px; background: #fff; padding: 8px; }
+
+/* First run: pick a brain that suits this computer. */
+.ready-actions { flex-wrap: wrap; }
+.brain-picks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+@media (max-width: 900px) { .brain-picks { grid-template-columns: 1fr; } }
+.brain-pick {
+  display: grid; gap: 3px; text-align: left; padding: 14px 16px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line-2); border-radius: 14px; color: var(--ink);
+  transition: border-color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+.brain-pick:hover { border-color: var(--line-strong); background: var(--surface-2); }
+.brain-pick.is-best { border-color: var(--brass-line); background: var(--brass-soft); }
+.brain-pick.is-big { opacity: 0.75; }
+.bp-name { font-size: 15px; font-weight: 700; }
+.bp-size { font-size: 12.5px; color: var(--ink-3); }
+.bp-tag { font-size: 12px; font-weight: 700; color: var(--ink-2); margin-top: 4px; }
+.brain-pick.is-best .bp-tag { color: var(--brass); }
+.brain-pick.is-big .bp-tag { color: var(--amber); }

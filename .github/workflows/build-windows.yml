@@ -285,6 +285,19 @@ jobs:
           $mb = if ($setup) { [math]::Round(($setup.Length + ($parts | Measure-Object Length -Sum).Sum) / 1MB) } else { 0 }
           $howto = if ($env:EDITION -eq 'Online') {
             "One file, about $mb MB. Run the Setup .exe. No brain is downloaded and no key is needed: Claw thinks on the Claw service, so this computer needs the internet."
+          } elseif ($env:NO_BRAIN) {
+            @"
+          **One installer for every computer, about $mb MB.** Download the Setup .exe and run it. Claw then asks you to pick a brain that suits your computer and downloads it once, free, from Hugging Face (checked before use). You can add or switch brains any time in Settings > Claw's brain.
+
+          | Brain | Download | Best for | What it is like |
+          |---|---|---|---|
+          | Light | 1.8 GB | 4-8 GB memory (RAM) | fastest, least capable |
+          | Standard | 3.3 GB | 8-16 GB memory | everyday laptops; reads screenshots |
+          | Pro | 6.2 GB | 16 GB+ memory, or a graphics card with 8 GB | smartest, slowest |
+
+          Not sure how much memory you have? Settings > System > About on Windows shows "Installed RAM". Claw also marks the best one for your computer.
+          Already have the brain file (.gguf)? Choose "Use a GGUF file I have" instead of downloading.
+          "@
           } elseif ($parts.Count -eq 0) {
             "**One file, about $mb MB.** Download the Setup .exe and run it — there is nothing else to collect. Claw Local thinks on your computer and keeps working with the network switched off."
           } else {
@@ -297,4 +310,5 @@ jobs:
           Not code-signed yet: Windows SmartScreen may warn (More info -> Run anyway).
           Test status: see TEST_RESULTS.md and the windows-build-reports artifact of this run.
           "@
-          gh release create $tag $files --prerelease --title "S-CLAW $version $env:EDITION (build $env:GITHUB_RUN_NUMBER)" --notes $notes
+          $title = if ($env:NO_BRAIN) { "S-CLAW $version for Windows (choose your brain)" } else { "S-CLAW $version $env:EDITION (build $env:GITHUB_RUN_NUMBER)" }
+          gh release create $tag $files --prerelease --title $title --notes $notes
