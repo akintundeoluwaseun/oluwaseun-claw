@@ -22,3 +22,4 @@ pillow==13.0.0
 sherpa-onnx==2.0.1  # offline speech recognition (Apache-2.0); optional at runtime
 sherpa-onnx-core==2.0.1  # its native libraries, including a bundled onnxruntime (MIT)
 segno==1.6.6
+av==19.0.2

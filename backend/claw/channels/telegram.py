@@ -48,5 +48,16 @@ class TelegramClient:
     async def answered(self, callback_id: str, text: str = "") -> None:
         await self._call("answerCallbackQuery", callback_query_id=callback_id, text=text[:180])
 
+    async def download(self, file_id: str, max_bytes: int = 10_000_000) -> bytes:
+        """A file someone sent the bot (a voice note), at most 10 MB."""
+        info = await self._call("getFile", file_id=file_id)
+        if int(info.get("file_size") or 0) > max_bytes:
+            raise TelegramError("That file is too large.")
+        base = self._url.replace("/bot", "/file/bot", 1)
+        r = await self._http.get(f"{base}/{info['file_path']}")
+        if r.status_code != 200 or len(r.content) > max_bytes:
+            raise TelegramError("The voice note could not be downloaded.")
+        return r.content
+
     async def close(self) -> None:
         await self._http.aclose()

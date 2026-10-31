@@ -92,6 +92,9 @@ class PhoneBridge:
             return
         msg = upd.get("message") or {}
         chat, text = msg.get("chat", {}).get("id"), (msg.get("text") or "").strip()
+        voice = msg.get("voice") or msg.get("audio")
+        if chat and voice and chat == self.paired:
+            text = await self.hear(chat, voice)
         if not chat or not text:
             return
         if self.paired is None:
@@ -106,6 +109,26 @@ class PhoneBridge:
             await self.client.send(chat, "This Claw is private.")
             return
         await self.command(chat, text)
+
+    async def hear(self, chat: int, voice: dict) -> str:
+        """A voice note from the paired phone, turned into words on this computer (nothing is uploaded)."""
+        from claw.speech.decode import to_wav16k
+
+        try:
+            raw = await self.client.download(voice["file_id"])
+            wav = await asyncio.get_running_loop().run_in_executor(None, to_wav16k, raw)
+            heard = await self.state.speech.transcribe(wav, self.state.settings)
+        except Exception as exc:  # noqa: BLE001 - say what went wrong, never crash the remote
+            msg = getattr(exc, "message", None) or str(exc) or exc.__class__.__name__
+            hint = getattr(exc, "hint", "")
+            await self.client.send(chat, f"I couldn't understand the voice note: {msg} {hint}".strip())
+            return ""
+        words = heard.text.strip()
+        if not words:
+            await self.client.send(chat, "I couldn't hear any words in that voice note.")
+            return ""
+        await self.client.send(chat, f"Heard: \u201c{words}\u201d")
+        return words
 
     async def command(self, chat: int, text: str) -> None:
         runner = self.state.runner

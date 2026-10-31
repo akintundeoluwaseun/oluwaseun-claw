@@ -107,3 +107,67 @@ def test_approval_buttons_and_yes_no_from_the_paired_phone_only():
     asyncio.run(go())
     assert answered == [("a" * 32, True), ("a" * 32, False)]
     assert tg.callbacks == ["Allowed", "This Claw is private."]
+
+
+def test_voice_notes_are_decoded_heard_and_run(tmp_path):
+    """A real OGG/Opus voice note is decoded to 16 kHz WAV; the words go in as the task."""
+    import io
+    import math
+    import wave
+
+    import av
+    import numpy as np
+
+    from claw.speech.decode import to_wav16k
+
+    # make a one-second OGG/Opus note, as Telegram sends them
+    buf = io.BytesIO()
+    with av.open(buf, "w", format="ogg") as c:
+        st = c.add_stream("libopus", rate=48000)
+        st.layout = "mono"
+        t = np.arange(48000) / 48000
+        samples = (0.3 * np.sin(2 * math.pi * 440 * t) * 32767).astype("int16").reshape(1, -1)
+        frame = av.AudioFrame.from_ndarray(samples, format="s16", layout="mono")
+        frame.sample_rate = 48000
+        for p in st.encode(frame):
+            c.mux(p)
+        for p in st.encode(None):
+            c.mux(p)
+    wav = to_wav16k(buf.getvalue())
+    with wave.open(io.BytesIO(wav)) as w:
+        assert w.getframerate() == 16000 and w.getnchannels() == 1 and 0.8 < w.getnframes() / 16000 < 1.3
+
+    started = []
+
+    class Speech:
+        async def transcribe(self, wav, settings):
+            return type("T", (), {"text": "open notepad"})()
+
+    class Runner:
+        busy = False
+        def pending(self):
+            return []
+        def start(self, text, thread_id=None):
+            started.append(text)
+            return "a" * 32
+
+    class DB:
+        def get_task(self, tid):
+            return {"thread_id": tid, "status": "completed", "result": {}, "error": None}
+
+    class Client(FakeTelegram):
+        async def download(self, file_id):
+            return buf.getvalue()
+
+    s = type("S", (), {})()
+    s.runner, s.db, s.speech = Runner(), DB(), Speech()
+    s.settings = type("X", (), {"phone": type("P", (), {"paired_chat_id": 42})()})()
+    tg = Client()
+    b = br.PhoneBridge(s, tg)
+
+    async def go():
+        await b.handle({"update_id": 1, "message": {"chat": {"id": 42}, "voice": {"file_id": "v1", "duration": 1}}})
+        await asyncio.sleep(0)
+
+    asyncio.run(go())
+    assert started == ["open notepad"] and tg.sent[0]["text"] == "Heard: “open notepad”"

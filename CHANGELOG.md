@@ -1,6 +1,15 @@
 # Changelog
 
 ## Unreleased — fixes from the first real install (Light brain)
+### From Windows-MCP (MIT) and voice notes
+- **Open any installed app, Store apps included:** `Get-StartApps` lists every Start-menu app with the ID
+  Windows starts it by, so WhatsApp Desktop (a Store app with no shortcut file) now opens like Notepad or
+  Photoshop. System tools stay refused. Ported from Windows-MCP's `get_apps_from_start_menu`.
+- **Typing lands in the right window:** when Windows refuses to hand over the keyboard, Claw joins the input
+  of the current and target windows first (Windows-MCP's `bring_window_to_top`).
+- **Voice notes from the phone:** send a voice note to your Telegram bot; it is decoded (PyAV) and heard by
+  Claw's offline recogniser on the computer, Claw replies "Heard: ...", and does it. Nothing is uploaded.
+- WhatsApp stays on the official app (decided: no unofficial WhatsApp link, which risks a ban).
 ### The S-CLAW phone app (same Wi-Fi) and Linux / Mac
 - **Phone app:** Settings → Phone → "Phone app on this Wi-Fi" shows a QR code. Scan it with the phone: chats,
   new tasks, following a task, Allow / Don't allow, Stop - in light and dark, with the living orb. Add it to

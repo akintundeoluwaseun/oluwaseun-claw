@@ -57,6 +57,50 @@ def is_system_tool(name: str) -> bool:
     return bool(BLOCKED.search(name.strip().lower()))
 
 
+_START_APPS: tuple[float, dict[str, str]] = (0.0, {})
+
+
+def start_apps(refresh: bool = False) -> dict[str, str]:
+    """Every app in the Start menu, Store apps included: display name -> how to start it.
+
+    Ported from Windows-MCP (MIT, (c) 2025 Jeomon George), desktop/service.py
+    get_apps_from_start_menu: PowerShell's Get-StartApps gives each app's AppUserModelID,
+    which `shell:AppsFolder\\<id>` starts. Shortcut files alone miss Store apps such as
+    WhatsApp Desktop, which is why "open WhatsApp" could fail. Cached for five minutes.
+    """
+    import subprocess
+    import sys
+    import time
+
+    global _START_APPS
+    if sys.platform != "win32":
+        return {}
+    if not refresh and time.time() - _START_APPS[0] < 300:
+        return _START_APPS[1]
+    apps: dict[str, str] = {}
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command",
+                            "Get-StartApps | ConvertTo-Csv -NoTypeInformation"],
+                           capture_output=True, text=True, timeout=20, check=False,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        import csv
+        import io
+
+        for row in csv.DictReader(io.StringIO(r.stdout.strip())):
+            if row.get("Name") and row.get("AppID"):
+                apps[row["Name"]] = row["AppID"]
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    _START_APPS = (time.time(), apps)
+    return apps
+
+
+def _target_for(app_id: str) -> str:
+    # The Apps folder starts both kinds the way the Start menu does: Store apps by their
+    # AppUserModelID and classic programs by their known-folder path ID.
+    return f"shell:AppsFolder\\{app_id}"
+
+
 def find_app(name: str, search_dirs: list[Path] | None = None) -> list[AppMatch]:
     query = name.strip().lower()
     if not query:
@@ -81,6 +125,16 @@ def find_app(name: str, search_dirs: list[Path] | None = None) -> list[AppMatch]
                 continue
             score = overlap - 0.01 * len(w - q)
             matches.append(AppMatch(stem, str(path), score))
+    if search_dirs is None:
+        for display, app_id in start_apps().items():
+            if BLOCKED.search(display) or "uninstall" in display.lower():
+                continue
+            w = set(_words(display))
+            if not w or not q:
+                continue
+            overlap = len(q & w) / len(q)
+            if overlap:
+                matches.append(AppMatch(display, _target_for(app_id), overlap - 0.01 * len(w - q)))
     matches.sort(key=lambda m: -m.score)
     seen, unique = set(), []
     for m in matches:

@@ -126,11 +126,22 @@ class WindowsUIADriver(DesktopDriver):
         w = self._window(handle)
         if w.is_minimized() if hasattr(w, "is_minimized") else False:
             w.restore()
-        w.set_focus()
+        try:
+            w.set_focus()
+        except Exception:  # noqa: BLE001 - fall through to the stronger way below
+            pass
+        if int(_user32.GetForegroundWindow() or 0) != handle:
+            bring_to_front(handle)
         return self._info(w, int(_user32.GetForegroundWindow() or 0))
 
     def launch(self, target: str) -> None:
         self._check()
+        if target.startswith("shell:AppsFolder\\"):
+            # A Start-menu app (Store apps such as WhatsApp included), started as the Start menu does.
+            import subprocess
+
+            subprocess.Popen(["explorer.exe", target])  # noqa: S603,S607 - target came from Get-StartApps
+            return
         os.startfile(target)  # type: ignore[attr-defined]  # target already resolved and checked by the launcher
 
     def controls(self, handle: int, limit: int) -> list[ControlInfo]:
@@ -266,3 +277,37 @@ class WindowsUIADriver(DesktopDriver):
 
     def screen_size(self) -> tuple[int, int]:
         return int(_user32.GetSystemMetrics(0)), int(_user32.GetSystemMetrics(1))
+
+
+
+def bring_to_front(handle: int) -> None:
+    """Make a window the one that gets the keyboard, even when Windows refuses at first.
+
+    Ported from Windows-MCP (MIT, (c) 2025 Jeomon George), desktop/service.py
+    bring_window_to_top. Windows only hands focus to a process that "received the last
+    input"; joining this thread's input to both the current foreground window's thread
+    and the target's lets the switch through, so typing lands in the right app.
+    """
+    import ctypes
+
+    user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
+    if not user32.IsWindow(handle):
+        return
+    if user32.IsIconic(handle):
+        user32.ShowWindow(handle, 9)  # SW_RESTORE
+    fg = user32.GetForegroundWindow()
+    me = kernel32.GetCurrentThreadId()
+    pid = ctypes.c_ulong()
+    fg_thread = user32.GetWindowThreadProcessId(fg, ctypes.byref(pid)) if fg else 0
+    target_thread = user32.GetWindowThreadProcessId(handle, ctypes.byref(pid))
+    user32.AllowSetForegroundWindow(-1)
+    attached = []
+    try:
+        for t in {fg_thread, target_thread}:
+            if t and t != me and user32.AttachThreadInput(me, t, True):
+                attached.append(t)
+        user32.BringWindowToTop(handle)
+        user32.SetForegroundWindow(handle)
+    finally:
+        for t in attached:
+            user32.AttachThreadInput(me, t, False)
