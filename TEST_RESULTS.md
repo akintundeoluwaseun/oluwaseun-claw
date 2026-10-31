@@ -1,5 +1,11 @@
 # Test results
 
+## Real-brain trial 10 on Windows (Light 2B), 31 Oct 2026 — every task did its job
+Notepad typed, saved, reopened and verified; web result saved; invoice total 580.50 (correct); PDFs found; open
+windows listed; flyer made and read back; sales.csv copied and checked; spreadsheet of exactly 5 rows; WhatsApp
+correctly reported as not installed (the runner has none); calendar read. Evidence: `ci-evidence`, `trials/12-qwen3-vl-2b/`.
+Not checked: whether the five capitals are correct, and WhatsApp itself (needs a PC with WhatsApp).
+
 ## Real-brain trials 1–8 on Windows (Qwen3-VL 2B "Light"), 31 Oct 2026
 Same ten everyday tasks each run, every approval granted, evidence on the `ci-evidence` branch (`trials/<n>-qwen3-vl-2b/`).
 
