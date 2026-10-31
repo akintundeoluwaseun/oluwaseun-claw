@@ -88,3 +88,19 @@ def test_a_refusing_brain_gets_the_first_read_done_for_it(make_client, fake_serv
     kinds = [e["kind"] for e in events]
     assert kinds.count("pushed_back") == 2 and "started_for_brain" in kinds
     assert any(e["kind"] == "requested" and e["data"]["tool"] == "read_document_pages" for e in events)
+
+
+def test_fourth_trial_near_misses():
+    from claw.agent.executor import obvious_first_step
+
+    r = build_registry()
+    assert r.get("list_folder").parse_args({"path": "Documents"}).folder == "Documents"   # "path" for "folder"
+    t = "Copy sales.csv from Documents into a new folder called Backup."
+    a = obvious_first_step(t, fitting_tools(t, r), [{"tool": "create_folder", "outcome": "verified"}])
+    assert a.tool == "copy_files" and a.args == {"source_folder": "Documents", "pattern": "sales.csv", "destination_folder": "Backup"}
+    web = "Search the web for free video editors, open a good result, and save its title and URL."
+    f = fitting_tools(web, r)
+    assert f[0] == "web_search" and "save_links" in f
+    assert "nothing has been saved" in premature_finish("Title: X, URL: Y", [{"tool": "web_search", "outcome": "verified"}], f, wants_save=True)
+    # a failed last step with "I will try again" is an honest end, not a premature one
+    assert premature_finish("WhatsApp didn't open. I will try again later.", [{"tool": "check_whatsapp", "outcome": "failed"}], ["check_whatsapp"]) is None

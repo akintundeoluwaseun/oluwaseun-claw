@@ -61,6 +61,22 @@ def _ocr_words(path_or_img) -> tuple[bool, str]:
         tmp.unlink(missing_ok=True)
 
 
+def _usable_images(ctx: ToolContext, raws: list[str]) -> list[Path]:
+    """Pictures for a flyer. One the brain made up ("logo.png") is left out, not fatal.
+
+    Seen on Windows: the whole flyer failed over an invented logo file. A picture the
+    person named and that cannot be used still stops it, with the reason.
+    """
+    out = []
+    for raw in raws:
+        try:
+            out.append(_input_image(ctx, raw))
+        except ToolError as exc:
+            if "There is no file" not in exc.message:
+                raise
+    return out
+
+
 def _title_seen(title: str, text: str) -> float:
     want = [w for w in re.findall(r"[a-z0-9]+", title.lower()) if len(w) > 2]
     got = set(re.findall(r"[a-z0-9]+", text.lower()))
@@ -123,7 +139,7 @@ def check_flyer(args: FlyerArgs, ctx: ToolContext) -> None:
 async def make_flyer(args: FlyerArgs, ctx: ToolContext) -> ToolResult:
     check_flyer(args, ctx)
     spec = im.FlyerSpec(args.title, args.subtitle, args.points, args.contact, im.PRESETS[args.size],
-                        "#" + args.background.lstrip("#"), "#" + args.accent.lstrip("#"), [_input_image(ctx, p) for p in args.images])
+                        "#" + args.background.lstrip("#"), "#" + args.accent.lstrip("#"), _usable_images(ctx, args.images))
     out = _output(ctx, args.folder, args.file_name, "." + args.format)
     use_ps = args.editor == "photoshop" or (args.editor == "auto" and im.photoshop_available()[0])
     if args.format == "psd" and not use_ps:

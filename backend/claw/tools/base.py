@@ -162,6 +162,7 @@ class ToolSpec:
             raw = {}
         if not isinstance(raw, dict):
             raise ToolError(f"Arguments for {self.name} must be an object.")
+        raw = _with_synonyms(raw, set(self.args_model.model_fields))
         try:
             return self.args_model.model_validate(raw)
         except ValidationError as exc:
@@ -190,3 +191,33 @@ class ToolRegistry:
 
     def names(self) -> list[str]:
         return list(self._tools)
+
+
+# Names a brain uses for an argument, and what the tool calls it. The 2B brain on Windows
+# sent list_folder {"path": "Documents"} and was refused for an "extra input", then gave up.
+_SYNONYMS = {
+    "folder": ("path", "directory", "dir", "folder_path", "location"),
+    "path": ("file", "file_path", "filepath", "filename", "file_name", "document", "pdf"),
+    "file_name": ("filename", "name", "file", "output_name"),
+    "source_folder": ("source", "from", "from_folder", "folder", "src"),
+    "destination_folder": ("destination", "to", "to_folder", "target", "dest", "target_folder"),
+    "pattern": ("file", "filename", "files", "name"),
+    "query": ("q", "search", "text", "term"),
+    "text": ("content", "contents", "body", "message"),
+    "expected_text": ("expected", "text", "content", "contents"),
+    "title": ("headline", "name", "heading"),
+    "url": ("link", "address", "href"),
+}
+
+
+def _with_synonyms(raw: dict, fields: set[str]) -> dict:
+    """Rename arguments given under a common other name to the name the tool uses."""
+    out = dict(raw)
+    for field, names in _SYNONYMS.items():
+        if field not in fields or field in out:
+            continue
+        for n in names:
+            if n in out and n not in fields:
+                out[field] = out.pop(n)
+                break
+    return out

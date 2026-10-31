@@ -258,14 +258,14 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     (r"\bnotepad\b|\btype\b", ("launch_app", "type_text", "press_keys")),
     (r"\bsave (?:it|this|that)?\s*as\b.*\.txt\b|\btext file\b", ("write_text_file", "check_file")),
     (r"\bverify\b|\bcheck (?:the|its) contents\b", ("check_file",)),
-    (r"\bsave\b.*\b(?:links?|urls?|title)\b", ("save_links",)),
-    (r"\bsave\b.*\b(?:report|summary|notes?|results?)\b", ("save_report",)),
     (r"\bwhatsapp\b", ("check_whatsapp", "send_whatsapp_message")),
     (r"\bcalendar\b|\bschedule\b|\bmeeting\b|\bappointment\b", ("list_events", "create_event", "find_free_time")),
     (r"\bsearch\b.*\b(?:web|internet|online)\b|\bgoogle\b|\blook up\b", ("web_search", "open_search_result", "read_page")),
     (r"\bwindows? (?:are )?open\b|\bopen windows\b", ("list_windows",)),
     (r"\bscreenshot\b", ("take_screenshot",)),
     (r"\b(?:picture|photo|image)\b", ("edit_image", "inspect_image")),
+    (r"\bsave\b.*\b(?:links?|urls?|title)\b", ("save_links",)),
+    (r"\bsave\b.*\b(?:report|summary|notes?|results?)\b", ("save_report",)),
 ]
 
 
@@ -302,16 +302,32 @@ def example_call(registry: ToolRegistry, name: str) -> str:
     return json.dumps({"thought": "...", "action": "tool", "tool": name, "args": args})
 
 
-def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str], example: str = "") -> str | None:
+LOOKING_TOOLS = {"web_search", "open_search_result", "read_page", "open_url", "extract_links", "list_tabs", "new_tab",
+                 "switch_tab", "list_folder", "find_files", "read_file", "read_document_pages", "search_document",
+                 "summarize_document", "list_windows", "look_at_window", "describe_screen", "take_screenshot",
+                 "current_time", "disk_space", "is_program_running", "list_events", "check_whatsapp", "inspect_image"}
+SAVING_TOOLS = {"save_links", "save_report", "write_text_file", "create_spreadsheet", "make_flyer", "copy_files",
+                "edit_text_file", "create_folder", "move_file", "rename_file"}
+
+
+def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str], example: str = "",
+                     wants_save: bool = False) -> str | None:
     """Why this finish should be sent back, or None to accept it."""
     tools = f" Tools for it: {', '.join(fitting)}." if fitting else ""
+    last_failed = bool(steps) and steps[-1].get("outcome") in ("failed", "rejected")
     if fitting and example:
         tools += f" Reply like this, with real values: {example}"
-    if _STILL_TO_DO.search(final):
+    if _STILL_TO_DO.search(final) and not last_failed:
         return ("You wrote that there is still work to do, so the task is not finished. "
                 f"Carry on with the next step now by calling a tool.{tools}")
     if not steps and final.startswith("(The model finished without a summary"):
         return f"You finished without doing anything or saying why. Do the task now by calling a tool.{tools}"
+    save_tools = [t for t in fitting if t in ("save_links", "save_report", "write_text_file", "create_spreadsheet")]
+    # Anything beyond looking counts: saving through an app's own menus is saving too.
+    saved = any(s.get("tool") not in LOOKING_TOOLS and s.get("outcome") in ("verified", "done_unverified") for s in steps)
+    if save_tools and wants_save and not saved and not last_failed:
+        return (f"The task asks you to save it, and nothing has been saved yet. Save it now with {save_tools[0]}."
+                + (f" Reply like this, with real values: {example}" if example and fitting[0] in save_tools else ""))
     worked = any(s.get("outcome") not in ("failed", "rejected", "denied", "blocked") for s in steps)
     if _NO_TOOL.search(final) and fitting:
         return (f"Those tools do exist here: {', '.join(fitting)}. Their details are in the tool list. "
@@ -325,14 +341,27 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
 _FILE_IN_TASK = re.compile(r"[\w\- ()]+\.(?:pdf|docx?|xlsx|xls|txt|csv|md)\b", re.I)
 
 
-def obvious_first_step(task: str, fitting: list[str]) -> ModelAction | None:
+def obvious_first_step(task: str, fitting: list[str], steps: list[dict[str, Any]] | None = None) -> ModelAction | None:
     """The one step that plainly starts the task, for a brain that refuses to start.
 
     Third trial, Windows, 2B brain: "Read invoice.pdf in my Documents folder and tell me
     the total" - it said it could not read PDFs, twice, with read_document_pages named.
-    Only looking steps are taken this way (reading a file the person named, finding
-    files); anything that changes something stays the brain's decision and the person's.
+    Reading a file the person named is taken this way, and so is a copy the person spelled
+    out ("copy X from Documents into Backup") - that one still goes through the normal
+    approval, exactly as if the brain had asked for it.
     """
+    steps = steps or []
+    copy = re.search(r"\bcopy\s+([\w\-. ()]+?\.\w{2,5})\s+from\s+(?:my\s+|the\s+)?(documents|desktop|downloads)\b.*?"
+                     r"\b(?:into|to)\s+(?:a\s+new\s+folder\s+(?:called|named)\s+|the\s+folder\s+|folder\s+)?['\"]?([\w\- ]+?)['\"]?[.!]?$",
+                     task.strip().split("\n")[0], re.I)
+    if copy and "copy_files" in fitting and not any(s.get("tool") == "copy_files" for s in steps):
+        # Copying asks the person first like any change: forcing it only starts the
+        # request, it does not skip the approval.
+        return ModelAction(thought="Claw copies the file you named.", action="tool", tool="copy_files",
+                           args={"source_folder": copy.group(2).capitalize(), "pattern": copy.group(1).strip(),
+                                 "destination_folder": copy.group(3).strip()})
+    if steps:
+        return None
     m = _FILE_IN_TASK.search(task)
     if m and "read_document_pages" in fitting and m.group(0).lower().endswith(".pdf"):
         name = m.group(0).strip().split(" ")[-1]
@@ -340,7 +369,7 @@ def obvious_first_step(task: str, fitting: list[str]) -> ModelAction | None:
         path = f"{folder.group(1).capitalize()}/{name}" if folder else name
         return ModelAction(thought="Claw starts by reading the file you named.", action="tool",
                            tool="read_document_pages", args={"path": path, "first_page": 1})
-    if m and "read_file" in fitting:
+    if m and "read_file" in fitting and not m.group(0).lower().endswith(".pdf"):
         return ModelAction(thought="Claw starts by reading the file you named.", action="tool",
                            tool="read_file", args={"path": m.group(0).strip().split(" ")[-1]})
     return None
@@ -619,14 +648,15 @@ async def run_agent(
 
         if action.action == "finish":
             final = (action.final_answer or "").strip() or "(The model finished without a summary.)"
-            why = (premature_finish(final, steps, fitting, example_call(registry, fitting[0]) if fitting else "")
+            why = (premature_finish(final, steps, fitting, example_call(registry, fitting[0]) if fitting else "",
+                                    wants_save=bool(re.search(r"\bsave\b", task.split("\n")[0], re.I)))
                    if pushbacks < MAX_PUSHBACKS else None)
             if why:
                 pushbacks += 1
                 emit("pushed_back", {"step": step_no, "reason": why, "final_answer": final[:300]})
                 messages.append(ChatMessage(role="user", content=why))
                 continue
-            forced = obvious_first_step(task, fitting) if not steps and not started_for_it else None
+            forced = obvious_first_step(task, fitting, steps) if not started_for_it else None
             if forced is None:
                 emit("finished", {"final_answer": final})
                 return outcome("completed", final)

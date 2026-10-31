@@ -43,11 +43,11 @@ def test_model_titles_are_checked():
 def test_retry_and_follow_up_stay_in_one_chat_with_the_models_title(make_client, fake_server):
     plan = {**VALID_PLAN, "title": "Newest PDF summary"}
     fake_server.replies += [json.dumps(plan), finish("Summarised report.pdf."),
-                            json.dumps(plan), finish("Saved it as summary.txt.")]
+                            json.dumps(plan), finish("It was two pages long.")]
     c = make_client(settings_for(fake_server)).__enter__()
     first = c.post("/tasks/run", json={"task": "Can you find the latest PDF in my Downloads and summarize it"}).json()["id"]
     assert wait_done(c, first) == "completed"
-    follow = c.post("/tasks/run", json={"task": "Now save that summary as a text file", "thread_id": first}).json()["id"]
+    follow = c.post("/tasks/run", json={"task": "Now tell me how long it was", "thread_id": first}).json()["id"]
     assert wait_done(c, follow) == "completed"
     chats = c.get("/tasks").json()["tasks"]
     assert len(chats) == 1, chats
