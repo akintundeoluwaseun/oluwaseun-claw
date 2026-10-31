@@ -420,6 +420,12 @@ def obvious_first_step(task: str, fitting: list[str], steps: list[dict[str, Any]
                                  "destination_folder": copy.group(3).strip()})
     if steps:
         return None
+    app = re.search(r"\bopen\s+(notepad|paint|calculator|wordpad|whatsapp|excel|word)\b", task.split("\n")[0], re.I)
+    if app and "launch_app" in fitting:
+        # Opening the app the person named is the plain first step (eighth trial: the
+        # brain gave up on the Notepad task without taking a single step).
+        return ModelAction(thought="Claw opens the app you named.", action="tool", tool="launch_app",
+                           args={"name": app.group(1).capitalize()})
     m = _FILE_IN_TASK.search(task)
     if m and "read_document_pages" in fitting and m.group(0).lower().endswith(".pdf"):
         name = m.group(0).strip().split(" ")[-1]

@@ -160,3 +160,11 @@ def test_quote_relevant_lines_for_a_silent_brain():
     doc = "INVOICE 2041\nCustomer: Ekiti Grand Hotel\nSubtotal: 45,000\nTotal amount due: 48,500 naira\nThank you"
     q = quote_relevant_lines("Read invoice.pdf in my Documents folder and tell me the total amount due.", doc)
     assert "Total amount due: 48,500 naira" in q and "Thank you" not in q
+
+
+def test_open_notepad_is_the_obvious_first_step():
+    from claw.agent.executor import obvious_first_step
+
+    t = "Open Notepad, type 'S-CLAW desktop-control test', save it as claw-test.txt in Documents"
+    a = obvious_first_step(t, fitting_tools(t, build_registry()))
+    assert a.tool == "launch_app" and a.args == {"name": "Notepad"}

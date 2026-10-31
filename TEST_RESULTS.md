@@ -1,5 +1,23 @@
 # Test results
 
+## Real-brain trials 1–8 on Windows (Qwen3-VL 2B "Light"), 31 Oct 2026
+Same ten everyday tasks each run, every approval granted, evidence on the `ci-evidence` branch (`trials/<n>-qwen3-vl-2b/`).
+
+| Task | Trial 1 | Trial 8 |
+|---|---|---|
+| Notepad: type, save, reopen, verify | stopped after opening | gave up with no steps (fixed after: Claw opens the named app) |
+| Web search, save title and URL | described, not saved | **saved** (save_links) |
+| Invoice total (scanned PDF) | no folders allowed | **580.50** — correct (checked by OCR here: "TOTAL DUE 580.50") |
+| Find PDFs in Documents | no folders allowed | **found invoice.pdf** |
+| Open windows | worked | worked |
+| Flyer | "no tool" | **made, headline read back by OCR 100%** |
+| Copy sales.csv into Backup | "no file" | **copied and checked** |
+| Spreadsheet of five states | "no tool" | **5 rows** (facts not checked by Claw) |
+| WhatsApp unread | gave up | **"not installed" said plainly** (the runner has no WhatsApp) |
+| Calendar today | worked | worked |
+
+Trial 4 found Notepad fully working (type, save, reopen, verify); the 2B brain is not consistent between runs.
+
 ## Real install fixes + first real-brain trial — 31 Oct 2026
 **Real brain on real Windows** (`real-trial.yml`, Qwen3-VL 2B "Light", GitHub's Windows Server runner, run 41171556944;
 evidence on the `ci-evidence` branch under `trials/3-qwen3-vl-2b/`). Ten everyday tasks, every approval granted:
