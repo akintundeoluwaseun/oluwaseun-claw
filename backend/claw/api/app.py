@@ -97,7 +97,10 @@ class AppState:
         allowed, why = current_edition().allows_mode("builtin")
         if not allowed:
             raise ModelNotFound(why, "Settings → Claw's brain.")
-        return await self.brain.adapter(ms.selected, ms.request_timeout_s, ms.temperature)
+        # A brain on this computer has no network to wait for, only a CPU. Its first reply
+        # in a task reads the whole tool list, which took up to two minutes for the 2B brain
+        # on GitHub's Windows machine, so the 120 s meant for servers cut it off mid-thought.
+        return await self.brain.adapter(ms.selected, max(ms.request_timeout_s, LOCAL_REPLY_TIMEOUT_S), ms.temperature)
 
     def vision_fn(self, adapter: ModelAdapter):
         """Reads screenshots with the same brain when it has a vision file; otherwise None."""
@@ -137,6 +140,9 @@ def error_response(status: int, code: str, message: str, hint: str = "", details
         status_code=status,
         content={"error": {"code": code, "message": message, "hint": hint, "details": details or []}},
     )
+
+
+LOCAL_REPLY_TIMEOUT_S = 600.0
 
 
 def create_app(data_dir: Path, token: str) -> FastAPI:

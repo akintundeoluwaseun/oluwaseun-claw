@@ -8,6 +8,7 @@ File access is limited to folders the user has explicitly authorized.
 from __future__ import annotations
 
 import os
+import re
 from enum import StrEnum
 from pathlib import Path
 
@@ -47,6 +48,7 @@ class PermissionPolicy:
         if self.modes[RiskLevel.DESTRUCTIVE] == Decision.ALLOW:
             self.modes[RiskLevel.DESTRUCTIVE] = Decision.ASK
         self.authorized_roots = [_canonical(Path(p)) for p in authorized_folders]
+        self.root_paths = [Path(p).expanduser() for p in authorized_folders]
         # Individual files the user opened through Claw's file dialog (read access only).
         self.extra_files = {_canonical(Path(p)) for p in (extra_files or set())}
 
@@ -68,6 +70,7 @@ class PermissionPolicy:
         clone = PermissionPolicy(modes, [], None)
         clone.modes = modes
         clone.authorized_roots = list(self.authorized_roots)
+        clone.root_paths = list(self.root_paths)
         clone.extra_files = set(self.extra_files)
         return clone
 
@@ -90,7 +93,7 @@ class PermissionPolicy:
         # whose case had been destroyed: asking for a folder called "Claw Test"
         # produced one called "claw test", and the summary said so too. On Linux
         # normcase does nothing, so nothing here showed it.
-        real = Path(raw).expanduser().resolve(strict=False)
+        real = self._anchor(raw).resolve(strict=False)
         folded = _canonical(real)
         if folded in self.extra_files and not write:
             return real
@@ -100,6 +103,26 @@ class PermissionPolicy:
             if _is_within(folded, root):
                 return real
         raise PathNotAuthorized(raw, "it is outside the folders you authorized")
+
+
+    def _anchor(self, raw: str) -> Path:
+        """Where a path the brain wrote without a drive letter actually points.
+
+        The 2B brain on Windows asked for "Documents" and "Documents\\invoice.pdf".
+        Resolved against the backend's working folder those were "outside the folders
+        you authorized", though Documents was authorized. A relative path now starts
+        at the authorized folder whose name it begins with, else at the first one.
+        It is still checked against the authorized folders below like any other.
+        """
+        p = Path(raw).expanduser()
+        if p.is_absolute() or re.match(r"^[A-Za-z]:[\\/]", raw) or not self.root_paths:
+            return p
+        parts = re.split(r"[\\/]+", raw.strip())
+        head = parts[0].strip().lower()
+        for root in self.root_paths:
+            if root.name.lower() == head:
+                return root.joinpath(*parts[1:]) if parts[1:] else root
+        return self.root_paths[0].joinpath(*parts)
 
 
 def canonical_path(path: str | os.PathLike[str]) -> Path:

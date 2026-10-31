@@ -258,6 +258,8 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     (r"\bnotepad\b|\btype\b", ("launch_app", "type_text", "press_keys")),
     (r"\bsave (?:it|this|that)?\s*as\b.*\.txt\b|\btext file\b", ("write_text_file", "check_file")),
     (r"\bverify\b|\bcheck (?:the|its) contents\b", ("check_file",)),
+    (r"\bsave\b.*\b(?:links?|urls?|title)\b", ("save_links",)),
+    (r"\bsave\b.*\b(?:report|summary|notes?|results?)\b", ("save_report",)),
     (r"\bwhatsapp\b", ("check_whatsapp", "send_whatsapp_message")),
     (r"\bcalendar\b|\bschedule\b|\bmeeting\b|\bappointment\b", ("list_events", "create_event", "find_free_time")),
     (r"\bsearch\b.*\b(?:web|internet|online)\b|\bgoogle\b|\blook up\b", ("web_search", "open_search_result", "read_page")),
@@ -291,9 +293,12 @@ MAX_PUSHBACKS = 2
 
 def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]) -> str | None:
     """Why this finish should be sent back, or None to accept it."""
+    tools = f" Tools for it: {', '.join(fitting)}." if fitting else ""
     if _STILL_TO_DO.search(final):
         return ("You wrote that there is still work to do, so the task is not finished. "
-                "Carry on with the next step now by calling a tool.")
+                f"Carry on with the next step now by calling a tool.{tools}")
+    if not steps and final.startswith("(The model finished without a summary"):
+        return f"You finished without doing anything or saying why. Do the task now by calling a tool.{tools}"
     worked = any(s.get("outcome") not in ("failed", "rejected", "denied", "blocked") for s in steps)
     if _NO_TOOL.search(final) and fitting:
         return (f"Those tools do exist here: {', '.join(fitting)}. Their details are in the tool list. "
@@ -533,7 +538,10 @@ async def run_agent(
     hint = f"\n\nTools that fit this task: {', '.join(fitting)}." if fitting else ""
     messages = [
         ChatMessage(role="system",
-                    content=EXEC_PROMPT.format(tools=tool_catalogue(registry, capabilities, fitting))
+                    # With tools that plainly fit, only those are described in full and the rest
+                    # are listed by name. The full "files" section alone is ~5.8k tokens, which a
+                    # small brain on a CPU spends minutes reading before it says a word.
+                    content=EXEC_PROMPT.format(tools=tool_catalogue(registry, {"__none__"} if fitting else capabilities, fitting))
                     + remembered(ctx, task)),
         ChatMessage(role="user", content=f"Task:\n<<<\n{task}\n>>>\n\nSuggested plan (adjust if needed):\n{plan_text}{hint}"),
     ]
