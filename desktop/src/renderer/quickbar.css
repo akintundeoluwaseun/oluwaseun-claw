@@ -305,3 +305,4 @@ body[data-phase="attention"] .pill-meta { background: color-mix(in srgb, var(--a
 .panel-foot { border-top: 0; padding: 4px 4px 0; color: var(--ink-3); }
 .link { color: var(--brass); text-decoration: none; }
 .link:hover { text-decoration: underline; }
+.run:disabled { opacity: 1; background: var(--surface-3); border-color: var(--surface-3); color: var(--ink-3); }

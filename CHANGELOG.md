@@ -1,6 +1,17 @@
 # Changelog
 
 ## Unreleased — fixes from the first real install (Light brain)
+### The living orb and the quick bar
+- The logo is now a living orb everywhere (title bar, home, Claw's replies, quick bar): colour fields turn and
+  change shape inside a glassy sphere with the claw blades turning on top. It never stops; it speeds up while
+  Claw works, turns warm when it needs you, and swells with your voice.
+- The quick bar is a rounded capsule with a light ring circling its edge (faint idle, bright working, warm
+  when waiting). Light and dark both checked by screenshot (`desktop/tests/showcase.mjs`).
+### Third real-brain trial (run 41175294811)
+- Now working end to end with the 2B brain: Notepad (type, save, reopen, verify), web search with title and
+  URL, finding PDFs in Documents, open windows, calendar.
+- Fixed from it: colour names in flyers, near-miss spreadsheet rows, argument shape shown after a rejection,
+  "I will create…" sent back, example call in pushbacks.
 ### New layout (user: "change everything, the arrangement")
 - A slim rail on the left (New, Chats, Docs, theme, Settings); chats slide out as a drawer and are remembered open or closed.
 - Status (agent and brain) moved to the top right.

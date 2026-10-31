@@ -218,7 +218,7 @@
    ========================================================================== */
 @property --orb-a { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
 .orb {
-  --orb: 28px; --c1: #6e8bff; --c2: #b38cff; --c3: #46d4ff; --speed: 1;
+  --orb: 28px; --c1: #6e8bff; --c2: #c084fc; --c3: #22d3ee; --speed: 1;
   position: relative; display: inline-block; flex: none;
   width: var(--orb); height: var(--orb); border-radius: 50%;
   overflow: hidden; isolation: isolate;
@@ -232,7 +232,7 @@
 .orb > i {
   position: absolute; inset: -30%;
   border-radius: 43% 57% 61% 39% / 44% 41% 59% 56%;
-  mix-blend-mode: screen; opacity: 0.85;
+  mix-blend-mode: screen; opacity: 0.95;
   filter: blur(calc(var(--orb) * 0.09));
   animation: orb-spin calc(8s / var(--speed)) linear infinite, orb-morph calc(5s / var(--speed)) ease-in-out infinite alternate;
 }
