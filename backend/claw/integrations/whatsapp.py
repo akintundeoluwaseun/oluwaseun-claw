@@ -163,6 +163,41 @@ class CheckStore:
             c.new_since_last_check = before is None or (now > before >= 0)
 
 
+def whatsapp_installed() -> bool | None:
+    """True/False on Windows when it can be told; None elsewhere (unknown).
+
+    Launching the whatsapp: link when nothing handles it does not fail: Windows pops up
+    "Get an app to open this link", and Claw then waited 20 seconds and said WhatsApp
+    "didn't open". The Store app keeps a folder under Packages, the installer version an
+    exe under Local AppData, and either registers the link.
+    """
+    import os
+    import sys
+
+    if sys.platform != "win32":
+        return None
+    local = Path(os.environ.get("LOCALAPPDATA", ""))
+    if local and ((local / "WhatsApp" / "WhatsApp.exe").exists()
+                  or any((local / "Packages").glob("*WhatsAppDesktop*"))):
+        return True
+    try:
+        import winreg
+
+        for hive, key in ((winreg.HKEY_CLASSES_ROOT, "whatsapp"), (winreg.HKEY_CURRENT_USER, r"Software\Classes\whatsapp")):
+            try:
+                winreg.CloseKey(winreg.OpenKey(hive, key))
+                return True
+            except OSError:
+                pass
+    except ImportError:
+        return None
+    return False
+
+
+NOT_INSTALLED = ("WhatsApp Desktop isn't installed on this computer. Install it from the Microsoft Store, "
+                 "open it once and link it to your phone, then ask again.")
+
+
 async def check_whatsapp(call, driver: DesktopDriver, store: CheckStore, *, with_previews: bool, open_if_needed: bool) -> WhatsAppCheck:
     """`call` runs a driver method on the desktop thread (DesktopSession.call)."""
     ok, why = await call(driver.available)
@@ -170,11 +205,13 @@ async def check_whatsapp(call, driver: DesktopDriver, store: CheckStore, *, with
         return WhatsAppCheck("unavailable", why)
     win = find_window(await call(driver.list_windows))
     if win is None and open_if_needed:
+        if whatsapp_installed() is False:
+            return WhatsAppCheck("not_installed", NOT_INSTALLED)
         try:
             await call(driver.launch, LAUNCH_URI)
         except Exception:  # noqa: BLE001 — the protocol isn't registered: WhatsApp isn't installed
-            return WhatsAppCheck("not_installed", "WhatsApp Desktop doesn't seem to be installed. Install it from the Microsoft Store and link it to your phone.")
-        for _ in range(40):
+            return WhatsAppCheck("not_installed", NOT_INSTALLED)
+        for _ in range(90):  # 45 s: the first start after a reboot is slow
             await asyncio.sleep(0.5)
             win = find_window(await call(driver.list_windows))
             if win:
@@ -182,7 +219,7 @@ async def check_whatsapp(call, driver: DesktopDriver, store: CheckStore, *, with
                 break
     if win is None:
         return WhatsAppCheck("not_open" if not open_if_needed else "not_installed",
-                             "WhatsApp isn't open." if not open_if_needed else "WhatsApp didn't open within 20 seconds.")
+                             "WhatsApp isn't open." if not open_if_needed else "WhatsApp is installed but didn't open within 45 seconds. Open it yourself once, then ask again.")
     controls = await call(driver.controls, win.handle, CONTROL_LIMIT)
     state, checked, unread = parse_chat_list(controls, with_previews)
     messages = {

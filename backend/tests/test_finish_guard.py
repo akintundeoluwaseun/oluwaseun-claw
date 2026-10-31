@@ -65,3 +65,26 @@ def test_near_miss_arguments_from_the_third_trial_are_accepted():
 
 def test_i_will_create_is_not_a_finish():
     assert premature_finish("I will create a new folder named Backup and copy the file.", [], ["copy_files"])
+
+
+def test_claw_reads_the_named_pdf_when_the_brain_will_not_start():
+    from claw.agent.executor import obvious_first_step
+
+    a = obvious_first_step("Read invoice.pdf in my Documents folder and tell me the total amount due.",
+                           ["read_document_pages", "summarize_document"])
+    assert a.tool == "read_document_pages" and a.args == {"path": "Documents/invoice.pdf", "first_page": 1}
+    assert obvious_first_step("Copy sales.csv into Backup", ["copy_files"]) is None   # changes things: never forced
+
+
+def test_a_refusing_brain_gets_the_first_read_done_for_it(make_client, fake_server, tmp_path):
+    import json as _json
+
+    refuse = finish("I cannot read PDF files.")
+    fake_server.replies += [_json.dumps(VALID_PLAN), refuse, refuse, refuse, finish("The file could not be read.")]
+    c = make_client(settings_for(fake_server)).__enter__()
+    tid = c.post("/tasks/run", json={"task": "Read invoice.pdf and tell me the total"}).json()["id"]
+    wait_done(c, tid)
+    events = c.get(f"/tasks/{tid}/events").json()["events"]
+    kinds = [e["kind"] for e in events]
+    assert kinds.count("pushed_back") == 2 and "started_for_brain" in kinds
+    assert any(e["kind"] == "requested" and e["data"]["tool"] == "read_document_pages" for e in events)

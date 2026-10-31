@@ -652,6 +652,7 @@ function collectSteps(events) {
     const d = e.data || {};
     if (e.kind === 'planned') notes.push({ at: e.id, text: `Made a plan: ${d.steps} ${d.steps === 1 ? 'step' : 'steps'}` });
     if (e.kind === 'model_reply_rejected') notes.push({ at: e.id, text: "Claw's reply wasn't usable, so it tried again" });
+    if (e.kind === 'started_for_brain') notes.push({ at: e.id, text: 'The brain would not start, so Claw took the first look itself' });
     if (e.kind === 'pushed_back') notes.push({ at: e.id, text: 'Claw stopped too early, so it was told to carry on' });
     if (e.kind === 'replanned') notes.push({ at: e.id, text: `Changed approach: ${d.diagnosis}` });
     if (e.kind === 'injection_warning') notes.push({ at: e.id, text: 'Something Claw read tried to give it orders. Claw ignored it and will ask before any change.', warn: true });

@@ -167,3 +167,28 @@ def test_check_now_route_and_status(make_client):
     s["messages"]["whatsapp_read"] = "deny"
     assert c.put("/settings", json=s).status_code == 200
     assert c.post("/messages/whatsapp/check").status_code == 403
+
+
+def test_missing_whatsapp_is_said_plainly_before_any_launch(monkeypatch):
+    """Windows pops up 'Get an app to open this link' instead of failing; Claw must not wait on that."""
+    import claw.integrations.whatsapp as wa
+
+    monkeypatch.setattr(wa, "whatsapp_installed", lambda: False)
+    launched = []
+
+    class D:
+        def available(self):
+            return True, ""
+
+        def list_windows(self):
+            return []
+
+        def launch(self, target):
+            launched.append(target)
+
+    async def call(fn, *a):
+        return fn(*a)
+
+    import asyncio
+    r = asyncio.run(wa.check_whatsapp(call, D(), None, with_previews=False, open_if_needed=True))
+    assert r.state == "not_installed" and "Microsoft Store" in r.message and launched == []

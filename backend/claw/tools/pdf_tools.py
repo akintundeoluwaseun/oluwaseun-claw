@@ -68,7 +68,7 @@ def _doc_data(path: Path, r: DocumentResult) -> dict:
 # ---------- read_document_pages ----------
 class PagesArgs(ToolArgs):
     path: str = Field(min_length=1, max_length=500)
-    first_page: int = Field(ge=1, le=10000)
+    first_page: int = Field(default=1, ge=1, le=10000)
     last_page: int | None = Field(default=None, ge=1, le=10000)
 
 

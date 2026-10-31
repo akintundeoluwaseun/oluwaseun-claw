@@ -322,6 +322,30 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
     return None
 
 
+_FILE_IN_TASK = re.compile(r"[\w\- ()]+\.(?:pdf|docx?|xlsx|xls|txt|csv|md)\b", re.I)
+
+
+def obvious_first_step(task: str, fitting: list[str]) -> ModelAction | None:
+    """The one step that plainly starts the task, for a brain that refuses to start.
+
+    Third trial, Windows, 2B brain: "Read invoice.pdf in my Documents folder and tell me
+    the total" - it said it could not read PDFs, twice, with read_document_pages named.
+    Only looking steps are taken this way (reading a file the person named, finding
+    files); anything that changes something stays the brain's decision and the person's.
+    """
+    m = _FILE_IN_TASK.search(task)
+    if m and "read_document_pages" in fitting and m.group(0).lower().endswith(".pdf"):
+        name = m.group(0).strip().split(" ")[-1]
+        folder = re.search(r"\b(documents|desktop|downloads)\b", task, re.I)
+        path = f"{folder.group(1).capitalize()}/{name}" if folder else name
+        return ModelAction(thought="Claw starts by reading the file you named.", action="tool",
+                           tool="read_document_pages", args={"path": path, "first_page": 1})
+    if m and "read_file" in fitting:
+        return ModelAction(thought="Claw starts by reading the file you named.", action="tool",
+                           tool="read_file", args={"path": m.group(0).strip().split(" ")[-1]})
+    return None
+
+
 def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
                    always: list[str] | None = None) -> str:
     """Full details for tools the plan needs; names only for the rest (keeps prompts small for small models)."""
@@ -559,6 +583,7 @@ async def run_agent(
         ChatMessage(role="user", content=f"Task:\n<<<\n{task}\n>>>\n\nSuggested plan (adjust if needed):\n{plan_text}{hint}"),
     ]
     pushbacks = 0
+    started_for_it = False
     steps: list[dict[str, Any]] = []
     consecutive_failures = 0
     last_signature: str | None = None
@@ -601,6 +626,17 @@ async def run_agent(
                 emit("pushed_back", {"step": step_no, "reason": why, "final_answer": final[:300]})
                 messages.append(ChatMessage(role="user", content=why))
                 continue
+            forced = obvious_first_step(task, fitting) if not steps and not started_for_it else None
+            if forced is None:
+                emit("finished", {"final_answer": final})
+                return outcome("completed", final)
+            # The brain will not start; Claw takes the obvious first look itself and the
+            # brain carries on from what it shows. Logged, and shown in the timeline.
+            started_for_it = True
+            emit("started_for_brain", {"step": step_no, "tool": forced.tool, "args": forced.args})
+            messages[-1] = ChatMessage(role="assistant", content=forced.model_dump_json())
+            action = forced
+        if action.action == "finish":
             emit("finished", {"final_answer": final})
             return outcome("completed", final)
 
