@@ -206,7 +206,9 @@ def _com_init() -> None:
 
 def default_driver() -> DesktopDriver:
     if sys.platform != "win32":
-        return UnsupportedDriver("Controlling desktop apps works on Windows only.")
+        from claw.computer.posix_driver import posix_driver  # noqa: PLC0415
+
+        return posix_driver()
     try:
         from claw.computer.windows_uia import WindowsUIADriver  # noqa: PLC0415
     except ImportError as exc:

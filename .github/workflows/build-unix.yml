@@ -1,0 +1,48 @@
+# Builds S-CLAW for Linux (AppImage) and macOS (dmg) on GitHub's machines.
+# The app ships without a brain; it downloads one on first start.
+name: Build Linux and Mac
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: System tools (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q xdotool wmctrl xvfb tesseract-ocr libfuse2
+      - name: Backend tests
+        working-directory: backend
+        run: |
+          python -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt
+          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a .venv/bin/python -m pytest -q -x; else .venv/bin/python -m pytest -q -x; fi
+      - name: Build
+        run: |
+          set -o pipefail
+          scripts/build-release.sh 2>&1 | tee build.log || { echo "::error title=Build failed::$(tail -5 build.log | tr '\n' ' ')"; exit 1; }
+      - name: Report size
+        run: |
+          for f in build/app-local/*.AppImage build/app-local/*.dmg; do [ -f "$f" ] && echo "::notice title=Built::$(basename "$f") $(du -m "$f" | cut -f1) MB"; done; true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: s-claw-${{ runner.os }}
+          path: |
+            build/app-local/*.AppImage
+            build/app-local/*.dmg
+          if-no-files-found: error

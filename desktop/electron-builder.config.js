@@ -44,10 +44,19 @@ module.exports = {
     target: [{ target: 'dir', arch: ['x64'] }],
     icon: 'src/assets/icon.ico',
   },
+  // Linux and macOS: scripts/build-release.sh sets CLAW_UNIX_TARGET (AppImage / dmg).
   linux: {
-    // Only used to check the packaging layout on Linux build machines; Claw ships for Windows.
-    target: [{ target: 'dir', arch: ['x64'] }],
+    target: [{ target: process.env.CLAW_UNIX_TARGET || 'dir', arch: ['x64'] }],
     icon: 'src/assets/icon.png',
     category: 'Utility',
+    artifactName: 'S-CLAW-${version}-linux-x64.${ext}',
+  },
+  mac: {
+    target: [{ target: process.env.CLAW_UNIX_TARGET || 'dir', arch: ['arm64'] }],
+    icon: 'src/assets/icon.png',
+    category: 'public.app-category.productivity',
+    artifactName: 'S-CLAW-${version}-mac-arm64.${ext}',
+    // Not signed: macOS will ask the person to open it with right-click > Open the first time.
+    identity: null,
   },
 };

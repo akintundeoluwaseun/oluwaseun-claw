@@ -52,11 +52,13 @@ def test_system_tools_refused(name, tmp_path):
         find_app(name, [tmp_path])
 
 
-def test_unsupported_off_windows():
+def test_off_windows_the_posix_driver_is_used():
     if sys.platform == "win32":
         pytest.skip("Windows has the real driver")
+    from claw.computer.posix_driver import LinuxX11Driver, MacDriver
+
     d = default_driver()
-    assert isinstance(d, UnsupportedDriver) and "Windows only" in d.available()[1]
+    assert isinstance(d, (LinuxX11Driver, MacDriver))
 
 
 # ---------- tools ----------
