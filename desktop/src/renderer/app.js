@@ -21,6 +21,7 @@ const STATUS = {
 };
 const ACTIVE = new Set(['created', 'planning', 'running', 'awaiting_approval']);
 const TOOL_LABEL = {
+  look_at_page: 'Looked at the page', click: 'Clicked on the page', type_in: 'Typed into the page', choose_option: 'Chose an option',
   web_search: 'Searched the web', open_url: 'Opened a page', open_search_result: 'Opened a search result',
   read_page: 'Read the page', extract_links: 'Collected links', click_link: 'Followed a link', click_button: 'Clicked a button',
   list_tabs: 'Checked tabs', new_tab: 'Opened a tab', switch_tab: 'Switched tab', close_tab: 'Closed a tab',
@@ -58,6 +59,7 @@ const TOOL_LABEL = {
   pause_for_me: 'Waited for you',
 };
 const TOOL_ASK = {
+  click: 'Click this on the page', type_in: 'Type into the page', choose_option: 'Choose an option on the page',
   web_search: 'Search the web', open_url: 'Open a page', save_links: 'Save links to a file', click_button: 'Click a button',
   search_browser_history: 'Search your browsing history',
   launch_app: 'Open an app', click_control: 'Click in an app', type_into: 'Type in an app', type_text: 'Type in an app',

@@ -2,6 +2,12 @@
 
 ## Unreleased — fixes from the first real install (Light brain)
 ### Taken from OpenClaw (MIT), rewritten in Python
+- **OpenClaw's way of working a web page:** `look_at_page` lists every button, link and box with a ref (e12),
+  and `click`, `type_in` and `choose_option` act on a ref and hand back the page as it is afterwards
+  (`claw/browser/snapshot.py`, from `pw-role-snapshot.ts`; Playwright's own `aria-ref` finds the element).
+  S-CLAW's safety stays: password/card/code boxes refused, paying/deleting buttons treated as destructive,
+  sending/submitting buttons ask first. Tested against the local test site in a real browser. Plus a
+  `work-a-web-page` recipe.
 - **Web search without the browser page:** OpenClaw's DuckDuckGo HTML-results reader (`claw/browser/ddg_html.py`)
   is used when the browser's results page gives nothing, which happened in the fifth Windows trial.
 - **Nearly-right JSON from the brain:** OpenClaw's JSON repair (`claw/agent/jsonfix.py`), including its rule for

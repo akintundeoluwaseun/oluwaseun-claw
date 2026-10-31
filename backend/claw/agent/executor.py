@@ -263,6 +263,7 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     (r"\bwhatsapp\b", ("check_whatsapp", "send_whatsapp_message")),
     (r"\bcalendar\b|\bschedule\b|\bmeeting\b|\bappointment\b", ("list_events", "create_event", "find_free_time")),
     (r"\bsearch\b.*\b(?:web|internet|online)\b|\bgoogle\b|\blook up\b", ("web_search", "open_search_result", "read_page")),
+    (r"\b(?:fill|form|sign in|log in|click|button|website|site|page|register|book|order)\b", ("look_at_page", "click", "type_in", "choose_option")),
     (r"\bwindows? (?:are )?open\b|\bopen windows\b", ("list_windows",)),
     (r"\bscreenshot\b", ("take_screenshot",)),
     (r"\b(?:picture|photo|image)\b", ("edit_image", "inspect_image")),

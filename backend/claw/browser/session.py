@@ -81,10 +81,13 @@ class BrowserSession:
         # Every address the agent actually saw in the current task. Saving a link
         # that is not in here is refused, so the model cannot invent sources.
         self.seen_urls: set[str] = set()
+        # Refs from the last look_at_page (OpenClaw-style snapshot): ref -> role and name.
+        self.page_refs: dict[str, dict] = {}
 
     def reset_task_state(self) -> None:
         self.last_results = []
         self.seen_urls = set()
+        self.page_refs = {}
 
     @property
     def settings(self) -> BrowserSettings:
