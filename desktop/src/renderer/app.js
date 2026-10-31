@@ -1254,6 +1254,20 @@ async function loadPhone() {
   if (p.code) $('ph-code').textContent = `Send ${p.code} to @${p.bot} in Telegram (valid for 10 minutes).`;
 }
 
+async function loadPhoneLink() {
+  const r = await api.api('GET', '/phone/link');
+  if (!r.ok) return;
+  const l = r.body;
+  $('ph-link-box').hidden = !l.running;
+  if (l.running) {
+    // The QR code is an SVG made by the backend from its own address; shown as an image, never as markup.
+    const img = el('img', { attrs: { alt: 'QR code for the S-CLAW phone app', width: '200', height: '200',
+      src: `data:image/svg+xml;utf8,${encodeURIComponent(l.qr)}` } });
+    $('ph-qr').replaceChildren(img);
+    $('ph-url').textContent = l.url.replace(/#k=.*/, '');
+  }
+}
+
 function showSettingsPanel(id) {
   for (const tab of settingsTabs()) {
     const on = tab.dataset.panel === id;
@@ -1389,6 +1403,7 @@ function fillSettingsForm(s) {
   $('m-notify').checked = m.notify !== false;
   $('m-previews').checked = !!m.show_previews;
   $('ph-enabled').checked = !!s.phone?.enabled;
+  $('ph-link').checked = !!s.phone?.link_enabled;
   $('ph-token').value = '';
   $('ph-token').placeholder = s.phone?.telegram_token ? 'A token is saved' : '123456789:AA…';
   loadWhatsApp();
@@ -1468,6 +1483,9 @@ function readSettingsForm() {
       enabled: $('ph-enabled').checked,
       telegram_token: $('ph-token').value.trim() || (prev.phone?.telegram_token ? KEY_KEPT : ''),
       paired_chat_id: prev.phone?.paired_chat_id ?? null,
+      link_enabled: $('ph-link').checked,
+      link_port: prev.phone?.link_port ?? 47820,
+      link_key: prev.phone?.link_key ? KEY_KEPT : '',
     },
     messages: {
       whatsapp_read: $('m-read').value,
@@ -2012,6 +2030,7 @@ async function openSettings() {
   loadJobs();
   loadStanding();
   loadPhone();
+  loadPhoneLink();
   $('settings').hidden = false;
   $('settings-scrim').hidden = false;
   $('close-settings').focus();
@@ -2193,6 +2212,7 @@ function wire() {
     if (!r.ok) return showError(r.body);
     loadPhone();
   });
+  $('ph-newkey').addEventListener('click', async () => { await api.api('POST', '/phone/link/new-key', {}); loadPhoneLink(); });
   $('ph-unpair').addEventListener('click', async () => { await api.api('POST', '/phone/unpair', {}); loadPhone(); });
   $('open-docs').addEventListener('click', openDocsView);
   $('doc-open').addEventListener('click', openDocument);

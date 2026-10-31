@@ -32,6 +32,8 @@ const ALLOWED_ROUTES = [
   ['GET', /^\/phone$/],
   ['POST', /^\/phone\/pair$/],
   ['POST', /^\/phone\/unpair$/],
+  ['GET', /^\/phone\/link$/],
+  ['POST', /^\/phone\/link\/new-key$/],
   ['GET', /^\/brain$/],
   ['POST', /^\/brain\/download$/],
   ['POST', /^\/brain\/download\/cancel$/],

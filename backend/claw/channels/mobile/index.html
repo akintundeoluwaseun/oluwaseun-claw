@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="theme-color" content="#151618">
+  <title>S-CLAW</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body data-view="chats">
+  <header class="top">
+    <button class="back" id="back" type="button" aria-label="Back" hidden>‹</button>
+    <span class="orb" aria-hidden="true"><i></i><i></i><i></i></span>
+    <div class="top-text"><h1 id="title">S-CLAW</h1><p id="sub">Connecting…</p></div>
+    <button class="new" id="new" type="button" aria-label="New chat">＋</button>
+  </header>
+
+  <main>
+    <section id="pair" class="pair" hidden>
+      <span class="orb big" aria-hidden="true"><i></i><i></i><i></i></span>
+      <h2>Pair this phone</h2>
+      <p>On your computer, open S-CLAW → Settings → Phone, turn on <b>Phone app on this Wi-Fi</b>, and scan the QR code with this phone's camera.</p>
+    </section>
+
+    <section id="chats" class="chats" hidden>
+      <h2 class="hello">What should Claw do?</h2>
+      <div class="list" id="chat-list"></div>
+      <p class="empty" id="chats-empty" hidden>No chats yet. Type a task below.</p>
+    </section>
+
+    <section id="chat" class="chat" hidden>
+      <div id="turns"></div>
+      <div id="approval" class="approval" hidden>
+        <p class="ap-title" id="ap-title"></p>
+        <dl id="ap-args"></dl>
+        <div class="ap-actions"><button id="deny" type="button" class="quiet">Don't allow</button><button id="allow" type="button" class="primary">Allow</button></div>
+      </div>
+      <div id="working" class="working" hidden><span class="dots"><i></i><i></i><i></i></span><span id="working-text">Working on it…</span><button id="stop" type="button" class="link">Stop</button></div>
+    </section>
+  </main>
+
+  <form class="composer" id="composer" autocomplete="off" hidden>
+    <textarea id="input" rows="1" maxlength="4000" placeholder="Ask Claw to do something…"></textarea>
+    <button id="send" type="submit" aria-label="Send" disabled>↑</button>
+  </form>
+  <script src="app.js"></script>
+</body>
+</html>

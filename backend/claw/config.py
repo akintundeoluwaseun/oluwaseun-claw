@@ -369,6 +369,10 @@ class PhoneSettings(BaseModel):
     telegram_token: str = Field(default="", max_length=200, repr=False)
     # The one chat allowed to give orders, set by pairing with a code shown in Settings.
     paired_chat_id: int | None = None
+    # The S-CLAW phone app over this home's Wi-Fi: off by default, a long random key per pairing.
+    link_enabled: bool = False
+    link_port: int = Field(default=47820, ge=1024, le=65535)
+    link_key: str = Field(default="", max_length=100, repr=False)
 
 
 class Settings(BaseModel):

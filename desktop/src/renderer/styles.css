@@ -1270,3 +1270,4 @@ body[data-view="task"] .stage { padding-bottom: var(--s4); }
 .phone-actions { display: flex; gap: var(--s2); }
 #ph-status[data-tone="ok"] { color: var(--green); }
 #ph-status[data-tone="bad"] { color: var(--red); }
+.phone-qr img { display: block; width: 200px; height: 200px; border-radius: 14px; background: #fff; padding: 8px; }

@@ -1,6 +1,18 @@
 # Changelog
 
 ## Unreleased — fixes from the first real install (Light brain)
+### The S-CLAW phone app (same Wi-Fi) and Linux / Mac
+- **Phone app:** Settings → Phone → "Phone app on this Wi-Fi" shows a QR code. Scan it with the phone: chats,
+  new tasks, following a task, Allow / Don't allow, Stop - in light and dark, with the living orb. Add it to
+  the home screen to keep it as an app. A second small server answers only home-network addresses and only
+  with the pairing key from the QR code (constant-time check); "Unpair all phones" makes a new key.
+  Checked for real: the backend served it on its network address, refused a call without the key, and the
+  page was screenshotted at phone size. (`claw/channels/phonelink.py`, `claw/channels/mobile/`; QR by segno, BSD.)
+- **Linux and Mac:** desktop drivers (xdotool/wmctrl on X11; System Events on macOS) for windows, opening apps,
+  typing, keys, screenshots, and clicks/scrolls on Linux. Reading controls inside apps stays Windows-only and
+  says so. `scripts/build-release.sh` makes an AppImage or a dmg (brain downloaded on first start), and the
+  "Build Linux and Mac" workflow builds both. The Linux driver was tested on a real X display.
+
 ### Give Claw tasks from your phone (OpenClaw's main idea)
 - Settings → Phone: make a free Telegram bot with @BotFather, paste its token, pair your phone with a
   six-digit code. Then message the bot: Claw runs the task on the computer in its own chat, asks on the

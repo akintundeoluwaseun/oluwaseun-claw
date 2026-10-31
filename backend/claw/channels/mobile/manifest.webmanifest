@@ -1,0 +1,3 @@
+{ "name": "S-CLAW", "short_name": "S-CLAW", "start_url": "/", "display": "standalone",
+  "background_color": "#151618", "theme_color": "#151618",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }] }

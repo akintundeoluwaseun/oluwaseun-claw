@@ -234,7 +234,34 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             await phone["bridge"].client.close()
         phone.update(bridge=None, task=None)
 
+    link: dict = {"server": None, "task": None}
+
+    async def stop_link():
+        if link["server"]:
+            link["server"].should_exit = True
+            try:
+                await asyncio.wait_for(link["task"], 5)
+            except Exception:  # noqa: BLE001
+                link["task"].cancel()
+        link.update(server=None, task=None)
+
+    async def restart_link():
+        await stop_link()
+        ps = state.settings.phone
+        if not (ps.link_enabled and ps.link_key):
+            return
+        import uvicorn
+
+        from claw.channels.phonelink import create_link_app
+
+        cfg = uvicorn.Config(create_link_app(state), host="0.0.0.0", port=ps.link_port, log_level="warning",  # noqa: S104 - home network only; the app refuses others
+                             access_log=False, lifespan="off")
+        server = uvicorn.Server(cfg)
+        server.install_signal_handlers = lambda: None
+        link.update(server=server, task=asyncio.create_task(server.serve()))
+
     async def restart_phone():
+        await restart_link()
         await stop_phone()
         ps = state.settings.phone
         if not (ps.enabled and ps.telegram_token):
@@ -258,6 +285,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         await restart_phone()
         yield
         await stop_phone()
+        await stop_link()
         watcher.cancel()
         wa_task.cancel()
         jobs_task.cancel()
@@ -319,6 +347,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         data["model"]["api_key"] = (KEY_KEPT if key else "")
         data["model"]["api_key_set"] = bool(key)
         data["phone"]["telegram_token"] = KEY_KEPT if settings.phone.telegram_token else ""
+        data["phone"]["link_key"] = KEY_KEPT if settings.phone.link_key else ""
         return data
 
     def _restore_key(raw: dict, current) -> dict:
@@ -332,6 +361,8 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         if isinstance(phone, dict):
             if phone.get("telegram_token") == KEY_KEPT:
                 phone["telegram_token"] = current.phone.telegram_token
+            # The Wi-Fi key is made here, never typed or changed by the page.
+            phone["link_key"] = current.phone.link_key
             # Pairing is done by the code on the phone, never by the page.
             phone["paired_chat_id"] = current.phone.paired_chat_id if phone.get("telegram_token") == current.phone.telegram_token else None
         return raw
@@ -363,6 +394,10 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         allowed, why = current_edition().allows_mode(new_settings.model.mode)
         if not allowed:
             return error_response(409, "wrong_edition", why)
+        if new_settings.phone.link_enabled and not new_settings.phone.link_key:
+            from claw.channels.phonelink import new_key
+
+            new_settings.phone.link_key = new_key()
         phone_changed = new_settings.phone != state.settings.phone
         store.save(new_settings)
         state.settings = new_settings
@@ -996,6 +1031,27 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         if b is None:
             return error_response(409, "phone_off", "Turn on phone control and save a bot token first.")
         return {"code": b.new_code(), "bot": b.bot_name, "seconds": 600}
+
+    @app.get("/phone/link")
+    async def phone_link():
+        from claw.channels.phonelink import pairing_url, qr_svg
+
+        ps = state.settings.phone
+        on = bool(ps.link_enabled and ps.link_key and link["server"] is not None)
+        url = pairing_url(ps.link_port, ps.link_key) if on else ""
+        return {"enabled": ps.link_enabled, "running": on, "url": url, "qr": qr_svg(url) if url else "",
+                "port": ps.link_port}
+
+    @app.post("/phone/link/new-key")
+    async def phone_link_key():
+        """A new pairing key: phones paired before stop working until they scan again."""
+        from claw.channels.phonelink import new_key
+
+        s = state.settings
+        s.phone.link_key = new_key()
+        store.save(s)
+        await restart_link()
+        return {"ok": True}
 
     @app.post("/phone/unpair")
     async def phone_unpair():
