@@ -369,7 +369,8 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
     save_tools = [t for t in fitting if t in ("save_links", "save_report", "write_text_file", "create_spreadsheet")]
     # Anything beyond looking counts: saving through an app's own menus is saving too.
     saved = any(s.get("tool") not in LOOKING_TOOLS and s.get("outcome") in ("verified", "done_unverified") for s in steps)
-    if save_tools and wants_save and not saved and not last_failed:
+    gave_up = bool(steps) and re.search(r"\b(?:could not|couldn't|cannot|can't|unable|was not able)\b", final, re.I)
+    if save_tools and wants_save and not saved and not last_failed and not gave_up:
         return (f"The task asks you to save it, and nothing has been saved yet. Save it now with {save_tools[0]}."
                 + (f" Reply like this, with real values: {example}" if example and fitting[0] in save_tools else ""))
     worked = any(s.get("outcome") not in ("failed", "rejected", "denied", "blocked") for s in steps)
