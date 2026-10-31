@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased — fixes from the first real install (Light brain)
+### Found by the real-brain trial on Windows (`real-trial.yml`, Qwen3-VL 2B, run 41171556944)
+- Every file task failed with "no folders have been authorized": a fresh install had no folders at all.
+  **Fixed:** a new install (or one that never had folders) is given Documents, Desktop and Downloads once
+  (OneDrive's copies when Windows keeps them there). Removing them later sticks. Writing still asks first.
+- The brain said "I will now proceed…" after one step and the task was reported **completed**. It also said it
+  had no tool for a flyer, a spreadsheet and a copy with `make_flyer`, `create_spreadsheet` and `copy_files`
+  in its list. **Fixed:** the tools that fit the request are named next to the task and described in full, and
+  a finish that describes work still to do, or gives up for want of a tool that exists, is sent back (twice
+  at most). Shown in the timeline as "Claw stopped too early, so it was told to carry on".
+- "Finished" in green over a list of failures. **Fixed:** "Finished, but nothing worked" (red) or "Finished
+  with problems" (amber).
+### Reported by the user
+- **Chats.** A retry or a follow-up stays in the same chat: one history entry with a message count, instead
+  of a new entry with the same name each time. Titles are written by the brain while planning (2–6 words),
+  with a cleaned-up fallback, not the request pasted back. Follow-ups are planned knowing the last three
+  messages. New: `thread_id`/`title` on tasks (schema 5), `GET /tasks?thread=`, `thread_id` on `/tasks/run`.
+- **Settings appeared to switch back.** Settings now re-reads what is saved each time it opens, and after
+  saving checks that the chosen way of thinking was kept, saying so if it was not.
+- **"Not connecting".** llama-server needs the Microsoft Visual C++ runtime, which many home PCs lack; the
+  engine then dies before printing anything. The installer now ships the runtime DLLs next to the engine, and
+  the two Windows exit codes for "DLL missing" and "processor not supported" are explained in plain words.
+  (Likely cause, not yet confirmed on the user's PC.)
+- The edition profile written by PowerShell has a byte-order mark; it is now read with `utf-8-sig` instead
+  of failing and falling back.
+### Changed
+- Dark, chat-style window: your request on the right, Claw's steps and outcome as its reply, a reply box at
+  the foot of each chat, a breathing edge while Claw works. Dark is now the default theme.
+
 ## Unreleased — Windows build on GitHub
 ### Added
 - `.github/workflows/build-windows.yml`: builds the installer (with its brain) on GitHub's Windows machines,

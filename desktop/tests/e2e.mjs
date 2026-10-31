@@ -150,7 +150,9 @@ try {
   await win.click('#new-task');
   await win.fill('#task-input', 'Tell me which windows are open');
   await win.click('#run-btn');
-  await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Finished', null, { timeout: 20000 });
+  // Every step failed, so the header must not say plain "Finished" in green.
+  await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Finished, but nothing worked', null, { timeout: 20000 });
+  check((await win.getAttribute('#run-status', 'data-tone')) === 'bad', 'a finish where nothing worked is shown as a failure');
   const deskDetail = await win.textContent('#activity .tl-item[data-tone="bad"] .tl-detail');
   check(/Windows only|locked|not available/.test(deskDetail), `desktop step failure explained: "${deskDetail}"`);
   check((await win.textContent('#summary-counts')).includes('1 failed'), 'failed desktop step counted as failed');
@@ -226,7 +228,8 @@ try {
   await win.waitForSelector('#settings:not([hidden])');
   check((await win.textContent('#brain-summary')).includes('developer model server'), 'settings describe the brain in plain words');
   const brainNames = await win.$$eval('#brain-list .brain-name', (n) => n.map((x) => x.textContent));
-  check(brainNames.length === 2 && brainNames[0].startsWith('Standard brain') && brainNames[1].startsWith('Pro brain'), `brain manager lists Standard and Pro: ${brainNames.join(' | ')}`);
+  const wantBrains = ['Tiny brain', 'Light brain', 'Standard brain', 'Pro brain'];
+  check(brainNames.length === 4 && wantBrains.every((w, i) => brainNames[i].startsWith(w)), `brain manager lists Tiny, Light, Standard and Pro: ${brainNames.join(' | ')}`);
   const engineText = await win.textContent('#engine-line');
   check(/^Engine: |engine is missing/.test(engineText), `engine status shown: "${engineText}"`);
   await win.screenshot({ path: path.join(shotDir, '4a-brain.png') });

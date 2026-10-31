@@ -199,6 +199,9 @@ class PermissionSettings(BaseModel):
 
     modes: dict[RiskLevel, Decision] = Field(default_factory=lambda: dict(DEFAULT_MODES))
     authorized_folders: list[str] = Field(default_factory=list, max_length=50)
+    # Set once Claw has offered the everyday folders (Documents, Desktop, Downloads).
+    # It is offered once only: someone who later removes them keeps them removed.
+    starter_folders_added: bool = False
 
     @field_validator("modes")
     @classmethod
@@ -221,6 +224,26 @@ class PermissionSettings(BaseModel):
             if folder not in cleaned:
                 cleaned.append(folder)
         return cleaned
+
+
+def starter_folders(home: Path | None = None) -> list[str]:
+    """The everyday folders a new install may use: Documents, Desktop and Downloads.
+
+    Without any folder a fresh install could not read invoice.pdf in Documents or save
+    anything at all, and the real-brain trial showed exactly that: every file task ended
+    with "no folders have been authorized". Writing, moving and deleting there still ask
+    first; this only says where Claw may look and work. OneDrive's redirected Documents
+    and Desktop are used when that is where Windows keeps them.
+    """
+    home = home or Path.home()
+    found: list[str] = []
+    for name in ("Documents", "Desktop", "Downloads"):
+        for base in (home / "OneDrive", home):
+            cand = base / name
+            if cand.is_dir():
+                found.append(str(cand))
+                break
+    return found
 
 
 def _looks_like_windows_absolute(path: str) -> bool:
@@ -288,7 +311,7 @@ class DesktopSettings(BaseModel):
     brief_at: str = Field(default="", pattern=r"^$|^([01]?\d|2[0-3]):[0-5]\d$")
     #: "system" follows Windows, which is the right default: most people set
     #: that once and expect every app to respect it.
-    theme: Literal["system", "light", "dark"] = "system"
+    theme: Literal["system", "light", "dark"] = "dark"
     #: The "what Claw can do" card on the home screen. On until the person has
     #: read it; dismissing it is permanent, because a tour you cannot turn off
     #: stops being a tour and becomes an advert.

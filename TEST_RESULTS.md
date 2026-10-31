@@ -1,5 +1,21 @@
 # Test results
 
+## Real install fixes + first real-brain trial — 31 Oct 2026
+**Real brain on real Windows** (`real-trial.yml`, Qwen3-VL 2B "Light", GitHub's Windows Server runner, run 41171556944;
+evidence on the `ci-evidence` branch under `trials/3-qwen3-vl-2b/`). Ten everyday tasks, every approval granted:
+- Worked: web search with title and URL saved (OpenShot), list of open windows, calendar (correctly "no calendars").
+- Failed, now fixed in code: invoice.pdf and "find PDFs" (no authorized folders on a fresh install); flyer,
+  spreadsheet and copy (brain claimed it had no tool); Notepad (finished after one step, reported completed).
+- WhatsApp: not installed on the runner; the brain gave up without trying a tool. Not fixed; needs a PC with WhatsApp.
+- **The fixes have not yet been re-run against the real brain.** The next trial run will say whether they work.
+
+**Build workspace (Linux):** backend 673 passed (new: `test_chats.py` 7, `test_finish_guard.py` 4,
+`test_engine_exit.py` 1); desktop unit 53 passed; desktop e2e passed in the real Electron app (brain list now
+checks Tiny/Light/Standard/Pro; a run where every step failed must show "Finished, but nothing worked").
+`desktop/tests/repro-settings.mjs` in the real app: cloud → builtin saves and reopens as builtin; a failed task
+retried and replied to stays **one** history entry ("3 messages") with the earlier turns shown in the chat.
+**Not verified:** that shipping the VC++ runtime fixes "not connecting" on the user's PC (likely cause, unconfirmed).
+
 ## v0.6 Phase D — Image editing — 26 Oct 2026
 Real: Pillow rendering, files, OCR read-back with Tesseract, permissions. Photoshop is not installed here.
 `scripts/check.sh`: **All checks passed** — backend **188 passed**, desktop unit 6, end-to-end 55/55.

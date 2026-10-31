@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -109,6 +109,17 @@ class Database:
             # The table itself is created by _SCHEMA above (CREATE TABLE IF NOT
             # EXISTS), so this only moves the version forward.
             version = 4
+        if version < 5:
+            # Chats: a task belongs to a thread (retries and follow-ups share one), and a thread has a
+            # title written once, from the request, instead of the raw text repeated in the history.
+            cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(tasks)")}
+            if "thread_id" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN thread_id TEXT")
+            if "title" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN title TEXT")
+            self._conn.execute("UPDATE tasks SET thread_id=id WHERE thread_id IS NULL")
+            self._conn.execute("CREATE INDEX IF NOT EXISTS tasks_thread ON tasks(thread_id, created_at)")
+            version = 5
         self._conn.execute("UPDATE meta SET value=? WHERE key='schema_version'", (str(version),))
 
     def mark_interrupted(self) -> int:
@@ -146,16 +157,68 @@ class Database:
             row = self._conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
         return int(row["value"])
 
-    def create_task(self, task_text: str, model: str | None) -> str:
+    def create_task(self, task_text: str, model: str | None, thread_id: str | None = None) -> str:
+        """A new message. Without a thread it starts a new chat whose id is its own."""
         task_id = uuid.uuid4().hex
         ts = _now()
         with self._lock:
             self._conn.execute(
-                "INSERT INTO tasks(id, created_at, updated_at, task_text, status, model) VALUES (?,?,?,?,?,?)",
-                (task_id, ts, ts, task_text, "created", model),
+                "INSERT INTO tasks(id, created_at, updated_at, task_text, status, model, thread_id) VALUES (?,?,?,?,?,?,?)",
+                (task_id, ts, ts, task_text, "created", model, thread_id or task_id),
             )
             self._conn.commit()
         return task_id
+
+    def thread_exists(self, thread_id: str) -> bool:
+        with self._lock:
+            return self._conn.execute("SELECT 1 FROM tasks WHERE thread_id=? LIMIT 1", (thread_id,)).fetchone() is not None
+
+    def thread_title(self, thread_id: str) -> str | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT title FROM tasks WHERE thread_id=? AND title IS NOT NULL ORDER BY created_at LIMIT 1", (thread_id,)).fetchone()
+        return row["title"] if row else None
+
+    def set_thread_title(self, thread_id: str, title: str) -> None:
+        """The title lives on the chat's first message; every message of the chat reads it from there."""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE tasks SET title=? WHERE id=(SELECT id FROM tasks WHERE thread_id=? ORDER BY created_at LIMIT 1)",
+                (title[:80], thread_id))
+            self._conn.commit()
+
+    def thread_tasks(self, thread_id: str) -> list[dict[str, Any]]:
+        """Every message of one chat, oldest first."""
+        with self._lock:
+            rows = self._conn.execute("SELECT * FROM tasks WHERE thread_id=? ORDER BY created_at", (thread_id,)).fetchall()
+        return [_row_to_task(r) for r in rows]
+
+    def list_threads(self, limit: int = 50, query: str | None = None) -> list[dict[str, Any]]:
+        """One entry per chat: its latest message, its title, and how many messages it has."""
+        limit = max(1, min(limit, 500))
+        where, params = "", []
+        if query:
+            escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            where = ("AND t.thread_id IN (SELECT thread_id FROM tasks WHERE task_text LIKE ? ESCAPE '\\' "
+                     "OR result_json LIKE ? ESCAPE '\\' OR error LIKE ? ESCAPE '\\' OR title LIKE ? ESCAPE '\\')")
+            params += [f"%{escaped}%"] * 4
+        sql = (
+            "SELECT t.*, "
+            "(SELECT COUNT(*) FROM tasks c WHERE c.thread_id=t.thread_id) AS messages, "
+            "(SELECT y.title FROM tasks y WHERE y.thread_id=t.thread_id AND y.title IS NOT NULL ORDER BY y.created_at LIMIT 1) AS chat_title "
+            "FROM tasks t WHERE t.created_at=(SELECT MAX(z.created_at) FROM tasks z WHERE z.thread_id=t.thread_id) "
+            f"{where} ORDER BY t.created_at DESC LIMIT ?"
+        )
+        params.append(limit)
+        with self._lock:
+            rows = self._conn.execute(sql, params).fetchall()
+        out = []
+        for r in rows:
+            d = _row_to_task(r)
+            d["title"] = r["chat_title"] or d.get("title")
+            d["messages"] = r["messages"]
+            out.append(d)
+        return out
 
     def update_task(
         self, task_id: str, *, status: str, plan: dict | None = None, error: str | None = None, result: dict | None = None
@@ -361,4 +424,6 @@ def _row_to_task(row: sqlite3.Row) -> dict[str, Any]:
         "plan": json.loads(row["plan_json"]) if row["plan_json"] else None,
         "error": row["error"],
         "result": json.loads(row["result_json"]) if row["result_json"] else None,
+        "thread_id": row["thread_id"] if "thread_id" in row.keys() and row["thread_id"] else row["id"],
+        "title": row["title"] if "title" in row.keys() else None,
     }

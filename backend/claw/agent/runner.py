@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from claw.agent.executor import run_agent
 from claw.agent.planner import PlanningFailed, make_plan
+from claw.agent.titles import clean_model_title, fallback_title
 from claw.logging_setup import log_event
 from claw.models.base import ModelError
 #: What to assume for a model whose window Claw cannot read. Conservative on
@@ -48,7 +49,7 @@ class TaskRunner:
     def busy(self) -> bool:
         return self._task is not None and not self._task.done()
 
-    def start(self, task_text: str, unattended: bool = False) -> str:
+    def start(self, task_text: str, unattended: bool = False, thread_id: str | None = None) -> str:
         """Run a task. `unattended` means nobody is watching — a scheduled job.
 
         It is not a convenience flag: it changes the permission policy, because
@@ -58,10 +59,17 @@ class TaskRunner:
             raise TaskBusy()
         db = self.state.db
         self.unattended = unattended
-        task_id = db.create_task(task_text, self.state.model_label())
-        db.add_event(task_id, "requested_task", {"task": task_text, "unattended": unattended})
+        if thread_id and not db.thread_exists(thread_id):
+            thread_id = None  # a chat that was deleted: start a new one rather than fail
+        earlier = db.thread_tasks(thread_id) if thread_id else []
+        task_id = db.create_task(task_text, self.state.model_label(), thread_id)
+        thread = thread_id or task_id
+        if not earlier:
+            db.set_thread_title(thread, fallback_title(task_text))  # replaced by the model's title once it has planned
+        db.add_event(task_id, "requested_task", {"task": task_text, "unattended": unattended, "thread_id": thread})
         self.current_id = task_id
-        self._task = asyncio.create_task(self._run(task_id, task_text), name=f"claw-task-{task_id}")
+        self._task = asyncio.create_task(self._run(task_id, task_text, thread, conversation_context(earlier), not earlier),
+                                         name=f"claw-task-{task_id}")
         return task_id
 
     def cancel(self, task_id: str) -> bool:
@@ -90,7 +98,8 @@ class TaskRunner:
             except asyncio.CancelledError:
                 pass
 
-    async def _run(self, task_id: str, task_text: str) -> None:
+    async def _run(self, task_id: str, task_text: str, thread_id: str | None = None, context: str = "",
+                   first_in_chat: bool = True) -> None:
         state, db = self.state, self.state.db
         settings = state.settings
 
@@ -122,7 +131,11 @@ class TaskRunner:
             )
             db.update_task(task_id, status="planning")
             emit("model_call", {"provider": adapter.provider, "model": adapter.model, "purpose": "plan"})
-            plan = await make_plan(task_text, adapter, state.policy())
+            # Earlier messages of this chat are given as context, so "now save it as a PDF" works.
+            request = f"{task_text}\n\n{context}" if context else task_text
+            plan = await make_plan(request, adapter, state.policy())
+            if first_in_chat and thread_id and (title := clean_model_title(plan.title)):
+                db.set_thread_title(thread_id, title)
             plan_json = plan.model_dump(mode="json")
             db.update_task(task_id, status="running", plan=plan_json)
             emit("planned", {"steps": len(plan.steps)})
@@ -151,7 +164,7 @@ class TaskRunner:
                 if reported != asked:
                     log_event(log, "model window differs from the one requested",
                               task_id=task_id, asked=asked, actual=reported)
-            outcome = await run_agent(task_text, plan_text, adapter, state.registry, ctx, emit,
+            outcome = await run_agent(request, plan_text, adapter, state.registry, ctx, emit,
                                       request_approval, caps or None, window_tokens=window)
             db.update_task(task_id, status=outcome.status, error=outcome.error, result=outcome.summary())
             emit("task_" + outcome.status, {"error": outcome.error} if outcome.error else {})
@@ -170,3 +183,16 @@ class TaskRunner:
             log.exception("task crashed")
             db.update_task(task_id, status="failed", error="An unexpected error stopped the task. See the log file.")
             emit("failed", {"message": "unexpected error"})
+
+
+def conversation_context(earlier: list[dict[str, Any]], max_chars: int = 1500) -> str:
+    """The last few messages of a chat, so a follow-up can refer to them. Bounded: small models have small windows."""
+    if not earlier:
+        return ""
+    lines = []
+    for t in earlier[-3:]:
+        result = t.get("result") or {}
+        reply = result.get("final_answer") or (f"(failed: {t['error']})" if t.get("error") else f"({t['status']})")
+        lines.append(f"- You were asked: {t['task_text'][:300]}\n  Result: {str(reply)[:300]}")
+    text = "Earlier in this conversation:\n" + "\n".join(lines)
+    return text[-max_chars:]

@@ -90,8 +90,11 @@ const state = {
   modelReady: false,
   busy: false,
   view: 'home',
-  theme: 'system',
+  theme: 'dark',
   currentTaskId: null,
+  // The chat on screen. A retry or a reply is sent with it, so it stays one chat
+  // in the history instead of a new entry with the same name every time.
+  threadId: null,
   run: null,
   draftFolders: [],
   brain: null,
@@ -146,6 +149,7 @@ function showView(view) {
 function goHome() {
   stopWatching();
   state.currentTaskId = null;
+  state.threadId = null;
   showView('home');
   markHistorySelection();
   $('task-input').focus();
@@ -444,6 +448,8 @@ function updateButtons() {
   $('plan-btn').disabled = blocked;
   $('run-btn').disabled = blocked;
   $('plan-btn').textContent = state.busy ? 'Planning…' : 'Plan only';
+  const reply = $('reply-input').value.trim();
+  $('reply-btn').disabled = state.busy || state.backend.state !== 'ready' || reply.length < MIN_TASK || isRunning();
 }
 
 // ---------- Plan only ----------
@@ -470,8 +476,11 @@ async function planTask() {
 function renderPlanOnly(task) {
   stopWatching();
   state.currentTaskId = task.id;
+  state.threadId = task.thread_id || task.id;
   showView('task');
   $('run-title').textContent = task.task_text;
+  setChatTitle(task.title || task.task_text);
+  loadEarlier(state.threadId, task.id);
   setState(task.status);
   $('run-when').textContent = timeAgo(task.created_at);
   $('stop-btn').hidden = true;
@@ -528,7 +537,7 @@ function renderAudit(events) {
 }
 
 // ---------- Running tasks ----------
-async function runTask(taskText) {
+async function runTask(taskText, threadId = null) {
   const task = (taskText ?? $('task-input').value).trim();
   if (task.length < MIN_TASK || state.busy) return;
   /* Claimed before the first await, not after it. This function read state.busy
@@ -540,13 +549,14 @@ async function runTask(taskText) {
   updateButtons();
   clearError();
   try {
-    const res = await api.api('POST', '/tasks/run', { task });
+    const res = await api.api('POST', '/tasks/run', threadId ? { task, thread_id: threadId } : { task });
     if (!res.ok) {
       showError(res.body, 'The task could not be started.');
       return;
     }
     $('task-input').value = '';
-    startWatching(res.body.id, task);
+    $('reply-input').value = '';
+    startWatching(res.body.id, task, res.body.thread_id || threadId || res.body.id);
     loadHistory();
   } finally {
     state.busy = false;
@@ -554,12 +564,15 @@ async function runTask(taskText) {
   }
 }
 
-function startWatching(id, title) {
+function startWatching(id, title, threadId = null, chatTitle = null) {
   stopWatching();
   state.run = { id, title, after: 0, events: [], status: 'created', timer: null, approvals: [], createdAt: null };
   state.currentTaskId = id;
+  state.threadId = threadId || id;
   showView('task');
   $('run-title').textContent = title;
+  setChatTitle(chatTitle || title);
+  loadEarlier(state.threadId, id);
   $('run-when').textContent = '';
   setState('created');
   $('activity').replaceChildren();
@@ -574,6 +587,7 @@ function startWatching(id, title) {
 function stopWatching() {
   if (state.run && state.run.timer) clearTimeout(state.run.timer);
   state.run = null;
+  document.body.dataset.working = 'false';
 }
 
 async function pollRun() {
@@ -625,6 +639,7 @@ function collectSteps(events) {
     const d = e.data || {};
     if (e.kind === 'planned') notes.push({ at: e.id, text: `Made a plan: ${d.steps} ${d.steps === 1 ? 'step' : 'steps'}` });
     if (e.kind === 'model_reply_rejected') notes.push({ at: e.id, text: "Claw's reply wasn't usable, so it tried again" });
+    if (e.kind === 'pushed_back') notes.push({ at: e.id, text: 'Claw stopped too early, so it was told to carry on' });
     if (e.kind === 'replanned') notes.push({ at: e.id, text: `Changed approach: ${d.diagnosis}` });
     if (e.kind === 'injection_warning') notes.push({ at: e.id, text: 'Something Claw read tried to give it orders. Claw ignored it and will ask before any change.', warn: true });
     if (d.step === undefined) continue;
@@ -652,6 +667,8 @@ function renderRun(body) {
   }
   $('run-when').textContent = run.createdAt ? timeAgo(run.createdAt) : '';
   $('stop-btn').hidden = !ACTIVE.has(run.status);
+  document.body.dataset.working = ACTIVE.has(run.status) ? 'true' : 'false';
+  updateButtons();
 
   const items = collectSteps(run.events).map((row) => {
     if (row.note) {
@@ -732,6 +749,16 @@ function renderRun(body) {
       c.denied ? `${c.denied} not allowed` : '',
     ].filter(Boolean);
     $('summary-counts').textContent = parts.length ? parts.join(', ') : 'No steps were carried out';
+    // "Finished" in green over a list of failures reads as success. Say what it was.
+    const worked = (c.verified || 0) + (c.done_unverified || 0);
+    const went_wrong = (c.failed || 0) + (c.rejected || 0) + (c.denied || 0);
+    if (run.status === 'completed' && went_wrong && !worked) {
+      $('run-status').textContent = 'Finished, but nothing worked';
+      $('run-status').dataset.tone = 'bad';
+    } else if (run.status === 'completed' && went_wrong) {
+      $('run-status').textContent = 'Finished with problems';
+      $('run-status').dataset.tone = 'warn';
+    }
     $('summary-error').textContent = body.error || '';
     const answer = body.result && body.result.final_answer;
     $('summary-answer-wrap').hidden = !answer;
@@ -813,15 +840,18 @@ async function loadHistory() {
     if (!groups.has(label)) groups.set(label, []);
     groups.get(label).push(t);
   }
+  // One entry per chat: its title, not the request pasted back, and how many
+  // messages it holds. Retrying after an error adds a message, not an entry.
   const sections = [...groups.entries()].map(([label, tasks]) =>
     el('section', { className: 'history-group' }, [
       el('h3', { text: label }),
       ...tasks.map((t) => {
         const [statusText, tone] = STATUS[t.status] || [t.status, 'muted'];
-        const btn = el('button', { className: 'history-item', attrs: { type: 'button', 'data-id': t.id, 'data-tone': tone } }, [
+        const count = t.messages > 1 ? ` · ${t.messages} messages` : '';
+        const btn = el('button', { className: 'history-item', attrs: { type: 'button', 'data-id': t.id, 'data-thread': t.thread_id || t.id, 'data-tone': tone, title: t.task_text } }, [
           el('span', { className: 'h-dot' }),
-          el('span', { className: 'h-text', text: t.task_text }),
-          el('span', { className: 'h-sub', text: `${statusText} · ${timeAgo(t.created_at)}` }),
+          el('span', { className: 'h-text', text: t.title || t.task_text }),
+          el('span', { className: 'h-sub', text: `${statusText} · ${timeAgo(t.created_at)}${count}` }),
         ]);
         btn.addEventListener('click', () => openTask(t.id));
         return btn;
@@ -840,7 +870,8 @@ function encodeQuery(q) {
 
 function markHistorySelection() {
   for (const b of document.querySelectorAll('#history-list .history-item')) {
-    b.setAttribute('aria-current', b.dataset.id === state.currentTaskId ? 'true' : 'false');
+    const current = state.threadId ? b.dataset.thread === state.threadId : b.dataset.id === state.currentTaskId;
+    b.setAttribute('aria-current', current ? 'true' : 'false');
   }
 }
 
@@ -852,8 +883,57 @@ async function openTask(id) {
   if (task.status === 'planned' || (task.status === 'failed' && !task.events.some((e) => e.kind === 'requested_task'))) {
     renderPlanOnly(task);
   } else {
-    startWatching(task.id, task.task_text);
+    startWatching(task.id, task.task_text, task.thread_id || task.id, task.title);
   }
+}
+
+function setChatTitle(title) {
+  $('chat-title').textContent = title || 'Chat';
+}
+
+/* Earlier messages in this chat, above the one being shown: what was asked and
+   what came of it, in a line or two each. The full steps of the latest message
+   stay below, where they always were. */
+async function loadEarlier(threadId, currentId) {
+  const box = $('chat-earlier');
+  box.replaceChildren();
+  if (!threadId) return;
+  const res = await api.api('GET', `/tasks?thread=${threadId}`);
+  if (!res.ok || state.threadId !== threadId) return;
+  if (res.body.title) setChatTitle(res.body.title);
+  const turns = [];
+  for (const t of res.body.tasks || []) {
+    if (t.id === currentId) break;
+    const [statusText, tone] = STATUS[t.status] || [t.status, 'muted'];
+    const reply = (t.result && t.result.final_answer) || t.error || statusText;
+    turns.push(el('div', { className: 'turn turn-you' }, [el('p', { className: 'bubble', text: t.task_text })]));
+    const open = el('button', { className: 'turn-open', attrs: { type: 'button' }, text: 'Show steps' });
+    open.addEventListener('click', () => openTask(t.id));
+    turns.push(el('div', { className: 'turn turn-claw turn-past' }, [
+      clawMark(),
+      el('div', { className: 'turn-body' }, [
+        el('p', { className: 'turn-state', attrs: { 'data-tone': tone }, text: statusText }),
+        el('p', { className: 'turn-text', text: String(reply).slice(0, 600) }),
+        open,
+      ]),
+    ]));
+  }
+  box.replaceChildren(...turns);
+}
+
+function clawMark() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  const use = document.createElementNS(NS, 'use');
+  use.setAttribute('href', '#claw-mark');
+  svg.append(use);
+  return el('span', { className: 'turn-mark', attrs: { 'aria-hidden': 'true' } }, [svg]);
+}
+
+async function sendReply() {
+  const text = $('reply-input').value.trim();
+  if (text.length < MIN_TASK || isRunning()) return;
+  await runTask(text, state.threadId);
 }
 
 // ---------- Documents ----------
@@ -1075,7 +1155,7 @@ async function loadSettings() {
   }
   state.settings = res.body.settings;
   const desk = res.body.settings.desktop || {};
-  applyTheme(desk.theme || 'system');
+  applyTheme(desk.theme || 'dark');
   showTips(desk.show_tips !== false && state.view === 'home');
   const ed = await api.api('GET', '/edition');
   if (ed.ok) applyEdition(ed.body);
@@ -1240,7 +1320,7 @@ function fillSettingsForm(s) {
   $('d-notify').checked = d.notifications !== false;
   $('d-tray').checked = d.close_to_tray !== false;
   $('d-brief').value = d.brief_at || '';
-  applyTheme(d.theme || 'system');
+  applyTheme(d.theme || 'dark');
   // Only on the home screen, and only while it has not been read.
   showTips(d.show_tips !== false && state.view === 'home');
   state.draftFolders = [...s.permissions.authorized_folders];
@@ -1293,6 +1373,7 @@ function readSettingsForm() {
     permissions: {
       modes: Object.fromEntries(['read_only', 'local_write', 'external', 'destructive'].map((l) => [l, $(`p-${l}`).value])),
       authorized_folders: state.draftFolders,
+      starter_folders_added: true,
     },
     browser: {
       ...(prev.browser || {}),
@@ -1318,7 +1399,7 @@ function readSettingsForm() {
       notifications: $('d-notify').checked,
       close_to_tray: $('d-tray').checked,
       brief_at: $('d-brief').value || '',
-      theme: $('d-theme').value || 'system',
+      theme: $('d-theme').value || 'dark',
     },
   };
 }
@@ -1831,8 +1912,14 @@ async function copyWhatsApp() {
 }
 
 let lastFocus = null;
-function openSettings() {
+async function openSettings() {
   lastFocus = document.activeElement;
+  /* Read what is saved now, not what this page remembered from start-up. Showing
+     a stale copy is what made a choice look as if it had switched back by itself:
+     the page showed one thing while the backend was using another. */
+  const [fresh, ed] = await Promise.all([api.api('GET', '/settings'), api.api('GET', '/edition')]);
+  if (fresh.ok) state.settings = fresh.body.settings;
+  if (ed.ok) state.edition = ed.body;
   fillSettingsForm(state.settings || defaultSettings());
   applyEdition(state.edition);
   showSettingsPanel('set-brain');
@@ -1934,10 +2021,27 @@ async function saveSettings() {
     return;
   }
   state.settings = res.body.settings;
+  // Check that what was kept is what was chosen, and say so if it is not, rather
+  // than closing the page on a choice that did not stick.
+  const wanted = readModelForm().mode;
+  if (res.body.settings.model.mode !== wanted) {
+    box.replaceChildren(el('div', { className: 'banner-body' }, [
+      el('strong', { text: 'That choice was not kept.' }),
+      el('p', { text: `Claw is still set to ${THINK_LABEL[res.body.settings.model.mode] || res.body.settings.model.mode}. Choose again and save, or restart Claw if this keeps happening.` }),
+    ]));
+    box.hidden = false;
+    fillSettingsForm(res.body.settings);
+    applyEdition(state.edition);
+    return;
+  }
+  box.hidden = true;
   clearError();
   closeSettings();
   loadBrain();
+  refreshModelStatus();
 }
+
+const THINK_LABEL = { builtin: 'thinking on this computer', service: 'the Claw service', cloud: 'your own online model', custom: 'a developer model server' };
 
 // ---------- Wiring ----------
 function wire() {
@@ -1950,6 +2054,22 @@ function wire() {
     }
   });
   $('plan-btn').addEventListener('click', planTask);
+  const reply = $('reply-input');
+  reply.addEventListener('input', () => {
+    updateButtons();
+    reply.style.height = 'auto';
+    reply.style.height = `${Math.min(reply.scrollHeight, 180)}px`;
+  });
+  reply.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      sendReply();
+    }
+  });
+  $('reply-box').addEventListener('submit', (e) => {
+    e.preventDefault();
+    sendReply();
+  });
   $('run-btn').addEventListener('click', () => runTask());
   $('stop-btn').addEventListener('click', stopRun);
   $('run-again').addEventListener('click', async () => {
@@ -1964,7 +2084,7 @@ function wire() {
       showError(t.body, 'That task could not be read again, so it was not re-run.');
       return;
     }
-    runTask(text);
+    runTask(text, t.body.thread_id || state.threadId);
   });
   $('approve-btn').addEventListener('click', () => answerApproval(true));
   $('deny-btn').addEventListener('click', () => answerApproval(false));

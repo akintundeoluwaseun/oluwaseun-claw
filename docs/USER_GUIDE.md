@@ -20,13 +20,19 @@ Windows may warn that the app is from an unknown publisher (Claw is not code-sig
 Click **More info → Run anyway** only if you downloaded Claw from its official page.
 
 ## 2. First steps
-1. Open **Settings → Folders Claw may use** and add the folder where Claw should save its work,
-   for example `Documents\Claw`. Claw can't save anything until you add one.
-2. Close Settings and type a task in the big box, for example:
+1. Claw may already use your **Documents**, **Desktop** and **Downloads** folders (it still asks before
+   saving or changing anything there). Change this in **Settings → Folders Claw may use**.
+2. Type a task in the big box, for example:
    *"Search for free motion graphics templates, compare them, and save the useful links."*
 3. Press **Start task**, or **Enter**.
 
-## 3. Watching a task
+## 3. Chats
+Each task is a chat. Your request appears on the right and Claw's steps and outcome come back as its reply.
+If something goes wrong, type in the reply box at the bottom (or press **Try again in this chat**): it stays
+the same chat in the history, with one name, however many times you retry. Claw names the chat itself
+from what you asked. **New task** starts a new chat.
+
+## 3a. Watching a task
 - Each step appears in a timeline: **Done**, **Done, not checked**, **Failed** or **Not allowed**.
 - When Claw needs your OK, a card shows exactly what it wants to do. Choose **Allow this step**
   or **Don't allow**. Declining stops the task safely.

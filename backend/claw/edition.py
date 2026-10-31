@@ -122,7 +122,7 @@ def current() -> Edition:
     if path is None:
         return Edition()                      # a source checkout: the full, local thing
     try:
-        return _from_dict(json.loads(path.read_text(encoding="utf-8")))
+        return _from_dict(json.loads(path.read_text(encoding="utf-8-sig")))
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         # A damaged profile must not silently become the other edition.
         log.error("edition profile at %s could not be read (%s); treating this as Claw Local", path, exc)

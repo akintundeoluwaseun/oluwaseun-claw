@@ -45,5 +45,9 @@ await win.click('#run-btn'); await new Promise((r) => setTimeout(r, 4000));
 log('task status:', await win.textContent('#run-status').catch(() => '?'), '| error:', (await win.textContent('#summary-error').catch(() => '')).slice(0, 300));
 await win.screenshot({ path: path.join(shots, '4-task.png') });
 if (await win.isVisible('#run-again')) { await win.click('#run-again'); await new Promise((r) => setTimeout(r, 4000)); }
+await win.fill('#reply-input', 'Now count how many there are');
+await win.click('#reply-btn'); await new Promise((r) => setTimeout(r, 4000));
+log('earlier turns:', await win.$$eval('#chat-earlier .bubble', (n) => n.map((x) => x.textContent)), '| chat title:', await win.textContent('#chat-title'));
+await win.screenshot({ path: path.join(shots, '5-chat.png') });
 log('history items:', await win.$$eval('#history-list .history-item .h-text', (n) => n.map((x) => x.textContent)));
 await app.close();

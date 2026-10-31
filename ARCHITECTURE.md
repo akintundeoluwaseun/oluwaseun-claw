@@ -60,6 +60,14 @@ Installers: electron-builder makes the unpacked app; Inno Setup makes `Setup.exe
    verified / done-but-unchecked / failed → observation back to the model, untrusted text inside
    `<untrusted>` tags.
 5. The outcome is built from recorded steps; the model's own summary is shown separately.
+6. **Chats.** Every task belongs to a chat (`tasks.thread_id`; the first task's id). A retry or a reply is
+   sent with `thread_id`, so it is a new message in the same chat, not a new history entry. The chat's
+   title (`tasks.title` on its first task) is written by the brain while planning (`ModelPlan.title`,
+   checked by `agent/titles.py`) with a heuristic fallback. Follow-ups are planned with the last three
+   messages as context. `GET /tasks` lists one row per chat; `GET /tasks?thread=` lists a chat.
+7. **Finish guard.** The executor names the tools that fit the request (`fitting_tools`) and sends back a
+   finish that describes work still to do or claims a missing tool that exists (`premature_finish`, at most
+   twice), because the 2B brain did both on Windows.
 
 ## How a document is read
 1. The user picks a file (main-process dialog) → `POST /documents/open` (main-only) → a job runs

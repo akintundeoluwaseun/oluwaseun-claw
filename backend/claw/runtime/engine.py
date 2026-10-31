@@ -204,6 +204,15 @@ class LlamaServer:
 
     def _crash_reason(self) -> str:
         tail = "\n".join(self._tail)
+        code = self._proc.returncode if self._proc is not None else None
+        # Windows reports these as exit codes, before the engine has printed a line.
+        if code in (-1073741515, 3221225781):   # 0xC0000135 STATUS_DLL_NOT_FOUND
+            return ("The AI engine could not start because a Windows file it needs is missing "
+                    "(the Microsoft Visual C++ runtime). Reinstall Claw, or install the "
+                    "'Microsoft Visual C++ Redistributable (x64)' from Microsoft and restart Claw.")
+        if code in (-1073741795, 3221225501):   # 0xC000001D STATUS_ILLEGAL_INSTRUCTION
+            return ("This computer's processor does not support the instructions this AI engine "
+                    "was built for, so the brain cannot run here.")
         if re.search(r"failed to allocate|out of memory|cannot allocate|bad_alloc", tail, re.I):
             return "The computer ran out of memory while loading the brain."
         if re.search(r"failed to load model|invalid magic|gguf_init|unknown model architecture", tail, re.I):

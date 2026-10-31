@@ -242,11 +242,75 @@ def compact_args(schema: dict) -> str:
     return ", ".join(parts)
 
 
-def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None) -> str:
+# Words in a request and the tools that do that job. A small brain given seventy tool
+# names will say "I don't have a tool to make a flyer" with make_flyer in the list; the
+# real-brain trial on Windows did exactly that for the flyer, the spreadsheet and the
+# copy. Naming the fitting tools next to the task is what gets them used.
+_FITTING: list[tuple[str, tuple[str, ...]]] = [
+    (r"\bflyers?\b|\bposters?\b|\bbanners?\b|\badverts?\b|promotional", ("make_flyer",)),
+    (r"\bspreadsheets?\b|\bexcel\b|\.xlsx\b|\btable of\b", ("create_spreadsheet",)),
+    (r"\bcopy\b|\bback ?up\b", ("copy_files", "create_folder")),
+    (r"\bnew folder\b|\bcreate (?:a )?folder\b", ("create_folder",)),
+    (r"\bmove\b", ("move_file",)),
+    (r"\brename\b", ("rename_file",)),
+    (r"\bfind\b.*\bfiles?\b|\ball \w+ files\b|\.pdf files\b", ("find_files", "list_folder")),
+    (r"\b(?:read|open|total|summari[sz]e)\b.*\.(?:pdf|docx?|xlsx)\b|\binvoice\b", ("read_document_pages", "summarize_document")),
+    (r"\bnotepad\b|\btype\b", ("launch_app", "type_text", "press_keys")),
+    (r"\bsave (?:it|this|that)?\s*as\b.*\.txt\b|\btext file\b", ("write_text_file", "check_file")),
+    (r"\bverify\b|\bcheck (?:the|its) contents\b", ("check_file",)),
+    (r"\bwhatsapp\b", ("check_whatsapp", "send_whatsapp_message")),
+    (r"\bcalendar\b|\bschedule\b|\bmeeting\b|\bappointment\b", ("list_events", "create_event", "find_free_time")),
+    (r"\bsearch\b.*\b(?:web|internet|online)\b|\bgoogle\b|\blook up\b", ("web_search", "open_search_result", "read_page")),
+    (r"\bwindows? (?:are )?open\b|\bopen windows\b", ("list_windows",)),
+    (r"\bscreenshot\b", ("take_screenshot",)),
+    (r"\b(?:picture|photo|image)\b", ("edit_image", "inspect_image")),
+]
+
+
+def fitting_tools(task: str, registry: ToolRegistry) -> list[str]:
+    """Tools that plainly fit the words of the request, in the order they matched."""
+    have = set(registry.names())
+    found: list[str] = []
+    for pattern, names in _FITTING:
+        if re.search(pattern, task, re.I):
+            found += [n for n in names if n in have and n not in found]
+    return found[:8]
+
+
+# A "finish" that is not one: the summary describes work still to do, or gives up for
+# want of a tool that is in fact there. Both happened with the 2B brain on Windows and
+# both were reported as "completed".
+_STILL_TO_DO = re.compile(
+    r"\b(?:I will now|I'll now|I will proceed|will now proceed|I am going to|next,? I will|"
+    r"the (?:next step|task) is now to|I will then)\b", re.I)
+_NO_TOOL = re.compile(
+    r"(?:tools?\b[^.]{0,60}\bnot (?:available|provided|listed)|not (?:available|provided) in the (?:list of )?tools|"
+    r"do(?:es)? not have (?:a|the|any) (?:tool|way)|no tool (?:to|for|that))", re.I)
+MAX_PUSHBACKS = 2
+
+
+def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]) -> str | None:
+    """Why this finish should be sent back, or None to accept it."""
+    if _STILL_TO_DO.search(final):
+        return ("You wrote that there is still work to do, so the task is not finished. "
+                "Carry on with the next step now by calling a tool.")
+    worked = any(s.get("outcome") not in ("failed", "rejected", "denied", "blocked") for s in steps)
+    if _NO_TOOL.search(final) and fitting:
+        return (f"Those tools do exist here: {', '.join(fitting)}. Their details are in the tool list. "
+                "Use them to do the task. Finish only if one of them has actually failed, and say how.")
+    if not steps and fitting and not worked and re.search(r"\b(?:cannot|can't|unable|not possible)\b", final, re.I):
+        return (f"Nothing has been tried yet. Try the task with these tools first: {', '.join(fitting)}. "
+                "Finish only if a tool has actually failed, and say how.")
+    return None
+
+
+def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
+                   always: list[str] | None = None) -> str:
     """Full details for tools the plan needs; names only for the rest (keeps prompts small for small models)."""
     lines, others = [], []
+    always_set = set(always or [])
     for spec in registry.all():
-        if capabilities and spec.capability.value not in capabilities:
+        if capabilities and spec.capability.value not in capabilities and spec.name not in always_set:
             others.append(spec.name)
             continue
         d = spec.for_model()
@@ -465,12 +529,15 @@ async def run_agent(
     window_tokens: int = DEFAULT_CONTEXT_TOKENS,
 ) -> RunOutcome:
     limits = ctx.settings.agent
+    fitting = fitting_tools(task, registry)
+    hint = f"\n\nTools that fit this task: {', '.join(fitting)}." if fitting else ""
     messages = [
         ChatMessage(role="system",
-                    content=EXEC_PROMPT.format(tools=tool_catalogue(registry, capabilities))
+                    content=EXEC_PROMPT.format(tools=tool_catalogue(registry, capabilities, fitting))
                     + remembered(ctx, task)),
-        ChatMessage(role="user", content=f"Task:\n<<<\n{task}\n>>>\n\nSuggested plan (adjust if needed):\n{plan_text}"),
+        ChatMessage(role="user", content=f"Task:\n<<<\n{task}\n>>>\n\nSuggested plan (adjust if needed):\n{plan_text}{hint}"),
     ]
+    pushbacks = 0
     steps: list[dict[str, Any]] = []
     consecutive_failures = 0
     last_signature: str | None = None
@@ -506,6 +573,12 @@ async def run_agent(
 
         if action.action == "finish":
             final = (action.final_answer or "").strip() or "(The model finished without a summary.)"
+            why = premature_finish(final, steps, fitting) if pushbacks < MAX_PUSHBACKS else None
+            if why:
+                pushbacks += 1
+                emit("pushed_back", {"step": step_no, "reason": why, "final_answer": final[:300]})
+                messages.append(ChatMessage(role="user", content=why))
+                continue
             emit("finished", {"final_answer": final})
             return outcome("completed", final)
 

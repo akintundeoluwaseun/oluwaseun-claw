@@ -67,7 +67,7 @@ function paintWindows() {
   }
   // The bar is its own window with its own document.
   if (quickBar && !quickBar.isDestroyed()) {
-    quickBar.webContents.send('claw:theme', desktop.theme || 'system');
+    quickBar.webContents.send('claw:theme', desktop.theme || 'dark');
   }
 }
 
@@ -310,7 +310,7 @@ function applyDesktopSettings(next) {
   // Electron paints the title bar and the native dialogs, not the stylesheet,
   // so the choice has to reach it too — otherwise a light app keeps a dark
   // title bar and looks half-finished.
-  const theme = ['system', 'light', 'dark'].includes(desktop.theme) ? desktop.theme : 'system';
+  const theme = ['system', 'light', 'dark'].includes(desktop.theme) ? desktop.theme : 'dark';
   if (nativeTheme.themeSource !== theme) nativeTheme.themeSource = theme;
   paintWindows();
   if (quickBar) {

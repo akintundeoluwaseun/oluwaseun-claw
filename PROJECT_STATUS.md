@@ -9,7 +9,10 @@ hardening, Notepad Test A logic, browser forms and downloads, file copies); **Ph
 unread check, notifications, send with approval); **Phase C removed** (a sale through a specific local app's screen; dropped so the app carries nothing region-specific); **Phase D done** (flyers and image edits;
 Photoshop when installed). Next: **Phase E — video**, then E video,
 F calendar apps on the PC, G packaging and security.
-**Version:** 0.5.0 · **Last updated:** 2026-10-26
+**Version:** 0.5.0 · **Last updated:** 2026-10-31
+**Latest (31 Oct):** fixes from the user's first real install and the first real-brain trial on Windows: chats
+(one entry per conversation, model-written titles), Settings re-read/verified, starter folders, finish guard,
+VC++ runtime shipped with the engine, dark chat-style window. Not yet re-tested with the real brain.
 
 ## Completed
 - **Batches 1–4:** foundation, browser control, desktop control, multi-step autonomy (see CHANGELOG).

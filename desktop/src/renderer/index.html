@@ -246,13 +246,23 @@
       <section class="task" id="task-view" hidden>
         <header class="task-head">
           <div class="task-head-text">
-            <h2 id="run-title"></h2>
+            <h2 id="chat-title"></h2>
             <p class="task-meta"><span class="state" id="run-status"></span><span id="run-when"></span></p>
           </div>
           <button class="btn btn-stop" id="stop-btn" type="button" hidden>
             <svg aria-hidden="true"><use href="#i-stop"/></svg>Stop
           </button>
         </header>
+
+        <div class="chat" id="chat-earlier" aria-label="Earlier in this chat"></div>
+
+        <div class="turn turn-you">
+          <p class="bubble" id="run-title"></p>
+        </div>
+
+        <div class="turn turn-claw" id="claw-turn">
+          <span class="turn-mark" aria-hidden="true"><svg><use href="#claw-mark"/></svg></span>
+          <div class="turn-body">
 
         <div class="approval" id="approval-card" role="alertdialog" aria-labelledby="approval-title" hidden>
           <div class="approval-top">
@@ -285,7 +295,7 @@
             <p id="summary-answer"></p>
           </div>
           <div class="outcome-actions">
-            <button class="btn btn-quiet btn-sm" id="run-again" type="button" hidden>Run this task again</button>
+            <button class="btn btn-quiet btn-sm" id="run-again" type="button" hidden>Try again in this chat</button>
           </div>
         </section>
 
@@ -304,6 +314,16 @@
           <summary>Audit trail</summary>
           <ol id="plan-events" class="audit-list"></ol>
         </details>
+          </div>
+        </div>
+
+        <form class="reply" id="reply-box" autocomplete="off">
+          <label class="sr-only" for="reply-input">Reply in this chat</label>
+          <textarea id="reply-input" rows="1" maxlength="4000" placeholder="Reply, or ask Claw to try again…"></textarea>
+          <button class="btn btn-primary btn-send" id="reply-btn" type="submit" disabled aria-label="Send">
+            <svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 15.5V4.5M5.5 9 10 4.5 14.5 9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </form>
       </section>
     </main>
   </div>
@@ -433,8 +453,8 @@
             <option value="light">Always light</option>
             <option value="dark">Always dark</option>
           </select>
-          <p class="set-note">Changes as soon as you pick it. "Follow Windows" is the default, so
-            Claw matches whatever your computer is set to, including when it switches at sunset.</p>
+          <p class="set-note">Changes as soon as you pick it. Claw starts dark; "Follow Windows" matches whatever
+            your computer is set to, including when it switches at sunset.</p>
         </div>
         <div class="field">
           <label for="d-brief">Morning briefing</label>

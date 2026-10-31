@@ -58,3 +58,13 @@ Decided with the user: two installers, **Standard** and **Pro**, each with the b
 - **E** Video: images + text + audio → MP4 (FFmpeg), verified duration, size, codec, A/V sync.
 - **F** Calendar apps on the PC (Windows Calendar/Outlook UI, .ics files); meeting brief; whisper.cpp transcription.
 - **G** Packaging, Test I (failure recovery) and Test J (security) suites, release.
+
+## Fixes from the first real install (31 Oct 2026) — done in code, real-brain re-run pending
+- [x] Chats: one history entry per conversation, model-written titles, follow-ups with context
+- [x] Settings re-read on open, saved mode verified
+- [x] Starter folders (Documents, Desktop, Downloads) for new installs
+- [x] Finish guard and fitting-tool hints; honest "Finished, but nothing worked"
+- [x] VC++ runtime shipped with llama-server; Windows exit codes explained
+- [x] Dark, chat-style window (dark default)
+- [ ] Re-run `real-trial.yml` with the fixes and compare with run 41171556944
+- [ ] Confirm on the user's PC that "not connecting" is gone

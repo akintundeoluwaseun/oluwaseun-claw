@@ -52,6 +52,9 @@ from claw.permissions.policy import PermissionPolicy
 from claw.tools.base import ToolContext
 from tests.site_server import SiteServer
 
+# Tests decide their own folders; never hand them the real Documents of the machine running them.
+os.environ.setdefault("CLAW_NO_STARTER_FOLDERS", "1")
+
 _LOCAL_CHROMIUM = "/opt/pw-browsers/chromium-1243/chrome-linux64/chrome"
 if not os.environ.get("CLAW_BROWSER_EXECUTABLE") and Path(_LOCAL_CHROMIUM).exists():
     # Build workspace only: Playwright's own browser download is blocked here.

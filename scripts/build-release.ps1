@@ -68,6 +68,14 @@ if ($online) {
   $engineSrc = Join-Path $backend 'runtime\llama'
   if (-not (Test-Path (Join-Path $engineSrc 'llama-server.exe'))) { throw 'llama-server.exe not found. Run scripts\setup.ps1 first.' }
   Copy-Item -Recurse (Join-Path $engineSrc '*') (Join-Path $stage 'engine')
+  # llama-server needs the Microsoft Visual C++ runtime. Build machines have it; many home
+  # PCs do not, and without it the engine dies before printing a word ("not connecting").
+  # Microsoft allows these DLLs to be shipped next to the program that uses them.
+  foreach ($dll in 'vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll', 'msvcp140_1.dll', 'msvcp140_2.dll', 'vcomp140.dll') {
+    $src = Join-Path $env:WINDIR "System32\$dll"
+    if ((Test-Path $src) -and -not (Test-Path (Join-Path $stage "engine\$dll"))) { Copy-Item $src (Join-Path $stage 'engine') }
+  }
+  if (-not (Test-Path (Join-Path $stage 'engine\vcruntime140.dll'))) { throw 'vcruntime140.dll was not found to ship with the engine.' }
 }
 
 Step 'Copying Tesseract OCR (English + page orientation data, configs)'

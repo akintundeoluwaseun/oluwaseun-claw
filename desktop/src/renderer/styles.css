@@ -917,3 +917,70 @@ body[data-phase="attention"] .mk-bloom { animation: mk-wait 1.6s var(--ease) inf
   .credit { transition: none; }
   .credit:hover { transform: none; }
 }
+
+/* ---------- Chat ----------
+   A task is a conversation: what you asked sits on the right as your message,
+   and Claw's plan, steps, questions and outcome come back on the left as its
+   reply. Retries and follow-ups are more messages in the same chat. */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.task { display: grid; gap: var(--s4); padding-bottom: var(--s2); }
+.task-head { margin-bottom: 0; padding-bottom: var(--s3); border-bottom: 1px solid var(--line); }
+.task-head h2 { font-size: 17px; max-width: 46ch; }
+.task-meta { margin-top: 6px; }
+.chat { display: grid; gap: var(--s4); }
+.chat:empty { display: none; }
+.turn { display: flex; gap: var(--s3); align-items: flex-start; min-width: 0; }
+.turn-you { justify-content: flex-end; }
+.bubble {
+  max-width: min(78%, 60ch); padding: 10px 14px; border-radius: 18px 18px 6px 18px;
+  background: var(--brass-soft); border: 1px solid var(--brass-line); color: var(--ink);
+  font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+}
+.turn-mark {
+  width: 28px; height: 28px; flex: none; border-radius: 9px; display: grid; place-items: center;
+  background: var(--surface-3); border: 1px solid var(--line-2); color: var(--brass);
+}
+.turn-mark svg { width: 18px; height: 18px; }
+.turn-body { flex: 1; min-width: 0; display: grid; gap: var(--s3); }
+.turn-past .turn-mark { opacity: 0.7; }
+.turn-past .turn-body { gap: 4px; padding-top: 3px; }
+.turn-state { font-size: 12px; font-weight: 700; color: var(--ink-3); }
+.turn-state[data-tone="ok"] { color: var(--green); }
+.turn-state[data-tone="bad"] { color: var(--red); }
+.turn-state[data-tone="warn"] { color: var(--amber); }
+.turn-text { font-size: 14px; line-height: 1.6; color: var(--ink-2); white-space: pre-wrap; word-break: break-word; }
+.turn-open {
+  justify-self: start; background: none; border: 0; padding: 2px 0; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--brass);
+}
+.turn-open:hover { text-decoration: underline; }
+.turn-claw .outcome { margin-top: 0; }
+
+/* The reply box stays at the foot of the chat while you scroll the steps. */
+.reply {
+  position: sticky; bottom: 0; z-index: 2;
+  display: flex; align-items: flex-end; gap: var(--s2);
+  margin-top: var(--s2); padding: 8px 8px 8px 16px;
+  background: var(--raised); border: 1px solid var(--line-2); border-radius: var(--r-xl);
+  box-shadow: 0 -12px 24px var(--bg), var(--shadow-2);
+  transition: border-color var(--fast) var(--ease);
+}
+.reply:focus-within { border-color: var(--brass-line); }
+.reply textarea {
+  flex: 1; resize: none; border: 0; background: transparent; color: var(--ink);
+  font: inherit; font-size: 14px; line-height: 1.5; padding: 7px 0; max-height: 180px; outline: none;
+}
+.reply textarea::placeholder { color: var(--ink-3); }
+.btn-send { width: 36px; height: 36px; padding: 0; border-radius: 50%; display: grid; place-items: center; }
+.btn-send svg { width: 18px; height: 18px; }
+
+/* While Claw is working, the edge of the box breathes so it is plain from across
+   the room that something is happening. */
+body[data-working="true"] .reply, body[data-working="true"] .composer { animation: breathe 2.4s var(--ease) infinite; }
+@keyframes breathe {
+  0%, 100% { border-color: var(--line-2); }
+  50% { border-color: var(--brass); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-working="true"] .reply, body[data-working="true"] .composer { animation: none; border-color: var(--brass-line); }
+}

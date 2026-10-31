@@ -14,8 +14,10 @@ import asyncio
 from datetime import datetime, timezone
 import hmac
 import logging
+import os
 from contextlib import asynccontextmanager
 import platform
+import re
 import sys
 import time
 from dataclasses import dataclass, field
@@ -28,13 +30,14 @@ from pydantic import ValidationError
 from claw import __version__
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.agent.runner import TaskBusy, TaskRunner
+from claw.agent.titles import clean_model_title, fallback_title
 from claw.agent.schemas import PlanRequest, TaskStatus
 from claw.brief import assemble, window
 from claw.browser.session import BrowserSession
 from claw.calendar.reminders import phrase
 from claw.calendar.store import LocalCalendars
 from claw.computer.driver import DesktopSession, default_driver
-from claw.config import ConfigError, ModelSettings, Settings, SettingsStore, describe_validation_error
+from claw.config import ConfigError, ModelSettings, Settings, SettingsStore, describe_validation_error, starter_folders
 from claw.edition import current as current_edition
 from claw.jobs.runner import JobRunner
 from claw.jobs.schedule import BadSchedule, Schedule, next_run
@@ -147,6 +150,12 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
                                  hardware_ram_gb=getattr(state.brain.hardware, "total_ram_gb", None))
     try:
         state.settings = store.load()
+        perms = state.settings.permissions
+        if not perms.starter_folders_added and not os.environ.get("CLAW_NO_STARTER_FOLDERS"):
+            perms.authorized_folders = perms.authorized_folders or starter_folders()
+            perms.starter_folders_added = True
+            store.save(state.settings)
+            log_event(log, "starter folders added", count=len(perms.authorized_folders))
     except ConfigError as exc:
         state.settings_error = exc
         log.warning("settings invalid; running with defaults until fixed", extra={"fields": {"problems": exc.problems}})
@@ -688,7 +697,10 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         if state.settings_error:
             return error_response(409, "settings_invalid", state.settings_error.message, "Fix them in Settings.", state.settings_error.problems)
 
-        task_id = state.db.create_task(req.task, state.model_label())
+        thread_ok = req.thread_id and state.db.thread_exists(req.thread_id)
+        task_id = state.db.create_task(req.task, state.model_label(), req.thread_id if thread_ok else None)
+        if not thread_ok:
+            state.db.set_thread_title(task_id, fallback_title(req.task))
         state.db.add_event(task_id, "requested", {"task": req.task})
         state.db.update_task(task_id, status=TaskStatus.PLANNING)
         try:
@@ -706,6 +718,8 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         plan_json = plan.model_dump(mode="json")
         state.db.add_event(task_id, "planned", {"steps": len(plan.steps)})
         state.db.update_task(task_id, status=TaskStatus.PLANNED, plan=plan_json)
+        if not thread_ok and (title := clean_model_title(plan.title)):
+            state.db.set_thread_title(task_id, title)
         log_event(log, "task planned", task_id=task_id, steps=len(plan.steps))
         return state.db.get_task(task_id)
 
@@ -720,10 +734,11 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         if state.settings_error:
             return error_response(409, "settings_invalid", state.settings_error.message, "Fix them in Settings.", state.settings_error.problems)
         try:
-            task_id = state.runner.start(req.task)
+            task_id = state.runner.start(req.task, thread_id=req.thread_id)
         except TaskBusy:
             return error_response(409, "busy", "Another task is still running.", "Wait for it to finish or stop it first.")
-        return JSONResponse(status_code=202, content={"id": task_id})
+        row = state.db.get_task(task_id) or {}
+        return JSONResponse(status_code=202, content={"id": task_id, "thread_id": row.get("thread_id") or task_id})
 
     @app.post("/tasks/{task_id}/cancel")
     async def cancel_task(task_id: str):
@@ -923,8 +938,13 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         return {"busy": state.runner.busy, "current_id": state.runner.current_id if state.runner.busy else None}
 
     @app.get("/tasks")
-    async def list_tasks(q: str | None = None, limit: int = 50):
-        return {"tasks": state.db.list_tasks(limit=limit, query=q)}
+    async def list_tasks(q: str | None = None, limit: int = 50, thread: str | None = None):
+        """The history: one entry per chat (its latest message and title). With ?thread=, that chat's messages."""
+        if thread is not None:
+            if not re.fullmatch(r"[0-9a-f]{32}", thread):
+                return error_response(422, "thread", "That is not a chat id.")
+            return {"tasks": state.db.thread_tasks(thread), "title": state.db.thread_title(thread)}
+        return {"tasks": state.db.list_threads(limit=limit, query=q)}
 
     @app.get("/tasks/{task_id}")
     async def get_task(task_id: str):

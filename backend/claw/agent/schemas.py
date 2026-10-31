@@ -62,6 +62,8 @@ class ModelPlanStep(BaseModel):
 class ModelPlan(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
+    # A short name for the conversation (2-6 words), written by the model from the request.
+    title: str = Field(default="", max_length=120)
     goal: str = Field(min_length=3, max_length=500)
     steps: list[ModelPlanStep] = Field(min_length=1, max_length=15)
     questions: list[str] = Field(default_factory=list, max_length=5)
@@ -74,6 +76,7 @@ class PlanStep(ModelPlanStep):
 
 
 class Plan(BaseModel):
+    title: str = ""
     goal: str
     steps: list[PlanStep]
     questions: list[str]
@@ -84,3 +87,5 @@ class PlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     task: str = Field(min_length=3, max_length=4000)
+    # Continue an existing chat (a retry or a follow-up) instead of starting a new one.
+    thread_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
