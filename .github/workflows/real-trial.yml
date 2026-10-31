@@ -55,7 +55,9 @@ jobs:
 
       - name: Run the everyday tasks with the real brain
         run: |
-          backend\.venv\Scripts\python.exe scripts\real_trial.py --port 18765 --token $env:CLAW_SESSION_TOKEN --out trial-report --per-task-seconds 900
+          New-Item -ItemType Directory -Force trial-report | Out-Null
+          backend\.venv\Scripts\python.exe scripts\real_trial.py --port 18765 --token $env:CLAW_SESSION_TOKEN --out trial-report --per-task-seconds 900 *>&1 | Tee-Object trial-report\console.txt
+          if (-not (Test-Path trial-report\trial.json)) { Write-Output "::error title=trial crashed::$((Get-Content trial-report\console.txt -Tail 30) -join ' | ')"; exit 1 }
           $r = Get-Content trial-report\trial.json -Raw | ConvertFrom-Json
           foreach ($t in $r.tasks) {
             $steps = ($t.steps | ForEach-Object { "$($_.tool)=$($_.outcome)" }) -join ', '

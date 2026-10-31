@@ -54,7 +54,7 @@ class Api:
 def run_task(api: Api, text: str, limit_s: int) -> dict:
     t0 = time.time()
     code, body = api.call("POST", "/tasks/run", {"task": text})
-    if code != 200:
+    if code not in (200, 201, 202) or not (body or {}).get("id"):
         return {"task": text, "status": "could_not_start", "http": code, "error": body, "seconds": 0}
     tid = body["id"]
     after, events, approvals_answered = 0, [], []
