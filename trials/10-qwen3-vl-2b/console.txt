@@ -1,0 +1,20 @@
+[1/10] Open Notepad, type 'S-CLAW desktop-control test', save it as claw-test.txt in Documents, reopen it, and verify the exact contents.
+    -> completed in 62.1s; steps: 
+[2/10] Search the web for free open-source video editing software, open a good result, and save its title and URL.
+    -> completed in 114.5s; steps: web_search=verified, open_search_result=verified, save_links=verified
+[3/10] Read invoice.pdf in my Documents folder and tell me the total amount due.
+    -> completed in 315.9s; steps: read_document_pages=verified
+[4/10] Find all PDF files in my Documents folder.
+    -> completed in 141.5s; steps: find_files=verified
+[5/10] What windows are open right now?
+    -> completed in 130.3s; steps: list_windows=verified
+[6/10] Make a promotional flyer for my software TechDesk and save it in Documents.
+    -> completed in 187.3s; steps: make_flyer=verified
+[7/10] Copy sales.csv from Documents into a new folder called Backup.
+    -> completed in 126.5s; steps: copy_files=verified
+[8/10] Create a spreadsheet of five Nigerian states and their capitals and save it in Documents.
+    -> completed in 152.3s; steps: create_spreadsheet=verified
+[9/10] Open WhatsApp and tell me which chats have unread messages.
+    -> completed in 136.8s; steps: check_whatsapp=failed
+[10/10] What is on my calendar today?
+    -> completed in 111.4s; steps: list_events=verified
