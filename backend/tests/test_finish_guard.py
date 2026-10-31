@@ -152,3 +152,11 @@ def test_sixth_trial_near_misses():
     assert "exactly 5" in premature_finish("Done.", twelve, ["create_spreadsheet"], task="Create a spreadsheet of five states")
     rejected = [{"tool": "web_search", "outcome": "verified"}, {"tool": "open_page", "outcome": "rejected"}]
     assert "nothing has been saved" in premature_finish("Title X URL Y", rejected, ["save_links"], wants_save=True)
+
+
+def test_quote_relevant_lines_for_a_silent_brain():
+    from claw.agent.executor import quote_relevant_lines
+
+    doc = "INVOICE 2041\nCustomer: Ekiti Grand Hotel\nSubtotal: 45,000\nTotal amount due: 48,500 naira\nThank you"
+    q = quote_relevant_lines("Read invoice.pdf in my Documents folder and tell me the total amount due.", doc)
+    assert "Total amount due: 48,500 naira" in q and "Thank you" not in q

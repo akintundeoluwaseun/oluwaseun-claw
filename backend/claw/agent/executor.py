@@ -314,6 +314,16 @@ def closest_tool(name: str, registry: ToolRegistry) -> str | None:
     return hit[0] if hit else None
 
 
+def quote_relevant_lines(task: str, text: str, limit: int = 4) -> str:
+    """Lines of a document that share the question's key words (total, amount due, date...)."""
+    words = {w for w in re.findall(r"[a-z]{4,}", task.split("\n")[0].lower())
+             if w not in {"read", "tell", "what", "documents", "folder", "file", "please", "from", "with", "that", "this"}}
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    scored = [(sum(w in l.lower() for w in words), i, l) for i, l in enumerate(lines)]
+    best = [x for x in sorted(scored, key=lambda x: (-x[0], x[1])) if x[0] > 0][:limit]
+    return "\n".join(f"  \u201c{l[:200]}\u201d" for _, _, l in sorted(best, key=lambda x: x[1]))
+
+
 def example_call(registry: ToolRegistry, name: str) -> str:
     """A filled-in shape of a tool call, so a small brain sees exactly what to send."""
     spec = registry.get(name)
@@ -701,6 +711,13 @@ async def run_agent(
 
         if action.action == "finish":
             final = (action.final_answer or "").strip() or "(The model finished without a summary.)"
+            if started_for_it and steps_after_forced_answered and final.startswith("(The model finished without a summary"):
+                # The brain read the document and still said nothing. Quote the lines that
+                # answer the question rather than leave the person with no answer - marked
+                # as quoted, not as the brain's words.
+                quoted = quote_relevant_lines(task, ctx.memory.seen_text[-1] if ctx.memory.seen_text else "")
+                if quoted:
+                    final = "The brain did not answer, so here is what the document says:\n" + quoted
             if started_for_it and not steps_after_forced_answered and final.startswith("(The model finished without a summary"):
                 steps_after_forced_answered = True
                 why_now = ("You have the document's text above. Answer the person's question from it now, "
