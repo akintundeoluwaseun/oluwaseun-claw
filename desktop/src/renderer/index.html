@@ -10,6 +10,12 @@
 </head>
 <body data-view="home">
   <svg class="sprite" width="0" height="0" aria-hidden="true">
+    <symbol id="i-chats" viewBox="0 0 20 20"><path d="M3.5 5.5A2 2 0 0 1 5.5 3.5h9a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-3.5 3v-3h0A2 2 0 0 1 3.5 11.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 20 20"><circle cx="10" cy="10" r="6.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.4 10h13.2M10 3.2c2 2 2.9 4.3 2.9 6.8S12 14.8 10 16.8M10 3.2C8 5.2 7.1 7.5 7.1 10s.9 4.8 2.9 6.8" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-app" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 7.5h14" stroke="currentColor" stroke-width="1.6"/><circle cx="5.6" cy="5.8" r=".7" fill="currentColor"/><circle cx="7.6" cy="5.8" r=".7" fill="currentColor"/></symbol>
+    <symbol id="i-msg" viewBox="0 0 20 20"><path d="M10 3.2a6.8 6.8 0 0 0-5.9 10.2L3.3 16.8l3.5-.9A6.8 6.8 0 1 0 10 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7.6 8.2c.2 1.9 2.1 3.9 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 20 20"><rect x="3.2" y="4.5" width="13.6" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3.2 8.5h13.6M7 2.8v3.2M13 2.8v3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-image" viewBox="0 0 20 20"><rect x="3" y="3.5" width="14" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="7.4" cy="8" r="1.4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m3.5 14 4-3.6 3 2.6 2.4-2 3.6 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
     <symbol id="i-plus" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-gear" viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
     <symbol id="i-search" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m13 13 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
@@ -81,41 +87,48 @@
       <svg class="brand-mark" aria-hidden="true"><use href="#claw-mark"/></svg>
       <span class="brand-name">S<span class="brand-dash">-</span>CLAW</span>
     </div>
+    <div class="titlebar-status status-rail" aria-label="Status">
+      <button class="status-chip" id="backend-pill" data-state="starting" type="button" title="Agent status">
+        <span class="dot"></span><span class="pill-text">Starting</span>
+      </button>
+      <button class="status-chip" id="model-pill" data-state="unknown" type="button" title="Model status">
+        <svg class="chip-icon" aria-hidden="true"><use href="#i-chip"/></svg><span class="pill-text">Checking model</span>
+      </button>
+    </div>
   </header>
 
   <div class="shell">
-    <aside class="sidebar" aria-label="Tasks">
-      <button class="new-task" id="new-task" type="button">
-        <svg aria-hidden="true"><use href="#i-plus"/></svg>
-        <span>New task</span>
-        <kbd id="new-task-kbd"></kbd>
+    <nav class="rail" aria-label="Main">
+      <button class="rail-btn rail-new" id="new-task" type="button" title="New task">
+        <svg aria-hidden="true"><use href="#i-plus"/></svg><span class="rail-label">New</span>
+        <kbd id="new-task-kbd" class="sr-only"></kbd>
       </button>
+      <button class="rail-btn" id="toggle-chats" type="button" aria-expanded="false" aria-controls="drawer" title="Chats">
+        <svg aria-hidden="true"><use href="#i-chats"/></svg><span class="rail-label">Chats</span>
+      </button>
+      <button class="rail-btn" id="open-docs" type="button" title="Documents">
+        <svg aria-hidden="true"><use href="#i-doc"/></svg><span class="rail-label">Docs</span>
+      </button>
+      <span class="rail-spacer"></span>
+      <button class="rail-btn" id="toggle-theme" type="button" aria-pressed="false" title="Light or dark">
+        <svg aria-hidden="true"><use href="#i-moon" id="theme-icon"/></svg><span class="rail-label" id="theme-label">Dark mode</span>
+      </button>
+      <button class="rail-btn" id="open-settings" type="button" title="Settings">
+        <svg aria-hidden="true"><use href="#i-gear"/></svg><span class="rail-label">Settings</span>
+      </button>
+    </nav>
+
+    <aside class="sidebar drawer" id="drawer" aria-label="Chats">
+      <div class="drawer-head">
+        <h2>Chats</h2>
+      </div>
       <label class="search">
         <svg aria-hidden="true"><use href="#i-search"/></svg>
-        <span class="sr-only">Search tasks</span>
-        <input id="history-search" type="search" placeholder="Search tasks" autocomplete="off">
+        <span class="sr-only">Search chats</span>
+        <input id="history-search" type="search" placeholder="Search chats" autocomplete="off">
       </label>
-      <nav class="history" id="history-list" aria-label="Task history"></nav>
-      <p id="history-empty" class="history-empty">Tasks you give Claw are kept here.</p>
-      <div class="sidebar-foot">
-        <div class="status-rail">
-          <button class="status-chip" id="backend-pill" data-state="starting" type="button" title="Agent status">
-            <span class="dot"></span><span class="pill-text">Starting</span>
-          </button>
-          <button class="status-chip" id="model-pill" data-state="unknown" type="button" title="Model status">
-            <svg class="chip-icon" aria-hidden="true"><use href="#i-chip"/></svg><span class="pill-text">Checking model</span>
-          </button>
-        </div>
-        <button class="ghost-row" id="open-docs" type="button">
-          <svg aria-hidden="true"><use href="#i-doc"/></svg><span>Documents</span>
-        </button>
-        <button class="ghost-row" id="open-settings" type="button">
-          <svg aria-hidden="true"><use href="#i-gear"/></svg><span>Settings</span>
-        </button>
-        <button class="ghost-row" id="toggle-theme" type="button" aria-pressed="false">
-          <svg aria-hidden="true"><use href="#i-moon" id="theme-icon"/></svg><span id="theme-label">Dark mode</span>
-        </button>
-      </div>
+      <nav class="history" id="history-list" aria-label="Chat history"></nav>
+      <p id="history-empty" class="history-empty">Your chats with Claw are kept here.</p>
     </aside>
 
     <main class="stage" id="stage">
@@ -141,8 +154,11 @@
       <!-- Home: one big task box -->
       <section class="home" id="home" aria-labelledby="home-title">
         <!-- What Claw can do. Shown until the person says they have read it. -->
-        <h1 id="home-title">What should Claw take care of?</h1>
-        <p class="home-sub">Describe the result. Claw plans it, asks before anything that matters, and checks each step.</p>
+        <div class="home-hero">
+          <svg class="home-mark" aria-hidden="true"><use href="#claw-mark"/></svg>
+          <h1 id="home-title">What should Claw do for you?</h1>
+          <p class="home-sub">Say the result you want. Claw works in your apps, files and browser, and asks before anything important.</p>
+        </div>
         <div class="composer">
           <label class="sr-only" for="task-input">Task</label>
           <textarea id="task-input" rows="2" maxlength="4000"
@@ -163,13 +179,45 @@
             </div>
           </div>
         </div>
-        <div class="ideas" aria-label="Example tasks">
-          <span class="ideas-label">Try</span>
-          <button class="idea" type="button">Read this PDF invoice and tell me the total and the due date</button>
-          <button class="idea" type="button">Put Friday's team call in my calendar and remind me an hour before</button>
-          <button class="idea" type="button">Search for free motion graphics templates and save the useful links</button>
-          <button class="idea" type="button">Find the website I visited yesterday about AI video generation</button>
+        <div class="ideas" aria-label="Things Claw can do">
+          <button class="idea" type="button" data-task="Find every PDF in my Documents folder and list them by date">
+            <span class="idea-icon"><svg aria-hidden="true"><use href="#i-folder"/></svg></span>
+            <span class="idea-name">Files</span>
+            <span class="idea-eg">Find every PDF in my Documents folder and list them by date</span>
+          </button>
+          <button class="idea" type="button" data-task="Search the web for free video editing software and save the best links">
+            <span class="idea-icon"><svg aria-hidden="true"><use href="#i-globe"/></svg></span>
+            <span class="idea-name">Web</span>
+            <span class="idea-eg">Search the web for free video editing software and save the best links</span>
+          </button>
+          <button class="idea" type="button" data-task="Open Notepad, write my shopping list and save it in Documents">
+            <span class="idea-icon"><svg aria-hidden="true"><use href="#i-app"/></svg></span>
+            <span class="idea-name">Apps</span>
+            <span class="idea-eg">Open Notepad, write my shopping list and save it in Documents</span>
+          </button>
+          <button class="idea" type="button" data-task="Open WhatsApp and tell me which chats have unread messages">
+            <span class="idea-icon"><svg aria-hidden="true"><use href="#i-msg"/></svg></span>
+            <span class="idea-name">WhatsApp</span>
+            <span class="idea-eg">Open WhatsApp and tell me which chats have unread messages</span>
+          </button>
+          <button class="idea" type="button" data-task="Put Friday&#39;s team call in my calendar and remind me an hour before">
+            <span class="idea-icon"><svg aria-hidden="true"><use href="#i-cal"/></svg></span>
+            <span class="idea-name">Calendar</span>
+            <span class="idea-eg">Put Friday's team call in my calendar and remind me an hour before</span>
+          </button>
+          <button class="idea" type="button" data-task="Make a promotional flyer for my business and save it in Documents">
+            <span class="idea-icon"><svg aria-hidden="true"><use href="#i-image"/></svg></span>
+            <span class="idea-name">Flyers</span>
+            <span class="idea-eg">Make a promotional flyer for my business and save it in Documents</span>
+          </button>
         </div>
+        <section class="recent" id="recent" hidden aria-labelledby="recent-title">
+          <div class="recent-head">
+            <h2 id="recent-title">Pick up where you left off</h2>
+            <button class="link" id="recent-all" type="button">All chats</button>
+          </div>
+          <div class="recent-list" id="recent-list"></div>
+        </section>
         <aside class="tips" id="tips" hidden aria-label="What Claw can do">
           <div class="tips-top">
             <span class="tips-kicker">Did you know</span>
@@ -253,76 +301,84 @@
           </button>
         </header>
 
-        <div class="chat" id="chat-earlier" aria-label="Earlier in this chat"></div>
+        <div class="task-grid">
+          <div class="convo">
+            <div class="chat" id="chat-earlier" aria-label="Earlier in this chat"></div>
 
-        <div class="turn turn-you">
-          <p class="bubble" id="run-title"></p>
+            <div class="turn turn-you">
+              <p class="bubble" id="run-title"></p>
+            </div>
+
+            <div class="turn turn-claw" id="claw-turn">
+              <span class="turn-mark" aria-hidden="true"><svg><use href="#claw-mark"/></svg></span>
+              <div class="turn-body">
+                <p class="claw-working" id="claw-working"><span class="working-dots" aria-hidden="true"><i></i><i></i><i></i></span><span id="claw-working-text">Working on it. Each step appears on the right as it happens.</span></p>
+                <div class="approval" id="approval-card" role="alertdialog" aria-labelledby="approval-title" hidden>
+                  <div class="approval-top">
+                    <h3 id="approval-title"></h3>
+                    <span class="approval-risk" id="approval-risk"></span>
+                  </div>
+                  <p id="approval-desc" class="approval-desc"></p>
+                  <p id="approval-context" class="approval-context"></p>
+                  <dl id="approval-args" class="approval-args"></dl>
+                  <p id="approval-reason" class="approval-reason"></p>
+                  <div class="approval-actions">
+                    <button class="btn btn-quiet" id="deny-btn" type="button">Don't allow</button>
+                    <button class="btn btn-primary" id="approve-btn" type="button">Allow this step</button>
+                  </div>
+                </div>
+                <section class="outcome" id="run-summary" hidden aria-labelledby="outcome-title">
+                  <h3 id="outcome-title">Result</h3>
+                  <p id="summary-counts" class="outcome-counts"></p>
+                  <p id="summary-error" class="outcome-error"></p>
+                  <div id="summary-warnings" class="outcome-warnings" hidden></div>
+                  <div id="summary-files" class="outcome-files" hidden>
+                    <h4>Files Claw made</h4>
+                    <ul id="files-list" class="files-list"></ul>
+                  </div>
+                  <div id="summary-answer-wrap" class="outcome-answer">
+                    <p id="summary-answer"></p>
+                    <p class="outcome-note">Claw's own words. The steps on the right are what actually happened.</p>
+                  </div>
+                  <div class="outcome-actions">
+                    <button class="btn btn-quiet btn-sm" id="run-again" type="button" hidden>Try again in this chat</button>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <form class="reply" id="reply-box" autocomplete="off">
+              <label class="sr-only" for="reply-input">Reply in this chat</label>
+              <textarea id="reply-input" rows="1" maxlength="4000" placeholder="Reply, or ask Claw to try again…"></textarea>
+              <button class="btn btn-primary btn-send" id="reply-btn" type="submit" disabled aria-label="Send">
+                <svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 15.5V4.5M5.5 9 10 4.5 14.5 9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </form>
+          </div>
+
+          <aside class="live" aria-label="What Claw is doing">
+            <div class="live-head">
+              <h3>Steps</h3>
+              <span class="live-count" id="live-count"></span>
+            </div>
+            <div class="live-bar" aria-hidden="true"><span id="live-bar"></span></div>
+            <ol id="activity" class="timeline" aria-live="polite"></ol>
+            <details class="plan" id="results" hidden>
+              <summary><span id="plan-summary-label">Plan</span><span class="plan-status" id="plan-status"></span></summary>
+              <p class="plan-goal" id="plan-goal"></p>
+              <p class="plan-notice" id="plan-notice"></p>
+              <ol id="plan-steps" class="plan-steps"></ol>
+              <div id="plan-questions" class="plan-questions" hidden>
+                <h4>Claw needs to know</h4>
+                <ul></ul>
+              </div>
+            </details>
+            <details class="audit">
+              <summary>Audit trail</summary>
+              <ol id="plan-events" class="audit-list"></ol>
+            </details>
+          </aside>
         </div>
-
-        <div class="turn turn-claw" id="claw-turn">
-          <span class="turn-mark" aria-hidden="true"><svg><use href="#claw-mark"/></svg></span>
-          <div class="turn-body">
-
-        <div class="approval" id="approval-card" role="alertdialog" aria-labelledby="approval-title" hidden>
-          <div class="approval-top">
-            <h3 id="approval-title"></h3>
-            <span class="approval-risk" id="approval-risk"></span>
-          </div>
-          <p id="approval-desc" class="approval-desc"></p>
-          <p id="approval-context" class="approval-context"></p>
-          <dl id="approval-args" class="approval-args"></dl>
-          <p id="approval-reason" class="approval-reason"></p>
-          <div class="approval-actions">
-            <button class="btn btn-quiet" id="deny-btn" type="button">Don't allow</button>
-            <button class="btn btn-primary" id="approve-btn" type="button">Allow this step</button>
-          </div>
-        </div>
-
-        <ol id="activity" class="timeline" aria-live="polite"></ol>
-
-        <section class="outcome" id="run-summary" hidden aria-labelledby="outcome-title">
-          <h3 id="outcome-title">Result</h3>
-          <p id="summary-counts" class="outcome-counts"></p>
-          <p id="summary-error" class="outcome-error"></p>
-          <div id="summary-warnings" class="outcome-warnings" hidden></div>
-          <div id="summary-files" class="outcome-files" hidden>
-            <h4>Files Claw made</h4>
-            <ul id="files-list" class="files-list"></ul>
-          </div>
-          <div id="summary-answer-wrap" class="outcome-answer">
-            <p id="summary-answer"></p>
-            <p class="outcome-note">Claw's own words. The steps above are what actually happened.</p>
-          </div>
-          <div class="outcome-actions">
-            <button class="btn btn-quiet btn-sm" id="run-again" type="button" hidden>Try again in this chat</button>
-          </div>
-        </section>
-
-        <details class="plan" id="results" hidden>
-          <summary><span id="plan-summary-label">Plan</span><span class="plan-status" id="plan-status"></span></summary>
-          <p class="plan-goal" id="plan-goal"></p>
-          <p class="plan-notice" id="plan-notice"></p>
-          <ol id="plan-steps" class="plan-steps"></ol>
-          <div id="plan-questions" class="plan-questions" hidden>
-            <h4>Claw needs to know</h4>
-            <ul></ul>
-          </div>
-        </details>
-
-        <details class="audit">
-          <summary>Audit trail</summary>
-          <ol id="plan-events" class="audit-list"></ol>
-        </details>
-          </div>
-        </div>
-
-        <form class="reply" id="reply-box" autocomplete="off">
-          <label class="sr-only" for="reply-input">Reply in this chat</label>
-          <textarea id="reply-input" rows="1" maxlength="4000" placeholder="Reply, or ask Claw to try again…"></textarea>
-          <button class="btn btn-primary btn-send" id="reply-btn" type="submit" disabled aria-label="Send">
-            <svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 15.5V4.5M5.5 9 10 4.5 14.5 9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </button>
-        </form>
       </section>
     </main>
   </div>

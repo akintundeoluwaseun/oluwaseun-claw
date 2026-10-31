@@ -492,8 +492,11 @@ function renderPlanOnly(task) {
   $('run-when').textContent = timeAgo(task.created_at);
   $('stop-btn').hidden = true;
   $('approval-card').hidden = true;
+  $('claw-working').hidden = true;
   $('activity').replaceChildren();
   $('run-summary').hidden = true;
+  renderProgress([], task.plan, false);
+  $('live-count').textContent = task.plan ? `${task.plan.steps.length} planned` : '';
   renderPlan(task, false);
   $('results').open = true;
   renderAudit(task.events || []);
@@ -587,6 +590,9 @@ function startWatching(id, title, threadId = null, chatTitle = null) {
   $('approval-card').hidden = true;
   $('results').hidden = true;
   $('results').open = false;
+  $('claw-working').hidden = false;
+  $('claw-working-text').textContent = 'Thinking about how to do this…';
+  renderProgress([], null, true);
   markHistorySelection();
   pollRun();
 }
@@ -699,6 +705,7 @@ function renderRun(body) {
     ]);
   });
   $('activity').replaceChildren(...items);
+  renderProgress(collectSteps(run.events), body.plan, ACTIVE.has(run.status));
 
   const appr = (run.approvals || [])[0];
   const card = $('approval-card');
@@ -733,11 +740,16 @@ function renderRun(body) {
       : [appr.caution, appr.reason && !/^use \w+$/i.test(appr.reason.trim()) ? `Why: ${appr.reason}` : ''].filter(Boolean).join(' ');
     $('approval-context').textContent = needsYou ? '' : (appr.context || '');
     card.hidden = false;
+    $('claw-working').hidden = true;
     $('approve-btn').disabled = false;
     $('deny-btn').disabled = false;
     if (firstShow) $('approve-btn').focus();
   } else {
     card.hidden = true;
+    $('claw-working').hidden = !ACTIVE.has(run.status);
+    $('claw-working-text').textContent = run.status === 'planning' || run.status === 'created'
+      ? 'Thinking about how to do this…'
+      : 'Working on it. Each step appears on the right as it happens.';
   }
 
   if (body.plan) {
@@ -867,6 +879,7 @@ async function loadHistory() {
     ]),
   );
   $('history-list').replaceChildren(...sections);
+  if (!q) renderRecent(res.body.tasks);
   $('history-empty').hidden = res.body.tasks.length > 0;
   $('history-empty').textContent = q ? 'No tasks match that search.' : 'Tasks you give Claw are kept here.';
   markHistorySelection();
@@ -893,6 +906,40 @@ async function openTask(id) {
   } else {
     startWatching(task.id, task.task_text, task.thread_id || task.id, task.title);
   }
+}
+
+/* The live panel's progress: how many steps are done out of the plan (or out of
+   those taken so far, when the plan was changed on the way). */
+function renderProgress(rows, plan, active) {
+  const steps = rows.filter((r) => !r.note);
+  const done = steps.filter((r) => r.outcome).length;
+  const planned = plan && plan.steps ? plan.steps.length : 0;
+  const total = Math.max(planned, steps.length, done);
+  $('live-count').textContent = total ? `${done} of ${total}${active ? '' : ' · done'}` : (active ? 'Planning' : '');
+  $('live-bar').style.width = total ? `${Math.round((done / total) * 100)}%` : active ? '6%' : '0%';
+  $('live-bar').parentElement.dataset.active = String(active);
+}
+
+function setDrawer(open, focus = true) {
+  document.querySelector('.shell').dataset.drawer = open ? 'open' : 'closed';
+  $('toggle-chats').setAttribute('aria-expanded', String(open));
+  try { localStorage.setItem('claw.drawer', open ? 'open' : 'closed'); } catch { /* storage may be unavailable */ }
+  if (open && focus) $('history-search').focus({ preventScroll: true });
+}
+
+function renderRecent(chats) {
+  const list = chats.slice(0, 3).map((t) => {
+    const [statusText, tone] = STATUS[t.status] || [t.status, 'muted'];
+    const b = el('button', { className: 'recent-item', attrs: { type: 'button', 'data-tone': tone } }, [
+      el('span', { className: 'h-dot' }),
+      el('span', { className: 'recent-title', text: t.title || t.task_text }),
+      el('span', { className: 'recent-sub', text: `${statusText} · ${timeAgo(t.created_at)}` }),
+    ]);
+    b.addEventListener('click', () => openTask(t.id));
+    return b;
+  });
+  $('recent-list').replaceChildren(...list);
+  $('recent').hidden = list.length === 0;
 }
 
 function setChatTitle(title) {
@@ -2097,9 +2144,14 @@ function wire() {
   $('approve-btn').addEventListener('click', () => answerApproval(true));
   $('deny-btn').addEventListener('click', () => answerApproval(false));
   $('new-task').addEventListener('click', goHome);
+  $('toggle-chats').addEventListener('click', () => setDrawer(document.querySelector('.shell').dataset.drawer !== 'open'));
+  $('recent-all').addEventListener('click', () => setDrawer(true));
+  let drawerPref = 'closed';
+  try { drawerPref = localStorage.getItem('claw.drawer') || 'closed'; } catch { /* default closed */ }
+  setDrawer(drawerPref === 'open', false);
   for (const idea of document.querySelectorAll('.idea')) {
     idea.addEventListener('click', () => {
-      input.value = idea.textContent;
+      input.value = idea.dataset.task || idea.textContent.trim();
       updateButtons();
       input.focus();
     });

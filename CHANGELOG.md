@@ -1,6 +1,21 @@
 # Changelog
 
 ## Unreleased — fixes from the first real install (Light brain)
+### New layout (user: "change everything, the arrangement")
+- A slim rail on the left (New, Chats, Docs, theme, Settings); chats slide out as a drawer and are remembered open or closed.
+- Status (agent and brain) moved to the top right.
+- Home: the logo, one question, the task box, six tiles of what Claw can do (Files, Web, Apps, WhatsApp,
+  Calendar, Flyers; each fills in an example), and "Pick up where you left off" with the three latest chats.
+- A task is split in two: the conversation on the left (your messages, Claw's question or answer, the files it
+  made, the reply box docked at the bottom) and a live Steps panel on the right with a progress bar.
+- While Claw thinks, its reply says so ("Thinking about how to do this…", then "Working on it").
+### Second real-brain trial (run 41173224236)
+- The brain asked for "Documents" (relative): refused as outside the authorized folders. Relative names now start
+  at the authorized folder they name (traversal still refused).
+- Three tasks hit the 120 s reply limit while a 2B brain on a CPU read the tool list. A local brain now gets
+  10 minutes per reply, and when tools plainly fit the request only those are described in full.
+- A finish with no steps and no summary, and "I will now save…" with no save tool named, are now sent back
+  with the fitting tools named.
 ### Found by the real-brain trial on Windows (`real-trial.yml`, Qwen3-VL 2B, run 41171556944)
 - Every file task failed with "no folders have been authorized": a fresh install had no folders at all.
   **Fixed:** a new install (or one that never had folders) is given Documents, Desktop and Downloads once
