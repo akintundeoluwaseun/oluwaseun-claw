@@ -19,6 +19,7 @@ import asyncio
 import json
 import logging
 import re
+from pathlib import Path
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from claw.agent import jsonfix, skills
 from claw.config import describe_validation_error
 from claw.logging_setup import log_event
 from claw.models.base import ChatMessage, ModelAdapter, ModelError, ModelResponseError
@@ -625,6 +627,10 @@ async def run_agent(
     limits = ctx.settings.agent
     fitting = fitting_tools(task, registry)
     hint = f"\n\nTools that fit this task: {', '.join(fitting)}." if fitting else ""
+    recipe = skills.pick(task, skills.load(skills.BUILTIN, Path(ctx.data_dir) / "skills") if getattr(ctx, "data_dir", None) else skills.load(skills.BUILTIN))
+    if recipe:
+        hint += skills.for_prompt(recipe)
+        emit("skill_used", {"name": recipe.name})
     messages = [
         ChatMessage(role="system",
                     # With tools that plainly fit, only those are described in full and the rest
@@ -806,7 +812,7 @@ async def _replan(adapter: ModelAdapter, messages: list[ChatMessage], emit: Emit
     ask = messages + [ChatMessage(role="user", content=REPLAN_PROMPT)]
     try:
         raw = await adapter.chat(ask, json_schema=Replan.model_json_schema())
-        plan = Replan.model_validate(json.loads(_strip_fences(raw)))
+        plan = Replan.model_validate(jsonfix.loads(raw))
     except ModelError:
         raise
     except (json.JSONDecodeError, ValidationError, ValueError):
@@ -841,7 +847,7 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
         except ModelError:
             raise
         try:
-            action = ModelAction.model_validate(json.loads(_strip_fences(raw)))
+            action = ModelAction.model_validate(jsonfix.loads(raw))
             if action.action == "tool" and not action.tool:
                 raise ValueError("action 'tool' needs a tool name")
             return action

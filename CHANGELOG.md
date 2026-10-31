@@ -1,6 +1,17 @@
 # Changelog
 
 ## Unreleased — fixes from the first real install (Light brain)
+### Taken from OpenClaw (MIT), rewritten in Python
+- **Web search without the browser page:** OpenClaw's DuckDuckGo HTML-results reader (`claw/browser/ddg_html.py`)
+  is used when the browser's results page gives nothing, which happened in the fifth Windows trial.
+- **Nearly-right JSON from the brain:** OpenClaw's JSON repair (`claw/agent/jsonfix.py`), including its rule for
+  Windows paths written with single backslashes, plus taking the JSON out of chatter or code fences.
+- **Skills:** OpenClaw's SKILL.md format (`claw/agent/skills.py`). Claw picks the recipe that fits a request
+  and puts it next to the task, because a 2B brain will not go and open one. Seven recipes ship for the
+  everyday tasks (documents, flyers, spreadsheets, search-and-save, Notepad, copying, WhatsApp). Anyone can
+  add their own in `%APPDATA%\S-CLAW\skills\<name>\SKILL.md`; instruction-only OpenClaw skills work as
+  they are, and ones needing a program this computer lacks are skipped.
+- Also from the fifth trial: a made-up flyer picture no longer stops the flyer at the pre-check either.
 ### The living orb and the quick bar
 - The logo is now a living orb everywhere (title bar, home, Claw's replies, quick bar): colour fields turn and
   change shape inside a glassy sphere with the claw blades turning on top. It never stops; it speeds up while

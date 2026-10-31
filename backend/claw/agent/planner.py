@@ -7,6 +7,7 @@ import logging
 
 from pydantic import ValidationError
 
+from claw.agent import jsonfix
 from claw.agent.executor import REPLY_TOKENS, estimate_tokens
 from claw.agent.schemas import ModelPlan, Plan, PlanStep
 from claw.config import describe_validation_error
@@ -110,7 +111,7 @@ async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy) 
             continue
         log_event(log, "model replied", attempt=attempt, chars=len(raw))
         try:
-            parsed = ModelPlan.model_validate(json.loads(_strip_fences(raw)))
+            parsed = ModelPlan.model_validate(jsonfix.loads(raw))
         except json.JSONDecodeError as exc:
             last_problems = [f"not valid JSON: {exc.msg}"]
         except ValidationError as exc:

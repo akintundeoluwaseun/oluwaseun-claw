@@ -11,7 +11,8 @@ from urllib.parse import urlparse
 from pydantic import Field
 
 from claw.agent.schemas import Capability
-from claw.browser import extract
+from claw.browser import ddg_html, extract
+import httpx
 import sys
 
 from claw.browser.history import HISTORY_SOURCES, history_path, search_history
@@ -41,6 +42,15 @@ async def web_search(args: SearchArgs, ctx: ToolContext) -> ToolResult:
     info = await ctx.browser.goto(url)
     page = await ctx.browser.page()
     results = await extract.search_results(page, s.search_engine)
+    fallback_note = ""
+    if not results and s.search_engine == "duckduckgo":
+        # The browser's page gave nothing (seen on Windows); DuckDuckGo's HTML results
+        # page usually does. Approach ported from OpenClaw; see browser/ddg_html.py.
+        try:
+            results = await ddg_html.search(args.query)
+            fallback_note = " (read from DuckDuckGo's plain results page)"
+        except (ddg_html.SearchChallenge, httpx.HTTPError) as exc:
+            fallback_note = f" The plain results page did not help either: {exc}"
     took_ms = round((time.monotonic() - started) * 1000)
     ctx.browser.last_results = results
     _remember(ctx, [r["url"] for r in results])
@@ -57,12 +67,12 @@ async def web_search(args: SearchArgs, ctx: ToolContext) -> ToolResult:
         return ToolResult(
             True,
             f"Searched {provider['name']} for '{args.query}' and the page loaded, "
-            f"but no results could be read from it.",
+            f"but no results could be read from it.{fallback_note}",
             {"results": [], **evidence}, verified,
         )
     return ToolResult(
         True,
-        f"Found {len(results)} result(s) for '{args.query}' on {provider['name']} ({took_ms} ms).",
+        f"Found {len(results)} result(s) for '{args.query}' on {provider['name']} ({took_ms} ms){fallback_note}.",
         {"results": results, **evidence},
         verified,
         untrusted_text=_format_results(results),

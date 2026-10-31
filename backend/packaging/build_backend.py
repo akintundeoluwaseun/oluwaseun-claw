@@ -34,6 +34,7 @@ def main() -> int:
         # native libraries beside them) has to come across with its layout intact.
         "--collect-all", "sherpa_onnx", "--collect-binaries", "sherpa_onnx",
         "--collect-data", "docx", "--collect-data", "openpyxl",
+        "--collect-data", "claw",  # built-in skills (claw/skills/*/SKILL.md)
         *[x for m in ("uvicorn.logging", "uvicorn.loops.auto", "uvicorn.protocols.http.auto",
                       "uvicorn.protocols.websockets.auto", "uvicorn.lifespan.on") for x in ("--hidden-import", m)],
         # Windows desktop control: pywinauto + comtypes (COM) + pywin32 pieces loaded at run time.

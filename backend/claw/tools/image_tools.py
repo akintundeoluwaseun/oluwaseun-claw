@@ -125,8 +125,7 @@ class FlyerArgs(ToolArgs):
 
 
 def check_flyer(args: FlyerArgs, ctx: ToolContext) -> None:
-    for p in args.images:
-        _input_image(ctx, p)
+    _usable_images(ctx, args.images)  # a made-up picture is skipped here too, not fatal
     resolve_folder(ctx, args.folder)
     if args.format == "psd" and args.editor == "builtin":
         raise ToolError("PSD files can only be made with Photoshop.")
