@@ -1,0 +1,96 @@
+{"ts": "2026-10-31T10:26:36.466+00:00", "level": "INFO", "logger": "claw.main", "msg": "backend starting", "fields": {"version": "0.5.0", "port": 18765, "data_dir": "D:\\a\\oluwaseun-claw\\oluwaseun-claw\\trial-data", "log_file": "D:\\a\\oluwaseun-claw\\oluwaseun-claw\\trial-data\\logs\\claw.log"}}
+{"ts": "2026-10-31T10:26:36.563+00:00", "level": "INFO", "logger": "claw.api", "msg": "starter folders added", "fields": {"count": 3}}
+{"ts": "2026-10-31T10:26:36.610+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Started server process [8432]"}
+{"ts": "2026-10-31T10:26:36.610+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Waiting for application startup."}
+{"ts": "2026-10-31T10:26:36.610+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Application startup complete."}
+{"ts": "2026-10-31T10:26:36.612+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Uvicorn running on http://127.0.0.1:18765 (Press CTRL+C to quit)"}
+{"ts": "2026-10-31T10:26:37.453+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine starting", "fields": {"model": "qwen3-vl-2b", "port": 57445, "need_gb": 2.7}}
+{"ts": "2026-10-31T10:26:37.617+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-10-31T10:26:37.928+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-10-31T10:26:38.245+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-10-31T10:26:38.559+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-10-31T10:26:38.876+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-10-31T10:26:39.177+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-10-31T10:26:39.494+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/health \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:26:39.496+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine ready", "fields": {"model": "qwen3-vl-2b", "seconds": 2.0}}
+{"ts": "2026-10-31T10:26:39.633+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:27:00.220+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:27:00.222+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 1257}}
+{"ts": "2026-10-31T10:27:00.410+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:27:14.983+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:27:21.456+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:27:25.785+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:27:33.362+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:27:33.366+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "839e8d1744e54237a958db1fc1972391", "status": "completed", "steps": 1}}
+{"ts": "2026-10-31T10:27:34.971+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:27:49.737+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:27:49.740+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 1249}}
+{"ts": "2026-10-31T10:27:49.856+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:28:02.862+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:28:04.333+00:00", "level": "INFO", "logger": "claw.browser", "msg": "browser started", "fields": {"channel": "msedge", "headless": false, "override": false}}
+{"ts": "2026-10-31T10:28:15.474+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:29:35.592+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:29:49.206+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:30:03.018+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:30:03.022+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "47f2e3746b504267812c820e9f407435", "status": "completed", "steps": 3}}
+{"ts": "2026-10-31T10:30:04.011+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:30:32.194+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:30:32.196+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 799}}
+{"ts": "2026-10-31T10:30:32.437+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:31:15.867+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:31:30.739+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:31:48.694+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:32:10.812+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:32:19.777+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:32:19.781+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "bc4125293efb40bfb7cc788fadab6a6a", "status": "completed", "steps": 1}}
+{"ts": "2026-10-31T10:32:20.429+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:32:39.367+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:32:39.369+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 568}}
+{"ts": "2026-10-31T10:32:39.611+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:33:25.429+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:33:37.510+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:33:37.514+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "f08a8f6e6921451f80a6d501742f4ff5", "status": "completed", "steps": 1}}
+{"ts": "2026-10-31T10:33:38.188+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:33:49.854+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:33:49.856+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 331}}
+{"ts": "2026-10-31T10:33:50.086+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:34:19.363+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:34:38.645+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:34:38.649+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "7098e7abde30443ab0b33b22511dd650", "status": "completed", "steps": 1}}
+{"ts": "2026-10-31T10:34:39.666+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:35:53.017+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:35:53.019+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 2395}}
+{"ts": "2026-10-31T10:35:53.273+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:37:06.091+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:37:30.565+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:37:30.569+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "46223e0efaa649ba9964217ae8163edd", "status": "completed", "steps": 1}}
+{"ts": "2026-10-31T10:37:30.954+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:37:49.477+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:37:49.481+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 628}}
+{"ts": "2026-10-31T10:37:49.785+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:38:29.638+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:38:39.210+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:38:39.223+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "3b6108d13fcb46069ae4bee558db8733", "status": "completed", "steps": 1}}
+{"ts": "2026-10-31T10:38:39.956+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:39:09.214+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:39:09.216+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 902}}
+{"ts": "2026-10-31T10:39:09.464+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:40:08.648+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:40:26.434+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:40:44.637+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:41:14.542+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:41:14.544+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "b4718ba0038c4c7c9d6b2c3ce279cf84", "status": "completed", "steps": 1}}
+{"ts": "2026-10-31T10:41:15.482+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:41:40.098+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:41:40.100+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 760}}
+{"ts": "2026-10-31T10:41:40.356+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:42:14.544+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:42:27.177+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:42:27.181+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "7bdf6ead42904a2e83f584cb1ab4ab1a", "status": "completed", "steps": 1}}
+{"ts": "2026-10-31T10:42:28.302+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:42:40.306+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:42:40.308+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 332}}
+{"ts": "2026-10-31T10:42:40.571+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:57445/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:43:20.129+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:43:27.039+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:57445/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-10-31T10:43:27.043+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "a44d2f59433c44aab222a795634d1cf2", "status": "completed", "steps": 1}}
