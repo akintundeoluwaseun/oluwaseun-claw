@@ -1,6 +1,7 @@
 """Browser tools against a real Chromium and the local test site."""
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -125,7 +126,9 @@ async def test_history_of_agent_browser(tool_ctx, site):
     while headless on Linux does. So the browser is made visible on Windows only --
     which is also Claw's own default, so this is the shipped configuration either way.
     """
-    if sys.platform == "win32":
+    # Playwright's own headless build (chrome-headless-shell, used on the Linux and Mac CI
+    # machines) writes no History either, so use a visible browser wherever there is a screen.
+    if sys.platform in ("win32", "darwin") or os.environ.get("DISPLAY"):
         tool_ctx.settings.browser.headless = False
     await call(tool_ctx, "open_url", url=site.base_url + "/articles/ai-video")
     await call(tool_ctx, "open_url", url=site.base_url + "/articles/cooking")
