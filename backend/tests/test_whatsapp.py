@@ -69,7 +69,12 @@ async def test_previews_only_when_turned_on(desk_ctx):
     assert '"Lecture moved to 10am"' in r.untrusted_text
 
 
-async def test_opens_whatsapp_or_explains(desk_ctx):
+async def test_opens_whatsapp_or_explains(desk_ctx, monkeypatch):
+    import claw.integrations.whatsapp as wa
+
+    # The stand-in desktop decides what is installed, not the machine running the test
+    # (the Windows build machine has no WhatsApp, so the real check said "not installed").
+    monkeypatch.setattr(wa, "whatsapp_installed", lambda: None)
     r = await call(desk_ctx, "check_whatsapp")
     assert not r.ok and r.data["state"] == "not_installed" and "Microsoft Store" in r.summary
     desk_ctx.fake.add_whatsapp(CHATS, open_now=False)

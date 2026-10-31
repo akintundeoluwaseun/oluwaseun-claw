@@ -40,6 +40,9 @@ module.exports = {
   ...(process.env.CLAW_ELECTRON_DIST ? { electronDist: process.env.CLAW_ELECTRON_DIST } : {}),
   extraResources: extra,
   extraMetadata: { claw: { edition } },
+  // Nothing is published by electron-builder itself; without this it tries to guess a
+  // publish target from the repository and crashes ("reading 'channel'") on Linux and Mac.
+  publish: null,
   win: {
     target: [{ target: 'dir', arch: ['x64'] }],
     icon: 'src/assets/icon.ico',
@@ -53,7 +56,7 @@ module.exports = {
   },
   mac: {
     target: [{ target: process.env.CLAW_UNIX_TARGET || 'dir', arch: ['arm64'] }],
-    icon: 'src/assets/icon.png',
+    icon: 'src/assets/icon-512.png',  // macOS needs at least 512x512
     category: 'public.app-category.productivity',
     artifactName: 'S-CLAW-${version}-mac-arm64.${ext}',
     // Not signed: macOS will ask the person to open it with right-click > Open the first time.
