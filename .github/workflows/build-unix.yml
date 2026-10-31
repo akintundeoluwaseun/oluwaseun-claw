@@ -31,6 +31,8 @@ jobs:
         working-directory: backend
         run: |
           python -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt
+          # The browser tests drive a real Chromium; the Windows runner has Edge, these do not.
+          if [ "$RUNNER_OS" = "Linux" ]; then .venv/bin/python -m playwright install --with-deps chromium; else .venv/bin/python -m playwright install chromium; fi
           set -o pipefail
           run() { if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a "$@"; else "$@"; fi; }
           run .venv/bin/python -m pytest -q -rfE 2>&1 | tee ../pytest.log || {
