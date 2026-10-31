@@ -140,3 +140,15 @@ async def test_flyer_with_a_made_up_picture_is_still_made(tool_ctx):
     from claw.tools.image_tools import FlyerArgs, check_flyer
 
     check_flyer(FlyerArgs(title="TechDesk", images=["logo.png"]), tool_ctx)   # no error
+
+
+def test_sixth_trial_near_misses():
+    from claw.agent.executor import closest_tool
+
+    r = build_registry()
+    assert closest_tool("open_page", r) == "open_url" and closest_tool("web_serch", r) == "web_search"
+    assert closest_tool("launch_rocket", r) is None
+    twelve = [{"tool": "create_spreadsheet", "outcome": "verified", "detail": "Created states.xlsx with 12 row(s)"}]
+    assert "exactly 5" in premature_finish("Done.", twelve, ["create_spreadsheet"], task="Create a spreadsheet of five states")
+    rejected = [{"tool": "web_search", "outcome": "verified"}, {"tool": "open_page", "outcome": "rejected"}]
+    assert "nothing has been saved" in premature_finish("Title X URL Y", rejected, ["save_links"], wants_save=True)

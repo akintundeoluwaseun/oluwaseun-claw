@@ -80,7 +80,7 @@ def run_task(api: Api, text: str, limit_s: int) -> dict:
     code, task = api.call("GET", f"/tasks/{tid}")
     result = (task or {}).get("result") or {}
     steps = [{k: s.get(k) for k in ("tool", "args", "outcome", "detail")} for s in result.get("steps", [])]
-    model_events = [e for e in events if e["kind"] in ("model_reply_rejected", "replanned", "model_error", "failed", "rejected", "stopped", "pushed_back", "started_for_brain")]
+    model_events = [e for e in events if e["kind"] in ("model_reply_rejected", "replanned", "model_error", "failed", "rejected", "stopped", "pushed_back", "started_for_brain", "tool_name_corrected", "skill_used")]
     return {
         "task": text, "id": tid, "status": status, "seconds": round(time.time() - t0, 1),
         "error": (task or {}).get("error"), "answer": result.get("final_answer"), "counts": result.get("counts"),

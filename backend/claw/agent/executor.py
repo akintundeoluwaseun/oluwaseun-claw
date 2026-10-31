@@ -295,6 +295,25 @@ _NO_TOOL = re.compile(
 MAX_PUSHBACKS = 2
 
 
+_TOOL_ALIASES = {"open_page": "open_url", "goto": "open_url", "navigate": "open_url", "visit": "open_url",
+                 "search": "web_search", "search_web": "web_search", "google": "web_search",
+                 "read_pdf": "read_document_pages", "read_document": "read_document_pages",
+                 "snapshot": "look_at_page", "get_page": "read_page", "save_link": "save_links",
+                 "open_app": "launch_app", "start_app": "launch_app", "list_files": "list_folder",
+                 "make_spreadsheet": "create_spreadsheet", "create_flyer": "make_flyer", "copy_file": "copy_files"}
+
+
+def closest_tool(name: str, registry: ToolRegistry) -> str | None:
+    import difflib
+
+    names = registry.names()
+    n = name.strip().lower()
+    if _TOOL_ALIASES.get(n) in names:
+        return _TOOL_ALIASES[n]
+    hit = difflib.get_close_matches(n, names, n=1, cutoff=0.8)
+    return hit[0] if hit else None
+
+
 def example_call(registry: ToolRegistry, name: str) -> str:
     """A filled-in shape of a tool call, so a small brain sees exactly what to send."""
     spec = registry.get(name)
@@ -326,9 +345,9 @@ def _too_few_rows(task: str, steps: list[dict[str, Any]]) -> str | None:
     for s in reversed(steps):
         if s.get("tool") == "create_spreadsheet" and s.get("outcome") in ("verified", "done_unverified"):
             got = re.search(r"with (\d+) row", str(s.get("detail", "")))
-            if got and int(got.group(1)) < want <= 200:
+            if got and int(got.group(1)) != want and want <= 200:
                 return (f"You were asked for {want}, and the spreadsheet has {got.group(1)} row(s). "
-                        f"Make it again with all {want} rows, each one correct.")
+                        f"Make it again with exactly {want} rows, each one correct.")
             return None
     return None
 
@@ -337,7 +356,9 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
                      wants_save: bool = False, task: str = "") -> str | None:
     """Why this finish should be sent back, or None to accept it."""
     tools = f" Tools for it: {', '.join(fitting)}." if fitting else ""
-    last_failed = bool(steps) and steps[-1].get("outcome") in ("failed", "rejected")
+    # A tool that ran and failed is an honest end. A call Claw rejected (a made-up tool,
+    # wrong arguments) is not: the work is still to do.
+    last_failed = bool(steps) and steps[-1].get("outcome") == "failed"
     if fitting and example:
         tools += f" Reply like this, with real values: {example}"
     if _STILL_TO_DO.search(final) and not last_failed:
@@ -643,6 +664,7 @@ async def run_agent(
     ]
     pushbacks = 0
     started_for_it = False
+    steps_after_forced_answered = False
     steps: list[dict[str, Any]] = []
     consecutive_failures = 0
     last_signature: str | None = None
@@ -678,6 +700,13 @@ async def run_agent(
 
         if action.action == "finish":
             final = (action.final_answer or "").strip() or "(The model finished without a summary.)"
+            if started_for_it and not steps_after_forced_answered and final.startswith("(The model finished without a summary"):
+                steps_after_forced_answered = True
+                why_now = ("You have the document's text above. Answer the person's question from it now, "
+                           "quoting the figure exactly as written.")
+                emit("pushed_back", {"step": step_no, "reason": why_now, "final_answer": final[:300]})
+                messages.append(ChatMessage(role="user", content=why_now))
+                continue
             why = (premature_finish(final, steps, fitting, example_call(registry, fitting[0]) if fitting else "",
                                     wants_save=bool(re.search(r"\bsave\b", task.split("\n")[0], re.I)), task=task)
                    if pushbacks < MAX_PUSHBACKS else None)
@@ -701,6 +730,14 @@ async def run_agent(
             return outcome("completed", final)
 
         spec = registry.get(action.tool or "")
+        if spec is None and action.tool:
+            # "open_page" for open_url, "search_web" for web_search: a near-miss name is
+            # taken as the tool it plainly means rather than wasting a step.
+            guess = closest_tool(action.tool, registry)
+            if guess:
+                emit("tool_name_corrected", {"step": step_no, "asked": action.tool, "used": guess})
+                action = action.model_copy(update={"tool": guess})
+                spec = registry.get(guess)
         record = {"step": step_no, "tool": action.tool, "args": action.args, "thought": action.thought}
         emit("requested", {k: record[k] for k in ("step", "tool", "args", "thought")})
 
