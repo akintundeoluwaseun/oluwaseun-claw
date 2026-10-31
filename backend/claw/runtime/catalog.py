@@ -57,10 +57,8 @@ CATALOG = [
         min_ram_gb=2,
         min_vram_gb=1,
         description=(
-            "About 400 MB, for proving offline thinking runs on this computer "
-            "without spending gigabytes. It is genuinely small: expect short, "
-            "shaky answers and tasks it cannot plan. Not a working brain - a "
-            "way to find out whether the engine starts before committing to one."
+            "A 400 MB test brain: checks that thinking works on this computer "
+            "before you download a bigger one. Too small for real tasks."
         ),
         recommendable=False,
     ),

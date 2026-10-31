@@ -24,16 +24,15 @@ const tokens = fs.readFileSync(here('tokens.css'), 'utf8');
 const PAGES = ['quickbar.html', 'index.html'];
 const SHEETS = ['quickbar.css', 'styles.css'];
 
-test('every page that draws the mark reads the tile from a custom property', () => {
+test('the tile reads its fill from a theme token, without an inline style the CSP would block', () => {
+  // A style="" attribute looked right and never applied: the pages' CSP is
+  // style-src 'self', so Chromium dropped it and logged an error on every load.
   for (const page of PAGES) {
     const html = fs.readFileSync(here(page), 'utf8');
-    const rect = /<rect class="mk-tile"[^>]*>/.exec(html);
-    assert.ok(rect, `${page} no longer has the mk-tile rect`);
-    assert.match(
-      rect[0], /style="[^"]*fill:\s*var\(--mk-tile-fill/,
-      `${page}: the tile's fill is not a var() in a style attribute on the rect, so it cannot follow the theme inside <use>`,
-    );
+    assert.ok(/<rect class="mk-tile"[^>]*>/.test(html), `${page} no longer has the mk-tile rect`);
+    assert.doesNotMatch(html, /\sstyle="/, `${page}: inline style attributes are blocked by the CSP`);
   }
+  assert.match(tokens, /(^|\n)\.mk-tile\s*\{\s*fill:\s*var\(--mk-tile-fill/, 'tokens.css has no top-level .mk-tile rule reading the token');
 });
 
 test('the rect keeps a plain fill attribute as the fallback', () => {

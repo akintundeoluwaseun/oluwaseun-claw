@@ -729,7 +729,8 @@ function renderRun(body) {
     );
     $('approval-reason').textContent = needsYou
       ? (appr.detail ? `S-CLAW was: ${appr.detail}` : '')
-      : [appr.caution, appr.reason ? `Why: ${appr.reason}` : ''].filter(Boolean).join(' ');
+      // "Why: Use save_links" names a tool, not a reason; only a real reason is shown.
+      : [appr.caution, appr.reason && !/^use \w+$/i.test(appr.reason.trim()) ? `Why: ${appr.reason}` : ''].filter(Boolean).join(' ');
     $('approval-context').textContent = needsYou ? '' : (appr.context || '');
     card.hidden = false;
     $('approve-btn').disabled = false;

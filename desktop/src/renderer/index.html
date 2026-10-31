@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-view="home">
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <svg class="sprite" width="0" height="0" aria-hidden="true">
     <symbol id="i-plus" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-gear" viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
     <symbol id="i-search" viewBox="0 0 20 20"><circle cx="9" cy="9" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m13 13 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
@@ -69,8 +69,7 @@
           <stop offset=".3" stop-color="#6E8BFF" stop-opacity=".92"/><stop offset="1" stop-color="#6E8BFF" stop-opacity="0"/>
         </radialGradient>
       </defs>
-      <rect class="mk-tile" width="64" height="64" rx="15" fill="#0E0F12"
-            style="fill: var(--mk-tile-fill, #0E0F12)"/>
+      <rect class="mk-tile" width="64" height="64" rx="15" fill="#0E0F12"/>
       <circle class="mk-ring" cx="32" cy="32" r="22" fill="none" stroke="#7E9BFF" stroke-width="2" opacity="0"/>
       <circle class="mk-bloom" cx="32" cy="32" r="27" fill="url(#mk-b)"/>
       <g class="mk-blades"><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(0 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(120 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(240 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(0 32 32)" fill="url(#mk-e)" opacity=".92"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(120 32 32)" fill="url(#mk-e)" opacity=".92"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(240 32 32)" fill="url(#mk-e)" opacity=".92"/></g>
@@ -282,7 +281,7 @@
         <ol id="activity" class="timeline" aria-live="polite"></ol>
 
         <section class="outcome" id="run-summary" hidden aria-labelledby="outcome-title">
-          <h3 id="outcome-title">Outcome</h3>
+          <h3 id="outcome-title">Result</h3>
           <p id="summary-counts" class="outcome-counts"></p>
           <p id="summary-error" class="outcome-error"></p>
           <div id="summary-warnings" class="outcome-warnings" hidden></div>
@@ -291,8 +290,8 @@
             <ul id="files-list" class="files-list"></ul>
           </div>
           <div id="summary-answer-wrap" class="outcome-answer">
-            <p class="outcome-note">Claw's summary, in its own words. Check it against the steps above.</p>
             <p id="summary-answer"></p>
+            <p class="outcome-note">Claw's own words. The steps above are what actually happened.</p>
           </div>
           <div class="outcome-actions">
             <button class="btn btn-quiet btn-sm" id="run-again" type="button" hidden>Try again in this chat</button>

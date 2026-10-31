@@ -28,7 +28,8 @@ def fallback_title(request: str) -> str:
     for _ in range(3):  # "Hi, can you please …" has several openers in a row
         text = _OPENERS.sub("", text).strip()
     first = _BREAK.split(text, maxsplit=1)[0].strip() or text
-    first = _WEB.sub(lambda m: m.group(1).capitalize() + " ", first, count=1)
+    # "search the web for X" -> "search X", keeping the case it had (mid-sentence stays lower case).
+    first = _WEB.sub(lambda m: m.group(1) + " ", first, count=1)
     words = first.split()
     if len(words) > MAX_WORDS:
         words = words[:MAX_WORDS]

@@ -28,7 +28,9 @@
 - The edition profile written by PowerShell has a byte-order mark; it is now read with `utf-8-sig` instead
   of failing and falling back.
 ### Changed
-- Dark, chat-style window: your request on the right, Claw's steps and outcome as its reply, a reply box at
+- Charcoal, chat-style window with the logo's periwinkle as the only accent (no uppercase labels, no card around
+  every block; Claw's answer leads the result). The logo tile now follows the theme: its inline style was
+  blocked by the page's CSP, so it was always a black square. Before that: your request on the right, Claw's steps and outcome as its reply, a reply box at
   the foot of each chat, a breathing edge while Claw works. Dark is now the default theme.
 
 ## Unreleased — Windows build on GitHub

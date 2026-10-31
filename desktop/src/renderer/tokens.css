@@ -31,34 +31,34 @@
      --surface a hair off it, so most of the window sat above 98% luminance.
      Everything is a few percent down and a little warmer. Measured against
      --ink the worst of these is still 13.7:1, well past WCAG AA. */
-  --bg: #eceff6;
+  --bg: #f3f3f5;
   /* The mark carries a tile behind its blades. Those blades are white-to-lavender
      gradients, so on a light surface they need something dark behind them or they
      disappear. On a dark surface they do not - and a near-black tile sitting on an
      already-dark panel is just a black block, which is what the quick bar showed:
      an icon with a visible black background, all day, on the desktop. So the tile
      is a theme token, not a fixed colour. */
-  --mk-tile-fill: #121726;
-  --surface: #f6f7fb;
-  --surface-2: #eef1f8;
-  --surface-3: #e3e8f2;
-  --raised: #fbfcfe;
+  --mk-tile-fill: #18181b;
+  --surface: #f9f9fa;
+  --surface-2: #efeff2;
+  --surface-3: #e6e6ea;
+  --raised: #ffffff;
 
   /* --- text --- */
-  --ink: #121726;
-  --ink-2: #4a5470;
-  --ink-3: #7d87a1;
+  --ink: #18181b;
+  --ink-2: #52525b;
+  --ink-3: #85858f;
 
   /* --- lines --- */
-  --line: #dde2ec;
-  --line-2: #c9d0de;
-  --line-strong: #a8b2c7;
+  --line: #e4e4e8;
+  --line-2: #d4d4da;
+  --line-strong: #ababb4;
 
   /* --- the accent: antique brass --- */
-  --brass: #4d5ad4;
+  --brass: #4655c9;
   --brass-ink: #ffffff;
-  --brass-soft: #e7eaff;
-  --brass-line: #c3caf6;
+  --brass-soft: #e9ebfb;
+  --brass-line: #c6cbf2;
 
   /* --- meaning --- */
   --green: #1f7a57;
@@ -107,91 +107,99 @@
    ever drift apart. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f1522;
+    --bg: #151618;
     /* No tile on a dark surface: the blades already read, and a near-black
        square on a near-black panel is the black background people saw. */
     --mk-tile-fill: transparent;
-    --surface: #131a28;
-    --surface-2: #192131;
-    --surface-3: #202a3d;
-    --raised: #172030;
+    --surface: #1a1b1e;
+    --surface-2: #202124;
+    --surface-3: #28292d;
+    --raised: #1f2023;
 
-    --ink: #e8edf6;
-    --ink-2: #a3aec4;
-    --ink-3: #6f7b93;
+    --ink: #ededf0;
+    --ink-2: #a6a7ae;
+    --ink-3: #71727a;
 
-    --line: #222c40;
-    --line-2: #2d3952;
-    --line-strong: #43516f;
+    --line: #28292d;
+    --line-2: #333439;
+    --line-strong: #4a4b52;
 
-    --brass: #8d9bff;
-    --brass-ink: #0c1130;
-    --brass-soft: #1b2246;
-    --brass-line: #353f7a;
+    --brass: #a8b8ff;
+    --brass-ink: #0e1124;
+    --brass-soft: #1d2030;
+    --brass-line: #3a4269;
 
-    --green: #5ed3a3;
-    --green-soft: #0f2a22;
-    --green-line: #1f4a3b;
-    --amber: #f3b65c;
-    --amber-soft: #2c2313;
-    --amber-line: #5a4422;
-    --red: #f07a86;
-    --red-soft: #2c1720;
-    --red-line: #5a2a35;
+    --green: #7fcf9f;
+    --green-soft: #17251d;
+    --green-line: #2a4434;
+    --amber: #e6b35a;
+    --amber-soft: #2a2216;
+    --amber-line: #544126;
+    --red: #ec8a7e;
+    --red-soft: #2b1a18;
+    --red-line: #5a312c;
 
-    --shadow-1: 0 1px 2px rgba(3, 6, 16, 0.5);
-    --shadow-2: 0 2px 8px rgba(3, 6, 16, 0.45), 0 14px 36px rgba(3, 6, 16, 0.5);
-    --shadow-3: 0 8px 20px rgba(3, 6, 16, 0.55), 0 32px 80px rgba(3, 6, 16, 0.65);
-    --inset: inset 0 1px 0 rgba(160, 175, 255, 0.05);
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.45), 0 14px 36px rgba(0, 0, 0, 0.5);
+    --shadow-3: 0 8px 20px rgba(0, 0, 0, 0.55), 0 32px 80px rgba(0, 0, 0, 0.65);
+    --inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #0f1522;
+  --bg: #151618;
   --mk-tile-fill: transparent;
-  --surface: #131a28;
-  --surface-2: #192131;
-  --surface-3: #202a3d;
-  --raised: #172030;
+  --surface: #1a1b1e;
+  --surface-2: #202124;
+  --surface-3: #28292d;
+  --raised: #1f2023;
 
-  --ink: #e8edf6;
-  --ink-2: #a3aec4;
-  --ink-3: #6f7b93;
+  --ink: #ededf0;
+  --ink-2: #a6a7ae;
+  --ink-3: #71727a;
 
-  --line: #222c40;
-  --line-2: #2d3952;
-  --line-strong: #43516f;
+  --line: #28292d;
+  --line-2: #333439;
+  --line-strong: #4a4b52;
 
-  --brass: #8d9bff;
-  --brass-ink: #0c1130;
-  --brass-soft: #1b2246;
-  --brass-line: #353f7a;
+  --brass: #a8b8ff;
+  --brass-ink: #0e1124;
+  --brass-soft: #1d2030;
+  --brass-line: #3a4269;
 
-  --green: #5ed3a3;
-  --green-soft: #0f2a22;
-  --green-line: #1f4a3b;
-  --amber: #f3b65c;
-  --amber-soft: #2c2313;
-  --amber-line: #5a4422;
-  --red: #f07a86;
-  --red-soft: #2c1720;
-  --red-line: #5a2a35;
+  --green: #7fcf9f;
+  --green-soft: #17251d;
+  --green-line: #2a4434;
+  --amber: #e6b35a;
+  --amber-soft: #2a2216;
+  --amber-line: #544126;
+  --red: #ec8a7e;
+  --red-soft: #2b1a18;
+  --red-line: #5a312c;
 
-  --shadow-1: 0 1px 2px rgba(3, 6, 16, 0.5);
-  --shadow-2: 0 2px 8px rgba(3, 6, 16, 0.45), 0 14px 36px rgba(3, 6, 16, 0.5);
-  --shadow-3: 0 8px 20px rgba(3, 6, 16, 0.55), 0 32px 80px rgba(3, 6, 16, 0.65);
-  --inset: inset 0 1px 0 rgba(160, 175, 255, 0.05);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.45), 0 14px 36px rgba(0, 0, 0, 0.5);
+  --shadow-3: 0 8px 20px rgba(0, 0, 0, 0.55), 0 32px 80px rgba(0, 0, 0, 0.65);
+  --inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   color-scheme: dark;
   }
+
+/* The logo's tile follows the theme. This rule has no ancestor in its selector on
+   purpose: it is matched inside the <symbol>, and the custom property reaches the
+   copy drawn by <use> through inheritance. It used to be a style="" attribute on
+   the rect, which the page's Content-Security-Policy (style-src 'self') blocks -
+   so the tile was always the fallback near-black square. */
+.mk-tile { fill: var(--mk-tile-fill, #0E0F12); }
+.sprite { position: absolute; }
 
 /* The mark: an engraved tile, not a sticker. */
 .mark-tile { fill: var(--ink); }
 .mark-claw { fill: none; stroke: var(--brass); stroke-width: 3.2; stroke-linecap: round; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .mark-tile { fill: #1d2640; }
+  :root:not([data-theme="light"]) .mark-tile { fill: #26272c; }
 }
-:root[data-theme="dark"] .mark-tile { fill: #1d2640; }
+:root[data-theme="dark"] .mark-tile { fill: #26272c; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 [hidden] { display: none !important; }

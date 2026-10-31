@@ -112,3 +112,7 @@ def test_a_fresh_install_gets_its_folders_once(tmp_path, monkeypatch):
     (data / "settings.json").write_text(_json.dumps(full))
     create_app(data, "t" * 40)
     assert _json.loads((data / "settings.json").read_text())["permissions"]["authorized_folders"] == []
+
+
+def test_a_search_in_the_middle_keeps_its_case():
+    assert fallback_title("Open my browser and search for motion graphics templates") == "Open my browser and search motion graphics"
