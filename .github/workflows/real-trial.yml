@@ -1,0 +1,79 @@
+# Real trial: the real brain, real Windows, real apps — everyday tasks run through S-CLAW's API with every
+# approval granted, as a user would. Results are pushed to the `ci-evidence` branch (trials/<run>/).
+name: Real trial (Windows + real brain)
+
+on:
+  workflow_dispatch:
+    inputs:
+      brain:
+        description: "Brain to load"
+        type: choice
+        options: [qwen3-vl-2b, qwen3-vl-4b]
+        default: qwen3-vl-2b
+
+permissions:
+  contents: write
+
+jobs:
+  trial:
+    runs-on: windows-latest
+    timeout-minutes: 240
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PYTHONUTF8: "1"
+      CLAW_DATA_DIR: ${{ github.workspace }}\trial-data
+      CLAW_SESSION_TOKEN: trial-token-0123456789abcdef0123456789
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+
+      - name: Set up (Python env, llama.cpp engine) and Tesseract
+        run: |
+          ./scripts/setup.ps1 -SkipOcr *>&1 | Select-Object -Last 15
+          choco install tesseract -y --no-progress | Select-Object -Last 3
+
+      - name: Download the brain
+        run: backend\.venv\Scripts\python.exe backend\packaging\fetch_brain.py ${{ inputs.brain }} --data-dir $env:CLAW_DATA_DIR
+
+      - name: Put the sample files in Documents (like a user would have)
+        run: |
+          $docs = [Environment]::GetFolderPath('MyDocuments')
+          Copy-Item docs\try-it\invoice.pdf, docs\try-it\sales.csv $docs
+          Get-ChildItem $docs | Format-Table Name, Length
+
+      - name: Start S-CLAW's backend (fresh install settings)
+        run: |
+          $env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
+          Start-Process backend\.venv\Scripts\python.exe -ArgumentList "-m", "claw.main", "--port", "18765" -WorkingDirectory backend -RedirectStandardOutput "$env:RUNNER_TEMP\backend.out" -RedirectStandardError "$env:RUNNER_TEMP\backend.err"
+          for ($i = 0; $i -lt 60; $i++) { try { Invoke-RestMethod http://127.0.0.1:18765/health; break } catch { Start-Sleep 1 } }
+
+      - name: Run the everyday tasks with the real brain
+        run: |
+          backend\.venv\Scripts\python.exe scripts\real_trial.py --port 18765 --token $env:CLAW_SESSION_TOKEN --out trial-report --per-task-seconds 900
+          $r = Get-Content trial-report\trial.json -Raw | ConvertFrom-Json
+          foreach ($t in $r.tasks) {
+            $steps = ($t.steps | ForEach-Object { "$($_.tool)=$($_.outcome)" }) -join ', '
+            Write-Output "::notice title=$($t.status) ($($t.seconds)s)::$($t.task) || steps: $steps || error: $($t.error) || answer: $($t.answer)"
+          }
+
+      - name: Publish the evidence to the ci-evidence branch
+        if: always()
+        run: |
+          $dest = "trials/$env:GITHUB_RUN_NUMBER-${{ inputs.brain }}"
+          New-Item -ItemType Directory -Force $env:RUNNER_TEMP\ev\$dest | Out-Null
+          Copy-Item trial-report\* $env:RUNNER_TEMP\ev\$dest -ErrorAction SilentlyContinue
+          Copy-Item "$env:CLAW_DATA_DIR\logs\claw.log" $env:RUNNER_TEMP\ev\$dest -ErrorAction SilentlyContinue
+          Copy-Item "$env:RUNNER_TEMP\backend.err" $env:RUNNER_TEMP\ev\$dest -ErrorAction SilentlyContinue
+          Get-ChildItem "$env:CLAW_DATA_DIR\screenshots" -Recurse -Filter *.png -ErrorAction SilentlyContinue | Select-Object -First 20 | Copy-Item -Destination $env:RUNNER_TEMP\ev\$dest
+          cd $env:RUNNER_TEMP\ev
+          git init -q; git config user.name "s-claw-trial"; git config user.email "trial@users.noreply.github.com"
+          git remote add origin "https://x-access-token:$env:GITHUB_TOKEN@github.com/$env:GITHUB_REPOSITORY"
+          git fetch -q origin ci-evidence 2>$null
+          if ($LASTEXITCODE -eq 0) { git checkout -q -b ci-evidence FETCH_HEAD } else { git checkout -q -b ci-evidence }
+          git add -A; git commit -q -m "Real trial $env:GITHUB_RUN_NUMBER (${{ inputs.brain }})"; git push -q origin ci-evidence

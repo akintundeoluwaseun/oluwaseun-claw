@@ -165,10 +165,10 @@ try {
   await win.click('#approve-btn');
   await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Finished', null, { timeout: 30000 });
   await win.waitForSelector('#summary-files:not([hidden]) .file-row', { timeout: 5000 });
-  check((await win.textContent('.file-name')) === 'ado ekiti businesses.xlsx', 'outcome lists the spreadsheet Claw made');
+  check((await win.textContent('.file-name')) === 'city businesses.xlsx', 'outcome lists the spreadsheet Claw made');
   check((await win.textContent('.file-meta')).includes('checked'), 'file marked as checked');
   check(!(await win.isHidden('#summary-warnings')), 'outcome warns that a page tried to give orders');
-  check(fs.existsSync(path.join(saveDir, 'ado ekiti businesses.xlsx')), 'spreadsheet exists on disk');
+  check(fs.existsSync(path.join(saveDir, 'city businesses.xlsx')), 'spreadsheet exists on disk');
   const taskId = await win.evaluate(() => document.querySelector('#history-list .history-item[aria-current="true"]').dataset.id);
   const sneaky = await win.evaluate((id) => window.claw.openOutput(id, '/etc/passwd', 'open'), taskId);
   check(sneaky.ok === false, 'the app refuses to open files Claw did not make');
