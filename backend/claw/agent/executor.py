@@ -293,6 +293,7 @@ _NO_TOOL = re.compile(
     r"(?:tools?\b[^.]{0,60}\bnot (?:available|provided|listed)|not (?:available|provided) in the (?:list of )?tools|"
     r"do(?:es)? not have (?:a|the|any) (?:tool|way)|no tool (?:to|for|that))", re.I)
 MAX_PUSHBACKS = 2
+MAX_FORCED = 4    # steps Claw takes for a brain that keeps stopping, per task
 
 
 _TOOL_ALIASES = {"open_page": "open_url", "goto": "open_url", "navigate": "open_url", "visit": "open_url",
@@ -409,6 +410,26 @@ def obvious_first_step(task: str, fitting: list[str], steps: list[dict[str, Any]
     approval, exactly as if the brain had asked for it.
     """
     steps = steps or []
+    done = {x.get("tool") for x in steps if x.get("outcome") in ("verified", "done_unverified")}
+    first = task.strip().split("\n")[0]
+    note = re.search(r"\bnotepad\b.*?\btype\s+['\"\u2018\u201c](.+?)['\"\u2019\u201d].*?\bsave\s+it\s+as\s+([\w\-. ()]+?\.txt)\b"
+                     r"(?:.*?\bin\s+(?:my\s+|the\s+)?(documents|desktop|downloads))?", first, re.I)
+    if note:
+        # A Notepad job spelled out in full (ninth trial: the brain opened Notepad and then
+        # only said "I will now type..."). Claw takes the next missing step; each still goes
+        # through the person's permission settings like any step the brain asks for.
+        text, name, where = note.group(1), note.group(2).strip(), (note.group(3) or "Documents").capitalize()
+        if "launch_app" not in done:
+            return ModelAction(thought="Claw opens Notepad.", action="tool", tool="launch_app", args={"name": "Notepad"})
+        if "type_text" not in done:
+            return ModelAction(thought="Claw types the text you gave.", action="tool", tool="type_text", args={"text": text})
+        if "write_text_file" not in done:
+            return ModelAction(thought="Claw saves it under the name you gave.", action="tool", tool="write_text_file",
+                               args={"file_name": name, "text": text, "folder": where})
+        if "check_file" not in done and re.search(r"\b(verify|check|reopen)\b", first, re.I):
+            return ModelAction(thought="Claw reopens the file and checks it.", action="tool", tool="check_file",
+                               args={"path": f"{where}/{name}", "expected_text": text})
+        return None
     copy = re.search(r"\bcopy\s+([\w\-. ()]+?\.\w{2,5})\s+from\s+(?:my\s+|the\s+)?(documents|desktop|downloads)\b.*?"
                      r"\b(?:into|to)\s+(?:a\s+new\s+folder\s+(?:called|named)\s+|the\s+folder\s+|folder\s+)?['\"]?([\w\- ]+?)['\"]?[.!]?$",
                      task.strip().split("\n")[0], re.I)
@@ -681,6 +702,7 @@ async def run_agent(
     ]
     pushbacks = 0
     started_for_it = False
+    forced_count = 0
     steps_after_forced_answered = False
     steps: list[dict[str, Any]] = []
     consecutive_failures = 0
@@ -739,13 +761,18 @@ async def run_agent(
                 emit("pushed_back", {"step": step_no, "reason": why, "final_answer": final[:300]})
                 messages.append(ChatMessage(role="user", content=why))
                 continue
-            forced = obvious_first_step(task, fitting, steps) if not started_for_it else None
+            # Claw only steps in when the brain stopped short: no steps yet, a summary that
+            # says there is more to do, or no summary at all. A real finish is accepted.
+            stopped_short = (not steps or bool(_STILL_TO_DO.search(final))
+                             or final.startswith("(The model finished without a summary"))
+            forced = obvious_first_step(task, fitting, steps) if forced_count < MAX_FORCED and stopped_short else None
             if forced is None:
                 emit("finished", {"final_answer": final})
                 return outcome("completed", final)
             # The brain will not start; Claw takes the obvious first look itself and the
             # brain carries on from what it shows. Logged, and shown in the timeline.
             started_for_it = True
+            forced_count += 1
             emit("started_for_brain", {"step": step_no, "tool": forced.tool, "args": forced.args})
             messages[-1] = ChatMessage(role="assistant", content=forced.model_dump_json())
             action = forced

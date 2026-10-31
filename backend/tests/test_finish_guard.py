@@ -168,3 +168,18 @@ def test_open_notepad_is_the_obvious_first_step():
     t = "Open Notepad, type 'S-CLAW desktop-control test', save it as claw-test.txt in Documents"
     a = obvious_first_step(t, fitting_tools(t, build_registry()))
     assert a.tool == "launch_app" and a.args == {"name": "Notepad"}
+
+
+def test_a_spelled_out_notepad_job_is_carried_through():
+    from claw.agent.executor import obvious_first_step
+
+    t = "Open Notepad, type 'S-CLAW desktop-control test', save it as claw-test.txt in Documents, reopen it, and verify the exact contents."
+    f = fitting_tools(t, build_registry())
+    ok = lambda tool: {"tool": tool, "outcome": "verified"}
+    assert obvious_first_step(t, f, []).tool == "launch_app"
+    assert obvious_first_step(t, f, [ok("launch_app")]).args == {"text": "S-CLAW desktop-control test"}
+    w = obvious_first_step(t, f, [ok("launch_app"), {"tool": "type_text", "outcome": "done_unverified"}])
+    assert w.tool == "write_text_file" and w.args == {"file_name": "claw-test.txt", "text": "S-CLAW desktop-control test", "folder": "Documents"}
+    c = obvious_first_step(t, f, [ok("launch_app"), ok("type_text"), ok("write_text_file")])
+    assert c.tool == "check_file" and c.args["path"] == "Documents/claw-test.txt"
+    assert obvious_first_step(t, f, [ok("launch_app"), ok("type_text"), ok("write_text_file"), ok("check_file")]) is None
