@@ -225,12 +225,39 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
                 continue
             await state.brain.engine.stop_if_idle(state.settings.model.idle_unload_minutes * 60)
 
+    phone: dict = {"bridge": None, "task": None}
+
+    async def stop_phone():
+        if phone["task"]:
+            phone["task"].cancel()
+        if phone["bridge"]:
+            await phone["bridge"].client.close()
+        phone.update(bridge=None, task=None)
+
+    async def restart_phone():
+        await stop_phone()
+        ps = state.settings.phone
+        if not (ps.enabled and ps.telegram_token):
+            return
+        from claw.channels.bridge import PhoneBridge
+        from claw.channels.telegram import TelegramClient, TelegramError
+
+        try:
+            client = TelegramClient(ps.telegram_token, base=os.environ.get("CLAW_TELEGRAM_API", "https://api.telegram.org"))
+        except TelegramError as exc:
+            log_event(log, "phone not started", reason=str(exc))
+            return
+        phone["bridge"] = PhoneBridge(state, client)
+        phone["task"] = asyncio.create_task(phone["bridge"].run())
+
     @asynccontextmanager
     async def lifespan(_app):
         watcher = asyncio.create_task(idle_watch())
         wa_task = asyncio.create_task(whatsapp_watch())
         jobs_task = asyncio.create_task(JobRunner(state).loop())
+        await restart_phone()
         yield
+        await stop_phone()
         watcher.cancel()
         wa_task.cancel()
         jobs_task.cancel()
@@ -291,6 +318,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         key = settings.model.api_key
         data["model"]["api_key"] = (KEY_KEPT if key else "")
         data["model"]["api_key_set"] = bool(key)
+        data["phone"]["telegram_token"] = KEY_KEPT if settings.phone.telegram_token else ""
         return data
 
     def _restore_key(raw: dict, current) -> dict:
@@ -300,6 +328,12 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             model.pop("api_key_set", None)
             if model.get("api_key") == KEY_KEPT:
                 model["api_key"] = current.model.api_key
+        phone = raw.get("phone")
+        if isinstance(phone, dict):
+            if phone.get("telegram_token") == KEY_KEPT:
+                phone["telegram_token"] = current.phone.telegram_token
+            # Pairing is done by the code on the phone, never by the page.
+            phone["paired_chat_id"] = current.phone.paired_chat_id if phone.get("telegram_token") == current.phone.telegram_token else None
         return raw
 
     @app.get("/settings")
@@ -329,9 +363,12 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         allowed, why = current_edition().allows_mode(new_settings.model.mode)
         if not allowed:
             return error_response(409, "wrong_edition", why)
+        phone_changed = new_settings.phone != state.settings.phone
         store.save(new_settings)
         state.settings = new_settings
         state.settings_error = None
+        if phone_changed:
+            await restart_phone()
         # mode and model only: the key is a credential and never reaches the log.
         log_event(log, "settings saved", mode=new_settings.model.mode, model=new_settings.model.model)
         return {"settings": _public_settings(new_settings), "error": None, "data_dir": str(state.data_dir)}
@@ -943,6 +980,28 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             return error_response(422, "invalid", "Send {\"approve\": true} or {\"approve\": false}.")
         if not state.runner.answer(approval_id, body["approve"]):
             return error_response(404, "not_found", "That approval request is no longer waiting.")
+        return {"ok": True}
+
+    @app.get("/phone")
+    async def phone_status():
+        b = phone["bridge"]
+        ps = state.settings.phone
+        return {"enabled": ps.enabled, "token_set": bool(ps.telegram_token), "paired": ps.paired_chat_id is not None,
+                "status": b.status if b else ("off" if not ps.enabled else "not started"), "bot": b.bot_name if b else "",
+                "code": b.code if b and b.code and time.time() < b.code_until else None}
+
+    @app.post("/phone/pair")
+    async def phone_pair():
+        b = phone["bridge"]
+        if b is None:
+            return error_response(409, "phone_off", "Turn on phone control and save a bot token first.")
+        return {"code": b.new_code(), "bot": b.bot_name, "seconds": 600}
+
+    @app.post("/phone/unpair")
+    async def phone_unpair():
+        s = state.settings
+        s.phone.paired_chat_id = None
+        store.save(s)
         return {"ok": True}
 
     @app.get("/runner")

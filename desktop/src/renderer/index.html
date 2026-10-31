@@ -397,6 +397,7 @@
       <button class="set-tab" type="button" role="tab" data-panel="set-folders" aria-selected="false">Folders</button>
       <button class="set-tab" type="button" role="tab" data-panel="set-browser" aria-selected="false">Browser</button>
       <button class="set-tab" type="button" role="tab" data-panel="set-messages" aria-selected="false">Messages</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-phone" aria-selected="false">Phone</button>
       <button class="set-tab" type="button" role="tab" data-panel="set-background" aria-selected="false">Background</button>
       <button class="set-tab" type="button" role="tab" data-panel="set-limits" aria-selected="false">Limits</button>
       <button class="set-tab" type="button" role="tab" data-panel="set-jobs" aria-selected="false">Automations</button>
@@ -520,6 +521,31 @@
             service behind it, so a computer that stayed off gets no briefing.</p>
         </div>
         <p class="set-note" id="shortcut-note"></p>
+      </section>
+
+      <section class="set" id="set-phone">
+        <h3>Give Claw tasks from your phone</h3>
+        <p class="set-note">Message Claw from Telegram on your phone. It does the job on this computer, asks you on the
+          phone before anything important, and sends the result back. Only the one phone you pair can give it orders.</p>
+        <ol class="phone-steps">
+          <li>In Telegram, open <strong>@BotFather</strong>, send <code>/newbot</code> and follow the two questions. It is free.</li>
+          <li>Paste the token it gives you below, tick the box and save.</li>
+          <li>Press <strong>Pair my phone</strong> and send the six-digit code to your new bot.</li>
+        </ol>
+        <label class="toggle"><input id="ph-enabled" type="checkbox"><span>Let my phone give Claw tasks</span></label>
+        <div class="field">
+          <label for="ph-token">Bot token</label>
+          <input id="ph-token" type="password" autocomplete="off" spellcheck="false" placeholder="123456789:AA…">
+          <p class="field-note" id="ph-token-note">Kept on this computer only.</p>
+        </div>
+        <div class="phone-box">
+          <p class="set-note" id="ph-status" aria-live="polite">Off.</p>
+          <p class="phone-code" id="ph-code" hidden></p>
+          <div class="phone-actions">
+            <button class="btn btn-quiet btn-sm" id="ph-pair" type="button">Pair my phone</button>
+            <button class="btn btn-quiet btn-sm" id="ph-unpair" type="button" hidden>Unpair</button>
+          </div>
+        </div>
       </section>
 
       <section class="set" id="set-messages">

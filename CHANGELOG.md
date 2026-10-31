@@ -1,6 +1,14 @@
 # Changelog
 
 ## Unreleased — fixes from the first real install (Light brain)
+### Give Claw tasks from your phone (OpenClaw's main idea)
+- Settings → Phone: make a free Telegram bot with @BotFather, paste its token, pair your phone with a
+  six-digit code. Then message the bot: Claw runs the task on the computer in its own chat, asks on the
+  phone before anything that needs your OK (Allow / Don't allow buttons, or yes / no), and sends the result
+  and file names back. /new, /status and /stop work. Only the paired phone can give orders; anyone else
+  gets "This Claw is private." The token is masked like a model key. (`claw/channels/`; no new library.)
+- Honest note: this needs a Telegram bot token, which is free but is something the person sets up once.
+  Tested against a stand-in Telegram server, not the real one.
 ### Taken from OpenClaw (MIT), rewritten in Python
 - **OpenClaw's way of working a web page:** `look_at_page` lists every button, link and box with a ref (e12),
   and `click`, `type_in` and `choose_option` act on a ref and hand back the page as it is afterwards

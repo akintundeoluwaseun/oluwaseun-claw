@@ -359,6 +359,18 @@ class VoiceSettings(BaseModel):
         return v
 
 
+class PhoneSettings(BaseModel):
+    """Giving Claw tasks from your phone through a Telegram bot you made (free, in Telegram's @BotFather)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = False
+    # The bot's token. Kept out of logs and masked by the API, like a model key.
+    telegram_token: str = Field(default="", max_length=200, repr=False)
+    # The one chat allowed to give orders, set by pairing with a code shown in Settings.
+    paired_chat_id: int | None = None
+
+
 class Settings(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -371,6 +383,7 @@ class Settings(BaseModel):
     documents: DocumentSettings = Field(default_factory=DocumentSettings)
     messages: MessagesSettings = Field(default_factory=MessagesSettings)
     voice: VoiceSettings = Field(default_factory=VoiceSettings)
+    phone: PhoneSettings = Field(default_factory=PhoneSettings)
 
 
 def describe_validation_error(exc: ValidationError) -> list[str]:

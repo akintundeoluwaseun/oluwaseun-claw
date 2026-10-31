@@ -1237,6 +1237,23 @@ function settingsTabs() {
   return Array.from(document.querySelectorAll('.set-tab'));
 }
 
+async function loadPhone() {
+  const res = await api.api('GET', '/phone');
+  if (!res.ok) return;
+  const p = res.body;
+  const status = p.status || 'off';
+  $('ph-status').textContent = !p.enabled ? 'Off.'
+    : !p.token_set ? 'Paste your bot token and save.'
+    : status.startsWith('error') ? `Telegram said: ${status.slice(7)}`
+    : p.paired ? `Paired. Message @${p.bot || 'your bot'} from your phone to give Claw a task.`
+    : `Ready to pair with @${p.bot || 'your bot'}.`;
+  $('ph-status').dataset.tone = status.startsWith('error') ? 'bad' : p.paired ? 'ok' : '';
+  $('ph-pair').hidden = !p.enabled || !p.token_set || p.paired;
+  $('ph-unpair').hidden = !p.paired;
+  $('ph-code').hidden = !p.code;
+  if (p.code) $('ph-code').textContent = `Send ${p.code} to @${p.bot} in Telegram (valid for 10 minutes).`;
+}
+
 function showSettingsPanel(id) {
   for (const tab of settingsTabs()) {
     const on = tab.dataset.panel === id;
@@ -1371,6 +1388,9 @@ function fillSettingsForm(s) {
   $('m-every').value = String(m.check_every_minutes || 0);
   $('m-notify').checked = m.notify !== false;
   $('m-previews').checked = !!m.show_previews;
+  $('ph-enabled').checked = !!s.phone?.enabled;
+  $('ph-token').value = '';
+  $('ph-token').placeholder = s.phone?.telegram_token ? 'A token is saved' : '123456789:AA…';
   loadWhatsApp();
   const d = s.desktop || {};
   $('d-quickbar').checked = d.show_quick_bar !== false;
@@ -1444,6 +1464,11 @@ function readSettingsForm() {
       history_access: $('b-history').value,
     },
     documents: { ...(prev.documents || {}) },
+    phone: {
+      enabled: $('ph-enabled').checked,
+      telegram_token: $('ph-token').value.trim() || (prev.phone?.telegram_token ? KEY_KEPT : ''),
+      paired_chat_id: prev.phone?.paired_chat_id ?? null,
+    },
     messages: {
       whatsapp_read: $('m-read').value,
       check_every_minutes: Number($('m-every').value),
@@ -1986,6 +2011,7 @@ async function openSettings() {
   loadMemories();
   loadJobs();
   loadStanding();
+  loadPhone();
   $('settings').hidden = false;
   $('settings-scrim').hidden = false;
   $('close-settings').focus();
@@ -2162,6 +2188,12 @@ function wire() {
   }
   $('error-dismiss').addEventListener('click', clearError);
   $('wa-check').addEventListener('click', checkWhatsAppNow);
+  $('ph-pair').addEventListener('click', async () => {
+    const r = await api.api('POST', '/phone/pair', {});
+    if (!r.ok) return showError(r.body);
+    loadPhone();
+  });
+  $('ph-unpair').addEventListener('click', async () => { await api.api('POST', '/phone/unpair', {}); loadPhone(); });
   $('open-docs').addEventListener('click', openDocsView);
   $('doc-open').addEventListener('click', openDocument);
   $('doc-cancel').addEventListener('click', () => doc.job && api.api('POST', `/documents/${doc.job.id}/cancel`));
