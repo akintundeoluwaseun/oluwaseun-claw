@@ -31,7 +31,12 @@ jobs:
         working-directory: backend
         run: |
           python -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt
-          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a .venv/bin/python -m pytest -q -x; else .venv/bin/python -m pytest -q -x; fi
+          set -o pipefail
+          run() { if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a "$@"; else "$@"; fi; }
+          run .venv/bin/python -m pytest -q -rfE 2>&1 | tee ../pytest.log || {
+            grep -E "^(FAILED|ERROR) " ../pytest.log | head -15 | while read -r l; do echo "::error title=Test failed::$l"; done
+            grep -E "^E  " ../pytest.log | head -10 | while read -r l; do echo "::error title=Detail::$l"; done
+            exit 1; }
       - name: Build
         run: |
           set -o pipefail
