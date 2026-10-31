@@ -121,7 +121,8 @@ async def test_missing_model_file(tmp_path):
 # ---------- catalogue ----------
 def test_recommendation_follows_hardware():
     assert catalog.recommended(hw(ram=8)).id == "qwen3-vl-4b"
-    assert catalog.recommended(hw(ram=16)).id == "qwen3-vl-8b"
+    assert catalog.recommended(hw(ram=16)).id == "qwen3-vl-4b"   # no graphics card: Pro would take minutes per reply
+    assert catalog.recommended(hw(ram=32)).id == "qwen3-vl-8b"
     assert catalog.recommended(hw(ram=8, vram=8)).id == "qwen3-vl-8b"
     # A 4 GB laptop now has a brain of its own instead of being offered one that
     # will not fit; below that nothing fits and the smallest is still the answer.

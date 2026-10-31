@@ -113,9 +113,15 @@ def fits(entry: CatalogEntry, hw: Hardware) -> bool:
 
 
 def recommended(hw: Hardware) -> CatalogEntry:
-    """The largest brain that fits; the smallest one if nothing clearly fits."""
+    """The largest brain that fits; the smallest one if nothing clearly fits.
+
+    Without a graphics card big enough for it, Pro (8B) is not recommended even when the
+    memory fits: on a laptop processor each reply takes minutes, which feels broken.
+    Anyone can still choose it.
+    """
     choosable = [e for e in CATALOG if e.recommendable]
-    fitting = [e for e in choosable if fits(e, hw)]
+    fitting = [e for e in choosable if fits(e, hw)
+               and not (e.min_vram_gb >= 8 and (hw.gpu_vram_gb or 0) < e.min_vram_gb and (hw.total_ram_gb or 0) < 32)]
     if fitting:
         return max(fitting, key=lambda e: e.min_ram_gb)
     return min(choosable, key=lambda e: e.min_ram_gb)

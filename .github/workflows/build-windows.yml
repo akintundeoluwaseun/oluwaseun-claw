@@ -293,7 +293,7 @@ jobs:
           |---|---|---|---|
           | Light | 1.8 GB | 4-8 GB memory (RAM) | fastest, least capable |
           | Standard | 3.3 GB | 8-16 GB memory | everyday laptops; reads screenshots |
-          | Pro | 6.2 GB | 16 GB+ memory, or a graphics card with 8 GB | smartest, slowest |
+          | Pro | 6.2 GB | a graphics card with 8 GB, or 32 GB memory | smartest; slow on a laptop processor |
 
           Not sure how much memory you have? Settings > System > About on Windows shows "Installed RAM". Claw also marks the best one for your computer.
           Already have the brain file (.gguf)? Choose "Use a GGUF file I have" instead of downloading.
