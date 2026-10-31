@@ -1,0 +1,20 @@
+[1/10] Open Notepad, type 'S-CLAW desktop-control test', save it as claw-test.txt in Documents, reopen it, and verify the exact contents.
+    -> completed in 87.6s; steps: 
+[2/10] Search the web for free open-source video editing software, open a good result, and save its title and URL.
+    -> completed in 147.8s; steps: web_search=verified, open_search_result=verified
+[3/10] Read invoice.pdf in my Documents folder and tell me the total amount due.
+    -> failed in 122.7s; steps: ; error: The model server at http://127.0.0.1:51113 did not answer in time.
+[4/10] Find all PDF files in my Documents folder.
+    -> completed in 126.5s; steps: find_files=failed
+[5/10] What windows are open right now?
+    -> completed in 168.1s; steps: list_windows=verified
+[6/10] Make a promotional flyer for my software TechDesk and save it in Documents.
+    -> failed in 169.5s; steps: ; error: The model server at http://127.0.0.1:51113 did not answer in time.
+[7/10] Copy sales.csv from Documents into a new folder called Backup.
+    -> completed in 190.1s; steps: create_folder=failed
+[8/10] Create a spreadsheet of five Nigerian states and their capitals and save it in Documents.
+    -> failed in 161.1s; steps: ; error: The model server at http://127.0.0.1:51113 did not answer in time.
+[9/10] Open WhatsApp and tell me which chats have unread messages.
+    -> completed in 73.4s; steps: check_whatsapp=failed
+[10/10] What is on my calendar today?
+    -> completed in 124.9s; steps: list_events=verified

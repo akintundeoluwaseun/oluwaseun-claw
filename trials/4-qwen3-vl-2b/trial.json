@@ -1,0 +1,699 @@
+{
+  "started": "2026-10-31 05:37:31",
+  "brain": {
+    "mode": "builtin",
+    "hardware": {
+      "total_ram_gb": 16.0,
+      "available_ram_gb": 12.1,
+      "cpu_cores": 4,
+      "gpu_name": null,
+      "gpu_vram_gb": null
+    },
+    "hardware_text": "16 GB memory, 4 processor cores",
+    "engine": {
+      "state": "stopped",
+      "message": "",
+      "model_id": null,
+      "started_at": null,
+      "restarts": 0,
+      "available": true
+    },
+    "ready": true,
+    "active": {
+      "id": "qwen3-vl-2b",
+      "name": "Light brain",
+      "kind": "downloaded",
+      "model_file": "D:\\a\\oluwaseun-claw\\oluwaseun-claw\\trial-data\\models\\qwen3-vl-2b\\Qwen3VL-2B-Instruct-Q4_K_M.gguf",
+      "mmproj_file": "D:\\a\\oluwaseun-claw\\oluwaseun-claw\\trial-data\\models\\qwen3-vl-2b\\mmproj-Qwen3VL-2B-Instruct-F16.gguf",
+      "size_bytes": 1926804800,
+      "license": "apache-2.0",
+      "verified": true,
+      "source": "huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF",
+      "added_at": 1793425047.151772,
+      "vision": true,
+      "present": true,
+      "size_gb": 1.79
+    },
+    "selected": null,
+    "recommended": "qwen3-vl-8b",
+    "installed": [
+      {
+        "id": "qwen3-vl-2b",
+        "name": "Light brain",
+        "kind": "downloaded",
+        "model_file": "D:\\a\\oluwaseun-claw\\oluwaseun-claw\\trial-data\\models\\qwen3-vl-2b\\Qwen3VL-2B-Instruct-Q4_K_M.gguf",
+        "mmproj_file": "D:\\a\\oluwaseun-claw\\oluwaseun-claw\\trial-data\\models\\qwen3-vl-2b\\mmproj-Qwen3VL-2B-Instruct-F16.gguf",
+        "size_bytes": 1926804800,
+        "license": "apache-2.0",
+        "verified": true,
+        "source": "huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF",
+        "added_at": 1793425047.151772,
+        "vision": true,
+        "present": true,
+        "size_gb": 1.79
+      }
+    ],
+    "catalog": [
+      {
+        "id": "qwen3-0.6b",
+        "name": "Tiny brain",
+        "edition": "Tiny",
+        "repo": "Qwen/Qwen3-0.6B-GGUF",
+        "model_pattern": "q4_k_m\\.gguf$",
+        "mmproj_pattern": null,
+        "approx_download_gb": 0.4,
+        "min_ram_gb": 2,
+        "min_vram_gb": 1,
+        "description": "About 400 MB, for proving offline thinking runs on this computer without spending gigabytes. It is genuinely small: expect short, shaky answers and tasks it cannot plan. Not a working brain - a way to find out whether the engine starts before committing to one.",
+        "recommendable": false,
+        "fits": true,
+        "installed": false,
+        "recommended": false
+      },
+      {
+        "id": "qwen3-vl-2b",
+        "name": "Light brain",
+        "edition": "Light",
+        "repo": "Qwen/Qwen3-VL-2B-Instruct-GGUF",
+        "model_pattern": "q4_k_m\\.gguf$",
+        "mmproj_pattern": "mmproj[^/]*f16\\.gguf$",
+        "approx_download_gb": 1.8,
+        "min_ram_gb": 4,
+        "min_vram_gb": 2,
+        "description": "For computers with 4 GB of memory. The fastest and the least capable.",
+        "recommendable": true,
+        "fits": true,
+        "installed": true,
+        "recommended": false
+      },
+      {
+        "id": "qwen3-vl-4b",
+        "name": "Standard brain",
+        "edition": "Standard",
+        "repo": "Qwen/Qwen3-VL-4B-Instruct-GGUF",
+        "model_pattern": "q4_k_m\\.gguf$",
+        "mmproj_pattern": "mmproj[^/]*f16\\.gguf$",
+        "approx_download_gb": 3.3,
+        "min_ram_gb": 8,
+        "min_vram_gb": 4,
+        "description": "For everyday laptops with 8 GB of memory or more. Reads screenshots.",
+        "recommendable": true,
+        "fits": true,
+        "installed": false,
+        "recommended": false
+      },
+      {
+        "id": "qwen3-vl-8b",
+        "name": "Pro brain",
+        "edition": "Pro",
+        "repo": "Qwen/Qwen3-VL-8B-Instruct-GGUF",
+        "model_pattern": "q4_k_m\\.gguf$",
+        "mmproj_pattern": "mmproj[^/]*f16\\.gguf$",
+        "approx_download_gb": 6.2,
+        "min_ram_gb": 14,
+        "min_vram_gb": 8,
+        "description": "Smarter and slower. For computers with 16 GB of memory or a graphics card with 8 GB.",
+        "recommendable": true,
+        "fits": true,
+        "installed": false,
+        "recommended": true
+      }
+    ],
+    "download": {
+      "id": null,
+      "status": "idle",
+      "done_bytes": 0,
+      "total_bytes": 0,
+      "message": "",
+      "started": 0,
+      "progress": 0.0
+    }
+  },
+  "settings": {
+    "settings": {
+      "version": 1,
+      "model": {
+        "mode": "builtin",
+        "selected": null,
+        "idle_unload_minutes": 10,
+        "provider": "openai_compatible",
+        "base_url": "http://127.0.0.1:8080",
+        "model": "",
+        "request_timeout_s": 120.0,
+        "temperature": 0.2,
+        "allow_remote_server": false,
+        "api_key": "",
+        "api_key_set": false
+      },
+      "permissions": {
+        "modes": {
+          "read_only": "allow",
+          "local_write": "ask",
+          "external": "ask",
+          "destructive": "ask"
+        },
+        "authorized_folders": [
+          "C:\\Users\\runneradmin\\Documents",
+          "C:\\Users\\runneradmin\\Desktop",
+          "C:\\Users\\runneradmin\\Downloads"
+        ],
+        "starter_folders_added": true
+      },
+      "browser": {
+        "channel": "msedge",
+        "headless": false,
+        "search_engine": "duckduckgo",
+        "custom_search_url": "",
+        "searxng_url": "",
+        "history_access": "ask",
+        "navigation_timeout_s": 30.0
+      },
+      "agent": {
+        "max_steps": 20,
+        "step_timeout_s": 60.0,
+        "approval_timeout_s": 600.0,
+        "max_consecutive_failures": 3
+      },
+      "desktop": {
+        "start_with_windows": false,
+        "show_quick_bar": true,
+        "keep_awake_while_running": true,
+        "notifications": true,
+        "close_to_tray": true,
+        "brief_at": "",
+        "theme": "dark",
+        "show_tips": true
+      },
+      "documents": {
+        "ocr_language": "eng"
+      },
+      "messages": {
+        "whatsapp_read": "ask",
+        "show_previews": false,
+        "check_every_minutes": 0,
+        "notify": true
+      },
+      "voice": {
+        "enabled": false,
+        "model": null,
+        "mode": "click",
+        "push_to_talk": "Ctrl+Shift+V",
+        "auto_submit": false,
+        "keep_recordings": false,
+        "input_device": ""
+      }
+    },
+    "error": null,
+    "data_dir": "D:\\a\\oluwaseun-claw\\oluwaseun-claw\\trial-data"
+  },
+  "tasks": [
+    {
+      "task": "Open Notepad, type 'S-CLAW desktop-control test', save it as claw-test.txt in Documents, reopen it, and verify the exact contents.",
+      "id": "0a0a3564979a41f9b1449961371d96a6",
+      "status": "completed",
+      "seconds": 87.6,
+      "error": null,
+      "answer": "(The model finished without a summary.)",
+      "counts": {},
+      "steps": [],
+      "approvals": [],
+      "warnings": [],
+      "plan": [
+        {
+          "description": "Open Notepad",
+          "capability": "desktop",
+          "risk": "local_write",
+          "expected_result": "Notepad is open and ready for input.",
+          "index": 1,
+          "state": "proposed",
+          "permission": "ask"
+        },
+        {
+          "description": "Type 'S-CLAW desktop-control test' in Notepad",
+          "capability": "desktop",
+          "risk": "local_write",
+          "expected_result": "The text 'S-CLAW desktop-control test' is entered in Notepad.",
+          "index": 2,
+          "state": "proposed",
+          "permission": "ask"
+        },
+        {
+          "description": "Save the file as 'claw-test.txt' in the Documents folder",
+          "capability": "files",
+          "risk": "local_write",
+          "expected_result": "The file 'claw-test.txt' is saved in the Documents folder with the correct name.",
+          "index": 3,
+          "state": "proposed",
+          "permission": "ask"
+        },
+        {
+          "description": "Reopen Notepad to verify the contents",
+          "capability": "desktop",
+          "risk": "local_write",
+          "expected_result": "Notepad is reopened and the file 'claw-test.txt' is displayed with the exact contents.",
+          "index": 4,
+          "state": "proposed",
+          "permission": "ask"
+        }
+      ],
+      "problem_events": []
+    },
+    {
+      "task": "Search the web for free open-source video editing software, open a good result, and save its title and URL.",
+      "id": "b97641f36f4046dd881bc911504444c6",
+      "status": "completed",
+      "seconds": 147.8,
+      "error": null,
+      "answer": "I have opened the first search result for OpenShot Video Editor, which is a free, open-source video editor for Linux, Mac, and Windows. I will now save the title and URL as requested.",
+      "counts": {
+        "verified": 2
+      },
+      "steps": [
+        {
+          "tool": "web_search",
+          "args": {
+            "query": "free open-source video editing software"
+          },
+          "outcome": "verified",
+          "detail": "Found 10 result(s) for 'free open-source video editing software' on DuckDuckGo (2344 ms)."
+        },
+        {
+          "tool": "open_search_result",
+          "args": {
+            "number": 1
+          },
+          "outcome": "verified",
+          "detail": "Opened result 1: OpenShot Video Editor | Free, Open, and Award-Winning Video Editor for Linux, Mac, and Windows!"
+        }
+      ],
+      "approvals": [],
+      "warnings": [],
+      "plan": [
+        {
+          "description": "Search for free open-source video editing software on the web.",
+          "capability": "browser",
+          "risk": "read_only",
+          "expected_result": "A search result page with relevant results for free open-source video editing software.",
+          "index": 1,
+          "state": "proposed",
+          "permission": "allow"
+        },
+        {
+          "description": "Click on a relevant search result to view the details of the software.",
+          "capability": "browser",
+          "risk": "read_only",
+          "expected_result": "A detailed page about a free open-source video editing software.",
+          "index": 2,
+          "state": "proposed",
+          "permission": "allow"
+        },
+        {
+          "description": "Identify the title and URL of the software from the search result page.",
+          "capability": "browser",
+          "risk": "read_only",
+          "expected_result": "The title and URL of the selected software.",
+          "index": 3,
+          "state": "proposed",
+          "permission": "allow"
+        },
+        {
+          "description": "Save the title and URL to the user's authorized file or document.",
+          "capability": "files",
+          "risk": "local_write",
+          "expected_result": "The title and URL of the software are saved in a file.",
+          "index": 4,
+          "state": "proposed",
+          "permission": "ask"
+        }
+      ],
+      "problem_events": []
+    },
+    {
+      "task": "Read invoice.pdf in my Documents folder and tell me the total amount due.",
+      "id": "9ba2b439f1e34e359e49b576dc2fdf86",
+      "status": "failed",
+      "seconds": 122.7,
+      "error": "The model server at http://127.0.0.1:51113 did not answer in time.",
+      "answer": null,
+      "counts": null,
+      "steps": [],
+      "approvals": [],
+      "warnings": null,
+      "plan": null,
+      "problem_events": [
+        {
+          "kind": "failed",
+          "data": {
+            "message": "The model server at http://127.0.0.1:51113 did not answer in time.",
+            "hint": "Try a smaller model or raise the timeout in Settings."
+          }
+        }
+      ]
+    },
+    {
+      "task": "Find all PDF files in my Documents folder.",
+      "id": "c43a4e530af24d5ebd91965b2b5acdfe",
+      "status": "completed",
+      "seconds": 126.5,
+      "error": null,
+      "answer": "Access to the 'Documents' folder is not allowed because it is not authorized. Please check your authorized folders and ensure the 'Documents' folder is included in the list of authorized folders. If it is, try again. If not, you may need to authorize it first.",
+      "counts": {
+        "failed": 1
+      },
+      "steps": [
+        {
+          "tool": "find_files",
+          "args": {
+            "name_contains": "",
+            "extension": ".pdf",
+            "folder": "Documents",
+            "newest_first": true
+          },
+          "outcome": "failed",
+          "detail": "Access to 'Documents' is not allowed: it is outside the folders you authorized"
+        }
+      ],
+      "approvals": [],
+      "warnings": [],
+      "plan": [
+        {
+          "description": "Open the Documents folder in the File Explorer.",
+          "capability": "files",
+          "risk": "read_only",
+          "expected_result": "The Documents folder is opened, showing its contents.",
+          "index": 1,
+          "state": "proposed",
+          "permission": "allow"
+        },
+        {
+          "description": "Search for files with the .pdf extension in the Documents folder.",
+          "capability": "files",
+          "risk": "read_only",
+          "expected_result": "A list of PDF files in the Documents folder is displayed.",
+          "index": 2,
+          "state": "proposed",
+          "permission": "allow"
+        }
+      ],
+      "problem_events": [
+        {
+          "kind": "failed",
+          "data": {
+            "step": 1,
+            "tool": "find_files",
+            "detail": "Access to 'Documents' is not allowed: it is outside the folders you authorized"
+          }
+        }
+      ]
+    },
+    {
+      "task": "What windows are open right now?",
+      "id": "eb4cf465ed7f43798499b56a14c9d78b",
+      "status": "completed",
+      "seconds": 168.1,
+      "error": null,
+      "answer": "There are 5 windows open on the system. They are:\n1. Taskbar (explorer.exe)\n2. OpenShot Video Editor\n3. Python script running in Windows Terminal\n4. Program Manager (explorer.exe)\n5. Microsoft Edge (msedge.exe)",
+      "counts": {
+        "verified": 1
+      },
+      "steps": [
+        {
+          "tool": "list_windows",
+          "args": {},
+          "outcome": "verified",
+          "detail": "5 window(s) open."
+        }
+      ],
+      "approvals": [],
+      "warnings": [],
+      "plan": [
+        {
+          "description": "Check the currently open windows on the system.",
+          "capability": "desktop",
+          "risk": "read_only",
+          "expected_result": "A list of open windows with their titles and possibly their window handles.",
+          "index": 1,
+          "state": "proposed",
+          "permission": "allow"
+        }
+      ],
+      "problem_events": []
+    },
+    {
+      "task": "Make a promotional flyer for my software TechDesk and save it in Documents.",
+      "id": "774f567ad6a04f00a002588ac2beeb83",
+      "status": "failed",
+      "seconds": 169.5,
+      "error": "The model server at http://127.0.0.1:51113 did not answer in time.",
+      "answer": null,
+      "counts": null,
+      "steps": [],
+      "approvals": [],
+      "warnings": null,
+      "plan": [
+        {
+          "description": "Open a web browser to search for a template for a promotional flyer.",
+          "capability": "browser",
+          "risk": "read_only",
+          "expected_result": "A web page with a flyer template is opened.",
+          "index": 1,
+          "state": "proposed",
+          "permission": "allow"
+        },
+        {
+          "description": "Use the browser to find a suitable flyer template for TechDesk.",
+          "capability": "browser",
+          "risk": "read_only",
+          "expected_result": "A flyer template is found on the web page.",
+          "index": 2,
+          "state": "proposed",
+          "permission": "allow"
+        },
+        {
+          "description": "Open the Documents folder to save the flyer.",
+          "capability": "desktop",
+          "risk": "local_write",
+          "expected_result": "The Documents folder is opened.",
+          "index": 3,
+          "state": "proposed",
+          "permission": "ask"
+        },
+        {
+          "description": "Save the flyer template to the Documents folder.",
+          "capability": "files",
+          "risk": "local_write",
+          "expected_result": "The flyer template is saved in the Documents folder.",
+          "index": 4,
+          "state": "proposed",
+          "permission": "ask"
+        }
+      ],
+      "problem_events": [
+        {
+          "kind": "failed",
+          "data": {
+            "message": "The model server at http://127.0.0.1:51113 did not answer in time.",
+            "hint": "Try a smaller model or raise the timeout in Settings."
+          }
+        }
+      ]
+    },
+    {
+      "task": "Copy sales.csv from Documents into a new folder called Backup.",
+      "id": "6d04a165e0f345ffa76b0d3b3d8d820e",
+      "status": "completed",
+      "seconds": 190.1,
+      "error": null,
+      "answer": "I cannot create the 'Backup' folder in the Documents directory because it is outside the authorized folders. I need to check the authorized folders first and ensure I have the right permissions to create a folder in the Documents directory.",
+      "counts": {
+        "failed": 1
+      },
+      "steps": [
+        {
+          "tool": "create_folder",
+          "args": {
+            "folder_name": "Backup",
+            "inside": "Documents"
+          },
+          "outcome": "failed",
+          "detail": "Access to 'Documents' is not allowed: it is outside the folders you authorized"
+        }
+      ],
+      "approvals": [],
+      "warnings": [],
+      "plan": [
+        {
+          "description": "Create a new folder named Backup in the Documents directory.",
+          "capability": "desktop",
+          "risk": "local_write",
+          "expected_result": "A new folder called Backup has been created in the Documents directory.",
+          "index": 1,
+          "state": "proposed",
+          "permission": "ask"
+        },
+        {
+          "description": "Copy the file sales.csv from the Documents folder to the Backup folder.",
+          "capability": "files",
+          "risk": "local_write",
+          "expected_result": "The file sales.csv has been successfully copied from the Documents folder to the Backup folder.",
+          "index": 2,
+          "state": "proposed",
+          "permission": "ask"
+        }
+      ],
+      "problem_events": [
+        {
+          "kind": "failed",
+          "data": {
+            "step": 1,
+            "tool": "create_folder",
+            "detail": "Access to 'Documents' is not allowed: it is outside the folders you authorized"
+          }
+        }
+      ]
+    },
+    {
+      "task": "Create a spreadsheet of five Nigerian states and their capitals and save it in Documents.",
+      "id": "674c07fdaf3f4aabbe8a4b2d6bede5a6",
+      "status": "failed",
+      "seconds": 161.1,
+      "error": "The model server at http://127.0.0.1:51113 did not answer in time.",
+      "answer": null,
+      "counts": null,
+      "steps": [],
+      "approvals": [],
+      "warnings": null,
+      "plan": [
+        {
+          "description": "Open the Excel application to create a new spreadsheet.",
+          "capability": "desktop",
+          "risk": "local_write",
+          "expected_result": "The Excel application is open and ready for creating a new spreadsheet.",
+          "index": 1,
+          "state": "proposed",
+          "permission": "ask"
+        },
+        {
+          "description": "Enter the five Nigerian states and their capitals into the spreadsheet.",
+          "capability": "desktop",
+          "risk": "local_write",
+          "expected_result": "A spreadsheet with five Nigerian states and their capitals is created.",
+          "index": 2,
+          "state": "proposed",
+          "permission": "ask"
+        },
+        {
+          "description": "Save the spreadsheet in the Documents folder.",
+          "capability": "files",
+          "risk": "local_write",
+          "expected_result": "The spreadsheet is saved in the Documents folder.",
+          "index": 3,
+          "state": "proposed",
+          "permission": "ask"
+        }
+      ],
+      "problem_events": [
+        {
+          "kind": "failed",
+          "data": {
+            "message": "The model server at http://127.0.0.1:51113 did not answer in time.",
+            "hint": "Try a smaller model or raise the timeout in Settings."
+          }
+        }
+      ]
+    },
+    {
+      "task": "Open WhatsApp and tell me which chats have unread messages.",
+      "id": "fb0088b7517345608dd5bacc8d913f73",
+      "status": "completed",
+      "seconds": 73.4,
+      "error": null,
+      "answer": "WhatsApp did not open within the expected time, so I was unable to check for unread messages.",
+      "counts": {
+        "failed": 1
+      },
+      "steps": [
+        {
+          "tool": "check_whatsapp",
+          "args": {},
+          "outcome": "failed",
+          "detail": "WhatsApp didn't open within 20 seconds."
+        }
+      ],
+      "approvals": [
+        {
+          "tool": "check_whatsapp",
+          "risk": "read_only",
+          "args": {}
+        }
+      ],
+      "warnings": [],
+      "plan": [
+        {
+          "description": "Open the WhatsApp application",
+          "capability": "desktop",
+          "risk": "local_write",
+          "expected_result": "WhatsApp is open and ready to use",
+          "index": 1,
+          "state": "proposed",
+          "permission": "ask"
+        },
+        {
+          "description": "Check the WhatsApp chat list for unread messages",
+          "capability": "desktop",
+          "risk": "local_write",
+          "expected_result": "The WhatsApp chat list is displayed, showing chats with unread messages",
+          "index": 2,
+          "state": "proposed",
+          "permission": "ask"
+        }
+      ],
+      "problem_events": [
+        {
+          "kind": "failed",
+          "data": {
+            "step": 1,
+            "tool": "check_whatsapp",
+            "detail": "WhatsApp didn't open within 20 seconds."
+          }
+        }
+      ]
+    },
+    {
+      "task": "What is on my calendar today?",
+      "id": "6f1b5559146f4aae9eeea0024b500985",
+      "status": "completed",
+      "seconds": 124.9,
+      "error": null,
+      "answer": "There are no calendars on this computer yet.",
+      "counts": {
+        "verified": 1
+      },
+      "steps": [
+        {
+          "tool": "list_events",
+          "args": {
+            "from_date": "2026-11-03",
+            "days": 1
+          },
+          "outcome": "verified",
+          "detail": "There are no calendars on this computer yet."
+        }
+      ],
+      "approvals": [],
+      "warnings": [],
+      "plan": [
+        {
+          "description": "Check the calendar to see what is scheduled for today",
+          "capability": "organiser",
+          "risk": "read_only",
+          "expected_result": "The user's calendar for today's agenda",
+          "index": 1,
+          "state": "proposed",
+          "permission": "allow"
+        }
+      ],
+      "problem_events": []
+    }
+  ]
+}
