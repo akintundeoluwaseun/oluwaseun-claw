@@ -49,7 +49,9 @@ def pairing_url(port: int, key: str) -> str:
 def qr_svg(text: str) -> str:
     import segno
 
-    return segno.make(text, error="m").svg_inline(scale=5, dark="#111111", light="#ffffff")
+    # A data: URI the page can show as an image. (svg_inline leaves out the xmlns, which
+    # is fine inside HTML but makes the same SVG a broken image - caught on screenshot.)
+    return segno.make(text, error="m").svg_data_uri(scale=5, dark="#111111", light="#ffffff")
 
 
 def _private(host: str | None) -> bool:

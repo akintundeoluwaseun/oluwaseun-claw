@@ -59,4 +59,5 @@ def test_a_task_from_the_phone_app(make_client, fake_server):
 
 
 def test_qr_code_is_svg():
-    assert qr_svg("http://192.168.1.20:47820/#k=abc").startswith("<svg")
+    uri = qr_svg("http://192.168.1.20:47820/#k=abc")
+    assert uri.startswith("data:image/svg+xml") and "xmlns" in uri.replace("%3A", ":").replace("%22", '"')

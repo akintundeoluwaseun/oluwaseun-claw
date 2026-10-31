@@ -15,6 +15,7 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claw-show-')); const save
 fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
   model: { mode: 'custom', provider: 'openai_compatible', base_url: `http://127.0.0.1:${modelPort}`, model: 'qwen2.5:7b' },
   permissions: { authorized_folders: [saveDir] },
+  phone: { link_enabled: true, link_key: 'showcase-key-not-real-0123456789abcdef', link_port: 47831 },
   browser: { channel: 'chromium', headless: true, search_engine: 'custom', custom_search_url: `${siteUrl}/search?q={query}` },
 }));
 const args = [desktopDir]; if (process.env.CLAW_E2E_NO_SANDBOX) args.unshift('--no-sandbox');
@@ -50,6 +51,9 @@ try {
   await win.waitForFunction(() => document.querySelector('#run-status').textContent === 'Finished', null, { timeout: 30000 });
   await sleep(600);
   await win.screenshot({ path: path.join(out, 'dark-finished.png') });
+  await win.click('#toggle-chats'); await sleep(500);
+  await win.screenshot({ path: path.join(out, 'dark-drawer.png') });
+  await win.click('#toggle-chats'); await sleep(300);
   // light
   await win.click('#toggle-theme'); await sleep(300);
   const t = await win.evaluate(() => document.documentElement.dataset.theme || 'system');
@@ -64,5 +68,9 @@ try {
   await bar.screenshot({ path: path.join(out, 'light-bar-open.png') });
   await win.click('#open-settings'); await sleep(800);
   await win.screenshot({ path: path.join(out, 'light-settings.png') });
+  await win.click('.set-tab[data-panel="set-phone"]'); await sleep(900);
+  await win.screenshot({ path: path.join(out, 'light-phone-settings.png') });
+  await win.evaluate(() => document.getElementById('ph-link').scrollIntoView({ block: 'start' })); await sleep(500);
+  await win.screenshot({ path: path.join(out, 'light-phone-qr.png') });
 } finally { await app.close(); servers.kill(); }
 console.log('done', out);

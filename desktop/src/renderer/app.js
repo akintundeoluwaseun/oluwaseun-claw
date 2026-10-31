@@ -1262,7 +1262,7 @@ async function loadPhoneLink() {
   if (l.running) {
     // The QR code is an SVG made by the backend from its own address; shown as an image, never as markup.
     const img = el('img', { attrs: { alt: 'QR code for the S-CLAW phone app', width: '200', height: '200',
-      src: `data:image/svg+xml;utf8,${encodeURIComponent(l.qr)}` } });
+      src: String(l.qr).startsWith('data:image/svg+xml') ? l.qr : '' } });
     $('ph-qr').replaceChildren(img);
     $('ph-url').textContent = l.url.replace(/#k=.*/, '');
   }
