@@ -10,6 +10,8 @@
   in its list. **Fixed:** the tools that fit the request are named next to the task and described in full, and
   a finish that describes work still to do, or gives up for want of a tool that exists, is sent back (twice
   at most). Shown in the timeline as "Claw stopped too early, so it was told to carry on".
+- Settings said the brain was ready when its last start had failed, so every task errored with a "ready"
+  brain on screen. **Fixed:** status reports "Brain did not start" with the reason, and the task box shows it.
 - "Finished" in green over a list of failures. **Fixed:** "Finished, but nothing worked" (red) or "Finished
   with problems" (amber).
 ### Reported by the user

@@ -354,7 +354,12 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
                 ("Ready" if eng["state"] == "ready" else "Ready (starts when needed)") if info["ready"]
                 else " ".join(state.brain.not_ready(ms.selected))
             )
-            if info["ready"]:
+            if info["ready"] and eng["state"] == "failed":
+                # The brain is installed but its last start failed. Saying "Ready" here is
+                # what made a model look fine in Settings while every task errored.
+                reason = "engine_failed"
+                message = f"The brain is installed but did not start: {eng['message']}"
+            elif info["ready"]:
                 reason = "ok"
             elif not eng["available"]:
                 reason = "unreachable"          # the llama.cpp engine itself is not there
@@ -363,7 +368,8 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             else:
                 reason = "model_missing"        # engine fine, no brain on this computer
             status = ModelStatus(
-                server_reachable=info["engine"]["available"], model_available=info["ready"], provider="builtin",
+                server_reachable=info["engine"]["available"], model_available=info["ready"] and reason != "engine_failed",
+                provider="builtin",
                 base_url="", model=active["name"] if active else "", message=message, reason=reason,
             )
             return {**status.model_dump(), "mode": "builtin"}

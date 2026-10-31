@@ -193,6 +193,7 @@ function describeModelStatus(s) {
   const online = s.mode !== 'builtin';
   if (s.model_available) return ['ready', online ? (s.model || 'Online model ready') : 'Brain ready'];
   switch (s.reason) {
+    case 'engine_failed':  return ['failed', 'Brain did not start'];
     case 'auth_failed':    return ['failed', 'API key refused'];
     case 'rate_limited':   return ['missing', 'Rate limited'];
     case 'model_missing':  return ['failed', online ? 'Model not available' : 'Brain not installed'];
@@ -213,6 +214,8 @@ async function refreshModelStatus() {
     const s = res.body;
     state.modelReady = s.model_available;
     const [chipState, label] = describeModelStatus(s);
+    state.modelLabel = label;
+    state.modelMessage = s.message || '';
     setChip('model-pill', chipState, label, s.message);
   }
   renderContext();
@@ -423,7 +426,11 @@ function renderContext() {
   const m = mode === 'builtin' ? (state.brain?.active?.name || 'Built-in brain') : state.settings?.model?.model;
   const folders = state.settings?.permissions?.authorized_folders || [];
   const mc = $('ctx-model');
-  mc.querySelector('span').textContent = state.modelReady ? m : `${m} · getting ready`;
+  // Say what is actually wrong. "Getting ready" next to "Brain not installed" in the
+  // sidebar told two different stories about the same brain.
+  const why = (state.modelLabel || 'getting ready').toLowerCase();
+  mc.querySelector('span').textContent = state.modelReady ? m : mode === 'builtin' && !state.brain?.active ? 'No brain yet' : `${m} · ${why}`;
+  mc.title = state.modelReady ? '' : state.modelMessage || '';
   mc.dataset.ok = String(!!m && state.modelReady);
   const fc = $('ctx-folder');
   fc.querySelector('span').textContent = folders.length ? folders[0].split(/[\\/]/).filter(Boolean).pop() + (folders.length > 1 ? ` +${folders.length - 1}` : '') : 'No folder to save in';
