@@ -1,4 +1,6 @@
-/* Oluwaseun Claw — design tokens.
+/* S-CLAW — design tokens. Dark first: midnight ink with one iris accent (the token is still
+   named --brass so every existing rule picks it up); mint = checked, amber = needs you, rose = stopped.
+   (Earlier notes below describe the previous warm-paper palette.)
 
    The intent: a quiet, well-made instrument. Warm paper by day, deep ink by
    night, with one restrained metallic accent. Nothing glows, nothing shouts,
@@ -29,39 +31,39 @@
      --surface a hair off it, so most of the window sat above 98% luminance.
      Everything is a few percent down and a little warmer. Measured against
      --ink the worst of these is still 13.7:1, well past WCAG AA. */
-  --bg: #e9e5db;
+  --bg: #eceff6;
   /* The mark carries a tile behind its blades. Those blades are white-to-lavender
      gradients, so on a light surface they need something dark behind them or they
      disappear. On a dark surface they do not - and a near-black tile sitting on an
      already-dark panel is just a black block, which is what the quick bar showed:
      an icon with a visible black background, all day, on the desktop. So the tile
      is a theme token, not a fixed colour. */
-  --mk-tile-fill: #141519;
-  --surface: #f8f5ee;
-  --surface-2: #f0ece2;
-  --surface-3: #e7e1d5;
-  --raised: #fdfbf5;
+  --mk-tile-fill: #121726;
+  --surface: #f6f7fb;
+  --surface-2: #eef1f8;
+  --surface-3: #e3e8f2;
+  --raised: #fbfcfe;
 
   /* --- text --- */
-  --ink: #1a1714;
-  --ink-2: #57514a;
-  --ink-3: #8b8379;
+  --ink: #121726;
+  --ink-2: #4a5470;
+  --ink-3: #7d87a1;
 
   /* --- lines --- */
-  --line: #e3ddd2;
-  --line-2: #cec6b8;
-  --line-strong: #b3a994;
+  --line: #dde2ec;
+  --line-2: #c9d0de;
+  --line-strong: #a8b2c7;
 
   /* --- the accent: antique brass --- */
-  --brass: #8a6726;
-  --brass-ink: #fffdf7;
-  --brass-soft: #f5edda;
-  --brass-line: #e0cda2;
+  --brass: #4d5ad4;
+  --brass-ink: #ffffff;
+  --brass-soft: #e7eaff;
+  --brass-line: #c3caf6;
 
   /* --- meaning --- */
-  --green: #2d6a57;
-  --green-soft: #e4efe9;
-  --green-line: #b9d6c9;
+  --green: #1f7a57;
+  --green-soft: #e2f3ec;
+  --green-line: #b4dcc9;
   --amber: #96681a;
   --amber-soft: #f7edda;
   --amber-line: #e3cb98;
@@ -105,81 +107,81 @@
    ever drift apart. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #101113;
+    --bg: #0f1522;
     /* No tile on a dark surface: the blades already read, and a near-black
        square on a near-black panel is the black background people saw. */
     --mk-tile-fill: transparent;
-    --surface: #17191d;
-    --surface-2: #1d2025;
-    --surface-3: #23272d;
-    --raised: #1b1e23;
+    --surface: #131a28;
+    --surface-2: #192131;
+    --surface-3: #202a3d;
+    --raised: #172030;
 
-    --ink: #ece7df;
-    --ink-2: #a49d93;
-    --ink-3: #7a736a;
+    --ink: #e8edf6;
+    --ink-2: #a3aec4;
+    --ink-3: #6f7b93;
 
-    --line: #272a30;
-    --line-2: #363a42;
-    --line-strong: #4a4f59;
+    --line: #222c40;
+    --line-2: #2d3952;
+    --line-strong: #43516f;
 
-    --brass: #cfa861;
-    --brass-ink: #1b1403;
-    --brass-soft: #2a2316;
-    --brass-line: #4e4027;
+    --brass: #8d9bff;
+    --brass-ink: #0c1130;
+    --brass-soft: #1b2246;
+    --brass-line: #353f7a;
 
-    --green: #58bb9d;
-    --green-soft: #162b25;
-    --green-line: #2b4c42;
-    --amber: #dfae63;
-    --amber-soft: #2c2415;
-    --amber-line: #4f4228;
-    --red: #e07a6e;
-    --red-soft: #2e1b19;
-    --red-line: #553029;
+    --green: #5ed3a3;
+    --green-soft: #0f2a22;
+    --green-line: #1f4a3b;
+    --amber: #f3b65c;
+    --amber-soft: #2c2313;
+    --amber-line: #5a4422;
+    --red: #f07a86;
+    --red-soft: #2c1720;
+    --red-line: #5a2a35;
 
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
-    --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.4);
-    --shadow-3: 0 6px 16px rgba(0, 0, 0, 0.45), 0 30px 70px rgba(0, 0, 0, 0.55);
-    --inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --shadow-1: 0 1px 2px rgba(3, 6, 16, 0.5);
+    --shadow-2: 0 2px 8px rgba(3, 6, 16, 0.45), 0 14px 36px rgba(3, 6, 16, 0.5);
+    --shadow-3: 0 8px 20px rgba(3, 6, 16, 0.55), 0 32px 80px rgba(3, 6, 16, 0.65);
+    --inset: inset 0 1px 0 rgba(160, 175, 255, 0.05);
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #101113;
+  --bg: #0f1522;
   --mk-tile-fill: transparent;
-  --surface: #17191d;
-  --surface-2: #1d2025;
-  --surface-3: #23272d;
-  --raised: #1b1e23;
+  --surface: #131a28;
+  --surface-2: #192131;
+  --surface-3: #202a3d;
+  --raised: #172030;
 
-  --ink: #ece7df;
-  --ink-2: #a49d93;
-  --ink-3: #7a736a;
+  --ink: #e8edf6;
+  --ink-2: #a3aec4;
+  --ink-3: #6f7b93;
 
-  --line: #272a30;
-  --line-2: #363a42;
-  --line-strong: #4a4f59;
+  --line: #222c40;
+  --line-2: #2d3952;
+  --line-strong: #43516f;
 
-  --brass: #cfa861;
-  --brass-ink: #1b1403;
-  --brass-soft: #2a2316;
-  --brass-line: #4e4027;
+  --brass: #8d9bff;
+  --brass-ink: #0c1130;
+  --brass-soft: #1b2246;
+  --brass-line: #353f7a;
 
-  --green: #58bb9d;
-  --green-soft: #162b25;
-  --green-line: #2b4c42;
-  --amber: #dfae63;
-  --amber-soft: #2c2415;
-  --amber-line: #4f4228;
-  --red: #e07a6e;
-  --red-soft: #2e1b19;
-  --red-line: #553029;
+  --green: #5ed3a3;
+  --green-soft: #0f2a22;
+  --green-line: #1f4a3b;
+  --amber: #f3b65c;
+  --amber-soft: #2c2313;
+  --amber-line: #5a4422;
+  --red: #f07a86;
+  --red-soft: #2c1720;
+  --red-line: #5a2a35;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.4);
-  --shadow-3: 0 6px 16px rgba(0, 0, 0, 0.45), 0 30px 70px rgba(0, 0, 0, 0.55);
-  --inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-1: 0 1px 2px rgba(3, 6, 16, 0.5);
+  --shadow-2: 0 2px 8px rgba(3, 6, 16, 0.45), 0 14px 36px rgba(3, 6, 16, 0.5);
+  --shadow-3: 0 8px 20px rgba(3, 6, 16, 0.55), 0 32px 80px rgba(3, 6, 16, 0.65);
+  --inset: inset 0 1px 0 rgba(160, 175, 255, 0.05);
   color-scheme: dark;
   }
 
@@ -187,9 +189,9 @@
 .mark-tile { fill: var(--ink); }
 .mark-claw { fill: none; stroke: var(--brass); stroke-width: 3.2; stroke-linecap: round; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .mark-tile { fill: #2a2e35; }
+  :root:not([data-theme="light"]) .mark-tile { fill: #1d2640; }
 }
-:root[data-theme="dark"] .mark-tile { fill: #2a2e35; }
+:root[data-theme="dark"] .mark-tile { fill: #1d2640; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 [hidden] { display: none !important; }
