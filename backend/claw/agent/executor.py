@@ -310,8 +310,28 @@ SAVING_TOOLS = {"save_links", "save_report", "write_text_file", "create_spreadsh
                 "edit_text_file", "create_folder", "move_file", "rename_file"}
 
 
+_NUMBERS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+            "twenty": 20, "fifteen": 15, "twelve": 12}
+
+
+def _too_few_rows(task: str, steps: list[dict[str, Any]]) -> str | None:
+    """Asked for five rows, made two (the 2B brain on Windows, spreadsheet of states)."""
+    m = re.search(r"\b(\d{1,3}|" + "|".join(_NUMBERS) + r")\s+(?:\w+\s+){0,2}\w+", task.split("\n")[0], re.I)
+    if not m:
+        return None
+    want = int(m.group(1)) if m.group(1).isdigit() else _NUMBERS[m.group(1).lower()]
+    for s in reversed(steps):
+        if s.get("tool") == "create_spreadsheet" and s.get("outcome") in ("verified", "done_unverified"):
+            got = re.search(r"with (\d+) row", str(s.get("detail", "")))
+            if got and int(got.group(1)) < want <= 200:
+                return (f"You were asked for {want}, and the spreadsheet has {got.group(1)} row(s). "
+                        f"Make it again with all {want} rows, each one correct.")
+            return None
+    return None
+
+
 def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str], example: str = "",
-                     wants_save: bool = False) -> str | None:
+                     wants_save: bool = False, task: str = "") -> str | None:
     """Why this finish should be sent back, or None to accept it."""
     tools = f" Tools for it: {', '.join(fitting)}." if fitting else ""
     last_failed = bool(steps) and steps[-1].get("outcome") in ("failed", "rejected")
@@ -329,6 +349,9 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
         return (f"The task asks you to save it, and nothing has been saved yet. Save it now with {save_tools[0]}."
                 + (f" Reply like this, with real values: {example}" if example and fitting[0] in save_tools else ""))
     worked = any(s.get("outcome") not in ("failed", "rejected", "denied", "blocked") for s in steps)
+    short = _too_few_rows(task, steps)
+    if short:
+        return short
     if _NO_TOOL.search(final) and fitting:
         return (f"Those tools do exist here: {', '.join(fitting)}. Their details are in the tool list. "
                 "Use them to do the task. Finish only if one of them has actually failed, and say how.")
@@ -649,7 +672,7 @@ async def run_agent(
         if action.action == "finish":
             final = (action.final_answer or "").strip() or "(The model finished without a summary.)"
             why = (premature_finish(final, steps, fitting, example_call(registry, fitting[0]) if fitting else "",
-                                    wants_save=bool(re.search(r"\bsave\b", task.split("\n")[0], re.I)))
+                                    wants_save=bool(re.search(r"\bsave\b", task.split("\n")[0], re.I)), task=task)
                    if pushbacks < MAX_PUSHBACKS else None)
             if why:
                 pushbacks += 1

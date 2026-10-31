@@ -104,3 +104,10 @@ def test_fourth_trial_near_misses():
     assert "nothing has been saved" in premature_finish("Title: X, URL: Y", [{"tool": "web_search", "outcome": "verified"}], f, wants_save=True)
     # a failed last step with "I will try again" is an honest end, not a premature one
     assert premature_finish("WhatsApp didn't open. I will try again later.", [{"tool": "check_whatsapp", "outcome": "failed"}], ["check_whatsapp"]) is None
+
+
+def test_asked_for_five_rows_and_made_two_is_sent_back():
+    steps = [{"tool": "create_spreadsheet", "outcome": "verified", "detail": "Created states.xlsx with 2 row(s) and 2 column(s)."}]
+    why = premature_finish("Done.", steps, ["create_spreadsheet"], task="Create a spreadsheet of five Nigerian states and their capitals")
+    assert why and "five" not in why and "5" in why
+    assert premature_finish("Done.", steps, ["create_spreadsheet"], task="Create a spreadsheet of two states") is None
