@@ -115,7 +115,9 @@ class PermissionPolicy:
         It is still checked against the authorized folders below like any other.
         """
         p = Path(raw).expanduser()
-        if p.is_absolute() or re.match(r"^[A-Za-z]:[\\/]", raw) or not self.root_paths:
+        # "/etc/passwd" is not absolute on Windows (no drive) but it means the root of
+        # the drive, never "inside Documents". Only bare names are anchored.
+        if p.is_absolute() or raw.startswith(("/", "\\", "~")) or re.match(r"^[A-Za-z]:", raw) or not self.root_paths:
             return p
         parts = re.split(r"[\\/]+", raw.strip())
         head = parts[0].strip().lower()

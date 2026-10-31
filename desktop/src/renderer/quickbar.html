@@ -10,6 +10,7 @@
 </head>
 <body data-mode="collapsed" data-phase="idle">
   <svg class="sprite" width="0" height="0" aria-hidden="true">
+    <symbol id="claw-blades" viewBox="0 0 64 64"><g class="orb-blades"><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(0 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(120 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c8.6 3.4 14.8 9.6 18.4 18.6-5.8-4.6-12.2-6.8-19.2-6.6 2.6-3.8 2.9-7.8.8-12z" transform="rotate(240 32 32)" fill="url(#mk-g)"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(0 32 32)" fill="url(#mk-e)" opacity=".92"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(120 32 32)" fill="url(#mk-e)" opacity=".92"/><path d="M32 9.5c2.1 4.2 1.8 8.2-.8 12-3.4.1-6.6.7-9.6 1.8 3.4-5.6 6.9-10.2 10.4-13.8z" transform="rotate(240 32 32)" fill="url(#mk-e)" opacity=".92"/></g></symbol>
     <symbol id="claw-mark" viewBox="0 0 64 64">
       <defs>
         <linearGradient id="mk-g" x1="14" y1="10" x2="50" y2="56" gradientUnits="userSpaceOnUse">
@@ -32,7 +33,7 @@
   </svg>
 
   <button class="pill" id="pill" type="button" aria-label="Give Claw a task">
-    <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#claw-mark"/></svg>
+    <span class="orb mark" aria-hidden="true"><i></i><i></i><i></i><svg class="orb-mark" viewBox="0 0 64 64"><use href="#claw-blades"/></svg></span>
     <span class="pill-text" id="pill-text">Ask Claw</span>
     <span class="pill-meta" id="pill-meta"></span>
   </button>
@@ -45,7 +46,7 @@
   </button>
 
   <form class="panel" id="panel" autocomplete="off">
-    <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><use href="#claw-mark"/></svg>
+    <span class="orb mark" aria-hidden="true"><i></i><i></i><i></i><svg class="orb-mark" viewBox="0 0 64 64"><use href="#claw-blades"/></svg></span>
     <label class="sr-only" for="task">Task for Claw</label>
     <input id="task" type="text" maxlength="4000" spellcheck="true" placeholder="Give Claw a task, then get on with your day">
     <button class="mic" id="mic" type="button" aria-label="Dictate a task" title="Dictate">

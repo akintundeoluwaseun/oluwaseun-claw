@@ -284,16 +284,29 @@ def fitting_tools(task: str, registry: ToolRegistry) -> list[str]:
 # both were reported as "completed".
 _STILL_TO_DO = re.compile(
     r"\b(?:I will now|I'll now|I will proceed|will now proceed|I am going to|next,? I will|"
-    r"the (?:next step|task) is now to|I will then)\b", re.I)
+    r"the (?:next step|task) is now to|I will then|"
+    r"I(?: will|'ll) (?:create|copy|save|open|write|make|read|type|search|move|check|use|go|start|try))\b", re.I)
 _NO_TOOL = re.compile(
     r"(?:tools?\b[^.]{0,60}\bnot (?:available|provided|listed)|not (?:available|provided) in the (?:list of )?tools|"
     r"do(?:es)? not have (?:a|the|any) (?:tool|way)|no tool (?:to|for|that))", re.I)
 MAX_PUSHBACKS = 2
 
 
-def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]) -> str | None:
+def example_call(registry: ToolRegistry, name: str) -> str:
+    """A filled-in shape of a tool call, so a small brain sees exactly what to send."""
+    spec = registry.get(name)
+    if spec is None:
+        return ""
+    schema = spec.args_model.model_json_schema()
+    args = {k: f"<{k}>" for k in schema.get("required", [])}
+    return json.dumps({"thought": "...", "action": "tool", "tool": name, "args": args})
+
+
+def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str], example: str = "") -> str | None:
     """Why this finish should be sent back, or None to accept it."""
     tools = f" Tools for it: {', '.join(fitting)}." if fitting else ""
+    if fitting and example:
+        tools += f" Reply like this, with real values: {example}"
     if _STILL_TO_DO.search(final):
         return ("You wrote that there is still work to do, so the task is not finished. "
                 f"Carry on with the next step now by calling a tool.{tools}")
@@ -581,7 +594,8 @@ async def run_agent(
 
         if action.action == "finish":
             final = (action.final_answer or "").strip() or "(The model finished without a summary.)"
-            why = premature_finish(final, steps, fitting) if pushbacks < MAX_PUSHBACKS else None
+            why = (premature_finish(final, steps, fitting, example_call(registry, fitting[0]) if fitting else "")
+                   if pushbacks < MAX_PUSHBACKS else None)
             if why:
                 pushbacks += 1
                 emit("pushed_back", {"step": step_no, "reason": why, "final_answer": final[:300]})
@@ -610,7 +624,11 @@ async def run_agent(
             record.update(outcome="rejected", detail=exc.message)
             steps.append(record)
             emit("rejected", {"step": step_no, "reason": exc.message})
-            messages.append(ChatMessage(role="user", content=format_observation(spec.name, None, exc.message)))
+            # Show the argument shape with the error: after "invalid arguments" alone the
+            # 2B brain gave up instead of fixing them.
+            shape = compact_args(_strip_titles(spec.for_model()["args"]))
+            messages.append(ChatMessage(role="user", content=format_observation(spec.name, None, exc.message)
+                                        + f"\nFix the arguments and call {spec.name} again. It takes: {shape}"))
             if (stop := await after_failure()) is not None:
                 return stop
             continue

@@ -50,3 +50,18 @@ def test_pushback_is_limited_so_a_stubborn_model_still_ends(make_client, fake_se
     assert wait_done(c, tid) == "completed"
     kinds = [e["kind"] for e in c.get(f"/tasks/{tid}/events").json()["events"]]
     assert kinds.count("pushed_back") == 2
+
+
+def test_near_miss_arguments_from_the_third_trial_are_accepted():
+    from claw.tools.document_tools import SheetArgs
+    from claw.tools.image_tools import FlyerArgs
+
+    rows = SheetArgs.model_validate({"file_name": "states", "columns": ["State", "Capital"],
+                                     "rows": [{"State": "Lagos", "Capital": "Ikeja"}, "Oyo, Ibadan"]}).rows
+    assert rows == [["Lagos", "Ikeja"], ["Oyo", "Ibadan"]]
+    f = FlyerArgs.model_validate({"title": "TechDesk", "background": "dark blue", "accent": "rainbow"})
+    assert f.background == "#14213d" and f.accent == "#3cc2aa"
+
+
+def test_i_will_create_is_not_a_finish():
+    assert premature_finish("I will create a new folder named Backup and copy the file.", [], ["copy_files"])

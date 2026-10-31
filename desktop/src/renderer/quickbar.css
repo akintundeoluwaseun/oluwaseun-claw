@@ -35,7 +35,6 @@ body {
 .pill-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pill-meta { color: var(--ink-2); font-weight: 500; white-space: nowrap; font-size: 12.5px; }
 
-body[data-phase="working"] .pill .mark { animation: breathe 1.8s var(--ease) infinite; }
 @keyframes breathe { 50% { transform: scale(0.86); opacity: 0.75; } }
 body[data-phase="working"] .pill { border-color: var(--brass-line); }
 /* The one state that has to win an argument with whatever is behind it.
@@ -253,3 +252,56 @@ body[data-dragging="yes"] .pill:hover { transform: none; box-shadow: var(--shado
 body[data-dragging="yes"] .mk-blades,
 body[data-dragging="yes"] .mk-bloom,
 body[data-dragging="yes"] .mk-ring { animation-play-state: paused; }
+
+/* ==========================================================================
+   Quick bar, v2 — a floating capsule with the living orb and a light ring
+   that circles its edge. The ring is faint while idle, runs bright while
+   Claw works, and turns warm when it needs you.
+   ========================================================================== */
+@property --qb-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+body { padding-top: 8px; }
+.pill, .panel {
+  --ring-1: color-mix(in srgb, #6e8bff 55%, transparent);
+  --ring-2: color-mix(in srgb, #b38cff 55%, transparent);
+  --ring-3: color-mix(in srgb, #46d4ff 45%, transparent);
+  --ring-base: var(--line-2);
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    conic-gradient(from var(--qb-a), var(--ring-base) 0deg, var(--ring-1) 70deg, var(--ring-base) 140deg,
+                   var(--ring-base) 200deg, var(--ring-2) 260deg, var(--ring-3) 310deg, var(--ring-base) 360deg) border-box;
+  animation: qb-ring 6s linear infinite;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+@keyframes qb-ring { to { --qb-a: 360deg; } }
+body[data-phase="working"] .pill, body[data-phase="working"] .panel {
+  --ring-1: #6e8bff; --ring-2: #b38cff; --ring-3: #46d4ff; animation-duration: 2.2s;
+}
+body[data-phase="attention"] .pill {
+  --ring-1: #f3b65c; --ring-2: #ff8a6b; --ring-3: #ffd27a; --ring-base: color-mix(in srgb, var(--amber) 45%, transparent);
+  animation-duration: 2.6s;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    conic-gradient(from var(--qb-a), var(--ring-base), var(--ring-1) 90deg, var(--ring-2) 180deg, var(--ring-3) 270deg, var(--ring-base)) border-box;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28), 0 0 0 4px color-mix(in srgb, var(--amber) 18%, transparent);
+}
+
+.pill { height: 42px; gap: 10px; padding: 0 16px 0 7px; border-radius: 999px; font-size: 13.5px; }
+.pill:hover { box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34), 0 2px 6px rgba(0, 0, 0, 0.18); }
+.pill .mark.orb { --orb: 28px; width: var(--orb); height: var(--orb); animation: none; }
+.pill-meta {
+  font-size: 11.5px; font-weight: 600; color: var(--ink-3);
+  padding: 3px 8px; border-radius: 999px; background: var(--surface-2);
+}
+body[data-phase="attention"] .pill-meta { background: color-mix(in srgb, var(--amber) 16%, transparent); }
+.pill-hide { width: 26px; height: 26px; border-radius: 999px; margin-left: 6px; margin-top: 8px; align-self: flex-start; }
+.pill-stop { width: 42px; height: 42px; border-radius: 999px; margin-left: 8px; }
+
+.panel { width: 664px; border-radius: 26px; padding: 12px 12px 10px 14px; gap: 14px; grid-template-columns: 38px 1fr auto auto; }
+.panel .mark.orb { --orb: 38px; width: var(--orb); height: var(--orb); }
+.panel input { font-size: 17px; }
+.run { height: 40px; border-radius: 999px; padding: 0 22px; }
+.mic { width: 36px; height: 36px; border-radius: 999px; }
+.panel-foot { border-top: 0; padding: 4px 4px 0; color: var(--ink-3); }
+.link { color: var(--brass); text-decoration: none; }
+.link:hover { text-decoration: underline; }

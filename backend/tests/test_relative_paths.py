@@ -24,3 +24,11 @@ def test_relative_paths_cannot_climb_out(tmp_path):
         pol.check_path("../secret.txt")
     with pytest.raises(PathNotAuthorized):
         pol.check_path("Documents/../../secret.txt")
+
+
+def test_rooted_paths_are_never_anchored(tmp_path):
+    docs = tmp_path / "Documents"
+    docs.mkdir()
+    pol = PermissionPolicy(DEFAULT_MODES, [str(docs)])
+    for raw in ("/etc/passwd", "\\Windows\\win.ini", "C:secret.txt"):
+        assert docs not in pol._anchor(raw).parents and pol._anchor(raw) != docs, raw

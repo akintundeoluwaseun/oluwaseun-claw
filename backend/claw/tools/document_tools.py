@@ -188,6 +188,32 @@ class SheetArgs(ToolArgs):
     format: Literal["xlsx", "csv"] = "xlsx"
     folder: str | None = Field(default=None, max_length=500)
 
+    @field_validator("rows", mode="before")
+    @classmethod
+    def _shape(cls, rows, info):
+        """Rows the brain wrote in a near-miss shape are reshaped, not refused.
+
+        Seen with the 2B brain on Windows: rows as objects ({"State": "Lagos",
+        "Capital": "Ikeja"}) or as "Lagos, Ikeja" strings. Both mean one row.
+        """
+        cols = [str(c).strip().lower() for c in (info.data.get("columns") or [])]
+        if isinstance(rows, dict):                       # {"Lagos": "Ikeja", ...}
+            rows = [[k, v] for k, v in rows.items()]
+        if not isinstance(rows, list):
+            return rows
+        out = []
+        for r in rows:
+            if isinstance(r, dict):
+                low = {str(k).strip().lower(): v for k, v in r.items()}
+                out.append([low.get(c, "") for c in cols] if cols and any(c in low for c in cols) else list(r.values()))
+            elif isinstance(r, str):
+                out.append([p.strip() for p in r.split(",")] if "," in r else [r])
+            elif isinstance(r, (int, float)):
+                out.append([r])
+            else:
+                out.append(r)
+        return out
+
     @field_validator("rows")
     @classmethod
     def _widths(cls, rows, info):

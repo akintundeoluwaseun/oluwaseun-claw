@@ -1251,3 +1251,9 @@ body[data-view="task"] .stage > * { max-width: 1160px; }
 .search input, .search input:focus, .search input:focus-visible { border: 0; outline: none; box-shadow: none; background: transparent; }
 .search:focus-within { border-color: var(--brass-line); }
 .outcome-counts::before { background: var(--ink-3); }
+
+/* The orb in the main window. */
+.brand-mark.orb { --orb: 22px; }
+.home-mark.orb { --orb: 56px; margin-bottom: 8px; }
+.turn-orb.orb { --orb: 26px; }
+.home-mark.orb { box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 10px 40px color-mix(in srgb, var(--c1) 40%, transparent); }

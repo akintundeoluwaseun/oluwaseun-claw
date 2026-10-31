@@ -68,14 +68,38 @@ def _title_seen(title: str, text: str) -> float:
 
 
 # ---------- make_flyer ----------
+_COLOURS = {
+    "black": "#111111", "white": "#ffffff", "grey": "#808080", "gray": "#808080", "silver": "#c0c0c0",
+    "red": "#d62828", "dark red": "#7a0c0c", "maroon": "#800000", "orange": "#f77f00", "yellow": "#fcbf49",
+    "gold": "#d4a017", "green": "#2a9d8f", "dark green": "#1b4332", "lime": "#80b918", "teal": "#14857a",
+    "blue": "#1d4ed8", "dark blue": "#14213d", "navy": "#14213d", "navy blue": "#14213d", "light blue": "#7cc6fe",
+    "sky blue": "#4cc9f0", "cyan": "#00b4d8", "purple": "#6a4c93", "violet": "#7b2cbf", "pink": "#ff70a6",
+    "brown": "#7f4f24", "beige": "#e9d8a6", "cream": "#fff3d6",
+}
 class FlyerArgs(ToolArgs):
     title: str = Field(min_length=2, max_length=120, description="Headline")
     subtitle: str = Field(default="", max_length=200)
     points: list[str] = Field(default_factory=list, max_length=6, description="Up to 6 short selling points")
     contact: str = Field(default="", max_length=120, description="Phone, WhatsApp, website or address line")
     size: Literal["square", "story", "a5", "a4", "landscape"] = "a5"
-    background: str = Field(default="#14212b", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
-    accent: str = Field(default="#3cc2aa", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
+    background: str = Field(default="#14212b", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$",
+                            description="A colour: #RRGGBB or a plain name like navy")
+    accent: str = Field(default="#3cc2aa", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$",
+                        description="A colour: #RRGGBB or a plain name like gold")
+
+    @field_validator("background", "accent", mode="before")
+    @classmethod
+    def _named_colours(cls, v, info):
+        # The brain wrote "dark blue" and "orange" on Windows and the flyer was refused.
+        # A colour name it might reasonably use becomes its hex; anything else unknown
+        # falls back to the default instead of failing the whole flyer.
+        if not isinstance(v, str):
+            return v
+        t = v.strip().lower().replace("-", " ")
+        if re.fullmatch(r"#?[0-9a-f]{3}([0-9a-f]{3})?", t):
+            return t
+        hexed = _COLOURS.get(t) or _COLOURS.get(t.split()[-1] if t else "")
+        return hexed or ("#14212b" if info.field_name == "background" else "#3cc2aa")
     images: list[str] = Field(default_factory=list, max_length=4, description="Pictures to use, from authorized folders")
     file_name: str = Field(default="flyer", max_length=80)
     format: Literal["png", "jpg", "pdf", "psd"] = "png"

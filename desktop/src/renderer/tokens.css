@@ -207,3 +207,62 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+/* ==========================================================================
+   The orb — Claw's living logo.
+   Three soft colour fields turn and change shape at different speeds inside a
+   glassy sphere, with the claw blades turning slowly on top. It never stops:
+   calm when idle, quicker and brighter while Claw works, warm when it needs
+   you, and it swells with your voice while listening (--level, 0..1).
+   Only transform, opacity and border-radius animate.
+   ========================================================================== */
+@property --orb-a { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
+.orb {
+  --orb: 28px; --c1: #6e8bff; --c2: #b38cff; --c3: #46d4ff; --speed: 1;
+  position: relative; display: inline-block; flex: none;
+  width: var(--orb); height: var(--orb); border-radius: 50%;
+  overflow: hidden; isolation: isolate;
+  background: radial-gradient(circle at 50% 40%, #232a52 0%, #0e1022 70%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+              inset 0 calc(var(--orb) * -0.12) calc(var(--orb) * 0.3) rgba(0, 0, 0, 0.45),
+              0 0 calc(var(--orb) * 0.45) color-mix(in srgb, var(--c1) 38%, transparent);
+  transform: scale(calc(1 + var(--level, 0) * 0.12));
+  transition: transform 120ms linear;
+}
+.orb > i {
+  position: absolute; inset: -30%;
+  border-radius: 43% 57% 61% 39% / 44% 41% 59% 56%;
+  mix-blend-mode: screen; opacity: 0.85;
+  filter: blur(calc(var(--orb) * 0.09));
+  animation: orb-spin calc(8s / var(--speed)) linear infinite, orb-morph calc(5s / var(--speed)) ease-in-out infinite alternate;
+}
+.orb > i:nth-child(1) { background: conic-gradient(from 0deg, var(--c1), transparent 38%, var(--c2) 62%, transparent 88%); }
+.orb > i:nth-child(2) {
+  background: conic-gradient(from 140deg, var(--c3), transparent 34%, var(--c1) 66%, transparent 92%);
+  animation-duration: calc(11s / var(--speed)), calc(6.5s / var(--speed)); animation-direction: reverse, alternate;
+}
+.orb > i:nth-child(3) {
+  inset: 8%; opacity: 0.6;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95), transparent 46%);
+  animation-duration: calc(14s / var(--speed)), calc(4s / var(--speed));
+}
+.orb-mark {
+  position: absolute; left: 20%; top: 20%; width: 60%; height: 60%;
+  filter: drop-shadow(0 0 calc(var(--orb) * 0.06) rgba(255, 255, 255, 0.6));
+  animation: orb-spin calc(18s / var(--speed)) linear infinite;
+}
+@keyframes orb-spin { to { transform: rotate(360deg); } }
+@keyframes orb-morph {
+  0%   { border-radius: 43% 57% 61% 39% / 44% 41% 59% 56%; scale: 1; }
+  50%  { border-radius: 58% 42% 38% 62% / 55% 62% 38% 45%; scale: 1.08; }
+  100% { border-radius: 38% 62% 52% 48% / 36% 52% 48% 64%; scale: 0.95; }
+}
+/* Working: quicker and brighter. Needs you: warm. Done: one bright flash. */
+body[data-phase="working"] .orb, body[data-working="true"] .orb { --speed: 2.6; }
+body[data-phase="attention"] .orb { --c1: #f3b65c; --c2: #ff8a6b; --c3: #ffd27a; --speed: 1.8; }
+body[data-listening="yes"] .orb { --speed: 2; --c3: #7cf0c8; }
+.orb.is-done { animation: orb-flash 900ms var(--ease) 1; }
+@keyframes orb-flash { 0% { filter: brightness(1.9) saturate(1.4); } 100% { filter: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .orb > i, .orb-mark { animation-duration: 40s, 20s !important; }
+}
