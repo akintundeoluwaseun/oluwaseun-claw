@@ -1,0 +1,137 @@
+{"ts": "2026-11-01T21:32:27.930+00:00", "level": "INFO", "logger": "claw.main", "msg": "backend starting", "fields": {"version": "0.5.0", "port": 18800, "data_dir": "D:\\data-Light", "log_file": "D:\\data-Light\\logs\\claw.log"}}
+{"ts": "2026-11-01T21:32:27.952+00:00", "level": "INFO", "logger": "claw.api", "msg": "starter folders added", "fields": {"count": 3}}
+{"ts": "2026-11-01T21:32:28.011+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Started server process [5700]"}
+{"ts": "2026-11-01T21:32:28.013+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Waiting for application startup."}
+{"ts": "2026-11-01T21:32:28.015+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Application startup complete."}
+{"ts": "2026-11-01T21:32:28.017+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Uvicorn running on http://127.0.0.1:18800 (Press CTRL+C to quit)"}
+{"ts": "2026-11-01T21:32:30.113+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine starting", "fields": {"model": "local-s-claw-brain-light-2b", "port": 63148, "need_gb": 2.7}}
+{"ts": "2026-11-01T21:32:30.348+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:30.675+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:30.989+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:31.294+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:31.607+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:31.917+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:32.241+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:32.556+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:32.857+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:33.162+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:33.492+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:33.808+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:34.123+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:34.426+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:34.742+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:35.057+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:35.373+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:35.677+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:36.007+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:36.324+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:36.643+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:36.958+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:37.261+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:37.574+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:37.880+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:38.195+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:38.501+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:38.808+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:39.125+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:39.429+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:39.742+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:40.059+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:40.375+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:40.692+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:41.008+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:41.324+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:41.641+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:41.958+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:42.274+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:42.591+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:42.892+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:43.209+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:43.513+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:43.810+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:44.126+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:44.443+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:44.743+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:45.058+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:45.363+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:45.691+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:46.009+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:46.324+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:46.639+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:46.930+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:47.257+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:47.573+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:47.888+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:48.207+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:48.500+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:48.807+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:49.123+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:49.424+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:49.742+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:50.057+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:50.372+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:50.673+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:50.975+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:51.290+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:51.597+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:51.923+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:52.224+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:52.528+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:52.840+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:53.143+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:53.458+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:53.777+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:54.091+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:54.391+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:54.693+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:54.996+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:55.309+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:55.625+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:55.928+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:56.244+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:56.544+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:56.858+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:57.160+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:57.476+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:57.792+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:58.108+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:58.425+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:58.743+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:59.057+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:59.374+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:59.690+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:32:59.990+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:33:00.307+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:33:00.624+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:33:00.942+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:33:01.244+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-01T21:33:01.551+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/health \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:33:01.553+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine ready", "fields": {"model": "local-s-claw-brain-light-2b", "seconds": 31.4}}
+{"ts": "2026-11-01T21:33:01.730+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:33:27.640+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:33:27.642+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 1287}}
+{"ts": "2026-11-01T21:33:27.864+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:33:51.664+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+pywinauto\__init__.py:71: UserWarning: Apply externally defined coinit_flags: 2
+{"ts": "2026-11-01T21:33:57.273+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:34:02.115+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:34:06.552+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:34:12.357+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:34:17.495+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:34:17.500+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "3ece9cfc3ad24219b813e469364781a5", "status": "completed", "steps": 5}}
+{"ts": "2026-11-01T21:34:19.121+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:34:28.264+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:34:28.266+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 585}}
+{"ts": "2026-11-01T21:34:28.496+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:34:49.803+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:34:56.011+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:35:04.082+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:35:04.087+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "1bdb29a5d7394d1cb91af0cb174eb786", "status": "completed", "steps": 2}}
+{"ts": "2026-11-01T21:35:04.441+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:35:12.689+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:35:12.691+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 628}}
+{"ts": "2026-11-01T21:35:12.888+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:63148/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:35:34.835+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:35:40.586+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:35:45.422+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:63148/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-01T21:35:45.426+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "fdb3f2ffb82b4b7ab381e88104518ae5", "status": "completed", "steps": 2}}
