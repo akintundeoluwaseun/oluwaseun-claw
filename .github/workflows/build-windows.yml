@@ -276,7 +276,10 @@ jobs:
           $version = (Get-Content desktop\package.json | ConvertFrom-Json).version
           $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "v$version-build.$env:GITHUB_RUN_NUMBER" }
           $match = if ($env:EDITION -eq 'Online') { '*Online*' } else { '*Local*' }
-          $files = Get-ChildItem build\installers | Where-Object { $_.Name -like $match -or $_.Name -eq 'SHA256SUMS.txt' } | ForEach-Object FullName
+          # Only the installer files: the checksums go in the notes instead of a .txt asset
+          # that people took for something they had to download.
+          $files = Get-ChildItem build\installers | Where-Object { $_.Name -like $match } | ForEach-Object FullName
+          $sums = (Get-ChildItem build\installers | Where-Object { $_.Name -like $match } | ForEach-Object { "``$((Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLower())``  $($_.Name)" }) -join "`n"
           # What to tell the person depends on what was actually produced, not on
           # the edition: a Local build that fitted in one file must not tell anyone
           # to collect parts that do not exist.
@@ -308,6 +311,9 @@ jobs:
 
           $howto
           Not code-signed yet: Windows SmartScreen may warn (More info -> Run anyway).
+
+          Optional, to check the download is complete (SHA-256):
+          $sums
           Test status: see TEST_RESULTS.md and the windows-build-reports artifact of this run.
           "@
           $title = if ($env:NO_BRAIN) { "S-CLAW $version for Windows (choose your brain)" } else { "S-CLAW $version $env:EDITION (build $env:GITHUB_RUN_NUMBER)" }
