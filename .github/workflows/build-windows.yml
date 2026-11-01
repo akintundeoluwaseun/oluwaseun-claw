@@ -290,7 +290,7 @@ jobs:
             "One file, about $mb MB. Run the Setup .exe. No brain is downloaded and no key is needed: Claw thinks on the Claw service, so this computer needs the internet."
           } elseif ($env:NO_BRAIN) {
             @"
-          **One installer for every computer, about $mb MB.** Download the Setup .exe and run it. Claw then asks you to pick a brain that suits your computer and downloads it once, free, from Hugging Face (checked before use). You can add or switch brains any time in Settings > Claw's brain.
+          **One installer for every computer, about $mb MB.** Download the Setup .exe and run it. Claw then asks you to pick a brain that suits your computer and downloads it once, free (checked before use). You can add or switch brains any time in Settings > Claw's brain.
 
           | Brain | Download | Best for | What it is like |
           |---|---|---|---|

@@ -303,7 +303,7 @@ function renderReady() {
     $('ready-title').textContent = failed ? "The brain download didn't finish" : 'Choose a brain for this computer';
     $('ready-detail').textContent = failed
       ? `${failed}You can try again; it continues where it stopped.`
-      : `Claw thinks on this computer, so it needs one brain, downloaded once (free, from Hugging Face, checked before use). This computer has ${b.hardware_text || 'unknown memory'}. Bigger brains are smarter but slower and need more memory.`;
+      : `Claw thinks on this computer, so it needs one brain, downloaded once (free, checked before use). This computer has ${b.hardware_text || 'unknown memory'}. Bigger brains are smarter but slower and need more memory.`;
     if (failed) {
       actions.push(brainAction('Try again', true, () => startDownload(rec)));
     } else {
@@ -337,7 +337,7 @@ function fillDownloadCard(b) {
   $('ready-title').textContent = d.status === 'verifying' ? 'Checking the download…' : d.status === 'resolving' ? 'Preparing the download…' : `Downloading ${entry ? entry.name : 'the brain'} · ${pct}%`;
   $('ready-detail').textContent = d.total_bytes
     ? `${fmtGB(d.done_bytes)} of ${fmtGB(d.total_bytes)} GB. This happens once. You can keep using your computer; if it stops, it continues where it left off.`
-    : d.message || 'Contacting Hugging Face…';
+    : d.message || 'Starting the download…';
   $('ready-meter').hidden = !d.total_bytes;
   $('ready-bar').style.width = `${pct}%`;
   $('ready-actions').replaceChildren(brainAction('Cancel', false, () => brainCall('/brain/download/cancel', {}, 'Download cancelled. It continues where it stopped next time.')));
@@ -372,7 +372,7 @@ function renderBrainSettings() {
     ];
     const meta = installed
       ? `${installed.kind === 'bundled' ? 'Came with Claw' : 'Downloaded'} · ${installed.size_gb} GB${installed.vision ? ' · can see screenshots' : ''}`
-      : `About ${e.approx_download_gb} GB to download · ${e.repo} · licence checked before download`;
+      : `About ${e.approx_download_gb} GB to download · checked before use`;
     const actions = [];
     if (installed && activeId !== e.id) actions.push(brainAction('Use this', true, () => brainCall('/brain/select', { id: e.id }, `Claw will use the ${e.name}.`)));
     if (!installed && !DL_BUSY.has(b.download.status)) {
@@ -556,12 +556,20 @@ function renderPlan(task, runMode) {
   $('plan-questions').querySelector('ul').replaceChildren(...questions.map((q) => el('li', { text: q })));
 }
 
+// Brains are shown by S-CLAW's own names ("S-CLAW Light brain"), never the file or library name.
+function brainLabel(id) {
+  if (state.settings?.model?.mode !== 'builtin') return id;
+  const b = state.brain || {};
+  const hit = [...(b.catalog || []), ...(b.installed || [])].find((m) => m.id === id);
+  return hit ? hit.name : 'S-CLAW brain';
+}
+
 function renderAudit(events) {
   $('plan-events').replaceChildren(
     ...events.map((e) => {
       const time = new Date(e.ts).toLocaleTimeString();
       const d = e.data || {};
-      const extra = d.message || d.detail || d.tool || d.model || (d.steps !== undefined ? `${d.steps} steps` : '');
+      const extra = d.message || d.detail || d.tool || (d.model ? brainLabel(d.model) : '') || (d.steps !== undefined ? `${d.steps} steps` : '');
       return el('li', { text: `${time}  ${e.kind}${extra ? ' — ' + extra : ''}` });
     }),
   );

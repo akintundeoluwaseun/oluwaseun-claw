@@ -17,7 +17,7 @@ def test_split_brain_with_its_vision_file(tmp_path):
     gguf(d / "S-CLAW-Brain-Standard-4B-00002-of-00002.gguf", 128)
     vision = gguf(d / "S-CLAW-Brain-Standard-4B-mmproj.gguf", 16)
     m = ModelStore(tmp_path / "data").import_file(first)
-    assert m.name == "Standard brain (from the release page)"
+    assert m.name == "S-CLAW Standard brain"
     assert m.mmproj_file == str(vision) and m.size_bytes == (4 + 64) + (4 + 128) + (4 + 16)
 
 

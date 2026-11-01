@@ -91,7 +91,7 @@ async def _model_info(repo: str, label: str, client: httpx.AsyncClient | None) -
         try:
             r = await client.get(url)
         except httpx.HTTPError as exc:
-            raise DownloadError("Could not reach the model library (Hugging Face).", "Check the internet connection.") from exc
+            raise DownloadError("Could not reach the brain download server.", "Check the internet connection.") from exc
         if r.status_code == 404:
             raise DownloadError(f"The model library no longer has {repo}.")
         if r.status_code >= 400:

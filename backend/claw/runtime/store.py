@@ -156,7 +156,7 @@ class ModelStore:
         model_id = f"local-{slug}"
         self.imported.mkdir(parents=True, exist_ok=True)
         manifest = {
-            "id": model_id, "name": f"{pack.group(1).title()} brain (from the release page)" if pack else stem,
+            "id": model_id, "name": f"S-CLAW {pack.group(1).title()} brain" if pack else stem,
             "model_file": str(path), "mmproj_file": str(mmproj) if mmproj else None,
             "size_bytes": sum(p.stat().st_size for p in parts) + (mmproj.stat().st_size if mmproj else 0),
             "license": "apache-2.0 (Qwen3-VL)" if pack else "unknown (your own file)", "verified": False,

@@ -228,7 +228,7 @@ try {
   await win.waitForSelector('#settings:not([hidden])');
   check((await win.textContent('#brain-summary')).includes('developer model server'), 'settings describe the brain in plain words');
   const brainNames = await win.$$eval('#brain-list .brain-name', (n) => n.map((x) => x.textContent));
-  const wantBrains = ['Tiny brain', 'Light brain', 'Standard brain', 'Pro brain'];
+  const wantBrains = ['S-CLAW Tiny brain', 'S-CLAW Light brain', 'S-CLAW Standard brain', 'S-CLAW Pro brain'];
   check(brainNames.length === 4 && wantBrains.every((w, i) => brainNames[i].startsWith(w)), `brain manager lists Tiny, Light, Standard and Pro: ${brainNames.join(' | ')}`);
   const engineText = await win.textContent('#engine-line');
   check(/^Engine: |engine is missing/.test(engineText), `engine status shown: "${engineText}"`);

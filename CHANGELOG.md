@@ -7,6 +7,7 @@
 - Every task's instructions now carry the identity, so answers come from S-CLAW whatever brain it runs on.
 - Claw catches "the next steps are ...", finishes a half-done Notepad job, and retries a refused guessed path in the person's own folder. A refusal now names the folders the brain may use.
 - Each brain finds its own vision file when several share one folder.
+- Brains are shown by S-CLAW's own names everywhere in the app: S-CLAW Tiny, Light, Standard and Pro brain. The model's family and the library it downloads from are no longer shown. The licence note stays on the release page and in THIRD_PARTY_NOTICES, as the licence requires.
 
 ## Unreleased — fixes from the first real install (Light brain)
 ### From Windows-MCP (MIT) and voice notes

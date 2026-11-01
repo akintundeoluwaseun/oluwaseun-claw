@@ -46,7 +46,7 @@ class CatalogEntry:
 CATALOG = [
     CatalogEntry(
         id="qwen3-0.6b",
-        name="Tiny brain",
+        name="S-CLAW Tiny brain",
         edition="Tiny",
         repo="Qwen/Qwen3-0.6B-GGUF",
         model_pattern=r"q4_k_m\.gguf$",
@@ -64,7 +64,7 @@ CATALOG = [
     ),
     CatalogEntry(
         id="qwen3-vl-2b",
-        name="Light brain",
+        name="S-CLAW Light brain",
         edition="Light",
         repo="Qwen/Qwen3-VL-2B-Instruct-GGUF",
         model_pattern=r"q4_k_m\.gguf$",
@@ -76,7 +76,7 @@ CATALOG = [
     ),
     CatalogEntry(
         id="qwen3-vl-4b",
-        name="Standard brain",
+        name="S-CLAW Standard brain",
         edition="Standard",
         repo="Qwen/Qwen3-VL-4B-Instruct-GGUF",
         model_pattern=r"q4_k_m\.gguf$",
@@ -88,7 +88,7 @@ CATALOG = [
     ),
     CatalogEntry(
         id="qwen3-vl-8b",
-        name="Pro brain",
+        name="S-CLAW Pro brain",
         edition="Pro",
         repo="Qwen/Qwen3-VL-8B-Instruct-GGUF",
         model_pattern=r"q4_k_m\.gguf$",
