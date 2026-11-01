@@ -1,0 +1,6 @@
+[1/3] Open Notepad, type 'S-CLAW release check', save it as release-check.txt in Documents, reopen it, and verify the exact contents.
+    -> completed in 30.4s; steps: launch_app=verified, write_text_file=verified, check_file=verified
+[2/3] Read invoice.pdf in my Documents folder and tell me the total amount due.
+    -> completed in 33.3s; steps: read_document_pages=verified
+[3/3] Copy sales.csv from Documents into a new folder called Backup.
+    -> completed in 21.3s; steps: create_folder=verified, copy_files=verified

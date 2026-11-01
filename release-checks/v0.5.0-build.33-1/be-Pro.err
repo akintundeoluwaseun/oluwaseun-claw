@@ -1,0 +1,6 @@
+{"ts": "2026-11-01T06:09:55.371+00:00", "level": "INFO", "logger": "claw.main", "msg": "backend starting", "fields": {"version": "0.5.0", "port": 18802, "data_dir": "D:\\data-Pro", "log_file": "D:\\data-Pro\\logs\\claw.log"}}
+{"ts": "2026-11-01T06:09:55.381+00:00", "level": "INFO", "logger": "claw.api", "msg": "starter folders added", "fields": {"count": 3}}
+{"ts": "2026-11-01T06:09:55.417+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Started server process [1228]"}
+{"ts": "2026-11-01T06:09:55.417+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Waiting for application startup."}
+{"ts": "2026-11-01T06:09:55.430+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Application startup complete."}
+{"ts": "2026-11-01T06:09:55.430+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Uvicorn running on http://127.0.0.1:18802 (Press CTRL+C to quit)"}
