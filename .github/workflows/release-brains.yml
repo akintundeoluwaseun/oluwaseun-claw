@@ -1,0 +1,81 @@
+# Puts the brain files on a release page next to the installer, so people can download
+# the brain they want with the installer instead of inside the app.
+# GitHub allows 2 GB per file, so a brain larger than that is split with llama.cpp's own
+# gguf-split (parts named ...-00001-of-0000N.gguf); llama.cpp and S-CLAW's
+# "Use a GGUF file I have" read the parts as one brain when they sit in one folder.
+name: Add brains to a release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to add the brains to (e.g. v0.5.0-build.33)"
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  brains:
+    runs-on: windows-latest
+    timeout-minutes: 240
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PYTHONUTF8: "1"
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Python environment and llama.cpp (for gguf-split)
+        run: ./scripts/setup.ps1 -SkipOcr
+      - name: Download, split and upload each brain
+        run: |
+          $split = Get-ChildItem backend\runtime\llama -Recurse -Filter 'llama-gguf-split.exe' | Select-Object -First 1
+          if (-not $split) { Write-Output "::error title=No gguf-split::llama-gguf-split.exe was not in the llama.cpp build"; exit 1 }
+          $brains = @(@{ id = 'qwen3-vl-2b'; name = 'S-CLAW-Brain-Light-2B' },
+                      @{ id = 'qwen3-vl-4b'; name = 'S-CLAW-Brain-Standard-4B' },
+                      @{ id = 'qwen3-vl-8b'; name = 'S-CLAW-Brain-Pro-8B' })
+          $out = 'D:\brains'
+          foreach ($b in $brains) {
+            $data = "D:\claw-brain-$($b.id)"
+            backend\.venv\Scripts\python.exe backend\packaging\fetch_brain.py $b.id --data-dir $data
+            if ($LASTEXITCODE -ne 0) { Write-Output "::error title=Download failed::$($b.id)"; exit 1 }
+            $dir = Join-Path $data "models\$($b.id)"
+            $m = Get-Content (Join-Path $dir 'manifest.json') | ConvertFrom-Json
+            if (-not $m.verified) { Write-Output "::error title=Not verified::$($b.id)"; exit 1 }
+            New-Item -ItemType Directory -Force $out | Out-Null
+            Get-ChildItem $out | Remove-Item -Force
+            $model = Get-Item $m.model_file
+            if ($model.Length -gt 1900MB) {
+              & $split.FullName --split --split-max-size 1900M $model.FullName (Join-Path $out $b.name)
+              if ($LASTEXITCODE -ne 0) { Write-Output "::error title=Split failed::$($b.id)"; exit 1 }
+            } else {
+              Copy-Item $model.FullName (Join-Path $out "$($b.name).gguf")
+            }
+            if ($m.mmproj_file) { Copy-Item $m.mmproj_file (Join-Path $out "$($b.name)-mmproj.gguf") }
+            $files = Get-ChildItem $out | ForEach-Object FullName
+            foreach ($f in Get-ChildItem $out) { Write-Output "::notice title=$($b.name)::$($f.Name) $([math]::Round($f.Length / 1MB)) MB" }
+            gh release upload "${{ inputs.tag }}" $files --clobber
+            if ($LASTEXITCODE -ne 0) { Write-Output "::error title=Upload failed::$($b.id)"; exit 1 }
+            Remove-Item -Recurse -Force $data, $out
+          }
+      - name: Add a brain guide to the release notes
+        run: |
+          $body = gh release view "${{ inputs.tag }}" --json body --jq .body
+          $guide = @"
+
+          ### Brain files (download one, if you prefer not to download inside the app)
+          Put every file of the brain you choose into one folder. In S-CLAW: Settings > Claw's brain > Use a GGUF file I have, and choose the file ending in **-00001-of-...gguf** (or the single .gguf for Light). The vision file (-mmproj) next to it is found by itself.
+          - **Light (2B)**: S-CLAW-Brain-Light-2B files, for 4-8 GB memory
+          - **Standard (4B)**: S-CLAW-Brain-Standard-4B files, for 8-16 GB memory
+          - **Pro (8B)**: S-CLAW-Brain-Pro-8B files, for a graphics card with 8 GB or 32 GB memory
+          Qwen3-VL models, Apache-2.0 licence, from huggingface.co/Qwen; checksums verified before upload.
+          "@
+          gh release edit "${{ inputs.tag }}" --notes "$body$guide"

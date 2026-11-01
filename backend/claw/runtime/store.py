@@ -129,13 +129,35 @@ class ModelStore:
             raise ValueError("That file is not a GGUF model.")
         if mmproj is not None and (not mmproj.is_file() or not is_gguf(mmproj)):
             raise ValueError("The vision file is not a GGUF file.")
-        slug = re.sub(r"[^a-z0-9]+", "-", path.stem.lower()).strip("-")[:50] or "model"
+        # A model split into parts (llama.cpp's "-00001-of-00003.gguf" naming, as the brain
+        # files on S-CLAW's release page are, to stay under GitHub's 2 GB per file): choose
+        # the first part; llama.cpp reads the rest from the same folder.
+        split = re.match(r"^(.*)-(\d{5})-of-(\d{5})\.gguf$", path.name, re.I)
+        parts = [path]
+        if split:
+            if split.group(2) != "00001":
+                raise ValueError("This brain comes in parts: choose the file ending in -00001-of-"
+                                 f"{split.group(3)}.gguf.")
+            total = int(split.group(3))
+            parts = [path.with_name(f"{split.group(1)}-{i:05d}-of-{split.group(3)}.gguf") for i in range(1, total + 1)]
+            missing = [p.name for p in parts if not p.is_file()]
+            if missing:
+                raise ValueError(f"Some parts of this brain are missing from the folder: {', '.join(missing[:3])}. "
+                                 "Download every part into the same folder.")
+        stem = split.group(1) if split else path.stem
+        if mmproj is None:  # the vision file sitting next to it, as the release names it
+            near = [p for p in path.parent.glob("*.gguf") if "mmproj" in p.name.lower() and p not in parts]
+            mmproj = near[0] if len(near) == 1 else None
+        pack = re.match(r"^S-CLAW-Brain-(Light|Standard|Pro)\b", stem, re.I)
+        slug = re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-")[:50] or "model"
         model_id = f"local-{slug}"
         self.imported.mkdir(parents=True, exist_ok=True)
         manifest = {
-            "id": model_id, "name": path.stem, "model_file": str(path), "mmproj_file": str(mmproj) if mmproj else None,
-            "size_bytes": path.stat().st_size + (mmproj.stat().st_size if mmproj else 0),
-            "license": "unknown (your own file)", "verified": False, "source": "chosen from this computer",
+            "id": model_id, "name": f"{pack.group(1).title()} brain (from the release page)" if pack else stem,
+            "model_file": str(path), "mmproj_file": str(mmproj) if mmproj else None,
+            "size_bytes": sum(p.stat().st_size for p in parts) + (mmproj.stat().st_size if mmproj else 0),
+            "license": "apache-2.0 (Qwen3-VL)" if pack else "unknown (your own file)", "verified": False,
+            "source": "S-CLAW release page" if pack else "chosen from this computer",
             "added_at": time.time(),
         }
         (self.imported / f"{model_id}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
