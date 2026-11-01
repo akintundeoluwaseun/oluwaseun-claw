@@ -37,6 +37,7 @@ jobs:
         run: ./scripts/setup.ps1 -SkipOcr
       - name: Download, split and upload each brain
         run: |
+          trap { Write-Output "::error title=Brain step failed::$($_.Exception.Message) at line $($_.InvocationInfo.ScriptLineNumber)"; exit 1 }
           $split = Get-ChildItem backend\runtime\llama -Recurse -Filter 'llama-gguf-split.exe' | Select-Object -First 1
           if (-not $split) { Write-Output "::error title=No gguf-split::llama-gguf-split.exe was not in the llama.cpp build"; exit 1 }
           $brains = @(@{ id = 'qwen3-vl-2b'; name = 'S-CLAW-Brain-Light-2B' },
@@ -52,14 +53,19 @@ jobs:
             if (-not $m.verified) { Write-Output "::error title=Not verified::$($b.id)"; exit 1 }
             New-Item -ItemType Directory -Force $out | Out-Null
             Get-ChildItem $out | Remove-Item -Force
-            $model = Get-Item $m.model_file
+            # The manifest names files relative to the brain's folder.
+            $mf = if ([IO.Path]::IsPathRooted($m.model_file)) { $m.model_file } else { Join-Path $dir $m.model_file }
+            $model = Get-Item $mf
             if ($model.Length -gt 1900MB) {
               & $split.FullName --split --split-max-size 1900M $model.FullName (Join-Path $out $b.name)
               if ($LASTEXITCODE -ne 0) { Write-Output "::error title=Split failed::$($b.id)"; exit 1 }
             } else {
               Copy-Item $model.FullName (Join-Path $out "$($b.name).gguf")
             }
-            if ($m.mmproj_file) { Copy-Item $m.mmproj_file (Join-Path $out "$($b.name)-mmproj.gguf") }
+            if ($m.mmproj_file) {
+              $pf = if ([IO.Path]::IsPathRooted($m.mmproj_file)) { $m.mmproj_file } else { Join-Path $dir $m.mmproj_file }
+              Copy-Item $pf (Join-Path $out "$($b.name)-mmproj.gguf")
+            }
             $files = Get-ChildItem $out | ForEach-Object FullName
             foreach ($f in Get-ChildItem $out) { Write-Output "::notice title=$($b.name)::$($f.Name) $([math]::Round($f.Length / 1MB)) MB" }
             gh release upload "${{ inputs.tag }}" $files --clobber
