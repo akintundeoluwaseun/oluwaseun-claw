@@ -1,5 +1,22 @@
 # Test results
 
+## Release check of v0.5.0-build.39 on a clean Windows runner, 2 Nov 2026: 10 of 10 tasks done and verified
+
+The installer and the brains came from the release page. The app installed and started, and all three brains loaded with their vision files.
+
+- Light 2B: 4 of 4.
+  - Notepad: typed, saved, reopened and checked. It matches exactly.
+  - Invoice: 580.50. Copy: verified. "Which is the best claw?": S-CLAW.
+- Standard 4B: 3 of 3.
+  - Notepad: verified the file it wrote, release-check (2).txt.
+  - Invoice: 580.50.
+  - Flyer: verified, with OCR reading back 100% of the headline.
+- Pro 8B: 3 of 3.
+  - Invoice: 580.50.
+  - Notepad: verified release-check (3).txt.
+  - Copy: landed in Documents\Backup.
+- Still seen: brains sometimes send a wrong argument or guess a wrong folder first. Claw rejects it or names the right folders, and the brain recovers on the next step.
+
 ## Release check of v0.5.0-build.38 on a clean Windows runner, 1–2 Nov 2026: 10 of 10 completed, 9 fully right
 
 The brains appear under S-CLAW's own names, and every brain loaded its vision file.
