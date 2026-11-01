@@ -1,0 +1,122 @@
+# Checks a published release the way a user would use it, on a real Windows machine:
+# download the installer and the brain files from the release page, install silently,
+# start the installed app, then import each brain from its release files (split parts
+# included) and run real tasks with it. Evidence goes to the ci-evidence branch.
+name: Check a release like a user
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to check"
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PYTHONUTF8: "1"
+      TOKEN: release-check-token-0123456789abcdef0123
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: Download the release (installer + every brain file)
+        run: |
+          New-Item -ItemType Directory -Force D:\rel | Out-Null
+          gh release download "${{ inputs.tag }}" --dir D:\rel
+          Get-ChildItem D:\rel | ForEach-Object { Write-Output "::notice title=Downloaded::$($_.Name) $([math]::Round($_.Length/1MB)) MB" }
+
+      - name: Install silently, as a normal user
+        run: |
+          $setup = Get-ChildItem D:\rel -Filter *Setup.exe | Select-Object -First 1
+          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/DIR=D:\S-CLAW' -Wait -PassThru
+          if ($p.ExitCode -ne 0 -or -not (Test-Path D:\S-CLAW\S-CLAW.exe)) { Write-Output "::error title=Install failed::exit $($p.ExitCode)"; exit 1 }
+          Write-Output "::notice title=Installed::D:\S-CLAW ($([math]::Round((Get-ChildItem D:\S-CLAW -Recurse | Measure-Object Length -Sum).Sum/1MB)) MB)"
+
+      - name: Start the installed app and check its window and backend come up
+        run: |
+          $app = Start-Process D:\S-CLAW\S-CLAW.exe -PassThru
+          $title = ''; $backend = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep 2
+            $w = Get-Process S-CLAW -ErrorAction SilentlyContinue | Where-Object MainWindowTitle | Select-Object -First 1
+            if ($w) { $title = $w.MainWindowTitle }
+            $backend = [bool](Get-Process claw-backend -ErrorAction SilentlyContinue)
+            if ($title -and $backend) { break }
+          }
+          Write-Output "::notice title=App started::window '$title', backend running: $backend"
+          Get-Process S-CLAW, claw-backend -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not $title -or -not $backend) { Write-Output "::error title=App did not start::window '$title', backend $backend"; exit 1 }
+
+      - name: Sample files in Documents
+        run: |
+          $docs = [Environment]::GetFolderPath('MyDocuments')
+          Copy-Item docs\try-it\invoice.pdf, docs\try-it\sales.csv $docs
+
+      - name: Each brain from its release files, with real tasks
+        run: |
+          trap { Write-Output "::error title=Check failed::$($_.Exception.Message) at line $($_.InvocationInfo.ScriptLineNumber)"; exit 1 }
+          $env:CLAW_RESOURCES = 'D:\S-CLAW\resources'
+          $env:CLAW_SESSION_TOKEN = $env:TOKEN
+          $tasks = @{
+            'Light'    = @("Open Notepad, type 'S-CLAW release check', save it as release-check.txt in Documents, reopen it, and verify the exact contents.",
+                           "Read invoice.pdf in my Documents folder and tell me the total amount due.",
+                           "Copy sales.csv from Documents into a new folder called Backup.")
+            'Standard' = @("Open Notepad, type 'S-CLAW release check', save it as release-check.txt in Documents, reopen it, and verify the exact contents.",
+                           "Read invoice.pdf in my Documents folder and tell me the total amount due.",
+                           "Make a promotional flyer for my software TechDesk and save it in Documents.")
+            'Pro'      = @("Read invoice.pdf in my Documents folder and tell me the total amount due.")
+          }
+          New-Item -ItemType Directory -Force check-report | Out-Null
+          $python = (Get-Command python).Source
+          foreach ($brain in 'Light', 'Standard', 'Pro') {
+            $env:CLAW_DATA_DIR = "D:\data-$brain"
+            $port = 18800 + ('Light', 'Standard', 'Pro').IndexOf($brain)
+            $proc = Start-Process D:\S-CLAW\resources\backend\claw-backend.exe -ArgumentList '--port', $port -PassThru -RedirectStandardError "D:\be-$brain.err" -RedirectStandardOutput "D:\be-$brain.out"
+            for ($i = 0; $i -lt 60; $i++) { try { Invoke-RestMethod "http://127.0.0.1:$port/health" | Out-Null; break } catch { Start-Sleep 1 } }
+            $h = @{ 'X-Claw-Token' = $env:TOKEN }
+            $first = Get-ChildItem D:\rel -Filter "S-CLAW-Brain-$brain-*.gguf" | Where-Object { $_.Name -notmatch 'mmproj' -and ($_.Name -match '-00001-of-' -or $_.Name -notmatch '-\d{5}-of-') } | Select-Object -First 1
+            try {
+              $r = Invoke-RestMethod -Method Post "http://127.0.0.1:$port/brain/import" -Headers $h -ContentType 'application/json' -Body (@{ path = $first.FullName } | ConvertTo-Json)
+            } catch {
+              Write-Output "::error title=$brain import failed::$($_.ErrorDetails.Message)"; exit 1
+            }
+            $a = $r.active
+            Write-Output "::notice title=$brain imported::$($first.Name) -> '$($a.name)', $([math]::Round($a.size_bytes/1GB,2)) GB, vision file: $([bool]$a.mmproj_file)"
+            $tasks[$brain] | ConvertTo-Json | Set-Content "D:\tasks-$brain.json"
+            & $python scripts\real_trial.py --port $port --token $env:TOKEN --out "check-report\$brain" --tasks-file "D:\tasks-$brain.json" --per-task-seconds 1500 *>&1 | Tee-Object "check-report\$brain-console.txt"
+            $rep = Get-Content "check-report\$brain\trial.json" -Raw | ConvertFrom-Json
+            foreach ($t in $rep.tasks) {
+              $steps = ($t.steps | ForEach-Object { "$($_.tool)=$($_.outcome)" }) -join ', '
+              Write-Output "::notice title=$brain | $($t.status) ($($t.seconds)s)::$($t.task) || steps: $steps || answer: $($t.answer) || error: $($t.error)"
+            }
+            Copy-Item "D:\data-$brain\logs\claw.log" "check-report\$brain-claw.log" -ErrorAction SilentlyContinue
+            Stop-Process -Id $proc.Id -Force
+            Get-Process llama-server -ErrorAction SilentlyContinue | Stop-Process -Force
+          }
+
+      - name: Publish the evidence
+        if: always()
+        run: |
+          $dest = "release-checks/${{ inputs.tag }}-$env:GITHUB_RUN_NUMBER"
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\ev\$dest" | Out-Null
+          Copy-Item check-report\* "$env:RUNNER_TEMP\ev\$dest" -Recurse -ErrorAction SilentlyContinue
+          Copy-Item D:\be-*.err "$env:RUNNER_TEMP\ev\$dest" -ErrorAction SilentlyContinue
+          cd "$env:RUNNER_TEMP\ev"
+          git init -q; git config user.name "s-claw-check"; git config user.email "check@users.noreply.github.com"
+          git remote add origin "https://x-access-token:$env:GITHUB_TOKEN@github.com/$env:GITHUB_REPOSITORY"
+          git fetch -q origin ci-evidence 2>$null
+          if ($LASTEXITCODE -eq 0) { git checkout -q -b ci-evidence FETCH_HEAD } else { git checkout -q -b ci-evidence }
+          git add -A; git commit -q -m "Release check ${{ inputs.tag }} ($env:GITHUB_RUN_NUMBER)"; git push -q origin ci-evidence
