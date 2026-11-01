@@ -102,7 +102,11 @@ class PermissionPolicy:
         for root in self.authorized_roots:
             if _is_within(folded, root):
                 return real
-        raise PathNotAuthorized(raw, "it is outside the folders you authorized")
+        # Say where it may look: the Pro brain guessed C:\\Users\\Public\\Documents and
+        # C:\\Users\\[YourUsername]\\Documents and gave up (release check, 1 Nov).
+        where = ", ".join(f"{p.name or p} ({p})" for p in self.root_paths[:5])
+        raise PathNotAuthorized(raw, f"it is outside the folders you authorized. The folders you can use are: {where}. "
+                                     f"Write the path starting with the folder name, like '{self.root_paths[0].name}/<file name>'")
 
 
     def _anchor(self, raw: str) -> Path:

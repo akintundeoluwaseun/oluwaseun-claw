@@ -287,7 +287,8 @@ def fitting_tools(task: str, registry: ToolRegistry) -> list[str]:
 # both were reported as "completed".
 _STILL_TO_DO = re.compile(
     r"\b(?:I will now|I'll now|I will proceed|will now proceed|I am going to|next,? I will|"
-    r"the (?:next step|task) is now to|I will then|"
+    r"the (?:next step|task) is now to|I will then|the next steps? (?:is|are|would be|will be)|next steps?:|"
+    r"remaining steps|still (?:need|have) to|(?:then|next) (?:I|we) (?:need|have) to|"
     r"I(?: will|'ll) (?:create|copy|save|open|write|make|read|type|search|move|check|use|go|start|try))\b", re.I)
 _NO_TOOL = re.compile(
     r"(?:tools?\b[^.]{0,60}\bnot (?:available|provided|listed)|not (?:available|provided) in the (?:list of )?tools|"
@@ -400,6 +401,39 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
 _FILE_IN_TASK = re.compile(r"[\w\- ()]+\.(?:pdf|docx?|xlsx|xls|txt|csv|md)\b", re.I)
 
 
+def _unfinished_recipe(task: str, steps: list[dict[str, Any]]) -> bool:
+    """A job spelled out step by step that the brain left half done, without a real failure.
+
+    Release check, 1 Nov: the 2B brain opened Notepad and finished with "The next steps
+    are to type ..."; the 8B brain was refused C:\\Users\\Public\\Documents\\invoice.pdf
+    and gave up without trying Documents/invoice.pdf.
+    """
+    first = task.strip().split("\n")[0]
+    done = {x.get("tool") for x in steps if x.get("outcome") in ("verified", "done_unverified")}
+    if any(x.get("outcome") in ("denied", "blocked") for x in steps):
+        return False  # the person said no: that is their answer, not a half-done job
+    if re.search(r"\bnotepad\b.*\btype\b.*\bsave\s+it\s+as\b", first, re.I):
+        last = steps[-1] if steps else {}
+        if last.get("outcome") == "failed" and "not allowed" not in str(last.get("detail", "")):
+            return False
+        # Saved by Claw's own file tool, or through Notepad's Save As dialog, or checked.
+        return "launch_app" not in done or not (done & {"write_text_file", "check_file", "click_control"})
+    return _refused_named_file(task, steps) is not None
+
+
+def _refused_named_file(task: str, steps: list[dict[str, Any]]) -> str | None:
+    """The short path of a named file, when the brain was refused a guessed full path and never tried it."""
+    m = _FILE_IN_TASK.search(task.strip().split("\n")[0])
+    folder = re.search(r"\b(documents|desktop|downloads)\b", task, re.I)
+    if not m or not folder or any(s.get("outcome") in ("verified", "done_unverified") for s in steps):
+        return None
+    if not any("outside the folders you authorized" in str(s.get("detail", "")) for s in steps):
+        return None
+    short = f"{folder.group(1).capitalize()}/{m.group(0).strip().split(' ')[-1]}"
+    tried = any(str((s.get("args") or {}).get("path", "")).replace("\\", "/").lower() == short.lower() for s in steps)
+    return None if tried else short
+
+
 def obvious_first_step(task: str, fitting: list[str], steps: list[dict[str, Any]] | None = None) -> ModelAction | None:
     """The one step that plainly starts the task, for a brain that refuses to start.
 
@@ -439,6 +473,13 @@ def obvious_first_step(task: str, fitting: list[str], steps: list[dict[str, Any]
         return ModelAction(thought="Claw copies the file you named.", action="tool", tool="copy_files",
                            args={"source_folder": copy.group(2).capitalize(), "pattern": copy.group(1).strip(),
                                  "destination_folder": copy.group(3).strip()})
+    short = _refused_named_file(task, steps)
+    if short and short.lower().endswith(".pdf") and "read_document_pages" in fitting:
+        return ModelAction(thought="Claw reads the file you named, in your own folder.", action="tool",
+                           tool="read_document_pages", args={"path": short, "first_page": 1})
+    if short and "read_file" in fitting:
+        return ModelAction(thought="Claw reads the file you named, in your own folder.", action="tool",
+                           tool="read_file", args={"path": short})
     if steps:
         return None
     app = re.search(r"\bopen\s+(notepad|paint|calculator|wordpad|whatsapp|excel|word)\b", task.split("\n")[0], re.I)
@@ -764,7 +805,8 @@ async def run_agent(
             # Claw only steps in when the brain stopped short: no steps yet, a summary that
             # says there is more to do, or no summary at all. A real finish is accepted.
             stopped_short = (not steps or bool(_STILL_TO_DO.search(final))
-                             or final.startswith("(The model finished without a summary"))
+                             or final.startswith("(The model finished without a summary")
+                             or _unfinished_recipe(task, steps))
             forced = obvious_first_step(task, fitting, steps) if forced_count < MAX_FORCED and stopped_short else None
             if forced is None:
                 emit("finished", {"final_answer": final})

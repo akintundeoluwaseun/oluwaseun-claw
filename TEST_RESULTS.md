@@ -1,5 +1,14 @@
 # Test results
 
+## Release check of v0.5.0-build.34 on a clean Windows runner, 1 Nov 2026
+
+All three vision files now load (Light 1.79 GB, Standard 3.1 GB, Pro 5.76 GB with vision).
+
+- Light 2B: 2 of 3. The copy and the invoice ($580.50) worked. On Notepad it opened the app, then finished with "The next steps are to type ...". Claw did not catch that wording. Fixed.
+- Standard 4B: 3 of 3. Notepad was verified, the invoice was $580.50, and the flyer was verified. Its summary misspelled the typed text, though the typed text itself was right.
+- Pro 8B: 0 of 1. It guessed `C:\Users\Public\Documents\invoice.pdf`, was refused, and gave up. Fixed: the refusal now names the folders it may use, and Claw retries the file in the person's own folder.
+- Backend suite: 717 passed.
+
 ## Release check of v0.5.0-build.33 on a clean Windows runner, 1 Nov 2026
 
 The check downloaded the NoBrain installer and every brain file from the release page, installed the app, and ran real tasks with each brain.

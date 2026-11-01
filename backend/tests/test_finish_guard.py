@@ -183,3 +183,47 @@ def test_a_spelled_out_notepad_job_is_carried_through():
     c = obvious_first_step(t, f, [ok("launch_app"), ok("type_text"), ok("write_text_file")])
     assert c.tool == "check_file" and c.args["path"] == "Documents/claw-test.txt"
     assert obvious_first_step(t, f, [ok("launch_app"), ok("type_text"), ok("write_text_file"), ok("check_file")]) is None
+
+
+def test_next_steps_are_counts_as_unfinished():
+    # Release check, 1 Nov: Light opened Notepad and said "The next steps are to type ...".
+    from claw.agent.executor import _STILL_TO_DO, _unfinished_recipe
+
+    final = "Notepad has been opened. The next steps are to type 'S-CLAW release check', save it ..."
+    assert _STILL_TO_DO.search(final)
+    t = "Open Notepad, type 'S-CLAW release check', save it as release-check.txt in Documents, reopen it, and verify the exact contents."
+    assert _unfinished_recipe(t, [{"tool": "launch_app", "outcome": "verified"}])
+    assert not _unfinished_recipe(t, [{"tool": "launch_app", "outcome": "verified"},
+                                      {"tool": "write_text_file", "outcome": "verified"}])
+    assert not _unfinished_recipe(t, [{"tool": "launch_app", "outcome": "verified"},
+                                      {"tool": "type_text", "outcome": "denied"}])
+
+
+def test_a_refused_guessed_path_is_retried_in_the_persons_folder():
+    # Release check, 1 Nov: Pro asked for C:\Users\Public\Documents\invoice.pdf and gave up.
+    from claw.agent.executor import _unfinished_recipe, obvious_first_step
+
+    t = "Read invoice.pdf in my Documents folder and tell me the total amount due."
+    refused = {"tool": "read_document_pages", "args": {"path": "C:\\Users\\Public\\Documents\\invoice.pdf"},
+               "outcome": "failed", "detail": "Access to 'C:\\Users\\Public\\Documents\\invoice.pdf' is not allowed: "
+                                              "it is outside the folders you authorized. The folders you can use are: ..."}
+    assert _unfinished_recipe(t, [refused])
+    a = obvious_first_step(t, fitting_tools(t, build_registry()), [refused])
+    assert a.tool == "read_document_pages" and a.args == {"path": "Documents/invoice.pdf", "first_page": 1}
+    tried = {"tool": "read_document_pages", "args": {"path": "Documents/invoice.pdf"}, "outcome": "failed",
+             "detail": "Access to 'Documents/invoice.pdf' is not allowed: it is outside the folders you authorized."}
+    assert not _unfinished_recipe(t, [refused, tried])
+
+
+def test_refusal_names_the_folders_that_can_be_used(tmp_path):
+    from claw.permissions.policy import PathNotAuthorized, PermissionPolicy
+
+    docs = tmp_path / "Documents"
+    docs.mkdir()
+    pol = PermissionPolicy({}, [str(docs)])
+    try:
+        pol.check_path(tmp_path / "elsewhere" / "invoice.pdf")
+    except PathNotAuthorized as e:
+        assert str(docs) in str(e) and "'Documents/<file name>'" in str(e)
+    else:
+        raise AssertionError("should be refused")
