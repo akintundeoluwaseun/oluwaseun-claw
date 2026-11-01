@@ -1,0 +1,2 @@
+[1/1] Read invoice.pdf in my Documents folder and tell me the total amount due.
+    -> completed in 386.1s; steps: read_document_pages=failed, find_files=rejected, find_files=failed, find_files=failed
