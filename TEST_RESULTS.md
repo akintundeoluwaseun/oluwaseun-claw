@@ -1,5 +1,16 @@
 # Test results
 
+## Release check of v0.5.0-build.33 on a clean Windows runner, 1 Nov 2026
+
+The check downloaded the NoBrain installer and every brain file from the release page, installed the app, and ran real tasks with each brain.
+
+- Install: worked (D:\S-CLAW, 837 MB). The app started: quick-bar window open, backend running.
+- Light 2B: 3 of 3 done. Notepad was verified, the invoice total was $580.50, and sales.csv was copied to Backup.
+- Standard 4B (2 parts): 3 of 3 done. The Notepad file was verified, but the typed text came out "S-CLAt" before the brain rewrote the file. The invoice total was $580.50, and the flyer was verified.
+- Pro 8B (3 parts): the import joined the parts (4.68 GB). Its tasks never ran, because of a bug in the check workflow: a one-task list was written as a string. Fixed.
+- Vision file: not found for any brain, because three vision files shared one folder. Fixed: each brain now picks its own `<name>-mmproj.gguf`, and a test was added.
+- Backend suite: 714 passed, 5 skipped.
+
 ## Real-brain trial 10 on Windows (Light 2B), 31 Oct 2026 — every task did its job
 Notepad typed, saved, reopened and verified; web result saved; invoice total 580.50 (correct); PDFs found; open
 windows listed; flyer made and read back; sales.csv copied and checked; spreadsheet of exactly 5 rows; WhatsApp
