@@ -1,5 +1,13 @@
 # Test results
 
+## Release check of v0.5.0-build.35 on a clean Windows runner, 1 Nov 2026: 7 of 7 tasks done
+
+The installer and all the brain files came from the release page. Install worked (837 MB) and the app started. Every brain loaded its vision file.
+
+- Light 2B: 3 of 3. Copy verified. Invoice $580.50. On Notepad it opened the app, then saved and checked the file with Claw's file tool rather than typing into Notepad.
+- Standard 4B: 3 of 3. Notepad verified. Invoice $580.50. The flyer failed once, then was verified on the retry.
+- Pro 8B: 1 of 1. Invoice $580.50.
+
 ## Release check of v0.5.0-build.34 on a clean Windows runner, 1 Nov 2026
 
 All three vision files now load (Light 1.79 GB, Standard 3.1 GB, Pro 5.76 GB with vision).
