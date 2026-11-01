@@ -194,7 +194,8 @@ def test_next_steps_are_counts_as_unfinished():
     t = "Open Notepad, type 'S-CLAW release check', save it as release-check.txt in Documents, reopen it, and verify the exact contents."
     assert _unfinished_recipe(t, [{"tool": "launch_app", "outcome": "verified"}])
     assert not _unfinished_recipe(t, [{"tool": "launch_app", "outcome": "verified"},
-                                      {"tool": "write_text_file", "outcome": "verified"}])
+                                      {"tool": "write_text_file", "outcome": "verified"},
+                                      {"tool": "check_file", "outcome": "verified"}])
     assert not _unfinished_recipe(t, [{"tool": "launch_app", "outcome": "verified"},
                                       {"tool": "type_text", "outcome": "denied"}])
 
@@ -237,3 +238,17 @@ def test_amounts_keep_the_documents_currency():
     assert match_money("You paid $100.00.", doc) == "You paid $100.00."
     assert match_money("It costs €12.", doc) == "It costs €12."          # not in the document: left alone
     assert match_money("Due: ₦48,500", "Total amount due: ₦48,500 naira") == "Due: ₦48,500"
+
+
+def test_a_saved_but_unchecked_notepad_job_is_not_finished():
+    # Release check, 1 Nov: Light saved the file, called a wrong tool and said "I will retry".
+    from claw.agent.executor import _STILL_TO_DO, _unfinished_recipe, obvious_first_step
+
+    assert _STILL_TO_DO.search("The provided arguments were invalid. I will retry with the correct parameters.")
+    t = "Open Notepad, type 'S-CLAW release check', save it as release-check.txt in Documents, reopen it, and verify the exact contents."
+    steps = [{"tool": "launch_app", "outcome": "verified"}, {"tool": "type_text", "outcome": "done_unverified"},
+             {"tool": "write_text_file", "outcome": "verified"}, {"tool": "open_search_result", "outcome": "rejected"}]
+    assert _unfinished_recipe(t, steps)
+    c = obvious_first_step(t, fitting_tools(t, build_registry()), steps)
+    assert c.tool == "check_file" and c.args["path"] == "Documents/release-check.txt"
+    assert not _unfinished_recipe(t, steps + [{"tool": "check_file", "outcome": "verified"}])

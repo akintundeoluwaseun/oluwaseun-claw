@@ -289,6 +289,7 @@ _STILL_TO_DO = re.compile(
     r"\b(?:I will now|I'll now|I will proceed|will now proceed|I am going to|next,? I will|"
     r"the (?:next step|task) is now to|I will then|the next steps? (?:is|are|would be|will be)|next steps?:|"
     r"remaining steps|still (?:need|have) to|(?:then|next) (?:I|we) (?:need|have) to|"
+    r"I(?: will|'ll) (?:retry|try again|correct|fix|redo)|let me (?:retry|try again)|"
     r"I(?: will|'ll) (?:create|copy|save|open|write|make|read|type|search|move|check|use|go|start|try))\b", re.I)
 _NO_TOOL = re.compile(
     r"(?:tools?\b[^.]{0,60}\bnot (?:available|provided|listed)|not (?:available|provided) in the (?:list of )?tools|"
@@ -441,7 +442,11 @@ def _unfinished_recipe(task: str, steps: list[dict[str, Any]]) -> bool:
         if last.get("outcome") == "failed" and "not allowed" not in str(last.get("detail", "")):
             return False
         # Saved by Claw's own file tool, or through Notepad's Save As dialog, or checked.
-        return "launch_app" not in done or not (done & {"write_text_file", "check_file", "click_control"})
+        if "launch_app" not in done or not (done & {"write_text_file", "check_file", "click_control"}):
+            return True
+        # Asked to reopen and verify: not finished until the file has been checked
+        # (release check, 1 Nov: the 2B brain saved it, wandered off and said "I will retry").
+        return bool(re.search(r"\b(verify|check|reopen)\b", first, re.I)) and "check_file" not in done
     return _refused_named_file(task, steps) is not None
 
 

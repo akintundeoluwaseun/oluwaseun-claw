@@ -1,5 +1,16 @@
 # Test results
 
+## Release check of v0.5.0-build.38 on a clean Windows runner, 1–2 Nov 2026: 10 of 10 completed, 9 fully right
+
+The brains appear under S-CLAW's own names, and every brain loaded its vision file.
+
+- Light 2B:
+  - Copy verified. Invoice 580.50, now with no wrong currency sign. "Which is the best claw?" answered S-CLAW.
+  - Notepad: it typed and saved the file, then called a wrong tool and finished with "I will retry", without checking the file. Fixed: that wording is caught, and a reopen-and-verify job is not finished until the file is checked.
+- Standard 4B: 3 of 3. Notepad saved and verified "release-check (2).txt", the name it actually wrote. Invoice 580.50. Flyer verified, with OCR reading the headline back.
+- Pro 8B: 3 of 3. Invoice 580.50. Notepad verified "release-check (3).txt". The copy landed in Documents\Backup (no longer doubled).
+- Backend suite: 727 passed.
+
 ## Release check of v0.5.0-build.36 on a clean Windows runner, 1 Nov 2026: 10 of 10 tasks done, 3 bugs found
 
 - Light 2B: 4 of 4. The copy was verified. The invoice answer said "£580.50", the wrong currency. Notepad was verified. "Which is the best claw?" was answered by S-CLAW itself.
