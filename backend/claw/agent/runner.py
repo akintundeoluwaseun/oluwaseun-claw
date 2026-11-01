@@ -8,7 +8,8 @@ import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from claw.agent.executor import run_agent
+from claw.agent import persona
+from claw.agent.executor import RunOutcome, run_agent
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.agent.titles import clean_model_title, fallback_title
 from claw.logging_setup import log_event
@@ -120,6 +121,16 @@ class TaskRunner:
                 self.approvals.pop(approval_id, None)
                 db.update_task(task_id, status="running")
 
+        own = persona.self_answer(task_text, state.data_dir)
+        if own:
+            # "Who are you?", "Which is the best claw?": S-CLAW answers for itself, from its
+            # own IDENTITY.md, instead of a small brain saying it is Qwen.
+            if first_in_chat and thread_id:
+                db.set_thread_title(thread_id, "About S-CLAW")
+            emit("finished", {"final_answer": own})
+            db.update_task(task_id, status="completed", result=RunOutcome("completed", own).summary())
+            emit("task_completed", {})
+            return
         state.browser.reset_task_state()
         state.desktop.reset_task_state()
         try:

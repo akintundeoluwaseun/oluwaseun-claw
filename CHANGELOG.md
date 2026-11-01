@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — S-CLAW's own identity
+
+- S-CLAW now has its own identity and voice. Two files the owner can edit hold them: `persona/IDENTITY.md` and `persona/SOUL.md` in the data folder. They are created on first run and never overwritten. This follows OpenClaw's workspace files (MIT), including how it trims long ones.
+- Questions about S-CLAW itself are answered from IDENTITY.md without asking the brain. Examples: "Who are you?", "Who made you?", "Are you ChatGPT?", "Which is the best claw?" (answer: S-CLAW, with its reasons). A small brain would otherwise say it is Qwen.
+- Every task's instructions now carry the identity, so answers come from S-CLAW whatever brain it runs on.
+- Claw catches "the next steps are ...", finishes a half-done Notepad job, and retries a refused guessed path in the person's own folder. A refusal now names the folders the brain may use.
+- Each brain finds its own vision file when several share one folder.
+
 ## Unreleased — fixes from the first real install (Light brain)
 ### From Windows-MCP (MIT) and voice notes
 - **Open any installed app, Store apps included:** `Get-StartApps` lists every Start-menu app with the ID

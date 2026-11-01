@@ -150,6 +150,11 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         raise ValueError("session token must be at least 32 characters")
     store = SettingsStore(data_dir)
     state = AppState(data_dir=data_dir, token=token, store=store, db=Database(data_dir / "claw.db"))
+    try:  # IDENTITY.md and SOUL.md, editable by the owner; never overwritten
+        from claw.agent import persona
+        persona.seed(data_dir)
+    except OSError:
+        pass
     state.desktop = DesktopSession(default_driver())
     state.brain = Brain(ModelStore(data_dir))
     state.speech = SpeechService(default_store(data_dir),

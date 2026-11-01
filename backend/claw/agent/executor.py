@@ -27,7 +27,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from claw.agent import jsonfix, skills
+from claw.agent import jsonfix, persona, skills
 from claw.config import describe_validation_error
 from claw.logging_setup import log_event
 from claw.models.base import ChatMessage, ModelAdapter, ModelError, ModelResponseError
@@ -738,6 +738,7 @@ async def run_agent(
                     # are listed by name. The full "files" section alone is ~5.8k tokens, which a
                     # small brain on a CPU spends minutes reading before it says a word.
                     content=EXEC_PROMPT.format(tools=tool_catalogue(registry, {"__none__"} if fitting else capabilities, fitting))
+                    + persona.for_prompt(getattr(ctx, "data_dir", None))
                     + remembered(ctx, task)),
         ChatMessage(role="user", content=f"Task:\n<<<\n{task}\n>>>\n\nSuggested plan (adjust if needed):\n{plan_text}{hint}"),
     ]
