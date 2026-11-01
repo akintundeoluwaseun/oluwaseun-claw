@@ -316,6 +316,30 @@ def closest_tool(name: str, registry: ToolRegistry) -> str | None:
     return hit[0] if hit else None
 
 
+_MONEY = re.compile(r"([$£€₦¥])\s?(\d[\d,]*(?:\.\d+)?)")
+
+
+def match_money(final: str, seen: str) -> str:
+    """Write amounts with the currency the document used, not one the brain guessed.
+
+    Release check, 1 Nov: the invoice says "TOTAL DUE 580.50" in dollars and the 2B brain
+    answered "£580.50". An amount found in what Claw read keeps the document's symbol, or
+    none when the document showed none.
+    """
+    if not seen:
+        return final
+
+    def fix(m: re.Match) -> str:
+        sym, num = m.group(1), m.group(2)
+        if re.search(re.escape(sym) + r"\s?" + re.escape(num), seen):
+            return m.group(0)
+        near = re.search(r"([$£€₦¥])?\s?" + re.escape(num) + r"(?!\d)", seen)
+        if not near:
+            return m.group(0)  # not from the document: leave it as the brain wrote it
+        return f"{near.group(1)}{num}" if near.group(1) else num
+    return _MONEY.sub(fix, final)
+
+
 def quote_relevant_lines(task: str, text: str, limit: int = 4) -> str:
     """Lines of a document that share the question's key words (total, amount due, date...)."""
     words = {w for w in re.findall(r"[a-z]{4,}", task.split("\n")[0].lower())
@@ -810,6 +834,7 @@ async def run_agent(
                              or _unfinished_recipe(task, steps))
             forced = obvious_first_step(task, fitting, steps) if forced_count < MAX_FORCED and stopped_short else None
             if forced is None:
+                final = match_money(final, ctx.memory.corpus())
                 emit("finished", {"final_answer": final})
                 return outcome("completed", final)
             # The brain will not start; Claw takes the obvious first look itself and the

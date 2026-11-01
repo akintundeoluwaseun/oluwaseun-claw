@@ -1,5 +1,18 @@
 # Test results
 
+## Release check of v0.5.0-build.36 on a clean Windows runner, 1 Nov 2026: 10 of 10 tasks done, 3 bugs found
+
+- Light 2B: 4 of 4. The copy was verified. The invoice answer said "£580.50", the wrong currency. Notepad was verified. "Which is the best claw?" was answered by S-CLAW itself.
+- Standard 4B: 3 of 3. Notepad was verified, the invoice was $580.50, and the flyer was verified.
+- Pro 8B: 3 of 3. The invoice was $580.50. The Notepad file and the copy were done, but the check found two bugs:
+  - The file name was taken, so the brain wrote "release-check (3).txt". The check then verified the older release-check.txt instead.
+  - The copy went to Documents\Documents\Backup.
+- All three bugs are fixed:
+  - Amounts keep the document's currency.
+  - check_file checks the copy this task actually wrote, and the write says the name was taken.
+  - A destination that starts with an authorized folder's name is no longer joined to the source folder.
+- Backend suite: all pass. Two briefing tests failed after 22:30 because their event fell on the next day. The tests are fixed.
+
 ## Release check of v0.5.0-build.35 on a clean Windows runner, 1 Nov 2026: 7 of 7 tasks done
 
 The installer and all the brain files came from the release page. Install worked (837 MB) and the app started. Every brain loaded its vision file.

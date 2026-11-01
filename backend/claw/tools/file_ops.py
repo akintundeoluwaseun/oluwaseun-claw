@@ -85,7 +85,11 @@ def _select(args: CopyArgs, src: Path, dest: Path) -> list[Path]:
 
 def _dest(args: CopyArgs, ctx: ToolContext, src: Path) -> Path:
     raw = args.destination_folder
-    if not (Path(raw).is_absolute() or PureWindowsPath(raw).is_absolute()):
+    first = re.split(r"[\\/]+", raw.strip())[0].lower()
+    # "Documents\\Backup" names its own starting folder; joined to the source folder it became
+    # Documents\\Documents\\Backup (release check, 1 Nov). Only a plain name goes inside the source.
+    names_root = first == src.name.lower() or any(Path(r).name.lower() == first for r in ctx.policy.root_paths)
+    if not (Path(raw).is_absolute() or PureWindowsPath(raw).is_absolute() or names_root):
         raw = str(src / raw)
     return _check(ctx, raw, write=True)
 
@@ -146,8 +150,23 @@ class CheckFileArgs(ToolArgs):
     exact: bool = Field(default=True, description="True: the whole file must equal the text; False: it must contain it")
 
 
+def _written_variant(ctx: ToolContext, path: Path) -> Path | None:
+    """The "name (n).ext" this task wrote in place of `path`, when it did not write `path` itself."""
+    written = [Path(o["path"]) for o in ctx.memory.outputs if o.get("path")]
+    if any(w == path for w in written):
+        return None
+    pat = re.compile(re.escape(path.stem) + r" \(\d+\)" + re.escape(path.suffix) + "$", re.I)
+    hits = [w for w in written if w.parent == path.parent and pat.match(w.name)]
+    return hits[-1] if hits else None
+
+
 async def check_file(args: CheckFileArgs, ctx: ToolContext) -> ToolResult:
     path = _check(ctx, args.path)
+    # Asked to check release-check.txt, but this task wrote release-check (3).txt because the
+    # name was taken: checking the old file would "verify" something Claw did not write.
+    mine = _written_variant(ctx, path)
+    if mine is not None:
+        path = mine
     if not path.is_file():
         return ToolResult(False, f"There is no file at {path}.", {"path": str(path), "exists": False}, verified=True)
     text = await asyncio.to_thread(read_document, path)

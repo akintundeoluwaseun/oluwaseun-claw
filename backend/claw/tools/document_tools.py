@@ -70,7 +70,10 @@ async def write_text_file(args: WriteTextArgs, ctx: ToolContext) -> ToolResult:
         fh.write(args.text)
     ok = path.read_text(encoding="utf-8") == args.text
     _record_output(ctx, path, "text", ok)
-    return ToolResult(ok, f"Created {path.name} ({len(args.text):,} characters).", {"path": str(path)}, verified=ok)
+    asked = Path(args.file_name).name if Path(args.file_name).suffix else Path(args.file_name).name + ".txt"
+    note = (f" A file called {asked} was already there, so this one is {path.name}; check {path.name}, not {asked}."
+            if path.name.lower() != asked.lower() else "")
+    return ToolResult(ok, f"Created {path.name} ({len(args.text):,} characters).{note}", {"path": str(path)}, verified=ok)
 
 
 # ---------- save_report ----------

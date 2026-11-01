@@ -227,3 +227,13 @@ def test_refusal_names_the_folders_that_can_be_used(tmp_path):
         assert str(docs) in str(e) and "'Documents/<file name>'" in str(e)
     else:
         raise AssertionError("should be refused")
+
+
+def test_amounts_keep_the_documents_currency():
+    from claw.agent.executor import match_money
+
+    doc = "INVOICE\nSubtotal 500.00\nTOTAL DUE 580.50\nPaid by card: $100.00"
+    assert match_money("The total amount due is £580.50.", doc) == "The total amount due is 580.50."
+    assert match_money("You paid $100.00.", doc) == "You paid $100.00."
+    assert match_money("It costs €12.", doc) == "It costs €12."          # not in the document: left alone
+    assert match_money("Due: ₦48,500", "Total amount due: ₦48,500 naira") == "Due: ₦48,500"

@@ -218,3 +218,24 @@ async def test_stop_interrupts_long_typing(desk_ctx):
     await asyncio.sleep(0.2)
     typed = len(desk_ctx.fake.windows[desk_ctx.fake.active]["controls"][0]["value"])
     assert 0 < typed < 4000 and len(calls) < 100
+
+
+async def test_copy_into_folder_named_from_its_root_is_not_doubled(tool_ctx):
+    # Release check, 1 Nov: destination "Documents\\Backup" became Documents\Documents\Backup.
+    folder = Path(tool_ctx.settings.permissions.authorized_folders[0])
+    (folder / "sales.csv").write_text("a,b\n1,2\n", encoding="utf-8")
+    r = await call(tool_ctx, "copy_files", source_folder=folder.name, pattern="sales.csv",
+                   destination_folder=f"{folder.name}\\Backup")
+    assert r.ok and (folder / "Backup" / "sales.csv").is_file()
+    assert not (folder / folder.name).exists()
+
+
+async def test_check_file_checks_the_copy_this_task_wrote(tool_ctx):
+    # Release check, 1 Nov: release-check.txt was taken, Claw wrote release-check (3).txt,
+    # and checking release-check.txt "verified" an old file.
+    folder = Path(tool_ctx.settings.permissions.authorized_folders[0])
+    (folder / "release-check.txt").write_text("old text", encoding="utf-8")
+    w = await call(tool_ctx, "write_text_file", file_name="release-check.txt", text="S-CLAW release check", folder=str(folder))
+    assert "already there" in w.summary and "release-check (2).txt" in w.summary
+    r = await call(tool_ctx, "check_file", path=str(folder / "release-check.txt"), expected_text="S-CLAW release check")
+    assert r.ok and "release-check (2).txt" in r.summary
