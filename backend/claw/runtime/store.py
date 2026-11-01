@@ -147,7 +147,10 @@ class ModelStore:
         stem = split.group(1) if split else path.stem
         if mmproj is None:  # the vision file sitting next to it, as the release names it
             near = [p for p in path.parent.glob("*.gguf") if "mmproj" in p.name.lower() and p not in parts]
-            mmproj = near[0] if len(near) == 1 else None
+            # Its own first ("S-CLAW-Brain-Standard-4B-mmproj.gguf"): with several brains in
+            # one Downloads folder there is more than one vision file (release check, 1 Nov).
+            own = [p for p in near if p.name.lower().startswith(stem.lower())]
+            mmproj = own[0] if own else (near[0] if len(near) == 1 else None)
         pack = re.match(r"^S-CLAW-Brain-(Light|Standard|Pro)\b", stem, re.I)
         slug = re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-")[:50] or "model"
         model_id = f"local-{slug}"

@@ -95,7 +95,9 @@ jobs:
             }
             $a = $r.active
             Write-Output "::notice title=$brain imported::$($first.Name) -> '$($a.name)', $([math]::Round($a.size_bytes/1GB,2)) GB, vision file: $([bool]$a.mmproj_file)"
-            $tasks[$brain] | ConvertTo-Json | Set-Content "D:\tasks-$brain.json"
+            # -InputObject keeps a one-task list a list (piping it turned it into a string,
+            # which the first check then ran one letter at a time).
+            ConvertTo-Json -InputObject @($tasks[$brain]) | Set-Content "D:\tasks-$brain.json"
             & $python scripts\real_trial.py --port $port --token $env:TOKEN --out "check-report\$brain" --tasks-file "D:\tasks-$brain.json" --per-task-seconds 1500 *>&1 | Tee-Object "check-report\$brain-console.txt"
             $rep = Get-Content "check-report\$brain\trial.json" -Raw | ConvertFrom-Json
             foreach ($t in $rep.tasks) {

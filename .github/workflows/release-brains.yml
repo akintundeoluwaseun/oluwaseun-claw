@@ -12,6 +12,10 @@ on:
         description: "Release tag to add the brains to (e.g. v0.5.0-build.33)"
         type: string
         required: true
+      from_tag:
+        description: "Optional: copy the brain files from this earlier release instead of downloading them again"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -33,9 +37,18 @@ jobs:
         with: { python-version: "3.12" }
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
+      - name: Copy the brain files from an earlier release
+        if: inputs.from_tag != ''
+        run: |
+          New-Item -ItemType Directory -Force D:\copy | Out-Null
+          gh release download "${{ inputs.from_tag }}" --pattern "S-CLAW-Brain-*" --dir D:\copy
+          gh release upload "${{ inputs.tag }}" (Get-ChildItem D:\copy | ForEach-Object FullName) --clobber
+          Get-ChildItem D:\copy | ForEach-Object { Write-Output "::notice title=Copied::$($_.Name)" }
       - name: Python environment and llama.cpp (for gguf-split)
+        if: inputs.from_tag == ''
         run: ./scripts/setup.ps1 -SkipOcr
       - name: Download, split and upload each brain
+        if: inputs.from_tag == ''
         run: |
           trap { Write-Output "::error title=Brain step failed::$($_.Exception.Message) at line $($_.InvocationInfo.ScriptLineNumber)"; exit 1 }
           $split = Get-ChildItem backend\runtime\llama -Recurse -Filter 'llama-gguf-split.exe' | Select-Object -First 1

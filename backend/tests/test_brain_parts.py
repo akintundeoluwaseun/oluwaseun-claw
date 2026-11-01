@@ -30,3 +30,16 @@ def test_wrong_part_or_missing_part_is_explained(tmp_path):
     first = gguf(d / "S-CLAW-Brain-Pro-8B-00001-of-00003.gguf")
     with pytest.raises(ValueError, match="missing"):
         ModelStore(tmp_path / "data").import_file(first)
+
+
+def test_each_brain_finds_its_own_vision_file_in_a_shared_folder(tmp_path):
+    d = tmp_path / "Downloads"
+    d.mkdir()
+    for n in ("Light-2B", "Standard-4B"):
+        gguf(d / f"S-CLAW-Brain-{n}-mmproj.gguf")
+    gguf(d / "S-CLAW-Brain-Light-2B.gguf")
+    first = gguf(d / "S-CLAW-Brain-Standard-4B-00001-of-00002.gguf")
+    gguf(d / "S-CLAW-Brain-Standard-4B-00002-of-00002.gguf")
+    store = ModelStore(tmp_path / "data")
+    assert store.import_file(first).mmproj_file.endswith("S-CLAW-Brain-Standard-4B-mmproj.gguf")
+    assert store.import_file(d / "S-CLAW-Brain-Light-2B.gguf").mmproj_file.endswith("S-CLAW-Brain-Light-2B-mmproj.gguf")

@@ -101,7 +101,9 @@ def main() -> int:
     api = Api(a.port, a.token)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    tasks = json.loads(Path(a.tasks_file).read_text()) if a.tasks_file else DEFAULT_TASKS
+    tasks = json.loads(Path(a.tasks_file).read_text(encoding="utf-8-sig")) if a.tasks_file else DEFAULT_TASKS
+    if isinstance(tasks, str):
+        tasks = [tasks]
     report = {"started": time.strftime("%Y-%m-%d %H:%M:%S"), "brain": api.call("GET", "/brain")[1],
               "settings": api.call("GET", "/settings")[1], "tasks": []}
     for i, t in enumerate(tasks, 1):
