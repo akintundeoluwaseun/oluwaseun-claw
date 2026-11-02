@@ -249,6 +249,10 @@ def compact_args(schema: dict) -> str:
 # real-brain trial on Windows did exactly that for the flyer, the spreadsheet and the
 # copy. Naming the fitting tools next to the task is what gets them used.
 _FITTING: list[tuple[str, tuple[str, ...]]] = [
+    # A video comes first: "a promotional video" is not a flyer.
+    # Making one, not searching for "video editors".
+    (r"\b(?:make|create|produce|render|design|build|do)\b.{0,60}\b(?:videos?|animations?|animated|mp4|promo clip)\b"
+     r"|\bmotion graphics?\b|\bafter ?effects\b", ("make_motion_video",)),
     (r"\bflyers?\b|\bposters?\b|\bbanners?\b|\badverts?\b|promotional", ("make_flyer",)),
     (r"\bspreadsheets?\b|\bexcel\b|\.xlsx\b|\btable of\b", ("create_spreadsheet",)),
     (r"\bcopy\b|\bback ?up\b", ("copy_files", "create_folder")),
@@ -303,7 +307,8 @@ _TOOL_ALIASES = {"open_page": "open_url", "goto": "open_url", "navigate": "open_
                  "read_pdf": "read_document_pages", "read_document": "read_document_pages",
                  "snapshot": "look_at_page", "get_page": "read_page", "save_link": "save_links",
                  "open_app": "launch_app", "start_app": "launch_app", "list_files": "list_folder",
-                 "make_spreadsheet": "create_spreadsheet", "create_flyer": "make_flyer", "copy_file": "copy_files"}
+                 "make_spreadsheet": "create_spreadsheet", "create_flyer": "make_flyer", "copy_file": "copy_files",
+                 "make_video": "make_motion_video", "create_video": "make_motion_video", "make_motion_graphics": "make_motion_video"}
 
 
 def closest_tool(name: str, registry: ToolRegistry) -> str | None:
@@ -365,7 +370,7 @@ LOOKING_TOOLS = {"web_search", "open_search_result", "read_page", "open_url", "e
                  "switch_tab", "list_folder", "find_files", "read_file", "read_document_pages", "search_document",
                  "summarize_document", "list_windows", "look_at_window", "describe_screen", "take_screenshot",
                  "current_time", "disk_space", "is_program_running", "list_events", "check_whatsapp", "inspect_image"}
-SAVING_TOOLS = {"save_links", "save_report", "write_text_file", "create_spreadsheet", "make_flyer", "copy_files",
+SAVING_TOOLS = {"save_links", "save_report", "write_text_file", "create_spreadsheet", "make_flyer", "make_motion_video", "copy_files",
                 "edit_text_file", "create_folder", "move_file", "rename_file"}
 
 

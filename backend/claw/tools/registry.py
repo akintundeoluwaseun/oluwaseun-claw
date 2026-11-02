@@ -17,6 +17,7 @@ from claw.tools.message_tools import register_message_tools
 from claw.tools.system_tools import register_system_tools
 from claw.tools.text_tools import register_text_tools
 from claw.tools.image_tools import register_image_tools
+from claw.tools.motion_tools import register_motion_tools
 from claw.tools.pdf_tools import register_pdf_tools
 from claw.tools import page_tools
 
@@ -38,5 +39,6 @@ def build_registry() -> ToolRegistry:
     register_system_tools(reg)
     register_message_tools(reg)
     register_image_tools(reg)
+    register_motion_tools(reg)
     page_tools.register(reg)
     return reg

@@ -1,7 +1,7 @@
 ---
 name: make-a-flyer
 description: Make a promotional flyer, poster or advert for a product, business or event and save it.
-triggers: flyer, poster, advert, promo, promotional, banner
+triggers: flyer, poster, advert, promotional, banner
 ---
 1. Call make_flyer once with:
    - title: the product or business name, short.

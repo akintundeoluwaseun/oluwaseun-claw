@@ -77,7 +77,8 @@ jobs:
                            "Which is the best claw?")
             'Standard' = @("Open Notepad, type 'S-CLAW release check', save it as release-check.txt in Documents, reopen it, and verify the exact contents.",
                            "Read invoice.pdf in my Documents folder and tell me the total amount due.",
-                           "Make a promotional flyer for my software TechDesk and save it in Documents.")
+                           "Make a promotional flyer for my software TechDesk and save it in Documents.",
+                           "Make a 10 second promo video for my software TechDesk and save it in Documents.")
             'Pro'      = @("Read invoice.pdf in my Documents folder and tell me the total amount due.",
                            "Open Notepad, type 'S-CLAW release check', save it as release-check.txt in Documents, reopen it, and verify the exact contents.",
                            "Copy sales.csv from Documents into a new folder called Backup.")

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — motion graphics
+
+- New tool, make_motion_video, makes a short animated promo video. The content is the headline, up to five selling points, and a contact line. The options are 4–30 seconds; landscape, square or story; and a slide, pop or fade style.
+- With After Effects installed, it works the way Adobe documents automation: it writes an ExtendScript (`AfterFX.exe -r`) that builds the composition with eased keyframes, saves an .aep project you can open, and renders an MP4 through the render queue. The brain only supplies the words and colours; the script comes from a fixed template. After Effects itself has not been run yet: there is none in the build workspace or on GitHub's machines.
+- Without After Effects, Claw's built-in maker draws the frames with Pillow and encodes H.264 with PyAV. This was tested end to end: 1920×1080, 10 s, 300 frames, and OCR reads the headline back from the video.
+- A new recipe, make-a-promo-video, and "promotional video" now picks the video tool instead of the flyer.
+
 ## Unreleased — S-CLAW's own identity
 
 - S-CLAW now has its own identity and voice. Two files the owner can edit hold them: `persona/IDENTITY.md` and `persona/SOUL.md` in the data folder. They are created on first run and never overwritten. This follows OpenClaw's workspace files (MIT), including how it trims long ones.
