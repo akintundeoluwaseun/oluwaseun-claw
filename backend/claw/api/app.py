@@ -829,6 +829,25 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         row = state.db.get_task(task_id) or {}
         return JSONResponse(status_code=202, content={"id": task_id, "thread_id": row.get("thread_id") or task_id})
 
+    @app.post("/tasks/{task_id}/resume")
+    async def resume_task(task_id: str):
+        """Carry on with a task that stopped part-way, without repeating what was already done and checked."""
+        from claw.agent.report import done_so_far, resume_text  # noqa: PLC0415
+        task = state.db.get_task(task_id)
+        if task is None:
+            return error_response(404, "not_found", "That task does not exist.")
+        if task["status"] not in ("interrupted", "failed", "cancelled", "stopped", "incomplete"):
+            return error_response(409, "not_resumable", "Only a task that stopped before finishing can be resumed.")
+        original = str(task.get("task_text") or "").split("\n\nThis continues an earlier attempt")[0].split("\n\n(This is a second attempt")[0]
+        text = resume_text(original, done_so_far(state.db.get_events(task_id, 0)))
+        try:
+            new_id = state.runner.start(text, thread_id=task.get("thread_id") or task_id)
+        except TaskBusy:
+            return error_response(409, "busy", "Another task is still running.", "Wait for it to finish or stop it first.")
+        state.db.add_event(new_id, "resumed_from", {"task_id": task_id})
+        row = state.db.get_task(new_id) or {}
+        return JSONResponse(status_code=202, content={"id": new_id, "thread_id": row.get("thread_id") or new_id})
+
     @app.post("/tasks/{task_id}/cancel")
     async def cancel_task(task_id: str):
         if not state.runner.cancel(task_id):

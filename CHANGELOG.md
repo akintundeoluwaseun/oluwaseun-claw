@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — milestone 1 (benchmark) and milestone 2 (honest report, resume)
+
+- `docs/ROADMAP.md`: eleven milestones, done one at a time.
+- `scripts/challenge_bench.py` and the "Challenge benchmark" workflow: 16 realistic challenges from the owner's list, each with objective checks and a score per brain. A false completion ("done" when the checks fail) costs the honesty points.
+- Every task result now carries a report: done and checked / done, not checked / not finished / needs you. It is built from what Claw observed, not from the brain's summary, and is shown on the result card.
+- A task that stopped (closed, crashed, failed, stopped) can "Carry on from where it stopped". The new attempt is told which steps were already done and checked, and not to repeat them.
+
 ## Unreleased — motion graphics
 
 - New tool, make_motion_video, makes a short animated promo video. The content is the headline, up to five selling points, and a contact line. The options are 4–30 seconds; landscape, square or story; and a slide, pop or fade style.

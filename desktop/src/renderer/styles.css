@@ -1289,3 +1289,12 @@ body[data-view="task"] .stage { padding-bottom: var(--s4); }
 .bp-tag { font-size: 12px; font-weight: 700; color: var(--ink-2); margin-top: 4px; }
 .brain-pick.is-best .bp-tag { color: var(--brass); }
 .brain-pick.is-big .bp-tag { color: var(--amber); }
+
+/* Final report: four honest groups */
+.outcome-report { display: grid; gap: var(--s2); order: 3; }
+.report-group { padding: var(--s2) var(--s3); border-radius: var(--r); border: 1px solid var(--line); }
+.report-group h4 { margin: 0 0 4px; font-size: 12.5px; font-weight: 600; }
+.report-group ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.45; }
+.report-group[data-tone="ok"] h4 { color: var(--green, #3fb27f); }
+.report-group[data-tone="warn"] h4 { color: var(--amber, #d9a441); }
+.report-group[data-tone="bad"] h4 { color: var(--red, #e5675f); }

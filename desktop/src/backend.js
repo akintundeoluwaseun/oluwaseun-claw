@@ -25,6 +25,7 @@ const ALLOWED_ROUTES = [
   ['GET', new RegExp(`^/tasks/${ID}$`)],
   ['POST', /^\/tasks\/run$/],
   ['POST', new RegExp(`^/tasks/${ID}/cancel$`)],
+  ['POST', new RegExp(`^/tasks/${ID}/resume$`)],
   ['GET', new RegExp(`^/tasks/${ID}/events(\\?after=\\d{1,9})?$`)],
   ['GET', /^\/approvals$/],
   ['POST', new RegExp(`^/approvals/${ID}$`)],

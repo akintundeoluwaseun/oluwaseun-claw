@@ -27,7 +27,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from claw.agent import jsonfix, persona, skills
+from claw.agent import jsonfix, persona, report, skills
 from claw.config import describe_validation_error
 from claw.logging_setup import log_event
 from claw.models.base import ChatMessage, ModelAdapter, ModelError, ModelResponseError
@@ -157,6 +157,8 @@ class RunOutcome:
             "files": self.files,
             "replans": self.replans,
             "warnings": self.warnings,
+            # COMPLETED / UNVERIFIED / INCOMPLETE / BLOCKED, from what Claw observed, not the brain's words.
+            "report": report.final_report(self.steps, self.files, self.status, self.error),
         }
 
 

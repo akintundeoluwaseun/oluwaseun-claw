@@ -818,8 +818,32 @@ function renderRun(body) {
     const warnings = (body.result && body.result.warnings) || [];
     $('summary-warnings').hidden = warnings.length === 0;
     $('summary-warnings').replaceChildren(...warnings.map((w) => el('p', { text: w })));
+    renderReport((body.result && body.result.report) || null, run.status, body.error);
   }
   $('run-again').hidden = !done;
+  $('resume-run').hidden = !done || !RESUMABLE.has(run.status);
+}
+
+// What S-CLAW observed, in four groups, so "done" never hides what was only tried.
+const REPORT_GROUPS = [
+  ['completed', 'Done and checked', 'ok'],
+  ['unverified', 'Done, not checked', 'warn'],
+  ['incomplete', 'Not finished', 'bad'],
+  ['blocked', 'Needs you', 'warn'],
+];
+const RESUMABLE = new Set(['interrupted', 'failed', 'cancelled', 'stopped', 'incomplete']);
+
+function renderReport(report, status, error) {
+  const box = $('summary-report');
+  if (!report && RESUMABLE.has(status)) {
+    report = { completed: [], unverified: [], incomplete: [`The task did not finish. ${error || ''}`.trim()], blocked: [] };
+  }
+  const groups = report ? REPORT_GROUPS.filter(([k]) => (report[k] || []).length) : [];
+  box.hidden = groups.length === 0;
+  box.replaceChildren(...groups.map(([k, label, tone]) => el('div', { className: 'report-group', attrs: { 'data-tone': tone } }, [
+    el('h4', { text: `${label} (${report[k].length})` }),
+    el('ul', {}, report[k].slice(0, 12).map((t) => el('li', { text: t }))),
+  ])));
 }
 
 const FILE_KIND = { report: 'Report', spreadsheet: 'Spreadsheet', text: 'File', links: 'Saved links', edited: 'Edited file' };
@@ -2216,6 +2240,15 @@ function wire() {
       return;
     }
     runTask(text, t.body.thread_id || state.threadId);
+  });
+  $('resume-run').addEventListener('click', async () => {
+    if (!state.run || isRunning() || state.busy) return;
+    const res = await api.api('POST', `/tasks/${state.run.id}/resume`);
+    if (!res.ok) {
+      showError(res.body, 'That task could not be resumed.');
+      return;
+    }
+    startWatching(res.body.id, 'Carrying on', res.body.thread_id || state.threadId);
   });
   $('approve-btn').addEventListener('click', () => answerApproval(true));
   $('deny-btn').addEventListener('click', () => answerApproval(false));
