@@ -1,0 +1,573 @@
+S-CLAW REUSE-FIRST ENGINEERING PLAYBOOK
+Prepared: 2 November 2026
+Purpose: Give Claude a practical, repository-backed plan to reduce S-CLAW's unfinished challenges by integrating mature open-source tools instead of rebuilding entire applications.
+
+============================================================
+0. READ THIS FIRST — PROJECT REALITY
+============================================================
+
+The supplied CHALLENGES.md reports:
+- 286 total challenges
+- 8 PASSED
+- 12 BUILT
+- 1 FAIL
+- 200 PLANNED
+- 65 OUT
+
+Important status meanings from the project tracker:
+- PASSED: completed by a real brain on a clean Windows PC and objectively checked.
+- BUILT: capability exists and passes tests in the current development environment, but has not yet passed a real-brain test.
+- PLANNED: assigned to a roadmap milestone.
+- FAIL: attempted with a real brain and failed.
+- OUT: currently requires a paid app/account or a much stronger brain.
+
+Do not change these statuses just because a library was installed or an integration was written. Only update them when the project's own evidence requirements are met.
+
+The known failed challenge is 17.06: conflicting instructions still result in the file being created. Treat this as a safety/intent-resolution bug, not a feature request.
+
+The tracker also contains built-but-not-yet-proven items. For example:
+- Photoshop billboard: make_flyer exists, but the Photoshop path has not been run.
+- CSV combine: combine_tables exists, but the benchmark has not passed.
+- Large-file search and Downloads sorting have inconsistent run results.
+- Five-file document task is not yet passed.
+- Several application integrations are explicitly not tested on a real Windows machine.
+
+Start by reading the current repository's README, docs/ROADMAP.md, docs/TEST_RESULTS.md, CHALLENGES.md, source challenge list, architecture, and existing tests. Do not assume this document knows the current source tree.
+
+============================================================
+1. THE CORE STRATEGY
+============================================================
+
+Do NOT build 286 separate features from scratch.
+
+Build a reliable desktop agent that:
+1. Understands the user's request.
+2. Identifies the intended outcome and constraints.
+3. Selects a tested tool/adapter.
+4. Executes through deterministic APIs wherever possible.
+5. Uses GUI automation only when no stable API exists.
+6. Verifies the actual resulting files, application state, or external outcome.
+7. Reports exactly what succeeded, failed, needs approval, or remains incomplete.
+
+S-CLAW should be the orchestrator and user experience. Existing libraries should do specialist work.
+
+Preferred execution order:
+A. Direct application API / command-line interface / file-format library.
+B. Application scripting interface (for example Blender Python or LibreOffice UNO).
+C. Accessibility/UI Automation tree (Windows UIA).
+D. Screenshot + OCR + visual grounding.
+E. Raw mouse/keyboard coordinates only as a last resort.
+
+Do not use an LLM to calculate arithmetic, manipulate pixels, transcode media, parse spreadsheets, or perform other deterministic work when a reliable library already exists.
+
+IMPORTANT PRODUCT CONSTRAINTS:
+- Windows 10/11 desktop application remains the product.
+- Do not turn S-CLAW into a web chatbot.
+- Do not make Ollama a required dependency.
+- Do not require end users to provide API keys.
+- Prefer free/open-source components and zero-cost local execution.
+- Keep low-spec PCs in mind. Do not install every large dependency on every machine.
+- Support optional capabilities and detect whether their required application/tool is installed.
+- Do not silently upload user files to cloud services.
+- Ask before destructive, external, financial, account, or irreversible actions.
+- Keep current working functionality. Do not rewrite the whole architecture to adopt a repository.
+
+============================================================
+2. REPOSITORIES AND TOOLS TO EVALUATE
+============================================================
+
+These are candidate upstream projects, not instructions to blindly clone them. Inspect each README, release history, Windows support, license, dependencies, security posture, and maintenance before adoption. Prefer released versions and pinned commits/tags over main/latest in production.
+
+A. WINDOWS DESKTOP AUTOMATION — HIGH PRIORITY
+
+1) pywinauto
+GitHub: https://github.com/pywinauto/pywinauto
+Use for: Windows desktop application control through Win32 and Microsoft UI Automation (UIA); finding controls by names/text; clicking buttons; entering text; reading UI state.
+Why: Much more reliable than hard-coded screen coordinates when applications expose accessibility controls.
+Suggested use: Make this the first GUI adapter for Notepad, Calculator, File Explorer, Settings, and supported desktop apps.
+Caution: Some apps expose poor UIA trees. Use timeouts, inspect control identifiers, and fall back deliberately.
+
+2) Browser Use (open-source Python library)
+GitHub: https://github.com/browser-use/browser-use
+Use for: AI-assisted multi-step browser workflows.
+Why: It provides an existing browser-agent implementation instead of building every browser interaction from zero.
+Caution: The repository also offers paid hosted services. Use only the local/open-source path if keeping costs at zero. Confirm which model/provider path is actually free; do not assume the hosted model is free. Review data handling before connecting authenticated accounts.
+
+3) Playwright
+GitHub: https://github.com/microsoft/playwright
+Use for: Deterministic browser automation, page navigation, locators, form filling, downloads, screenshots, and browser tests.
+Why: Prefer Playwright for repeatable known web workflows; use an AI browser agent only for ambiguous pages or workflows.
+Suggested use: Build a Playwright adapter with role/text/label locators, explicit waits, download handling, and screenshots on failure.
+Caution: Browser automation does not automatically bypass CAPTCHAs, MFA, access controls, or website terms. Never promise that it does.
+
+B. IMAGE, OCR AND DOCUMENT VISUAL PROCESSING
+
+4) OpenCV
+GitHub: https://github.com/opencv/opencv
+Use for: Image transformations, thresholding, masking, contours, image comparison, perspective correction, blur/sharpness checks, basic computer vision.
+Suggested use: Image-processing adapter for supported Photoshop-like tasks. Combine with Pillow.
+Caution: OpenCV is not a generative image model and cannot reliably reconstruct arbitrary missing backgrounds by itself.
+
+5) Pillow
+GitHub: https://github.com/python-pillow/Pillow
+Use for: Image open/save, resize, crop, compositing, text, formats, thumbnails, basic image editing.
+Suggested use: Use for deterministic image operations and output generation.
+
+6) Tesseract OCR
+GitHub: https://github.com/tesseract-ocr/tesseract
+Language data: https://github.com/tesseract-ocr/tessdata
+Use for: Offline OCR, text extraction from screenshots and scanned images.
+Suggested use: Existing OCR layer should expose confidence, bounding boxes, language selection, and preprocessing.
+Caution: OCR accuracy depends heavily on image quality and language data. Keep the current tested OCR path unless a benchmark proves an alternative is better.
+
+C. VIDEO AND AUDIO
+
+7) FFmpeg
+GitHub: https://github.com/FFmpeg/FFmpeg
+Use for: Video/audio conversion, trimming, concatenation, resizing, codecs, subtitles, extracting audio, probing metadata, audio mixing, filters.
+Suggested use: Make FFmpeg the media-processing backend. Build tested command templates and validate outputs with ffprobe.
+Caution: FFmpeg has multiple license configurations (LGPL/GPL depending on build options). Check the exact build and redistribution obligations before bundling it in a commercial installer.
+
+8) whisper.cpp
+GitHub: https://github.com/ggml-org/whisper.cpp
+Use for: Offline speech-to-text, including Windows builds and CPU inference.
+Suggested use: Evaluate as an optional local speech-recognition backend. Benchmark small quantized models on low-spec PCs before selecting defaults.
+Caution: Model downloads are separate from source code and have their own sizes/licenses. Do not promise real-time performance on every 4 GB PC.
+
+D. SPREADSHEETS, DATA AND OFFICE DOCUMENTS
+
+9) pandas
+GitHub: https://github.com/pandas-dev/pandas
+Use for: CSV/Excel data cleaning, joins, grouping, deduplication, analysis, data transformations.
+Suggested use: Data engine for challenges 7.x and 13.x. Use deterministic code and preserve original source data.
+
+10) openpyxl
+Official project: https://foss.heptapod.net/openpyxl/openpyxl
+GitHub mirror (not the preferred canonical upstream): https://github.com/ericgazoni/openpyxl
+Use for: Reading/writing Excel .xlsx files, sheets, cells, formulas, formatting, charts.
+Suggested use: Use the official project source and documentation; do not base adoption on an old mirror.
+Caution: It does not calculate Excel formulas. Preserve formulas and, when calculation is needed, use a compatible spreadsheet engine.
+
+11) python-docx
+GitHub: https://github.com/python-openxml/python-docx
+Use for: Creating and editing .docx files, paragraphs, tables, styles, headers, footers.
+Suggested use: Document generation and basic formatting.
+Caution: Complex Word layout, fields, tracked changes, advanced page layout, and exact rendering may require LibreOffice/Word automation and visual validation.
+
+12) python-pptx
+GitHub: https://github.com/scanny/python-pptx
+Use for: Creating and editing PowerPoint .pptx presentations, slides, shapes, text, images, tables, charts.
+Suggested use: Generate presentations from structured content.
+Caution: It does not provide full PowerPoint editing/rendering or rich animation authoring. Verify exported slides visually.
+
+13) LibreOffice
+GitHub: https://github.com/LibreOffice/core
+Use for: Free office suite and headless document conversion/rendering; can serve as a local office engine.
+Suggested use: Detect an installed LibreOffice instance and use headless conversion/export for DOCX, XLSX, PPTX and PDF workflows where supported. Investigate UNO scripting for deeper automation.
+Caution: Do not assume perfect Microsoft Office compatibility. Test fonts, pagination, formulas, charts and slide rendering.
+
+E. 3D AND ENGINEERING
+
+14) Blender
+GitHub: https://github.com/blender/blender
+Python API documentation: https://docs.blender.org/api/current/
+Use for: Scripted 3D scenes, materials, cameras, animation, rendering and asset manipulation.
+Suggested use: Generate .py scripts and run Blender in background mode when installed. Validate output files and render previews.
+Caution: Heavy for low-spec PCs; make it optional. Advanced modelling still requires strong planning and verification.
+
+15) FreeCAD
+GitHub: https://github.com/FreeCAD/FreeCAD
+Use for: Parametric CAD, mechanical models, technical drawings and Python scripting.
+Suggested use: Create scripts/macros using FreeCAD's Python API for constrained, well-specified CAD tasks.
+Caution: CAD correctness requires geometric and dimensional validation. Do not claim SolidWorks/AutoCAD parity.
+
+F. COMPUTER-USE BENCHMARKING
+
+16) OSWorld
+Project: https://os-world.github.io/
+GitHub: https://github.com/xlang-ai/OSWorld
+Use for: Research benchmark and reproducible evaluation of computer-use agents across desktop and browser applications.
+Suggested use: Study its task setup, execution evaluation and reproducibility. Adapt selected tasks to S-CLAW's Windows test lab.
+Caution: Full OSWorld infrastructure may be heavy. Do not make it a runtime dependency.
+
+17) OSWorld-V2
+GitHub: https://github.com/xlang-ai/OSWorld-V2
+Use for: Newer long-horizon computer-use evaluation ideas.
+Suggested use: Study its current versioned evaluation workflow and task design. Pin a release; do not mix task assets and code from different versions.
+Caution: Treat as a benchmark/reference, not a library to bundle into the desktop app.
+
+============================================================
+3. RECOMMENDED PRIORITY — WHAT TO INTEGRATE FIRST
+============================================================
+
+Do not attempt all categories at once. Work in this order:
+
+PHASE 0 — REPOSITORY AUDIT AND SAFETY (first)
+- Inspect current architecture and map each existing capability to its implementation and tests.
+- Identify duplicate tools, fragile coordinate scripts, unhandled exceptions, missing timeouts and unverified claims.
+- Fix challenge 17.06 (conflicting instructions) before increasing autonomy.
+- Add a dry-run/plan preview for destructive or ambiguous tasks.
+- Add a permission policy: read-only, write, destructive, external communication, account/financial.
+- Make a clean Windows test environment reproducible.
+Deliverable: audit report and a small, safe integration plan. No mass refactor.
+
+PHASE 1 — RELIABLE WINDOWS CONTROL
+- Evaluate pywinauto UIA and Win32 backends.
+- Add a Windows application discovery/launch adapter.
+- Add control discovery and semantic locators.
+- Add wait-for-window/control, timeout, retry and recovery behavior.
+- Use screenshots/OCR only when UIA cannot expose the needed state.
+- Keep coordinate actions as last resort.
+First test apps: Notepad, Calculator, File Explorer, Settings.
+Deliverable: end-to-end tests that verify the actual result, not just that a click call returned.
+
+PHASE 2 — BROWSER
+- Use Playwright for deterministic browser actions and browser tests.
+- Evaluate Browser Use as an optional agent adapter for ambiguous multi-step web tasks.
+- Keep browser profiles and cookies isolated per user.
+- Never expose passwords/cookies in logs.
+- Ask before submitting forms, sending messages, purchases, deleting data, or changing account settings.
+Deliverable: search, extract, compare, download and organize workflows with evidence.
+
+PHASE 3 — FILES AND OFFICE
+- pandas for structured data cleaning/analysis.
+- openpyxl for XLSX structure and formatting.
+- python-docx for DOCX generation/editing.
+- python-pptx for PPTX generation.
+- LibreOffice headless for supported conversions and rendering checks.
+- Preserve originals; write outputs to a new file unless the user explicitly approves overwriting.
+Deliverable: tested CSV, Excel, Word, PowerPoint and PDF workflows.
+
+PHASE 4 — MEDIA AND DESIGN
+- Pillow + OpenCV for image manipulation.
+- FFmpeg for video/audio pipelines.
+- Tesseract for OCR.
+- whisper.cpp as optional offline speech recognition.
+- Blender scripting for optional 3D tasks.
+Deliverable: deterministic templates and scripts with real output validation.
+
+PHASE 5 — CAD AND ENGINEERING
+- FreeCAD scripting for supported parametric models.
+- Python scientific stack for numerical analysis and optimization.
+- Add domain-specific checks (units, dimensions, constraints, mass balance, formula checks).
+Deliverable: limited, clearly scoped engineering workflows; do not claim broad CAD parity.
+
+PHASE 6 — MULTI-APP MISSIONS
+Only after individual adapters pass:
+- Advertising campaign
+- Software product workflow
+- Manufacturing analysis
+- Professional content workflow
+- Business operations
+- Engineering design-to-production
+Each mission must have setup, preconditions, action log, output assertions and cleanup.
+
+============================================================
+4. THE ARCHITECTURE CLAUDE SHOULD AIM FOR
+============================================================
+
+Keep the current architecture unless the audit demonstrates a concrete reason to change it.
+
+Suggested logical layers:
+
+USER REQUEST
+    |
+    v
+INTENT + CONSTRAINT PARSER
+    |
+    v
+TASK PLANNER
+    |  - split into steps
+    |  - identify missing information
+    |  - detect conflicting instructions
+    |  - classify risk and permissions
+    v
+TOOL REGISTRY / CAPABILITY ROUTER
+    |
+    +--> Windows UIA adapter (pywinauto)
+    +--> Browser adapter (Playwright; optional Browser Use)
+    +--> File system adapter (existing S-CLAW tools)
+    +--> Spreadsheet/data adapter (pandas/openpyxl)
+    +--> Document adapter (python-docx/python-pptx/LibreOffice)
+    +--> Image adapter (Pillow/OpenCV)
+    +--> Media adapter (FFmpeg)
+    +--> OCR adapter (Tesseract)
+    +--> Speech adapter (optional whisper.cpp)
+    +--> 3D/CAD adapter (optional Blender/FreeCAD)
+    |
+    v
+EXECUTION + APPROVAL GATE
+    |
+    v
+INDEPENDENT VERIFICATION
+    |  - file exists?
+    |  - correct format?
+    |  - expected content?
+    |  - dimensions/counts/formulas correct?
+    |  - app state actually changed?
+    v
+RESULT REPORT + EVIDENCE
+
+Each adapter should expose a consistent contract, adapted to the project's existing language/framework. Conceptually:
+
+- name
+- description
+- supported_actions
+- prerequisites
+- risk_level
+- availability_check()
+- validate_input()
+- plan()
+- execute()
+- verify()
+- rollback_or_recovery() where possible
+
+Do not create a new framework just to match this sketch. Fit the pattern into the existing codebase.
+
+Tool selection rules:
+1. Prefer a deterministic function over GUI automation.
+2. Prefer app APIs over screen coordinates.
+3. Check application/tool availability before planning execution.
+4. If unavailable, offer an alternative rather than pretending.
+5. Ask a concise question if required information is missing.
+6. Stop if instructions conflict or if the requested action exceeds permissions.
+7. Never mark success until verification passes.
+
+============================================================
+5. TESTING RULES — NON-NEGOTIABLE
+============================================================
+
+A test is not passed because:
+- the model said it completed;
+- a function returned without throwing;
+- a script was generated;
+- a window was clicked;
+- an output file exists but is empty or corrupt.
+
+A test passes only when an independent assertion confirms the intended result.
+
+For every challenge, record:
+- challenge ID
+- environment and Windows version
+- machine specs (RAM, CPU, GPU)
+- required application/tool versions
+- model/provider and model configuration
+- initial state and input files
+- exact user instruction
+- planned actions
+- actual actions
+- output artifact paths
+- independent verification assertions
+- screenshots/logs where useful
+- pass/fail/partial
+- known limitations
+- reproducible command
+
+Use three test levels:
+1. Unit tests: individual functions and adapters.
+2. Integration tests: adapter + real application/library.
+3. End-to-end tests: real task from natural-language request to verified outcome.
+
+Use a clean Windows VM or physical Windows test PC for real desktop claims. A Linux test run cannot prove Windows GUI behavior.
+
+For reliability:
+- Pin dependency versions.
+- Add timeouts to every external process and UI wait.
+- Capture stderr/stdout.
+- Handle process crashes and partial outputs.
+- Use temporary workspaces and test fixtures.
+- Make tests repeatable and safe.
+- Test both success and failure paths.
+- Run existing tests before and after every change.
+- Do not remove or weaken an existing test merely to get a green build.
+
+============================================================
+6. SECURITY, PERMISSIONS AND USER TRUST
+============================================================
+
+S-CLAW controls a real computer. Treat this as a security-sensitive system.
+
+Require explicit approval before:
+- deleting or overwriting user files;
+- sending emails, WhatsApp messages or other communications;
+- submitting external forms;
+- purchasing, transferring money or changing financial data;
+- installing/uninstalling software;
+- changing security settings, permissions or startup behavior;
+- uploading files to external services;
+- executing commands with administrator privileges.
+
+Never:
+- log passwords, cookies, tokens or private message contents unnecessarily;
+- execute untrusted repository scripts without inspection;
+- run arbitrary shell commands generated by a model without policy checks;
+- silently switch from local processing to cloud processing;
+- claim a task is complete if verification failed.
+
+Use least privilege. Keep a clear audit trail and allow cancellation.
+
+============================================================
+7. HOW TO HANDLE THE CHALLENGE LIST
+============================================================
+
+Do not treat every PLANNED or OUT item as a coding task.
+
+For each challenge:
+1. Identify the true user outcome.
+2. Determine whether a free tool/library can achieve it.
+3. Determine whether the required external application/account is installed/available.
+4. Classify it:
+   A. Deterministic library/API task.
+   B. Application scripting task.
+   C. GUI automation task.
+   D. Model-dependent creative/reasoning task.
+   E. Requires paid software/account or unavailable capability.
+5. Select the smallest reliable implementation.
+6. Add a benchmark and independent verifier.
+7. Run it on the required environment.
+8. Update status only according to TEST_RESULTS.md evidence.
+
+Important examples:
+- Spreadsheet deduplication should be a deterministic data operation, not an AI mouse-click workflow.
+- Video trimming/concatenation/subtitles should use FFmpeg where suitable.
+- OCR should use the existing OCR engine and image preprocessing.
+- A browser price comparison should use Playwright locators and structured extraction where possible.
+- A complex unfamiliar GUI task may require UIA plus vision and model reasoning.
+- Removing a person from a crowded photograph with natural background reconstruction is not solved merely by installing OpenCV. Keep it OUT unless a suitable model/tool and licensing/compute plan are verified.
+- Figma account-dependent tasks should not be silently represented as locally solved design tasks.
+- SolidWorks/AutoCAD-specific file compatibility should not be claimed just because FreeCAD can perform some CAD operations.
+
+============================================================
+8. EXACT PROMPT TO GIVE CLAUDE CODE
+============================================================
+
+Paste the following into Claude Code from the root of the existing S-CLAW repository:
+
+---
+You are the senior engineer responsible for improving the existing S-CLAW desktop AI agent.
+
+I have provided a document named S-CLAW-REUSE-FIRST-ENGINEERING-PLAYBOOK.txt. Read it completely. Also read the current project documentation and source code before changing anything.
+
+MISSION:
+Make S-CLAW more capable and reliable by integrating mature, free/open-source tools and repositories where appropriate. Do not rebuild entire applications or rewrite the project from scratch.
+
+IMPORTANT CONSTRAINTS:
+- Preserve S-CLAW as a Windows 10/11 desktop application.
+- Do not turn it into a web chatbot.
+- Do not make Ollama a required dependency.
+- Do not require end users to enter API keys.
+- Prefer free/open-source components and local execution.
+- Keep low-RAM PCs in mind. Optional heavyweight tools must be detected and remain optional.
+- Never silently upload user files or data.
+- Preserve existing functionality and tests.
+- Do not claim a capability is complete without independent evidence.
+
+STEP 1 — AUDIT ONLY:
+Inspect:
+- README and architecture documentation
+- docs/ROADMAP.md
+- docs/TEST_RESULTS.md
+- CHALLENGES.md and the original challenge source
+- current tool registry and execution engine
+- Windows automation, OCR, file, browser, office, media and benchmark code
+- all relevant tests
+
+Create docs/REUSE_AUDIT.md containing:
+- current implementation for each relevant capability;
+- duplicate or fragile implementations;
+- gaps between BUILT and PASSED;
+- which existing code should be reused;
+- which upstream repositories are worth integrating;
+- license and dependency risks;
+- expected RAM/disk/runtime cost;
+- recommended integration order;
+- tests required before adoption.
+
+Do not modify production code in Step 1. Report the audit and wait for my approval before broad changes.
+
+STEP 2 — INTEGRATION DESIGN:
+After approval, propose a small integration design that fits the existing architecture. Do not create unnecessary abstraction layers. For each proposed adapter, specify:
+- exact upstream project and pinned version/commit;
+- why it is needed;
+- which challenge IDs it helps;
+- installation/bundling strategy;
+- availability detection;
+- adapter interface;
+- security/permission requirements;
+- unit, integration and end-to-end tests;
+- fallback behavior.
+
+STEP 3 — IMPLEMENT IN SMALL VERTICAL SLICES:
+Implement only one approved adapter/workflow at a time.
+Before coding, inspect the upstream official documentation and license.
+Do not blindly copy an entire repository.
+Do not install a huge dependency if a small library or existing project tool can do the job.
+Use the existing package manager and coding conventions.
+Pin versions.
+Keep optional tools optional.
+Add tests and documentation.
+Run the existing test suite before and after changes.
+Do not change unrelated files.
+
+Recommended order:
+1. Fix conflicting-instruction safety bug CHALLENGE 17.06.
+2. Improve Windows UI Automation using pywinauto where it fits the existing stack.
+3. Improve deterministic browser automation using Playwright; evaluate Browser Use separately as optional.
+4. Integrate/strengthen file and office workflows with pandas, openpyxl, python-docx, python-pptx and LibreOffice where justified.
+5. Use Pillow/OpenCV for deterministic image tasks.
+6. Use FFmpeg for media workflows.
+7. Evaluate whisper.cpp as an optional offline speech backend.
+8. Evaluate Blender and FreeCAD scripting for optional 3D/CAD workflows.
+9. Adapt OSWorld-style independent evaluation for real Windows tests.
+
+STEP 4 — VERIFY:
+A successful function call is not proof of task success.
+Create independent assertions for each workflow.
+Use a clean Windows 10/11 environment for Windows GUI claims.
+Record actual output paths, logs, screenshots, application versions and machine specs.
+If a Windows environment or required app is unavailable, mark the test NOT RUN. Do not simulate a pass.
+
+STEP 5 — REPORT:
+For every slice, report:
+- what changed;
+- files changed;
+- dependencies added and their licenses;
+- exact setup/run/test commands;
+- test counts and failures;
+- which challenge IDs are now BUILT;
+- which IDs have genuinely PASSED and the evidence;
+- what remains incomplete;
+- risks and next recommended slice.
+
+Do not update CHALLENGES.md to PASSED unless the required real-environment evidence exists and TEST_RESULTS.md records it.
+
+FIRST TASK NOW:
+Perform STEP 1 only. Produce docs/REUSE_AUDIT.md and a concise terminal report. Do not implement integrations yet. Wait for my approval.
+---
+
+============================================================
+9. FIRST MANUAL STEPS
+============================================================
+
+1. Open the existing S-CLAW repository in Claude Code.
+2. Put this playbook in the repository root, or make it available to Claude as an attached file.
+3. Ensure CHALLENGES.md, docs/ROADMAP.md and docs/TEST_RESULTS.md are present.
+4. Paste the prompt in Section 8.
+5. Let Claude complete the audit only.
+6. Review docs/REUSE_AUDIT.md before approving any code changes.
+7. Approve one small integration slice at a time.
+8. Require tests and evidence before moving challenge statuses.
+
+Do not tell Claude to clone all repositories. It should inspect the upstream projects and select only what the existing codebase actually needs.
+
+============================================================
+10. FINAL ENGINEERING PRINCIPLE
+============================================================
+
+The goal is not to make S-CLAW contain the most code or the largest number of integrations.
+
+The goal is to make S-CLAW reliably complete real tasks on real Windows computers.
+
+Reuse specialist tools. Build the intelligence, planning, permission system, orchestration, recovery and verification that connect them. Measure success through reproducible outcomes, not feature claims.
+
+END OF PLAYBOOK
