@@ -251,6 +251,10 @@ def compact_args(schema: dict) -> str:
 # real-brain trial on Windows did exactly that for the flyer, the spreadsheet and the
 # copy. Naming the fitting tools next to the task is what gets them used.
 _FITTING: list[tuple[str, tuple[str, ...]]] = [
+    # Files: duplicates by content, comparing folders.
+    (r"\bduplicate\w*\b.{0,40}\b(?:files?|photos?|pictures?|images?|documents?)\b|\bsame content\b", ("find_duplicate_files",)),
+    (r"\bcompare\b.{0,60}\bfolders?\b|\bfolders?\b.{0,60}\b(?:missing|changed|differen)", ("compare_folders",)),
+    (r"\b(?:modified|changed|edited|saved)\b.{0,30}\b(?:in|during|between|since)\b.{0,20}\b(?:january|february|march|april|may|june|july|august|september|october|november|december|20\d\d)", ("find_files",)),
     # Tables: several files into one, duplicates, totals, charts.
     (r"\b(?:combine|merge|join)\b.{0,60}\b(?:csv|spreadsheets?|excel|sheets?|files)\b", ("combine_tables",)),
     (r"\bduplicate\w*\b.{0,60}\b(?:customers?|records?|rows?|contacts?|csv|spreadsheet)\b|\bdedup", ("remove_duplicates",)),
@@ -424,6 +428,9 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
         return (f"The task asks you to save it, and nothing has been saved yet. Save it now with {save_tools[0]}."
                 + (f" Reply like this, with real values: {example}" if example and fitting[0] in save_tools else ""))
     worked = any(s.get("outcome") not in ("failed", "rejected", "denied", "blocked") for s in steps)
+    slip = arithmetic_slip(final)
+    if slip:
+        return slip
     short = _too_few_rows(task, steps)
     if short:
         return short
@@ -433,6 +440,35 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
     if not steps and fitting and not worked and re.search(r"\b(?:cannot|can't|unable|not possible)\b", final, re.I):
         return (f"Nothing has been tried yet. Try the task with these tools first: {', '.join(fitting)}. "
                 "Finish only if a tool has actually failed, and say how.")
+    return None
+
+
+_NUM = r"\d[\d,]*(?:\.\d+)?"
+
+
+def arithmetic_slip(final: str) -> str | None:
+    """A sum the answer states wrongly ("300,000 (200,000 + 50,000)"), checked by Claw, not trusted.
+
+    Baseline benchmark, 2 Nov: the 4B brain called a quote's total of 300,000 correct while writing
+    out 200,000 + 50,000 itself. Small brains add badly; Python does not.
+    """
+    for sentence in re.split(r"(?<=[.!?])\s+|\n", final):
+        m = re.search(rf"((?:[^\d+]{{0,30}}?{_NUM}\s*\+\s*)+[^\d+]{{0,30}}?{_NUM})", sentence)
+        if not m:
+            continue
+        terms = [float(x.replace(",", "")) for x in re.findall(_NUM, m.group(1))]
+        if len(terms) < 2:
+            continue
+        total = sum(terms)
+        rest = (sentence[:m.start()] + " " + sentence[m.end():])
+        claimed = [float(x.replace(",", "")) for x in re.findall(_NUM, rest)]
+        if not claimed or not re.search(r"\btotal|=|\bcorrect|\bright|\bsum|\bcomes to|\badds up", sentence, re.I):
+            continue
+        wrong = [c for c in claimed if c > max(terms) and abs(c - total) > 0.005]
+        if wrong and not any(abs(c - total) <= 0.005 for c in claimed):
+            fmt = lambda n: f"{n:,.0f}" if float(n).is_integer() else f"{n:,.2f}"  # noqa: E731
+            return (f"Check the arithmetic before answering: {' + '.join(fmt(t) for t in terms)} = {fmt(total)}, "
+                    f"not {fmt(wrong[0])}. Correct your answer.")
     return None
 
 

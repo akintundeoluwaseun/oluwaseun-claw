@@ -35,7 +35,7 @@ const TOOL_LABEL = {
   take_screenshot: 'Took a screenshot', describe_screen: 'Looked at the screen', click_at: 'Clicked on the screen',
   read_document_pages: 'Read document pages', search_document: 'Searched a document', summarize_document: 'Summarized a document',
   make_searchable_pdf: 'Saved a searchable PDF', check_whatsapp: 'Checked WhatsApp', send_whatsapp_message: 'Sent a WhatsApp message',
-  make_flyer: 'Made a flyer', make_motion_video: 'Made a video', combine_tables: 'Combined tables', remove_duplicates: 'Removed duplicates', table_totals: 'Added up a column', add_chart: 'Added a chart', edit_image: 'Edited a picture', inspect_image: 'Checked a picture',
+  make_flyer: 'Made a flyer', make_motion_video: 'Made a video', combine_tables: 'Combined tables', find_duplicate_files: 'Looked for duplicate files', compare_folders: 'Compared two folders', remove_duplicates: 'Removed duplicates', table_totals: 'Added up a column', add_chart: 'Added a chart', edit_image: 'Edited a picture', inspect_image: 'Checked a picture',
   fill_field: 'Filled in a form field', download_file: 'Downloaded a file', copy_files: 'Copied files',
   check_file: 'Checked a file', scroll: 'Scrolled', choose_menu: 'Chose a menu item', wait_for_window: 'Waited for a window',
   /* Calendar, memory, files and the small utilities. A third of the registry

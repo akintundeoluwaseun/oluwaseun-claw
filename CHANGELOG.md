@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — fixes aimed at the baseline benchmark's failures
+
+- Folders are found by name for saving, listing and searching ("Flyers" finds Documents\S-CLAW Bench\Flyers). If two folders share the name, S-CLAW asks rather than guess.
+- New tools:
+  - find_duplicate_files: compares file contents, not names.
+  - compare_folders: lists files missing, added or changed between two folders.
+- find_files: now takes a date range (modified_from, modified_to).
+- Answers with a wrong sum are sent back to the brain with the correct arithmetic, worked out by Claw.
+
 ## Unreleased — milestone 3, part 1 (data)
 
 - New tools: combine_tables (a folder of CSV/Excel files into one sheet, with a column for each row's source file), remove_duplicates (a clean copy, matched on email or phone with formats ignored; the original is untouched), table_totals (a total across files, optionally per group), add_chart (bar, line or pie, with live SUMIF totals that follow the data).

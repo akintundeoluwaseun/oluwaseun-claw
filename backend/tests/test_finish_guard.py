@@ -252,3 +252,47 @@ def test_a_saved_but_unchecked_notepad_job_is_not_finished():
     c = obvious_first_step(t, fitting_tools(t, build_registry()), steps)
     assert c.tool == "check_file" and c.args["path"] == "Documents/release-check.txt"
     assert not _unfinished_recipe(t, steps + [{"tool": "check_file", "outcome": "verified"}])
+
+
+def test_a_wrong_sum_in_the_answer_is_sent_back():
+    # Baseline benchmark, 2 Nov: "The total in quote.txt is correct: 300,000 (Design: 200,000 + Hosting: 50,000)."
+    from claw.agent.executor import arithmetic_slip, premature_finish
+    bad = "The total in quote.txt is correct: 300,000 (Design: 200,000 + Hosting: 50,000)."
+    msg = arithmetic_slip(bad)
+    assert msg and "250,000" in msg and "300,000" in msg
+    assert premature_finish(bad, [{"tool": "read_file", "outcome": "verified"}], ["read_file"]) == msg
+    assert arithmetic_slip("No: 200,000 + 50,000 = 250,000, so the total of 300,000 is wrong.") is None
+    assert arithmetic_slip("The total is 48,500 (12,000 + 8,000 + 15,000 + 4,000 + 6,000 + 3,500).") is None
+    assert arithmetic_slip("Call 0803 000 0000 + bring your receipt.") is None
+
+
+async def test_duplicates_dates_and_folder_comparison(tool_ctx):
+    import os
+    import time
+    from pathlib import Path
+    from tests.test_phase_a import call
+    root = Path(tool_ctx.settings.permissions.authorized_folders[0]) / "S-CLAW Bench"
+    d = root / "Photos dump"
+    d.mkdir(parents=True)
+    (d / "IMG_0041.jpg").write_bytes(b"beach" * 50)
+    (d / "beach copy.jpg").write_bytes(b"beach" * 50)
+    (d / "IMG_0042.jpg").write_bytes(b"market" * 50)
+    r = await call(tool_ctx, "find_duplicate_files", folder="Photos dump")
+    assert len(r.data["groups"]) == 1 and "IMG_0041.jpg = beach copy.jpg" in r.summary.replace("beach copy.jpg = IMG_0041.jpg", "IMG_0041.jpg = beach copy.jpg")
+    rep = root / "Reports"
+    rep.mkdir()
+    for name, day in (("jan.docx", "2026-01-15"), ("march.docx", "2026-03-10"), ("april.docx", "2026-04-02")):
+        (rep / name).write_text("x")
+        t = time.mktime(time.strptime(day, "%Y-%m-%d"))
+        os.utime(rep / name, (t, t))
+    r = await call(tool_ctx, "find_files", folder="Reports", modified_from="2026-03-01", modified_to="2026-03-31")
+    assert [Path(f["path"]).name for f in r.data["files"]] == ["march.docx"]
+    w = root / "Website"
+    (w / "Site v1").mkdir(parents=True)
+    (w / "Site v2").mkdir()
+    for n, t in (("index.html", "home"), ("about.html", "about"), ("contact.html", "c")):
+        (w / "Site v1" / n).write_text(t)
+    (w / "Site v2" / "index.html").write_text("home")
+    (w / "Site v2" / "about.html").write_text("about us")
+    r = await call(tool_ctx, "compare_folders", first="Site v1", second="Site v2")
+    assert r.data["missing_from_second"] == ["contact.html"] and r.data["changed"] == ["about.html"]
