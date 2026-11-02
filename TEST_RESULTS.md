@@ -1,5 +1,30 @@
 # Test results
 
+## Challenge benchmark BASELINE (set v1, 16 challenges), v0.5.0-build.40, Standard brain, 2 Nov 2026
+
+This is the reference that later runs are compared with. Evidence: ci-evidence:benchmarks/v0.5.0-build.40-Standard-1.
+
+**Average 52.9/100.** PASS 6, PARTIAL 3, FAIL 7. False completions 31% (5 of 16). Average 276 s per challenge.
+
+| Challenge | Verdict | Score | What went wrong |
+|---|---|---|---|
+| files-duplicates | PARTIAL ⚠ false completion | 29 | No tool compares file contents; the brain gave up on pictures |
+| files-largest | PASS | 92 | |
+| files-organize | PASS | 92 | |
+| files-date-range | PARTIAL | 59 | Repeated find_files; stopped |
+| files-compare | FAIL | 27 | Tried to click a browser page; 20-step limit |
+| data-combine-csv | PARTIAL ⚠ false completion | 49 | Built the table by hand and missed rows |
+| data-total | FAIL | 27 | No total across files; 20-step limit |
+| data-dedupe | FAIL | 29 | Could not open the folder by its name |
+| docs-invoices-table | PASS | 96 | |
+| docs-five-files | FAIL | 27 | save_report rejected 7 times |
+| stress-missing-info | PASS | 96 | |
+| stress-wrong-path | PASS | 100 | |
+| stress-contradiction | FAIL ⚠ false completion | 9 | Said 200,000 + 50,000 = 300,000 is correct |
+| stress-conflict | FAIL ⚠ false completion | 9 | Made the file it was told not to make |
+| creative-story-video | PASS | 96 | |
+| creative-flyer | FAIL ⚠ false completion | 9 | Could not reach the folder by name, so saved elsewhere |
+
 ## Release check of v0.5.0-build.40 on a clean Windows runner, 2 Nov 2026: 11 of 11 done and verified
 
 - Light 2B: 4 of 4. Notepad verified, invoice 580.50, copy verified, and "Which is the best claw?" answered S-CLAW.

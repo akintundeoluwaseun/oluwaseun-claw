@@ -86,3 +86,11 @@ def test_table_requests_get_the_table_tools():
     assert fitting_tools("Combine the three CSV files in the 'Branch sales' folder into one spreadsheet", r)[0] == "combine_tables"
     assert "remove_duplicates" in fitting_tools("customers.csv has duplicate customers, save a clean copy", r)
     assert "table_totals" in fitting_tools("What is the total amount of all sales in the three CSV files?", r)
+
+
+async def test_saving_finds_the_folder_the_brain_half_named(tool_ctx):
+    d = bench(tool_ctx, "Flyers")
+    r = await call(tool_ctx, "write_text_file", file_name="note.txt", text="hi", folder="S-CLAW Bench/Flyers")
+    assert r.ok and (d / "note.txt").is_file()
+    r = await call(tool_ctx, "list_folder", folder="Flyers")
+    assert r.ok and "note.txt" in r.untrusted_text

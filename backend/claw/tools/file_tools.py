@@ -35,17 +35,59 @@ def unique_path(path: Path) -> Path:
     raise ToolError("Too many files with that name already exist.")
 
 
-def resolve_folder(ctx: ToolContext, folder: str | None) -> Path:
+def folder_named(ctx: ToolContext, raw: str) -> Path | None:
+    """The one folder called like the last part of `raw` inside the authorized folders, or None.
+
+    Baseline benchmark, 2 Nov: brains wrote "S-CLAW Bench/Flyers", "Documents\\Flyers" or just
+    "Flyers" for Documents\\S-CLAW Bench\\Flyers and were refused, then saved elsewhere or gave up.
+    Raises when two folders share the name rather than guess between them.
+    """
+    name = re.split(r"[\\/]+", str(raw).strip().strip("'\"").rstrip("\\/"))[-1].lower()
+    if not name:
+        return None
+    hits: list[Path] = []
+    for root in (Path(r) for r in ctx.settings.permissions.authorized_folders):
+        if root.name.lower() == name and root.is_dir():
+            hits.append(root)
+        if root.is_dir():
+            for pattern in ("*", "*/*", "*/*/*", "*/*/*/*"):
+                hits += [d for d in root.glob(pattern) if d.is_dir() and d.name.lower() == name]
+    hits = list(dict.fromkeys(hits))
+    if len(hits) > 1:
+        # Prefer the one whose path contains the other parts the brain wrote ("S-CLAW Bench/Flyers").
+        parts = [p.lower() for p in re.split(r"[\\/]+", str(raw)) if p][:-1]
+        narrowed = [h for h in hits if all(p in str(h).lower() for p in parts if p not in ("documents", "desktop", "downloads"))]
+        if len(narrowed) == 1:
+            return narrowed[0]
+        raise ToolError(f"There are {len(hits)} folders called '{name}': " + "; ".join(str(h) for h in hits[:5]) + ". Give the full path.")
+    return hits[0] if hits else None
+
+
+def existing_folder(ctx: ToolContext, raw: str | None, write: bool = False) -> Path:
+    """An authorized folder that exists: the path given, else the folder of that name (see folder_named)."""
     roots = ctx.settings.permissions.authorized_folders
     if not roots:
         raise ToolError("No folders are authorized. Add a folder in Settings so the agent can save files.")
+    refused: PathNotAuthorized | None = None
     try:
-        target = ctx.policy.check_path(folder or roots[0], write=True)
+        target = ctx.policy.check_path(raw or roots[0], write=write)
+        if target.is_dir():
+            return target
     except PathNotAuthorized as exc:
-        raise ToolError(str(exc)) from exc
-    if not target.is_dir():
-        raise ToolError(f"The folder '{target}' does not exist.")
-    return target
+        refused, target = exc, None
+    found = folder_named(ctx, raw) if raw else None
+    if found is not None:
+        try:
+            return ctx.policy.check_path(str(found), write=write)
+        except PathNotAuthorized as exc:
+            raise ToolError(str(exc)) from exc
+    if refused is not None:
+        raise ToolError(str(refused)) from refused
+    raise ToolError(f"The folder '{target}' does not exist.")
+
+
+def resolve_folder(ctx: ToolContext, folder: str | None) -> Path:
+    return existing_folder(ctx, folder, write=True)
 
 
 class Link(BaseModel):

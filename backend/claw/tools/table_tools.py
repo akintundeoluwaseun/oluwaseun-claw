@@ -122,32 +122,8 @@ def _authorized(ctx: ToolContext, raw: str, write: bool = False) -> Path:
 
 
 def find_folder(ctx: ToolContext, raw: str | None) -> Path:
-    """The folder asked for; or, when that path does not exist, the one folder of that name inside the
-    authorized folders ("Branch sales" -> Documents\\S-CLAW Bench\\Branch sales)."""
-    roots = [Path(r) for r in ctx.settings.permissions.authorized_folders]
-    if not roots:
-        raise ToolError("No folders are authorized. Add a folder in Settings.")
-    if not raw:
-        return _authorized(ctx, str(roots[0]))
-    try:
-        p = ctx.policy.check_path(raw)
-        if p.is_dir():
-            return p
-    except PathNotAuthorized:
-        pass
-    name = re.split(r"[\\/]+", raw.strip().strip("'\""))[-1].lower()
-    hits: list[Path] = []
-    for root in roots:
-        if not root.is_dir():
-            continue
-        for depth, pattern in enumerate(("*", "*/*", "*/*/*", "*/*/*/*")):
-            hits += [d for d in root.glob(pattern) if d.is_dir() and d.name.lower() == name]
-    hits = list(dict.fromkeys(hits))
-    if len(hits) == 1:
-        return _authorized(ctx, str(hits[0]))
-    if len(hits) > 1:
-        raise ToolError(f"There are {len(hits)} folders called '{name}': " + "; ".join(str(h) for h in hits[:5]) + ". Give the full path.")
-    raise ToolError(f"There is no folder '{raw}' in the authorized folders.")
+    from claw.tools.file_tools import existing_folder  # noqa: PLC0415
+    return existing_folder(ctx, raw)
 
 
 def find_table(ctx: ToolContext, raw: str, near: str | None = None) -> Path:

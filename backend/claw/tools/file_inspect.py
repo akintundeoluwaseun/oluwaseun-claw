@@ -13,6 +13,7 @@ from pydantic import Field
 from claw.agent.schemas import Capability
 from claw.documents.readers import read_document
 from claw.permissions.policy import PathNotAuthorized, RiskLevel
+from claw.tools.file_tools import existing_folder
 from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec
 
 SKIP_DIRS = {"node_modules", ".git", "__pycache__", "$recycle.bin", "system volume information", "appdata"}
@@ -37,7 +38,7 @@ class FolderArgs(ToolArgs):
 
 
 async def list_folder(args: FolderArgs, ctx: ToolContext) -> ToolResult:
-    folder = _authorized(ctx, args.folder)
+    folder = existing_folder(ctx, args.folder)
     if not folder.is_dir():
         raise ToolError(f"'{folder}' is not a folder.")
     entries = []
@@ -92,7 +93,7 @@ class FindArgs(ToolArgs):
 
 
 async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:
-    root = _authorized(ctx, args.folder)
+    root = existing_folder(ctx, args.folder) if args.folder else _authorized(ctx, args.folder)
     ext = (args.extension or "").lower()
     if ext and not ext.startswith("."):
         ext = "." + ext

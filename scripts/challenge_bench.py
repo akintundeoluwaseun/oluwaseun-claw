@@ -354,7 +354,11 @@ def main() -> int:
         sc["inputs_changed"] = changed
         entry = {"id": s["id"], "set": s.get("set", BASELINE_SET), "category": s["category"], "instruction": s["instruction"], "status": r["status"],
                  "seconds": r["seconds"], "answer": r.get("answer"), "error": r.get("error"),
-                 "steps": [f"{x['tool']}={x['outcome']}" for x in r.get("steps") or []], "checks": results, **sc}
+                 "steps": [f"{x['tool']}={x['outcome']}" for x in r.get("steps") or []], "checks": results, **sc,
+                 # Full step record (arguments and what came back), so a failure can be diagnosed from the report alone.
+                 "step_details": [{"tool": x.get("tool"), "args": x.get("args"), "outcome": x.get("outcome"),
+                                   "detail": str(x.get("detail") or "")[:400]} for x in r.get("steps") or []],
+                 "problem_events": r.get("problem_events")}
         report["scenarios"].append(entry)
         print(f"    -> {sc['verdict']} {sc['score']}/100{' FALSE COMPLETION' if sc['false_completion'] else ''} ({r['status']}, {r['seconds']}s)", flush=True)
         (out / "benchmark.json").write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
