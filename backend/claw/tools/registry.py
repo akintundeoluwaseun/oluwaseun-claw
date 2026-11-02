@@ -18,6 +18,7 @@ from claw.tools.system_tools import register_system_tools
 from claw.tools.text_tools import register_text_tools
 from claw.tools.image_tools import register_image_tools
 from claw.tools.motion_tools import register_motion_tools
+from claw.tools.os_tools import register_os_tools
 from claw.tools.table_tools import register_model_tools, register_table_tools
 from claw.tools.pdf_tools import register_pdf_tools
 from claw.tools import page_tools
@@ -41,6 +42,7 @@ def build_registry() -> ToolRegistry:
     register_message_tools(reg)
     register_image_tools(reg)
     register_motion_tools(reg)
+    register_os_tools(reg)
     register_table_tools(reg)
     register_model_tools(reg)
     page_tools.register(reg)

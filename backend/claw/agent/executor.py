@@ -218,7 +218,7 @@ def _type_word(schema: dict) -> tuple[str, bool]:
     return ("|".join(dict.fromkeys(kinds)) or "any"), optional
 
 
-def compact_args(schema: dict) -> str:
+def compact_args(schema: dict, notes: bool = True) -> str:
     """A tool's arguments as one readable line instead of JSON Schema.
 
     Measured before writing this: across the 76 tools, descriptions were 5,421
@@ -237,7 +237,7 @@ def compact_args(schema: dict) -> str:
     for name, field in props.items():
         kind, optional = _type_word(field)
         mark = "" if name in required and not optional else "?"
-        note = (field.get("description") or "").strip()
+        note = (field.get("description") or "").strip() if notes else ""
         if note:
             note = note[:ARG_DESCRIPTION_CHARS].rstrip()
             parts.append(f"{name}:{kind}{mark} ({note})")
@@ -251,6 +251,12 @@ def compact_args(schema: dict) -> str:
 # real-brain trial on Windows did exactly that for the flyer, the spreadsheet and the
 # copy. Naming the fitting tools next to the task is what gets them used.
 _FITTING: list[tuple[str, tuple[str, ...]]] = [
+    # The computer: startup programs, memory, shortcuts, renaming many files, archives.
+    (r"\b(?:start(?:s|ing)? (?:up |automatically)|startup|at start-?up|launch(?:es)? (?:at|on) (?:start|boot|sign))", ("list_startup_apps",)),
+    (r"\b(?:memory|ram)\b.{0,40}\b(?:using|eating|consum|hog|most)|\b(?:using|eating|consuming)\b.{0,30}\b(?:memory|ram)\b", ("top_memory",)),
+    (r"\bbroken\b.{0,20}\bshortcuts?\b|\bshortcuts?\b.{0,30}\b(?:broken|dead|missing)", ("find_broken_shortcuts",)),
+    (r"\brename\b.{0,30}\b(?:all|every|many|hundreds|\d+)\b|\bnaming convention\b|\bbatch rename", ("rename_many",)),
+    (r"\b(?:archive|zip|pack|compress)\b.{0,40}\b(?:folder|project|files)\b", ("archive_folder",)),
     # Files: tidying, the biggest files, duplicates by content, comparing folders.
     (r"\b(?:organi[sz]e|tidy|sort|arrange|clean up)\b.{0,60}\b(?:folder|downloads|files)\b|\bsubfolders?\b.{0,40}\btype", ("sort_into_folders",)),
     (r"\b(?:largest|biggest|most space|largest files?|taking (?:up )?(?:the most )?space)\b", ("find_files",)),
@@ -618,7 +624,9 @@ def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
             others.append(spec.name)
             continue
         d = spec.for_model()
-        lines.append(f"- {d['name']}({compact_args(_strip_titles(d['args']))}) [{d['risk']}]: {d['description']}")
+        # The whole catalogue (no capability chosen) leaves out argument notes: 90+ tools must still
+        # fit a small brain's window. A tool used with wrong arguments gets its full shape back anyway.
+        lines.append(f"- {d['name']}({compact_args(_strip_titles(d['args']), notes=capabilities is not None)}) [{d['risk']}]: {d['description']}")
     if others:
         lines.append("Also available (ask for details by using them): " + ", ".join(others))
     return "\n".join(lines)

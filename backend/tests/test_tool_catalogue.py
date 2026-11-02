@@ -73,7 +73,7 @@ def test_the_catalogue_still_names_every_tool_the_plan_cannot_see():
 
 def test_the_catalogue_fits_the_window_it_has_to_fit():
     """The whole point: an 8192-token window, minus a reply reserve."""
-    for cap in ("files", "documents", "organiser", "desktop", "browser"):
+    for cap in ("files", "data", "documents", "organiser", "desktop", "browser"):
         cost = estimate_tokens(tool_catalogue(REG, {cap}))
         assert cost < 2000, f"{cap} catalogue is {cost} tokens"
     assert estimate_tokens(tool_catalogue(REG, None)) < 5000, "even the full catalogue should fit"

@@ -27,6 +27,7 @@ class Capability(StrEnum):
     DESKTOP = "desktop"
     FILES = "files"
     DOCUMENTS = "documents"     # PDFs, Word, images: reading rather than filing
+    DATA = "data"               # tables: combining, cleaning, totals, charts, models (split from files, 2 Nov)
     ORGANISER = "organiser"     # calendar, reminders, what Claw remembers
     REASONING = "reasoning"
 

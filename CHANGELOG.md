@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — reuse plan step 4: milestone 4 (the computer)
+
+- New tools:
+  - list_startup_apps: registry Run keys and the Startup folders; read-only.
+  - top_memory: read-only.
+  - find_broken_shortcuts: .lnk, .url and dead links.
+  - rename_many: numbering, old name or date; done in two steps so names never collide; refuses to overwrite.
+  - archive_folder: a .zip that is reopened and checked by count and checksum.
+- New "data" capability: the table tools moved out of "files", so each capability's tool list fits a small brain's window.
+- The whole-catalogue view leaves out argument notes.
+
 ## Unreleased — reuse plan steps 2 and 3
 
 - Step 2: type_text now reads the text back from the control that has focus, the way FlaUI and pywinauto do (UIA TextPattern, then ValuePattern, then the window text).

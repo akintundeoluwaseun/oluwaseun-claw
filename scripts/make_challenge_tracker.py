@@ -29,6 +29,11 @@ STATUS = {
     "15.04": ("PASSED", "benchmark files-organize: PASS in runs 1 and 3 (sort_into_folders)"),
     "15.11": ("PASSED", "benchmark: files-date-range"),
     "15.12": ("PASSED", "benchmark: files-compare"),
+    "15.05": ("BUILT", "find_broken_shortcuts"),
+    "15.06": ("BUILT", "list_startup_apps (registry Run keys + Startup folders)"),
+    "15.08": ("BUILT", "top_memory"),
+    "15.13": ("BUILT", "rename_many (numbering, dates, never overwrites)"),
+    "15.15": ("BUILT", "archive_folder (zip reopened and CRC-checked)"),
     # 7. Excel
     "7.01": ("PASSED", "benchmark data-combine-csv: PASS in run 3 (combine_tables)"),
     "7.02": ("PASSED", "benchmark: data-dedupe"),

@@ -423,7 +423,7 @@ async def add_chart(args: ChartArgs, ctx: ToolContext) -> ToolResult:
 
 
 def register_table_tools(reg: ToolRegistry) -> None:
-    F, R, W = Capability.FILES, RiskLevel.READ_ONLY, RiskLevel.LOCAL_WRITE
+    F, R, W = Capability.DATA, RiskLevel.READ_ONLY, RiskLevel.LOCAL_WRITE
     reg.register(ToolSpec("combine_tables",
                           "Combine a folder's CSV/Excel files into one sheet.", F, W, CombineTablesArgs, combine_tables))
     reg.register(ToolSpec("remove_duplicates",
@@ -563,4 +563,4 @@ async def build_model(args: ModelArgs, ctx: ToolContext) -> ToolResult:
 
 def register_model_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("build_model", "Make a break-even or forecast workbook.",
-                          Capability.FILES, RiskLevel.LOCAL_WRITE, ModelArgs, build_model))
+                          Capability.DATA, RiskLevel.LOCAL_WRITE, ModelArgs, build_model))

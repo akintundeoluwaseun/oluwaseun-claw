@@ -501,9 +501,9 @@ def register_text_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("sort_lines", "Sort a file's lines into a new file; the original is untouched.",
                           F, W, SortArgs, sort_lines, precheck=check_sort))
     reg.register(ToolSpec("summarize_column", "Total, average, lowest and highest of a column in a .csv file.",
-                          F, R, ColumnArgs, summarize_column))
+                          Capability.DATA, R, ColumnArgs, summarize_column))
     reg.register(ToolSpec("add_computed_column",
                           "Work out a new column from existing ones (e.g. price x quantity) into a new .csv.",
-                          F, W, ComputeArgs, add_computed_column, precheck=check_compute))
+                          Capability.DATA, W, ComputeArgs, add_computed_column, precheck=check_compute))
     reg.register(ToolSpec("list_to_table", "Turn a plain list into a .csv table with named columns.",
-                          F, W, TableArgs, list_to_table, precheck=check_table))
+                          Capability.DATA, W, TableArgs, list_to_table, precheck=check_table))
