@@ -251,6 +251,11 @@ def compact_args(schema: dict, notes: bool = True) -> str:
 # real-brain trial on Windows did exactly that for the flyer, the spreadsheet and the
 # copy. Naming the fitting tools next to the task is what gets them used.
 _FITTING: list[tuple[str, tuple[str, ...]]] = [
+    # Web research into a sheet.
+    (r"\b(?:compare|comparison)\b.{0,80}\b(?:prices?|pricing|features?|plans?|websites?|sites|products?|services?|competitors?)\b"
+     r"|\b(?:prices?|pricing)\b.{0,60}\b(?:spreadsheet|sheet|table)\b", ("web_search", "compare_pages")),
+    (r"\bbroken links?\b|\bdead links?\b|\blinks?\b.{0,30}\b(?:broken|work|dead)", ("check_links",)),
+    (r"\b(?:monitor|watch|track)\b.{0,40}\b(?:website|site|page|web page)\b|\b(?:changed|changes)\b.{0,30}\b(?:website|site|page)\b", ("page_changes",)),
     # 3D through Blender.
     (r"\b3d\b|\bblender\b|\bturntable\b|\brotating\b.{0,20}\b360|\b360\b.{0,20}\b(?:spin|rotat|turn)", ("make_3d_render",)),
     # Office: decks and PDFs.

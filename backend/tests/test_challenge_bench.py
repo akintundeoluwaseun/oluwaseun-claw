@@ -104,3 +104,14 @@ def test_input_hashes_spot_a_changed_file(tmp_path):
     before = cb._hashes(tmp_path)
     (tmp_path / "a.txt").write_text("two")
     assert cb._hashes(tmp_path)["a.txt"] != before["a.txt"]
+
+
+def test_web_scenario_serves_its_pages(tmp_path):
+    import urllib.request
+    s = by_id()["web-compare"]
+    f = fresh(tmp_path, s)
+    srv, base = cb._serve(f)
+    try:
+        assert "FixIt Laptops" in urllib.request.urlopen(f"{base}/fixit.html", timeout=5).read().decode()
+    finally:
+        srv.shutdown()

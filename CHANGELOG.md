@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased — milestone 6 (web research), and the backend hang fixed
+
+- New tool, compare_pages, collects the same facts from several pages (or the last search results) into a spreadsheet.
+  - The brain reads each page's own text, marked as untrusted.
+  - A value is kept only if that page actually states it; anything else becomes "not found on the page".
+  - Every row links to its page.
+- New tools:
+  - check_links: finds broken links on pages.
+  - page_changes: keeps a copy of a page and reports what changed since the last check.
+- New benchmark set v1.5: three repair-shop pages served locally, so the answer is fixed.
+- **Fixed: the 20-minute backend hangs** of benchmark runs 3 and 5. launch_app's pre-check called Windows UI Automation from the server's thread. Driver calls now always run on the desktop thread, and the Start-menu search runs off the server thread.
+- "Save a clean copy" now protects the original, and a copy never takes the source's name.
+- The benchmark harness waits for a busy backend instead of failing every later task.
+
 ## Unreleased — video licence option 1 carried out
 
 - The installer now includes `resources/licenses`: the GPL and LGPL texts, x264's COPYING, a README of the components, THIRD_PARTY_NOTICES and S-CLAW's MIT licence.

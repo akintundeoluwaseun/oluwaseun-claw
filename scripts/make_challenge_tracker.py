@@ -45,6 +45,11 @@ STATUS = {
     # 8/10 documents
     "4.07": ("BUILT", "make_3d_render turntable with Blender: rendered and checked with real Blender 5.2.3 (bpy) here"),
     "4.15": ("BUILT", "make_3d_render: Blender renders frames, S-CLAW encodes and checks the MP4"),
+    "9.02": ("BUILT", "compare_pages: each value checked against its own page's text and linked to it"),
+    "9.05": ("BUILT", "compare_pages"),
+    "9.14": ("BUILT", "compare_pages (structured fields from several pages)"),
+    "9.11": ("BUILT", "page_changes (keeps a copy, reports what changed; can run as a scheduled job)"),
+    "9.12": ("BUILT", "check_links"),
     "8.02": ("BUILT", "save_report contents=True: a real Word TOC field (no list of figures yet)"),
     "8.06": ("BUILT", "save_report: headings, real bullet/numbered lists, page numbers"),
     "8.08": ("BUILT", "make_presentation (slides, notes, charts; reopened and checked)"),

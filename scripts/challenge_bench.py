@@ -313,6 +313,21 @@ def scenarios() -> list[dict]:
                     "called 'weekly summary' in the same folder, with a heading for each day.",
         checks=[("a Word file was saved", file_like("weekly summary*.docx")),
                 ("it names every action owner", file_like("weekly summary*.docx", test=lambda p: all(n in _docx_text(p) for n in ("Seun", "Kemi", "Tunde", "Ada"))))])
+    # --- v1.5: milestone 6 (web research into a sheet), on pages served locally so the answer is fixed ---
+    shops = {"fixit.html": ("FixIt Laptops", "Screen replacement: N25,000. Battery replacement: N18,000. Warranty: 3 months."),
+             "quickfix.html": ("QuickFix Ado", "Screen replacement: N22,500. Battery replacement: N20,000. Warranty: 6 months."),
+             "techcare.html": ("TechCare Akure", "Screen replacement: N27,000. Battery replacement: N16,500. Warranty: 1 month.")}
+
+    def web_setup(f):
+        for name, (title, body) in shops.items():
+            put(f, name, f"<html><head><title>{title}</title></head><body><h1>{title}</h1><p>{body}</p></body></html>")
+    add(id="web-compare", category="Web", folder="Web pages", setup=web_setup, set="v1.5", serve=True,
+        instruction="Compare the screen replacement price and the warranty of these three repair shops and save it as a "
+                    "spreadsheet called 'repair prices' in the 'Web pages' folder inside 'S-CLAW Bench' in my Documents: {urls}",
+        checks=[("sheet saved", file_like("repair prices*.xlsx")),
+                ("all three screen prices, as the pages state them", file_like("repair prices*.xlsx", test=lambda p: all(
+                    x in " ".join(" ".join(r) for r in rows_of(p)).replace(",", "") for x in ("25000", "22500", "27000")))),
+                ("each row links to its page", file_like("repair prices*.xlsx", test=lambda p: sum("127.0.0.1" in " ".join(r) for r in rows_of(p)) >= 3))])
     return S
 
 
@@ -330,6 +345,20 @@ def _has_chart(p: Path) -> bool:
         return any(ws._charts for ws in openpyxl.load_workbook(p).worksheets)
     except Exception:  # noqa: BLE001
         return False
+
+
+def _serve(folder: Path):
+    """Serve a scenario's pages on 127.0.0.1 so web challenges have a fixed, known answer."""
+    import functools  # noqa: PLC0415
+    import threading  # noqa: PLC0415
+    from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer  # noqa: PLC0415
+
+    class Quiet(SimpleHTTPRequestHandler):
+        def log_message(self, *_):
+            pass
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=str(folder)))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, f"http://127.0.0.1:{srv.server_address[1]}"
 
 
 def _hashes(folder: Path) -> dict[str, str]:
@@ -391,9 +420,16 @@ def main() -> int:
             shutil.rmtree(folder)
         folder.mkdir(parents=True, exist_ok=True)
         s["setup"](folder)
+        instruction = s["instruction"]
+        server = None
+        if s.get("serve"):
+            server, base = _serve(folder)
+            instruction = instruction.replace("{urls}", " ".join(f"{base}/{p.name}" for p in sorted(folder.glob("*.html"))))
         before = _hashes(folder)
         print(f"[{i}/{len(todo)}] {s['id']}: {s['instruction'][:90]}", flush=True)
-        r = run_task(api, s["instruction"], a.per_task_seconds)
+        r = run_task(api, instruction, a.per_task_seconds)
+        if server is not None:
+            server.shutdown()
         results = []
         for desc, fn in s["checks"]:
             try:
@@ -409,7 +445,7 @@ def main() -> int:
         if s.get("moves_inputs"):
             changed = sorted(n for n, h in before.items() if h not in after.values())
         sc["inputs_changed"] = changed
-        entry = {"id": s["id"], "set": s.get("set", BASELINE_SET), "category": s["category"], "instruction": s["instruction"], "status": r["status"],
+        entry = {"id": s["id"], "set": s.get("set", BASELINE_SET), "category": s["category"], "instruction": instruction, "status": r["status"],
                  "seconds": r["seconds"], "answer": r.get("answer"), "error": r.get("error"),
                  "steps": [f"{x['tool']}={x['outcome']}" for x in r.get("steps") or []], "checks": results, **sc,
                  # Full step record (arguments and what came back), so a failure can be diagnosed from the report alone.
