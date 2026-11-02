@@ -167,6 +167,10 @@ class ToolSpec:
         for k, f in self.args_model.model_fields.items():
             if isinstance(raw.get(k), str) and raw[k].strip().lower() in ("none", "null", "n/a") and not f.is_required() and f.default is None:
                 raw[k] = None
+            # 0 or false for an optional filter means "not this filter" (run 3: not_modified_in_days=0).
+            if raw.get(k) in (0, "0", False) and not f.is_required() and f.default is None and \
+                    any(getattr(m, "ge", None) == 1 or getattr(m, "gt", None) == 0 for m in f.metadata):
+                raw[k] = None
         try:
             return self.args_model.model_validate(raw)
         except ValidationError as exc:

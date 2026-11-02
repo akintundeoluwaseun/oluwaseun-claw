@@ -153,8 +153,15 @@ async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:
         window = f", changed in the last {args.modified_in_days} day(s)"
     if args.modified_from or args.modified_to:
         window += f", changed between {args.modified_from or 'the start'} and {args.modified_to or 'today'}"
+    hidden = ""
+    if not hits and (args.not_modified_in_days or args.modified_in_days or args.modified_from or args.modified_to) and (needle or ext):
+        # Run 3: the brain added an age filter nobody asked for, found nothing, and gave up.
+        loose = [str(p) for p in root.rglob("*") if p.is_file() and (not needle or needle in p.name.lower())
+                 and (not ext or p.name.lower().endswith(ext))][:10]
+        if loose:
+            hidden = f" But {len(loose)} file(s) match the name without the date filter: " + "; ".join(loose)
     biggest = f" Largest: {Path(hits[0]['path']).name} ({_size(hits[0]['size'])})." if args.largest_first and hits else ""
-    return ToolResult(True, f"Found {len(hits)} file(s) under {root}{window}.{biggest}",
+    return ToolResult(True, f"Found {len(hits)} file(s) under {root}{window}.{biggest}{hidden}",
                       {"files": hits, "scanned": scanned}, True, text)
 
 

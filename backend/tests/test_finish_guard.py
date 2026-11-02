@@ -322,3 +322,23 @@ async def test_sorting_a_folder_and_finding_the_biggest_file(tool_ctx):
     assert r.verified and (d / "Documents" / "cv.docx").is_file() and (d / "Images" / "photo.jpg").is_file()
     assert (d / "Spreadsheets" / "prices.xlsx").is_file() and (d / "Archives" / "site backup.zip").is_file() and (d / "odd.xyz").is_file()
     assert "Left where they were" in r.summary
+
+
+def test_no_new_files_rule_stops_file_making():
+    from claw.agent.executor import breaks_no_files_rule
+    t = "Make a spreadsheet of 3 fruits and their colours, but do not create any new files."
+    assert "contradicts" in breaks_no_files_rule(t, "create_spreadsheet")
+    assert breaks_no_files_rule(t, "read_file") is None
+    assert breaks_no_files_rule("Make a spreadsheet of 3 fruits.", "create_spreadsheet") is None
+
+
+async def test_zero_filters_are_ignored_and_hidden_matches_are_named(tool_ctx):
+    from pathlib import Path
+    from tests.test_phase_a import call
+    d = Path(tool_ctx.settings.permissions.authorized_folders[0]) / "Finance"
+    d.mkdir()
+    (d / "budget.txt").write_text("Rent: 150000")
+    r = await call(tool_ctx, "find_files", name_contains="budget", extension="txt", not_modified_in_days=0)
+    assert r.data["files"]                                                # 0 meant "no age filter"
+    r = await call(tool_ctx, "find_files", name_contains="budget", extension="txt", not_modified_in_days=30)
+    assert not r.data["files"] and "match the name without the date filter" in r.summary and "budget.txt" in r.summary

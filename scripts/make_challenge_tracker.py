@@ -25,12 +25,12 @@ OUT_SECTIONS = {5: "Figma needs an account; UI design needs a far bigger brain",
 STATUS = {
     # 15. Files
     "15.02": ("PASSED", "benchmark: files-duplicates"),
-    "15.03": ("BUILT", "baseline PASS, run 2 fail; find_files largest_first added"),
-    "15.04": ("BUILT", "baseline PASS, run 2 fail; sort_into_folders added"),
+    "15.03": ("PASSED", "benchmark files-largest: PASS in runs 1 and 3"),
+    "15.04": ("PASSED", "benchmark files-organize: PASS in runs 1 and 3 (sort_into_folders)"),
     "15.11": ("PASSED", "benchmark: files-date-range"),
     "15.12": ("PASSED", "benchmark: files-compare"),
     # 7. Excel
-    "7.01": ("BUILT", "combine_tables; benchmark data-combine-csv not yet passed"),
+    "7.01": ("PASSED", "benchmark data-combine-csv: PASS in run 3 (combine_tables)"),
     "7.02": ("PASSED", "benchmark: data-dedupe"),
     "7.03": ("BUILT", "add_chart with live totals"),
     "7.20": ("BUILT", "add_chart (SUMIF formulas follow new rows)"),
@@ -41,15 +41,15 @@ STATUS = {
     # 1. Photoshop
     "1.06": ("BUILT", "make_flyer; Photoshop path never run"),
     # 13. Accounting
-    "13.11": ("BUILT", "remove_duplicates"),
+    "13.11": ("PASSED", "remove_duplicates - same check as benchmark data-dedupe (7.02)"),
     # 17. Stress
     "17.01": ("PASSED", "benchmark: stress-missing-info (baseline PASS, run 2 partial)"),
     "17.04": ("BUILT", "Carry on from where it stopped (resume)"),
-    "17.06": ("FAIL", "benchmark: stress-conflict - it still makes the file"),
-    "17.07": ("PASSED", "benchmark: stress-wrong-path, twice"),
+    "17.06": ("FAIL", "stress-conflict failed runs 1-3; no-new-files guard built, re-testing"),
+    "17.07": ("FLAKY", "stress-wrong-path: PASS runs 1-2, FAIL run 3 (age filter); fixed, re-testing"),
     "17.08": ("PASSED", "benchmark: stress-contradiction (run 2, arithmetic check)"),
-    "17.09": ("BUILT", "infeasible-missing-app scenario added"),
-    "17.10": ("BUILT", "docs-five-files scenario; save_report fixed, not yet passed"),
+    "17.09": ("FAIL", "infeasible-missing-app: timed out in run 3; step logging added to find out why"),
+    "17.10": ("PASSED", "benchmark docs-five-files: PASS in run 3"),
     "17.17": ("BUILT", "four-part report tracks done/left"),
     "17.20": ("BUILT", "four-part final report on every task"),
 }
@@ -109,6 +109,7 @@ def main():
             "- **BUILT** — the capability exists and passes its tests here; no real-brain pass yet.",
             "- **PLANNED** — scheduled in the milestone shown (docs/ROADMAP.md).",
             "- **FAIL** — tried with a real brain and failed.",
+            "- **FLAKY** — passed some real runs, failed others.",
             "- **OUT** — needs a paid app/account or a far bigger brain; S-CLAW says so rather than fake it."]
     OUT.write_text("\n".join(head + rows) + "\n", encoding="utf-8")
     print(total, counts)

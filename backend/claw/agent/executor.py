@@ -477,6 +477,23 @@ def invents_named_file(task: str, tool: str, args: dict[str, Any]) -> str | None
     return None
 
 
+_NO_NEW_FILES = re.compile(r"\b(?:do not|don't|dont|never|without)\s+(?:create|make|save|write|creating|making|saving|writing)\s+"
+                           r"(?:any\s+)?(?:new\s+)?(?:files?|documents?|spreadsheets?)\b", re.I)
+
+
+def breaks_no_files_rule(task: str, tool: str) -> str | None:
+    """The person said not to create files, and this step would create one.
+
+    Benchmark (three runs), 2 Nov: "Make a spreadsheet ..., but do not create any new files" - the brain
+    made the file every time and said nothing about the conflict.
+    """
+    if tool in _MAKING_TOOLS | SAVING_TOOLS and tool not in ("move_file", "rename_file") and _NO_NEW_FILES.search(task.split("\n")[0]):
+        return ("The person said not to create any new files, and this step would create one. The request contradicts "
+                "itself (a spreadsheet is a file). Do not create anything: finish and tell the person about the conflict, "
+                "and offer to show the table in your answer instead or to save it if they agree.")
+    return None
+
+
 _NUM = r"\d[\d,]*(?:\.\d+)?"
 
 
@@ -973,7 +990,7 @@ async def run_agent(
                 return stop
             continue
 
-        fake = invents_named_file(task, spec.name, args.model_dump(mode="json"))
+        fake = invents_named_file(task, spec.name, args.model_dump(mode="json")) or breaks_no_files_rule(task, spec.name)
         if fake:
             record.update(outcome="rejected", detail=fake)
             steps.append(record)
@@ -1048,6 +1065,9 @@ async def run_agent(
         else:
             record.update(outcome="failed", detail=error)
         steps.append(record)
+        # One line per step in claw.log, so a run can be diagnosed from the log alone (benchmark run 3:
+        # a task ran 22 minutes and the log could not say where).
+        log_event(log, "step", step=step_no, tool=spec.name, outcome=record["outcome"], detail=str(record["detail"])[:160])
         emit(record["outcome"], {"step": step_no, "tool": spec.name, "detail": record["detail"]})
         messages.append(ChatMessage(role="user", content=format_observation(spec.name, result, error)))
         if warning:

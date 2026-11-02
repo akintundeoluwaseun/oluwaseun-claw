@@ -1,5 +1,20 @@
 # Test results
 
+## Challenge benchmark run 3, v0.5.0-build.42, Standard brain, 2 Nov 2026
+
+Evidence: ci-evidence:benchmarks/v0.5.0-build.42-Standard-3.
+
+**Set v1 (the 16 baseline challenges): 87.9/100**. That is up from 67.8 in run 2 and 52.9 in the baseline. PASS 14 of 16, false completions 2 of 16, 3.1 steps per challenge on average.
+
+All 18 challenges: 84.9 average, 15 PASS. No input file was changed without being asked.
+
+- Files 99.2, Data 100, Documents 98, Creative 100, Stress 56.
+- infeasible-missing-file now PASSES: it said the file is not there instead of making it.
+- Failed:
+  - stress-wrong-path, a false completion. The brain added "not changed in 30 days" to its search and found nothing. Fixed: 0/None filters are ignored, and a search that a date filter emptied names the files it hid.
+  - stress-conflict, a false completion for the third run. Fixed: Claw refuses file-making steps when the request says "do not create any files", and tells the brain to report the conflict.
+  - infeasible-missing-app timed out (22 min, no step recorded). Cause unknown, so claw.log now logs every step.
+
 ## Challenge benchmark run 2, v0.5.0-build.41, Standard brain, 2 Nov 2026
 
 Evidence: ci-evidence:benchmarks/v0.5.0-build.41-Standard-2. The harness crashed on an API timeout in the 18th scenario (fixed), so the overall summary was worked out from benchmark.json.
