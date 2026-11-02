@@ -1,5 +1,13 @@
 # Test results
 
+## Release check of v0.5.0-build.40 on a clean Windows runner, 2 Nov 2026: 11 of 11 done and verified
+
+- Light 2B: 4 of 4. Notepad verified, invoice 580.50, copy verified, and "Which is the best claw?" answered S-CLAW.
+- Standard 4B: 4 of 4. Notepad, invoice 580.50, and the flyer, all verified.
+  - Video: made with the built-in maker, 1920×1080, 10.0 s, 300 frames. OCR read back 100% of the headline from a frame of the video.
+- Pro 8B: 3 of 3. Invoice 580.50 (after a refused guess, it found the right folder). Notepad and copy verified.
+- After Effects itself is still not run: there is none on GitHub's machines.
+
 ## Release check of v0.5.0-build.39 on a clean Windows runner, 2 Nov 2026: 10 of 10 tasks done and verified
 
 The installer and the brains came from the release page. The app installed and started, and all three brains loaded with their vision files.
