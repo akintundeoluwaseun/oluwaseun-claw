@@ -101,6 +101,11 @@ def _target_for(app_id: str) -> str:
     return f"shell:AppsFolder\\{app_id}"
 
 
+# Run 6: Word was not installed, so the brain typed the report into Notepad and got lost in Save As.
+_OWN_TOOLS = [(("word",), "save_report"), (("excel",), "create_spreadsheet or the table tools"),
+              (("powerpoint", "power point"), "make_presentation"), (("photoshop",), "make_flyer or edit_image"),
+              (("after effects", "premiere"), "make_motion_video or reformat_video")]
+
 _MAKERS = {"microsoft", "adobe", "google", "windows", "app", "the", "desktop", "corporation", "office", "mozilla"}
 
 
@@ -153,7 +158,9 @@ def find_app(name: str, search_dirs: list[Path] | None = None) -> list[AppMatch]
 def choose_app(name: str, search_dirs: list[Path] | None = None) -> AppMatch:
     found = find_app(name, search_dirs)
     if not found:
-        raise ToolError(f"No installed app called '{name}' was found in the Start menu.")
+        own = next((tool for words, tool in _OWN_TOOLS if any(w in name.lower() for w in words)), None)
+        raise ToolError(f"No installed app called '{name}' was found in the Start menu."
+                        + (f" S-CLAW can make that file itself: use {own} instead." if own else ""))
     best = found[0]
     exact = [m for m in found if m.name.lower() == name.strip().lower()]
     if exact:

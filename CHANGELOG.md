@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — fixes from benchmark run 6
+
+- A folder named in the request ("in the 'Decks' folder") is used when the brain leaves the folder out.
+- Word reports and documents go to save_report. A missing Office or Adobe app's error names S-CLAW's own tool for the job.
+- read_page takes a url.
+- New recipe, use-calculator: type the whole sum, then read the display.
+
 ## Unreleased — milestone 7 (video and audio by code)
 
 - New tools, all on PyAV (FFmpeg libraries already inside S-CLAW), each writing a new file that is reopened and measured:

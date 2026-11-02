@@ -116,7 +116,13 @@ async def open_search_result(args: ResultArgs, ctx: ToolContext) -> ToolResult:
 
 
 # ---------- read_page ----------
-async def read_page(args: NoArgs, ctx: ToolContext) -> ToolResult:
+class ReadPageArgs(ToolArgs):
+    url: str | None = Field(default=None, max_length=2000, description="Optional: open this address first")
+
+
+async def read_page(args: ReadPageArgs, ctx: ToolContext) -> ToolResult:
+    if args.url:   # run 6: read_page(url=...) was refused twice and the task stopped
+        await ctx.browser.goto(args.url)
     page = await ctx.browser.page()
     if page.url in ("about:blank", ""):
         raise ToolError("No page is open. Open a web address or search first.")
@@ -410,7 +416,7 @@ def register_browser_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("web_search", "Search the web and list the results.", B, R, SearchArgs, web_search))
     reg.register(ToolSpec("open_url", "Open a web address in the agent's browser.", B, R, OpenUrlArgs, open_url))
     reg.register(ToolSpec("open_search_result", "Open one of the results from the last web_search by its number.", B, R, ResultArgs, open_search_result))
-    reg.register(ToolSpec("read_page", "Read the main text of the current page.", B, R, NoArgs, read_page))
+    reg.register(ToolSpec("read_page", "Read the main text of the current page.", B, R, ReadPageArgs, read_page))
     reg.register(ToolSpec("extract_links", "List the links on the current page.", B, R, LinksArgs, extract_links))
     reg.register(ToolSpec("click_link", "Follow a link on the current page by its visible text.", B, R, ClickLinkArgs, click_link))
     reg.register(

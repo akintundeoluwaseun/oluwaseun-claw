@@ -308,6 +308,7 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     (r"\b(?:picture|photo|image)\b", ("edit_image", "inspect_image")),
     (r"\bsave\b.*\b(?:links?|urls?|title)\b", ("save_links",)),
     (r"\bsave\b.*\b(?:report|summary|notes?|results?)\b", ("save_report",)),
+    (r"\bword\b.{0,30}\b(?:report|document|file|doc)\b|\.docx\b|\b(?:write|make|create)\b.{0,30}\b(?:report|proposal|letter)\b", ("save_report",)),
 ]
 
 
@@ -491,6 +492,29 @@ def invents_named_file(task: str, tool: str, args: dict[str, Any]) -> str | None
             return (f"You were asked to open '{named}', not to make it. Making a file with that name would invent its "
                     f"contents. If it does not exist, finish and say plainly that it was not found and where you looked.")
     return None
+
+
+_TASK_FOLDER = re.compile(r"\b(?:in|into|to)\s+(?:the\s+|my\s+)?['\"\u2018\u201c]([^'\"\u2019\u201d]{1,60})['\"\u2019\u201d]\s+folder", re.I)
+
+
+def with_task_folder(task: str, tool: str, args, ctx):
+    """Save where the person said to save, when the brain left the folder out.
+
+    Run 6: "save it in the 'Decks' folder" - the brain called make_presentation without a folder, the deck
+    went to Documents, and the answer still said "saved in the Decks folder". A folder named in the
+    request, that exists, is used for a making tool whose folder was left empty.
+    """
+    if tool not in MAKES_FILES or "folder" not in type(args).model_fields or getattr(args, "folder", None):
+        return args
+    m = _TASK_FOLDER.search(task.split("\n")[0])
+    if not m:
+        return args
+    from claw.tools.file_tools import folder_named  # noqa: PLC0415
+    try:
+        found = folder_named(ctx, m.group(1))
+    except Exception:  # noqa: BLE001 - two folders of that name: leave it to the brain
+        return args
+    return args.model_copy(update={"folder": str(found)}) if found else args
 
 
 _NUM = r"\d[\d,]*(?:\.\d+)?"
@@ -1022,6 +1046,7 @@ async def run_agent(
                 return stop
             continue
 
+        args = with_task_folder(task, spec.name, args, ctx)
         fake = invents_named_file(task, spec.name, args.model_dump(mode="json")) or constraints.breaks(person_limits, spec.name)
         if fake:
             record.update(outcome="rejected", detail=fake)

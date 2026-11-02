@@ -351,3 +351,18 @@ def test_a_document_total_that_does_not_add_up_is_sent_back():
     assert msg and "250,000" in msg and "300,000" in msg
     assert document_total_slip("No - the items add up to 250,000, so the total of 300,000 is wrong.", doc) is None
     assert document_total_slip("The total is correct.", "Design: 200000\nHosting: 50000\nTotal: 250000") is None
+
+
+async def test_the_folder_named_in_the_request_is_used(tool_ctx):
+    from pathlib import Path
+    from claw.agent.executor import with_task_folder
+    from claw.tools.registry import build_registry
+    d = Path(tool_ctx.settings.permissions.authorized_folders[0]) / "S-CLAW Bench" / "Decks"
+    d.mkdir(parents=True)
+    spec = build_registry().get("make_presentation")
+    args = spec.parse_args({"title": "Seun Repairs", "slides": [{"title": "Services"}]})
+    t = "Make a PowerPoint for 'Seun Repairs' and save it in the 'Decks' folder inside 'S-CLAW Bench' in my Documents."
+    assert with_task_folder(t, "make_presentation", args, tool_ctx).folder == str(d)
+    kept = spec.parse_args({"title": "x", "slides": [{"title": "y"}], "folder": "Elsewhere"})
+    assert with_task_folder(t, "make_presentation", kept, tool_ctx).folder == "Elsewhere"
+    assert with_task_folder("Make a deck about cats.", "make_presentation", args, tool_ctx).folder is None

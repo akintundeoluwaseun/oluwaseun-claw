@@ -1,5 +1,23 @@
 # Test results
 
+## Challenge benchmark run 6, v0.5.0-build.45, Standard brain, 2 Nov 2026
+
+Evidence: ci-evidence:benchmarks/v0.5.0-build.45-Standard-6. This build has the hang fix, office and Blender, but not milestones 6 and 7.
+
+- **Set v1 (16 challenges): 94.2/100.** Run 5 was 94.6, so the score is stable.
+- **All 27: 82.8.** PASS 21, PARTIAL 2, FAIL 4. No input file was changed without being asked.
+- Data 100, Files 99.2, Creative 100, Documents 96, Stress 86.
+- **New passes:**
+  - data-break-even, data-forecast and data-chart (build_model, add_chart);
+  - desktop-notepad-typed: typing was read back and matched;
+  - infeasible-missing-app: **no hang**, so the fix works.
+- **Failed:**
+  - office-deck, a false completion: the deck was made with 4 slides but saved in Documents instead of the requested 'Decks' folder. Fixed: a folder named in the request is used when the brain leaves it out.
+  - office-report: the brain looked for Word, which is not installed, then got lost in Notepad's Save As. Fixed: Word reports go to save_report, and a missing Office app's error names S-CLAW's own tool.
+  - web-compare: compare_pages is not in this build, and read_page(url=…) was refused. Fixed: read_page takes a url.
+  - media-vertical, a false completion: reformat_video is not in this build, so the brain used make_motion_video. Fixed by routing.
+  - desktop-calculator (partial): it clicked digits one by one until the step limit. Added a calculator recipe: type "1234*56=" and read the display.
+
 ## Challenge benchmark run 5, v0.5.0-build.44, Standard brain, 2 Nov 2026
 
 Evidence: ci-evidence:benchmarks/v0.5.0-build.44-Standard-5. This build has reuse steps 1–4 and build_model; it does not have office or Blender.
