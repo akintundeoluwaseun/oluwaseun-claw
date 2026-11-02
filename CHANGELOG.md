@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — video licence option 1 carried out
+
+- The installer now includes `resources/licenses`: the GPL and LGPL texts, x264's COPYING, a README of the components, THIRD_PARTY_NOTICES and S-CLAW's MIT licence.
+- Each release now attaches S-CLAW-third-party-sources.zip, with the exact FFmpeg, x264 and x265 sources and the build recipe.
+
 ## Unreleased — reuse plan steps 6 and 7 (video licences, Blender)
 
 - Step 6: THIRD_PARTY_NOTICES had the wrong licence for the bundled video library. PyAV's FFmpeg is LGPL-3.0+, and it ships libx264 and libx265, which are GPL-2.0+. It is now corrected, and the options are written up in docs/LICENSING_VIDEO.md. No code changed.

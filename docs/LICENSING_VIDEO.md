@@ -26,6 +26,13 @@ not legal advice. The decision belongs to the owner.
 
 H.264 and HEVC are patent-encumbered in some countries. S-CLAW never encodes HEVC, though libx265 is present in the bundle. Option 2 with OpenH264 is the usual way to avoid both concerns.
 
-## Until a choice is made
+## Decision (2 Nov 2026): option 1
+
+The owner chose option 1. What was done:
+- `packaging/licenses/` holds the GPL-2.0, GPL-3.0 and LGPL-3.0 texts, x264's COPYING, and a README naming each component, its exact version and where its source is. The installer copies it into `resources/licenses`, together with THIRD_PARTY_NOTICES and S-CLAW's own MIT licence.
+- Every release built by build-windows now also carries `S-CLAW-third-party-sources.zip`. It holds the exact sources behind PyAV 19.0.2's FFmpeg build (pyav-ffmpeg tag 9.0.2-1): ffmpeg-9.0.2, x264 at commit b35605a, x265 4.3, the build scripts and PyAV 19.0.2.
+- The README also offers the source on request, through the repository's issues, for three years.
+
+## Before the decision
 
 THIRD_PARTY_NOTICES now states the licences accurately; the earlier note said "LGPL-2.1+ only", which was wrong. No code was changed.

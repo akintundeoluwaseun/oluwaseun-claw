@@ -317,4 +317,18 @@ jobs:
           Test status: see TEST_RESULTS.md and the windows-build-reports artifact of this run.
           "@
           $title = if ($env:NO_BRAIN) { "S-CLAW $version for Windows (choose your brain)" } else { "S-CLAW $version $env:EDITION (build $env:GITHUB_RUN_NUMBER)" }
+          # Option 1 of docs/LICENSING_VIDEO.md: the exact GPL/LGPL sources go with every release.
+          New-Item -ItemType Directory -Force D:\src3 | Out-Null
+          Push-Location D:\src3
+          foreach ($u in 'https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz',
+                         'https://code.videolan.org/videolan/x264/-/archive/b35605ace3ddf7c1a5d67a2eb553f034aef41d55/x264-b35605ace3ddf7c1a5d67a2eb553f034aef41d55.tar.bz2',
+                         'https://github.com/Multicorewareinc/x265/releases/download/4.3/x265_4.3.tar.gz',
+                         'https://github.com/PyAV-Org/pyav-ffmpeg/archive/refs/tags/9.0.2-1.zip',
+                         'https://github.com/PyAV-Org/PyAV/archive/refs/tags/v19.0.2.zip') {
+            Invoke-WebRequest $u -OutFile (Split-Path $u -Leaf) -UseBasicParsing
+          }
+          Copy-Item "$env:GITHUB_WORKSPACE\packaging\licenses\*" .
+          Pop-Location
+          Compress-Archive -Path D:\src3\* -DestinationPath D:\S-CLAW-third-party-sources.zip -Force
+          $files = @($files) + 'D:\S-CLAW-third-party-sources.zip'
           gh release create $tag $files --prerelease --title $title --notes $notes

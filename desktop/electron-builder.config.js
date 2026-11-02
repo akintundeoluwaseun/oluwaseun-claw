@@ -26,6 +26,10 @@ const extra = ['backend', 'engine', 'tesseract', 'models'].map((dir) => ({
 // Which edition this build is. claw/edition.py reads it from resources/edition.json and
 // it is the only difference between Claw Online and Claw Local at run time.
 extra.push({ from: path.join(stage, 'edition.json'), to: 'edition.json' });
+// Licence texts for the GPL/LGPL video libraries inside the backend (docs/LICENSING_VIDEO.md, option 1).
+extra.push({ from: path.resolve(__dirname, '..', 'packaging', 'licenses'), to: 'licenses', filter: ['**/*'] });
+extra.push({ from: path.resolve(__dirname, '..', 'THIRD_PARTY_NOTICES.md'), to: 'licenses/THIRD_PARTY_NOTICES.md' });
+extra.push({ from: path.resolve(__dirname, '..', 'LICENSE'), to: 'licenses/S-CLAW-LICENSE.txt' });
 
 module.exports = {
   appId: 'com.oluwaseun.sclaw',
