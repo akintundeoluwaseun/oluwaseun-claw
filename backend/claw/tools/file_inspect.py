@@ -91,8 +91,8 @@ class FindArgs(ToolArgs):
     modified_in_days: int | None = Field(
         default=None, ge=1, le=36500,
         description="Only files changed within this many days, e.g. 7 for this week's files")
-    modified_from: str | None = Field(default=None, max_length=10, description="First day, YYYY-MM-DD")
-    modified_to: str | None = Field(default=None, max_length=10, description="Last day, YYYY-MM-DD")
+    modified_from: str | None = Field(default=None, max_length=10, description="YYYY-MM-DD")
+    modified_to: str | None = Field(default=None, max_length=10, description="YYYY-MM-DD")
 
 
 async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:

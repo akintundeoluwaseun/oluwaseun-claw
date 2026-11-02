@@ -34,6 +34,9 @@ STATUS = {
     "7.02": ("PASSED", "benchmark: data-dedupe"),
     "7.03": ("BUILT", "add_chart with live totals"),
     "7.20": ("BUILT", "add_chart (SUMIF formulas follow new rows)"),
+    "7.04": ("BUILT", "build_model forecast (FORECAST.LINEAR, chart)"),
+    "7.15": ("BUILT", "build_model forecast reports the trend; table_totals per group"),
+    "7.16": ("BUILT", "build_model break_even (live formulas, chart)"),
     # 8/10 documents
     "8.07": ("PLANNED", ""),
     # 3. After Effects / motion

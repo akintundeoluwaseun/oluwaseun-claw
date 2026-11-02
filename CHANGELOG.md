@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — milestone 3, part 2 (models)
+
+- New tool, build_model, makes two kinds of workbook, each with a chart:
+  - break-even: inputs, contribution, break-even units and sales, and a revenue/cost table, all as live formulas;
+  - forecast: from numbers or a CSV/Excel column, using Excel's FORECAST.LINEAR so it updates with new actuals.
+- New benchmark set v1.2 has three data challenges: break-even, forecast and chart. Set v1 is unchanged.
+- docs/CHALLENGES.md numbers all 286 challenges from the owner's list and tracks them by evidence.
+
 ## Unreleased — fixes aimed at the baseline benchmark's failures
 
 - Folders are found by name for saving, listing and searching ("Flyers" finds Documents\S-CLAW Bench\Flyers). If two folders share the name, S-CLAW asks rather than guess.

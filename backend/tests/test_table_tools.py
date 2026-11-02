@@ -94,3 +94,19 @@ async def test_saving_finds_the_folder_the_brain_half_named(tool_ctx):
     assert r.ok and (d / "note.txt").is_file()
     r = await call(tool_ctx, "list_folder", folder="Flyers")
     assert r.ok and "note.txt" in r.untrusted_text
+
+
+async def test_break_even_and_forecast_models(tool_ctx):
+    d = bench(tool_ctx, "Models")
+    r = await call(tool_ctx, "build_model", kind="break_even", fixed_costs=500000, price=2500, variable_cost=1500, folder="Models")
+    assert r.verified and r.data["units"] == 500 and "500 units" in r.summary
+    ws = openpyxl.load_workbook(d / "break-even model.xlsx")["Break-even"]
+    assert ws["B6"].value == "=B2/B5" and ws["B5"].value == "=B3-B4" and len(ws._charts) == 1
+    (d / "monthly.csv").write_text("month,sales\nJan,100\nFeb,120\nMar,140\nApr,160\n")
+    r = await call(tool_ctx, "build_model", kind="forecast", source="monthly.csv", folder="Models", periods=2)
+    assert [round(x) for x in r.data["forecast"]] == [180, 200] and "rising" in r.summary
+    ws = openpyxl.load_workbook(d / "forecast.xlsx")["Forecast"]
+    assert str(ws["C6"].value).startswith("=FORECAST.LINEAR(")
+    from claw.tools.base import ToolError
+    with pytest.raises(ToolError, match="higher than the variable cost"):
+        await call(tool_ctx, "build_model", kind="break_even", fixed_costs=10, price=5, variable_cost=6, folder="Models")

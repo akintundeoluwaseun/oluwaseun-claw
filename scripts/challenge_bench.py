@@ -272,7 +272,30 @@ def scenarios() -> list[dict]:
         instruction="Open my project 'wedding.prproj' in Adobe Premiere Pro and export it as MP4.",
         checks=[("says Premiere or the project is not available instead of claiming an export",
                  infeasible("exported", "export is complete", "has been exported"))])
+    # --- v1.2: milestone 3 (data models and charts) ---
+    def sales_setup(f):
+        put(f, "monthly sales.csv", "month,product,amount\nJan,Rice,100000\nFeb,Rice,120000\nMar,Beans,140000\nApr,Rice,160000\n")
+    add(id="data-break-even", category="Data", folder="Models", setup=lambda f: None, set="v1.2",
+        instruction="Build a break-even model in the 'Models' folder inside 'S-CLAW Bench' in my Documents: fixed costs 500,000 naira, "
+                    "price 2,500 per unit, variable cost 1,500 per unit. How many units do I need to sell to break even?",
+        checks=[("a workbook was saved", file_like("*.xlsx")), ("answers 500 units", lambda f, d, a, r: re.search(r"\b500\b", (a or "").replace(",", "")) is not None)])
+    add(id="data-forecast", category="Data", folder="Forecast data", setup=sales_setup, set="v1.2",
+        instruction="Using 'monthly sales.csv' in the 'Forecast data' folder inside 'S-CLAW Bench' in my Documents, make a forecast of the "
+                    "next 2 months of sales and tell me the forecast for the next month.",
+        checks=[("a forecast workbook was saved", file_like("*.xlsx")),
+                ("next month about 180,000", lambda f, d, a, r: "180000" in (a or "").replace(",", ""))])
+    add(id="data-chart", category="Data", folder="Chart data", setup=sales_setup, set="v1.2",
+        instruction="Make a chart of total sales per product from 'monthly sales.csv' in the 'Chart data' folder inside 'S-CLAW Bench' in my Documents.",
+        checks=[("a workbook with a chart was saved", file_like("*.xlsx", test=lambda p: _has_chart(p)))])
     return S
+
+
+def _has_chart(p: Path) -> bool:
+    try:
+        import openpyxl  # noqa: PLC0415
+        return any(ws._charts for ws in openpyxl.load_workbook(p).worksheets)
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _hashes(folder: Path) -> dict[str, str]:

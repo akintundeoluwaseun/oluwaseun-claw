@@ -262,6 +262,7 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     (r"\bduplicate\w*\b.{0,60}\b(?:customers?|records?|rows?|contacts?|csv|spreadsheet)\b|\bdedup", ("remove_duplicates",)),
     (r"\b(?:total|sum|add up)\b.{0,80}\b(?:csv|spreadsheets?|excel|sales|files)\b", ("table_totals",)),
     (r"\bcharts?\b|\bgraphs?\b|\bdashboard\b", ("add_chart",)),
+    (r"\bbreak[- ]?even\b|\bforecast\w*\b|\bproject(?:ion|ed)\b.{0,30}\b(?:sales|revenue)\b", ("build_model",)),
     # A video comes first: "a promotional video" is not a flyer.
     # Making one, not searching for "video editors".
     (r"\b(?:make|create|produce|render|design|build|do)\b.{0,60}\b(?:videos?|animations?|animated|mp4|promo clip)\b"

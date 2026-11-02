@@ -425,12 +425,142 @@ async def add_chart(args: ChartArgs, ctx: ToolContext) -> ToolResult:
 def register_table_tools(reg: ToolRegistry) -> None:
     F, R, W = Capability.FILES, RiskLevel.READ_ONLY, RiskLevel.LOCAL_WRITE
     reg.register(ToolSpec("combine_tables",
-                          "Combine a folder's CSV/Excel files into one spreadsheet, with a column for each row's file.", F, W, CombineTablesArgs, combine_tables))
+                          "Combine a folder's CSV/Excel files into one sheet.", F, W, CombineTablesArgs, combine_tables))
     reg.register(ToolSpec("remove_duplicates",
-                          "Save a copy of a CSV/Excel file without duplicate records (same email or phone).", F, W, DedupeArgs, remove_duplicates))
+                          "Save a copy of a table without duplicate records.", F, W, DedupeArgs, remove_duplicates))
     reg.register(ToolSpec("table_totals",
                           "Total a number column across CSV/Excel files, optionally per group.",
                           F, R, TotalsArgs, table_totals))
     reg.register(ToolSpec("add_chart",
                           "Add a chart to a spreadsheet (new .xlsx, live totals).",
                           F, W, ChartArgs, add_chart))
+
+
+# ---------- build_model: break-even and forecast workbooks with live formulas ----------
+class ModelArgs(ToolArgs):
+    kind: Literal["break_even", "forecast"]
+    fixed_costs: float | None = Field(default=None, ge=0)
+    price: float | None = Field(default=None, gt=0)
+    variable_cost: float | None = Field(default=None, ge=0)
+    history: list[float] = Field(default_factory=list, max_length=120)
+    periods: int = Field(default=6, ge=1, le=36)
+    source: str | None = Field(default=None, max_length=500)
+    column: str | None = Field(default=None, max_length=80)
+    file_name: str = Field(default="", max_length=100)
+    folder: str | None = Field(default=None, max_length=500)
+
+    @field_validator("history", mode="before")
+    @classmethod
+    def _nums(cls, v):
+        if isinstance(v, str):
+            v = re.split(r"[;\s]+|,(?=\s)", v)
+        return [n for n in (to_number(x) for x in (v or [])) if n is not None]
+
+
+def _linear(ys: list[float]) -> tuple[float, float]:
+    n = len(ys)
+    xs = list(range(1, n + 1))
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxx = sum((x - mx) ** 2 for x in xs)
+    slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / sxx if sxx else 0.0
+    return slope, my - slope * mx
+
+
+async def build_model(args: ModelArgs, ctx: ToolContext) -> ToolResult:
+    import openpyxl  # noqa: PLC0415
+    from openpyxl.chart import LineChart, Reference  # noqa: PLC0415
+    from openpyxl.styles import Font  # noqa: PLC0415
+
+    folder = find_folder(ctx, args.folder)
+    if args.kind == "break_even":
+        if args.fixed_costs is None or args.price is None or args.variable_cost is None:
+            raise ToolError("A break-even model needs fixed_costs, price and variable_cost.")
+        if args.price <= args.variable_cost:
+            raise ToolError("The price must be higher than the variable cost per unit, or there is no break-even point.")
+        units = args.fixed_costs / (args.price - args.variable_cost)
+
+        def work():
+            out = _out(ctx, folder, args.file_name or "break-even model", "xlsx")
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Break-even"
+            rows = [("Fixed costs", args.fixed_costs), ("Price per unit", args.price), ("Variable cost per unit", args.variable_cost),
+                    ("Contribution per unit", "=B3-B4"), ("Break-even units", "=B2/B5"), ("Break-even sales", "=B6*B3")]
+            ws.append(["Input / result", "Value"])
+            for r in rows:
+                ws.append(list(r))
+            for c in ws[1]:
+                c.font = Font(bold=True)
+            ws.append([])
+            ws.append(["Units sold", "Revenue", "Total cost", "Profit"])
+            top = max(10, int(units * 2))
+            step = max(1, top // 10)
+            first = ws.max_row + 1
+            for i, q in enumerate(range(0, top + 1, step)):
+                r = first + i
+                ws.append([q, f"=A{r}*$B$3", f"=$B$2+A{r}*$B$4", f"=B{r}-C{r}"])
+            last = ws.max_row
+            ch = LineChart()
+            ch.title = "Revenue and cost"
+            ch.add_data(Reference(ws, min_col=2, max_col=3, min_row=first - 1, max_row=last), titles_from_data=True)
+            ch.set_categories(Reference(ws, min_col=1, min_row=first, max_row=last))
+            ws.add_chart(ch, "F2")
+            ws.column_dimensions["A"].width = 24
+            wb.save(out)
+            back = openpyxl.load_workbook(out)["Break-even"]
+            return out, back["B6"].value == "=B2/B5"
+
+        out, ok = await asyncio.to_thread(work)
+        ctx.memory.outputs.append({"path": str(out), "kind": "spreadsheet", "verified": ok, "note": ""})
+        return ToolResult(ok, f"Saved {out.name}. Break-even at {_fmt(round(units, 2))} units, i.e. sales of "
+                              f"{_fmt(round(units * args.price, 2))} (fixed {_fmt(args.fixed_costs)} ÷ contribution "
+                              f"{_fmt(args.price - args.variable_cost)} per unit). The workbook uses live formulas - change an input and "
+                              f"the results and chart follow.", {"path": str(out), "units": units, "sales": units * args.price}, verified=ok)
+
+    ys = list(args.history)
+    if args.source:
+        src = find_table(ctx, args.source, args.folder)
+        head, rows = read_table(src)
+        ctx.memory.note_file(src)
+        ci = _column(head, args.column, rows, numeric=True)
+        ys = [n for n in (to_number(r[ci]) for r in rows) if n is not None]
+    if len(ys) < 3:
+        raise ToolError("A forecast needs at least three past values (give history, or a source file and column).")
+    slope, icpt = _linear(ys)
+    ahead = [icpt + slope * (len(ys) + k) for k in range(1, args.periods + 1)]
+
+    def work():
+        out = _out(ctx, folder, args.file_name or "forecast", "xlsx")
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Forecast"
+        ws.append(["Period", "Actual", "Forecast"])
+        for c in ws[1]:
+            c.font = Font(bold=True)
+        n = len(ys)
+        for i, y in enumerate(ys, 1):
+            ws.append([i, y, None])
+        for k in range(1, args.periods + 1):
+            r = n + k + 1
+            # Excel's own FORECAST.LINEAR over the actuals: add actuals and the forecast moves with them.
+            ws.append([n + k, None, f"=FORECAST.LINEAR(A{r},$B$2:$B${n + 1},$A$2:$A${n + 1})"])
+        ch = LineChart()
+        ch.title = "Actual and forecast"
+        ch.add_data(Reference(ws, min_col=2, max_col=3, min_row=1, max_row=n + args.periods + 1), titles_from_data=True)
+        ch.set_categories(Reference(ws, min_col=1, min_row=2, max_row=n + args.periods + 1))
+        ws.add_chart(ch, "E2")
+        wb.save(out)
+        return out
+
+    out = await asyncio.to_thread(work)
+    ctx.memory.outputs.append({"path": str(out), "kind": "spreadsheet", "verified": True, "note": ""})
+    trend = "rising" if slope > 0 else "falling" if slope < 0 else "flat"
+    return ToolResult(True, f"Saved {out.name}: a straight-line trend over {len(ys)} past values ({trend}, {_fmt(round(slope, 2))} per period). "
+                            f"Next {args.periods}: " + ", ".join(_fmt(round(v, 2)) for v in ahead)
+                            + ". The sheet uses Excel's FORECAST.LINEAR, so it updates with new actuals. A trend line is a guide, not a promise.",
+                      {"path": str(out), "forecast": ahead, "slope": slope}, verified=True)
+
+
+def register_model_tools(reg: ToolRegistry) -> None:
+    reg.register(ToolSpec("build_model", "Make a break-even or forecast workbook.",
+                          Capability.FILES, RiskLevel.LOCAL_WRITE, ModelArgs, build_model))
