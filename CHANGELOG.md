@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — milestone 3, part 1 (data)
+
+- New tools: combine_tables (a folder of CSV/Excel files into one sheet, with a column for each row's source file), remove_duplicates (a clean copy, matched on email or phone with formats ignored; the original is untouched), table_totals (a total across files, optionally per group), add_chart (bar, line or pie, with live SUMIF totals that follow the data).
+- All four read money as people write it (₦12,000, (300)), match columns loosely, and find a folder by its name inside the authorized folders.
+- Each one writes a new file, reopens it and counts the rows before reporting.
+- A new recipe, work-with-tables, guides the brain to these tools.
+
 ## Unreleased — milestone 1 (benchmark) and milestone 2 (honest report, resume)
 
 - `docs/ROADMAP.md`: eleven milestones, done one at a time.
