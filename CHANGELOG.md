@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — reuse plan step 1: the limits in a request
+
+- `agent/constraints.py` reads "do not create files", "don't change…", "don't delete…" and "don't send…" from the request before planning.
+- A request that contradicts itself (make a spreadsheet, but create no files) is answered with a question before anything runs. The result is marked "Needs you".
+- The limits are written into the brain's instructions, and any step that breaks one is refused.
+- This replaces the single no-files guard (challenge 17.06).
+
 ## Unreleased — milestone 3, part 2 (models)
 
 - New tool, build_model, makes two kinds of workbook, each with a chart:

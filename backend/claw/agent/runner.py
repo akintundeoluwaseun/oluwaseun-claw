@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from claw.agent import persona
+from claw.agent import constraints, persona
 from claw.agent.executor import RunOutcome, run_agent
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.agent.titles import clean_model_title, fallback_title
@@ -129,6 +129,18 @@ class TaskRunner:
                 db.set_thread_title(thread_id, "About S-CLAW")
             emit("finished", {"final_answer": own})
             db.update_task(task_id, status="completed", result=RunOutcome("completed", own).summary())
+            emit("task_completed", {})
+            return
+        ask = constraints.conflict_question(constraints.read_limits(task_text))
+        if ask:
+            # A request that contradicts itself is asked about before anything runs (challenge 17.06).
+            if first_in_chat and thread_id:
+                db.set_thread_title(thread_id, fallback_title(task_text))
+            emit("needs_you", {"question": ask})
+            emit("finished", {"final_answer": ask})
+            res = RunOutcome("completed", ask).summary()
+            res["report"]["blocked"].append("Waiting for you: the request asks for two things that cannot both be done.")
+            db.update_task(task_id, status="completed", result=res)
             emit("task_completed", {})
             return
         state.browser.reset_task_state()

@@ -325,11 +325,11 @@ async def test_sorting_a_folder_and_finding_the_biggest_file(tool_ctx):
 
 
 def test_no_new_files_rule_stops_file_making():
-    from claw.agent.executor import breaks_no_files_rule
-    t = "Make a spreadsheet of 3 fruits and their colours, but do not create any new files."
-    assert "contradicts" in breaks_no_files_rule(t, "create_spreadsheet")
-    assert breaks_no_files_rule(t, "read_file") is None
-    assert breaks_no_files_rule("Make a spreadsheet of 3 fruits.", "create_spreadsheet") is None
+    from claw.agent.constraints import breaks, read_limits
+    lim = read_limits("Make a spreadsheet of 3 fruits and their colours, but do not create any new files.")
+    assert "not to create any new files" in breaks(lim, "create_spreadsheet")
+    assert breaks(lim, "read_file") is None
+    assert breaks(read_limits("Make a spreadsheet of 3 fruits."), "create_spreadsheet") is None
 
 
 async def test_zero_filters_are_ignored_and_hidden_matches_are_named(tool_ctx):

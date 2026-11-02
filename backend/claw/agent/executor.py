@@ -27,7 +27,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from claw.agent import jsonfix, persona, report, skills
+from claw.agent import constraints, jsonfix, persona, report, skills
 from claw.config import describe_validation_error
 from claw.logging_setup import log_event
 from claw.models.base import ChatMessage, ModelAdapter, ModelError, ModelResponseError
@@ -478,23 +478,6 @@ def invents_named_file(task: str, tool: str, args: dict[str, Any]) -> str | None
     return None
 
 
-_NO_NEW_FILES = re.compile(r"\b(?:do not|don't|dont|never|without)\s+(?:create|make|save|write|creating|making|saving|writing)\s+"
-                           r"(?:any\s+)?(?:new\s+)?(?:files?|documents?|spreadsheets?)\b", re.I)
-
-
-def breaks_no_files_rule(task: str, tool: str) -> str | None:
-    """The person said not to create files, and this step would create one.
-
-    Benchmark (three runs), 2 Nov: "Make a spreadsheet ..., but do not create any new files" - the brain
-    made the file every time and said nothing about the conflict.
-    """
-    if tool in _MAKING_TOOLS | SAVING_TOOLS and tool not in ("move_file", "rename_file") and _NO_NEW_FILES.search(task.split("\n")[0]):
-        return ("The person said not to create any new files, and this step would create one. The request contradicts "
-                "itself (a spreadsheet is a file). Do not create anything: finish and tell the person about the conflict, "
-                "and offer to show the table in your answer instead or to save it if they agree.")
-    return None
-
-
 _NUM = r"\d[\d,]*(?:\.\d+)?"
 
 
@@ -856,6 +839,7 @@ async def run_agent(
     window_tokens: int = DEFAULT_CONTEXT_TOKENS,
 ) -> RunOutcome:
     limits = ctx.settings.agent
+    person_limits = constraints.read_limits(task)
     fitting = fitting_tools(task, registry)
     hint = f"\n\nTools that fit this task: {', '.join(fitting)}." if fitting else ""
     recipe = skills.pick(task, skills.load(skills.BUILTIN, Path(ctx.data_dir) / "skills") if getattr(ctx, "data_dir", None) else skills.load(skills.BUILTIN))
@@ -869,6 +853,7 @@ async def run_agent(
                     # small brain on a CPU spends minutes reading before it says a word.
                     content=EXEC_PROMPT.format(tools=tool_catalogue(registry, {"__none__"} if fitting else capabilities, fitting))
                     + persona.for_prompt(getattr(ctx, "data_dir", None))
+                    + person_limits.for_prompt()
                     + remembered(ctx, task)),
         ChatMessage(role="user", content=f"Task:\n<<<\n{task}\n>>>\n\nSuggested plan (adjust if needed):\n{plan_text}{hint}"),
     ]
@@ -991,7 +976,7 @@ async def run_agent(
                 return stop
             continue
 
-        fake = invents_named_file(task, spec.name, args.model_dump(mode="json")) or breaks_no_files_rule(task, spec.name)
+        fake = invents_named_file(task, spec.name, args.model_dump(mode="json")) or constraints.breaks(person_limits, spec.name)
         if fake:
             record.update(outcome="rejected", detail=fake)
             steps.append(record)
