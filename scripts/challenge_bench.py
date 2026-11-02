@@ -328,7 +328,26 @@ def scenarios() -> list[dict]:
                 ("all three screen prices, as the pages state them", file_like("repair prices*.xlsx", test=lambda p: all(
                     x in " ".join(" ".join(r) for r in rows_of(p)).replace(",", "") for x in ("25000", "22500", "27000")))),
                 ("each row links to its page", file_like("repair prices*.xlsx", test=lambda p: sum("127.0.0.1" in " ".join(r) for r in rows_of(p)) >= 3))])
+    # --- v1.6: milestone 7 (video and audio by code) ---
+    def vid_setup(f):
+        _make_test_video(f / "promo landscape.mp4")
+    add(id="media-vertical", category="Media", folder="Video edit", setup=vid_setup, set="v1.6",
+        instruction="Make a vertical 9:16 version of 'promo landscape.mp4' in the 'Video edit' folder inside 'S-CLAW Bench' in my Documents for WhatsApp status.",
+        checks=[("a 1080x1920 MP4 was saved", file_like("*.mp4", test=lambda p: _video_size(p) == (1080, 1920)))])
     return S
+
+
+def _make_test_video(path: Path, seconds: int = 3) -> None:
+    import av  # noqa: PLC0415
+    from PIL import Image  # noqa: PLC0415
+    with av.open(str(path), "w") as c:
+        v = c.add_stream("libx264", rate=10)
+        v.width, v.height, v.pix_fmt = 640, 360, "yuv420p"
+        for i in range(seconds * 10):
+            for p in v.encode(av.VideoFrame.from_image(Image.new("RGB", (640, 360), (200, 60 + i * 5 % 120, 40)))):
+                c.mux(p)
+        for p in v.encode():
+            c.mux(p)
 
 
 def _docx_text(p: Path) -> str:

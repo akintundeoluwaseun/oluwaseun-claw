@@ -45,6 +45,11 @@ STATUS = {
     # 8/10 documents
     "4.07": ("BUILT", "make_3d_render turntable with Blender: rendered and checked with real Blender 5.2.3 (bpy) here"),
     "4.15": ("BUILT", "make_3d_render: Blender renders frames, S-CLAW encodes and checks the MP4"),
+    "2.04": ("BUILT", "cut_silence (audio; for a video, the soundtrack)"),
+    "2.10": ("BUILT", "reformat_video 9:16, crop or bars; size, length and sound checked"),
+    "2.15": ("BUILT", "find_black_frames"),
+    "2.18": ("BUILT", "reformat_video in 9:16 / 1:1 / 4:5 / 16:9 (MP4 only)"),
+    "14.04": ("BUILT", "normalize_audio, loudness measured again after saving"),
     "9.02": ("BUILT", "compare_pages: each value checked against its own page's text and linked to it"),
     "9.05": ("BUILT", "compare_pages"),
     "9.14": ("BUILT", "compare_pages (structured fields from several pages)"),

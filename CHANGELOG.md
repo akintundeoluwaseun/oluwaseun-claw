@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — milestone 7 (video and audio by code)
+
+- New tools, all on PyAV (FFmpeg libraries already inside S-CLAW), each writing a new file that is reopened and measured:
+  - reformat_video: 9:16, 1:1, 4:5 or 16:9, by cropping the middle or adding bars, keeping the sound;
+  - find_black_frames;
+  - cut_silence: silent gaps removed, adapted to the recording's own level;
+  - normalize_audio: several recordings brought to one loudness, never clipping.
+- numpy is now pinned explicitly (it was already installed with other packages).
+- New benchmark set v1.6: a vertical version of a video.
+
 ## Unreleased — milestone 6 (web research), and the backend hang fixed
 
 - New tool, compare_pages, collects the same facts from several pages (or the last search results) into a spreadsheet.

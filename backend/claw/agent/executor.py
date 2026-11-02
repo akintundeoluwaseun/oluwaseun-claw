@@ -251,6 +251,11 @@ def compact_args(schema: dict, notes: bool = True) -> str:
 # real-brain trial on Windows did exactly that for the flyer, the spreadsheet and the
 # copy. Naming the fitting tools next to the task is what gets them used.
 _FITTING: list[tuple[str, tuple[str, ...]]] = [
+    # Video and audio by code.
+    (r"\b9:16\b|\bvertical\b.{0,30}\b(?:version|video|copy)\b|\b(?:reels?|tiktok|shorts|status)\b.{0,40}\bversion\b|\b(?:square|1:1|4:5)\b.{0,20}\bversion\b", ("reformat_video",)),
+    (r"\bblack (?:frames?|screens?|gaps?)\b", ("find_black_frames",)),
+    (r"\b(?:remove|cut|trim|delete)\b.{0,30}\b(?:silen\w+|pauses?|gaps?)\b", ("cut_silence",)),
+    (r"\b(?:normali[sz]e|level|same loudness|equal(?:ly)? loud|volume levels?)\b", ("normalize_audio",)),
     # Web research into a sheet.
     (r"\b(?:compare|comparison)\b.{0,80}\b(?:prices?|pricing|features?|plans?|websites?|sites|products?|services?|competitors?)\b"
      r"|\b(?:prices?|pricing)\b.{0,60}\b(?:spreadsheet|sheet|table)\b", ("web_search", "compare_pages")),
