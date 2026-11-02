@@ -24,6 +24,7 @@ _NO_CHANGES = re.compile(rf"\b{_NEG}\s+(?:change|modify|edit|touch|alter|overwri
                          r"(?:\s+(?:any|the|my))?\s*(?:existing\s+)?(?:files?|originals?|documents?|anything)?", re.I)
 _NO_DELETE = re.compile(rf"\b{_NEG}\s+(?:delete|remove|erase|deleting|removing)\b", re.I)
 _NO_SEND = re.compile(rf"\b{_NEG}\s+(?:send|post|publish|share|email|e-mail|message|sending|posting)\b", re.I)
+_KEEP_ORIGINAL = re.compile(r"\b(?:a|an|clean|new|separate|cleaned)\s+(?:\w+\s+)?copy\b|\bkeep (?:the )?original|\boriginals? (?:untouched|unchanged)", re.I)
 _JUST_TELL = re.compile(r"\b(?:just|only)\s+(?:tell|show|list|answer|say)\b|\bread[- ]only\b", re.I)
 _WANTS_FILE = re.compile(r"\b(?:make|create|save|build|generate|produce|write|export)\b[^.]{0,60}?"
                          r"\b(?:spreadsheet|sheet|workbook|file|report|document|docx|xlsx|csv|pdf|flyer|poster|video|mp4|chart|table)\b", re.I)
@@ -67,7 +68,8 @@ def read_limits(task: str) -> Limits:
     first = task.strip().split("\n")[0]
     lim = Limits(
         no_new_files=bool(_NO_FILES.search(first)),
-        no_changes=bool(_NO_CHANGES.search(first)),
+        # "Save a clean copy" means the original stays as it is (run 5: the brain renamed customers.csv).
+        no_changes=bool(_NO_CHANGES.search(first) or _KEEP_ORIGINAL.search(first)),
         no_delete=bool(_NO_DELETE.search(first)),
         no_send=bool(_NO_SEND.search(first)),
         answer_only=bool(_JUST_TELL.search(first)),

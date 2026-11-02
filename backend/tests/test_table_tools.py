@@ -117,3 +117,10 @@ async def test_swapped_path_and_folder_still_find_the_file(tool_ctx):
     (d / "customers.csv").write_text("name,email\nA,a@x.com\nA again,a@x.com\nB,b@x.com\n")
     r = await call(tool_ctx, "remove_duplicates", path=str(d), folder="customers.csv")
     assert r.data["rows_after"] == 2
+
+
+async def test_clean_copy_never_takes_the_source_name(tool_ctx):
+    d = bench(tool_ctx, "CRM 2")
+    (d / "customers.csv").write_text("name,email\nA,a@x.com\nA2,a@x.com\n")
+    r = await call(tool_ctx, "remove_duplicates", path="customers.csv", folder="CRM 2", file_name="customers.csv")
+    assert r.data["path"].endswith("customers clean.csv")

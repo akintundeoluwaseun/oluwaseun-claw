@@ -288,14 +288,12 @@ def check_launch(args: LaunchArgs, ctx: ToolContext) -> None:
     # Start-menu shortcut may still be running, and launch_app handles that.
     if is_system_tool(args.name):
         choose_app(args.name, ctx.start_menu_dirs)      # raises, with the right words
-    try:
-        choose_app(args.name, ctx.start_menu_dirs)
-    except ToolError:
-        if _running_window(ctx, args.name) is None:
-            raise
+    # The "is it already open?" check is left to launch_app, which runs it on the desktop thread.
+    # Here (on the server's thread) it touched UI Automation directly and could block the whole
+    # backend forever - the 20-minute hangs in benchmark runs 3 and 5, both launching a missing app.
 
 
-def _running_window(ctx: ToolContext, name: str) -> WindowInfo | None:
+async def _running_window(ctx: ToolContext, name: str) -> WindowInfo | None:
     """An open window of that app, for the many apps with no Start-menu shortcut.
 
     Store apps, anything pinned to the taskbar only, and anything already open
@@ -305,7 +303,10 @@ def _running_window(ctx: ToolContext, name: str) -> WindowInfo | None:
     if ctx.desktop is None:
         return None
     try:
-        windows = ctx.desktop.driver.list_windows()
+        # Through the desktop's own thread, like every other driver call. Called straight from the
+        # server's thread, UI Automation (COM) can block forever - benchmark runs 3 and 5: a launch of
+        # a missing app froze the whole backend for 20+ minutes and every later task.
+        windows = await asyncio.wait_for(ctx.desktop.call(ctx.desktop.driver.list_windows), timeout=15)
     except Exception:  # noqa: BLE001 - the desktop may be unavailable; that is not this function's error
         return None
     needle = name.strip().lower()
@@ -319,11 +320,12 @@ def _running_window(ctx: ToolContext, name: str) -> WindowInfo | None:
 
 async def launch_app(args: LaunchArgs, ctx: ToolContext) -> ToolResult:
     try:
-        app = choose_app(args.name, ctx.start_menu_dirs)
+        # Off the server's thread: the Start-menu walk and Get-StartApps can take seconds.
+        app = await asyncio.to_thread(choose_app, args.name, ctx.start_menu_dirs)
     except ToolError:
         # Switching to a window is a way to reach an app without a shortcut. It is
         # not a way to reach one S-CLAW refuses to open.
-        already = None if is_system_tool(args.name) else _running_window(ctx, args.name)
+        already = None if is_system_tool(args.name) else await _running_window(ctx, args.name)
         if already is None:
             raise
         await _d(ctx, "focus_window", already.handle)

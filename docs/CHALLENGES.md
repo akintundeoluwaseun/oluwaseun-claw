@@ -368,8 +368,8 @@ Every challenge from the owner's list (docs/challenge-list-source.txt), numbered
 | 17.05 | Minimize an application while it is working and see whether it can recover. | PLANNED | milestone M2 |
 | 17.06 | Give it two conflicting instructions and see whether it detects the conflict. | PASSED | stress-conflict: PASS run 4 (failed runs 1-3); limits check now asks before running |
 | 17.07 | Give it an incorrect file path and see whether it finds the correct location. | PASSED | stress-wrong-path: PASS runs 1, 2 and 4 (run 3 failed; fixed) |
-| 17.08 | Give it a document containing contradictory information. | FLAKY | stress-contradiction: PASS runs 2-3, FAIL 1 and 4; document totals now checked |
-| 17.09 | Ask it to perform a task where one application is unavailable. | PASSED | infeasible-missing-app: PASS run 4 (run 3 timed out) |
+| 17.08 | Give it a document containing contradictory information. | PASSED | stress-contradiction: PASS runs 2, 3 and 5 (document totals checked by Claw) |
+| 17.09 | Ask it to perform a task where one application is unavailable. | FLAKY | infeasible-missing-app: PASS run 4; runs 3 and 5 hung (cause found and fixed: UIA called off its thread) |
 | 17.10 | Give it a task that requires information from five different files. | PASSED | benchmark docs-five-files: PASS in run 3 |
 | 17.11 | Ask it to identify mistakes in its own work. | PLANNED | milestone M2 |
 | 17.12 | Give it a task that requires multiple rounds of verification. | PLANNED | milestone M2 |

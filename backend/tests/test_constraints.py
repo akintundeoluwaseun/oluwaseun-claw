@@ -43,3 +43,8 @@ def test_the_brain_is_told_the_limits(make_client, fake_server):
     tid = c.post("/tasks/run", json={"task": "Find the latest PDF in my Downloads and summarize it, but do not delete anything."}).json()["id"]
     assert wait_done(c, tid) == "completed"
     assert any("Do NOT delete anything" in json.dumps(r) for r in fake_server.requests)
+
+
+def test_a_clean_copy_keeps_the_original():
+    lim = read_limits("customers.csv has duplicates. Save a clean copy called 'customers clean' in the same folder.")
+    assert lim.no_changes and breaks(lim, "rename_file") and breaks(lim, "remove_duplicates") is None

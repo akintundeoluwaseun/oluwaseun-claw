@@ -290,7 +290,10 @@ async def remove_duplicates(args: DedupeArgs, ctx: ToolContext) -> ToolResult:
             keep.append(r)
         fmt = src.suffix.lower().lstrip(".") if args.format == "same" else args.format
         fmt = "csv" if fmt in ("csv", "tsv", "txt") else "xlsx"
-        out = _out(ctx, src.parent, args.file_name or f"{src.stem} clean", fmt)
+        # Run 5: file_name "customers.csv" (the source's own name) produced "customers (2).csv",
+        # and the brain then renamed the original to make up for it.
+        name = args.file_name if args.file_name and Path(args.file_name).stem.lower() != src.stem.lower() else f"{src.stem} clean"
+        out = _out(ctx, src.parent, name, fmt)
         write_table(out, head, keep, "Clean")
         _, back = read_table(out)
         return out, head, rows, keep, dropped, back, [head[i] for i in cols]

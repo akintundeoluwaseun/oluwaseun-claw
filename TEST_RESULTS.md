@@ -1,5 +1,17 @@
 # Test results
 
+## Challenge benchmark run 5, v0.5.0-build.44, Standard brain, 2 Nov 2026
+
+Evidence: ci-evidence:benchmarks/v0.5.0-build.44-Standard-5. This build has reuse steps 1–4 and build_model; it does not have office or Blender.
+
+- **Set v1 (16 challenges): 94.6/100.** 15 PASS, 1 PARTIAL. Earlier runs: baseline 52.9, then 67.8, 87.9 and 84.9. False completions were 1 of 16 (6%).
+- stress-conflict (17.06) was answered by the limits check before anything ran, in 0 s.
+- stress-contradiction (17.08) PASSED: the document's own total was checked.
+- **Problems found:**
+  - **The backend hung for 22 minutes** on infeasible-missing-app, the same hang as run 3. The cause: launch_app's pre-check called Windows UI Automation (COM) on the server's own thread when the app was not found. Now every driver call runs on the desktop thread, and the app search runs off the server thread.
+  - Because of the hang, the next 7 challenges (sets v1.2–v1.4) could not start, so they are **not run**, not failed. The harness now waits for a busy backend.
+  - data-dedupe: the clean copy took the source's name, and the brain then renamed the original. The input-integrity hash caught this: customers.csv changed. Now "a clean copy" protects the original, and a copy never takes the source's name.
+
 ## Challenge benchmark run 4, v0.5.0-build.43, Standard brain, 2 Nov 2026
 
 Evidence: ci-evidence:benchmarks/v0.5.0-build.43-Standard-4. This build has the run 3 fixes, but not reuse steps 1–4 or build_model.

@@ -57,6 +57,11 @@ class Api:
 def run_task(api: Api, text: str, limit_s: int) -> dict:
     t0 = time.time()
     code, body = api.call("POST", "/tasks/run", {"task": text})
+    # Run 5: one stuck task made every later task "could_not_start". Wait for the busy backend
+    # (the stuck task was already asked to cancel) rather than failing the rest of the run.
+    while code == 409 and time.time() - t0 < 300:
+        time.sleep(10)
+        code, body = api.call("POST", "/tasks/run", {"task": text})
     if code not in (200, 201, 202) or not (body or {}).get("id"):
         return {"task": text, "status": "could_not_start", "http": code, "error": body, "seconds": 0}
     tid = body["id"]
