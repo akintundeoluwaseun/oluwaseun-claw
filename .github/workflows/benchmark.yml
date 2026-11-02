@@ -14,6 +14,10 @@ on:
         description: "Light, Standard or Pro"
         type: string
         default: "Standard"
+      set:
+        description: "v1 = the 16 baseline challenges only; empty = all"
+        type: string
+        default: ""
       only:
         description: "Optional: comma-separated scenario ids"
         type: string
@@ -83,7 +87,7 @@ jobs:
           $r = Invoke-RestMethod -Method Post "http://127.0.0.1:$port/brain/import" -Headers $h -ContentType 'application/json' -Body (@{ path = $first.FullName } | ConvertTo-Json)
           Write-Output "::notice title=Brain::$($r.active.name), vision file: $([bool]$r.active.mmproj_file)"
           New-Item -ItemType Directory -Force bench-report | Out-Null
-          python scripts\challenge_bench.py --port $port --token $env:TOKEN --out bench-report --only "${{ inputs.only }}" *>&1 | Tee-Object bench-report\console.txt
+          python scripts\challenge_bench.py --port $port --token $env:TOKEN --out bench-report --only "${{ inputs.only }}" --set "${{ inputs.set }}" *>&1 | Tee-Object bench-report\console.txt
           $rep = Get-Content bench-report\benchmark.json -Raw | ConvertFrom-Json
           $s = $rep.summary
           Write-Output "::notice title=Benchmark ($brain)::average $($s.average_score)/100, PASS $($s.pass), PARTIAL $($s.partial), FAIL $($s.fail), false completions $([math]::Round($s.false_completion_rate*100))%, avg $($s.average_seconds)s"

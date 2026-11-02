@@ -147,3 +147,6 @@ logic must behave identically on the Linux test desktop.
 described in that project's README — tier weight, keyword overlap, recency
 boost. None of its code is used: its retrieval path requires `chromadb` and
 `sentence-transformers`, which S-CLAW does not ship.
+
+| OSWorld-V2 (github.com/xlang-ai/OSWorld-V2) | ideas, not code | Apache-2.0 | Two ideas rewritten in `scripts/challenge_bench.py`: "infeasible" tasks scored on the agent saying so, and input-file hashing to catch unrequested changes (`desktop_env/safety/files.py`). See docs/REFERENCE_REPOS_2026-11.md. |
+| BrowserGym (github.com/ServiceNow/BrowserGym) | studied, not used | Apache-2.0 | Not installed (pins playwright 1.44 and lxml<6). Its MiniWoB++ approach is planned for milestone 6. |

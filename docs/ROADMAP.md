@@ -23,6 +23,15 @@ GitHub's Windows machines can run the free ones, so the work can actually be tes
 | 10 | Engineering by script | FreeCAD parametric part, KiCad netlist checks, MATLAB-style analysis in Python, control charts (SPC) | 12 | planned |
 | 11 | Multi-app missions | Chaining milestones 3–10 into one task graph, for example: CSV to analysis to chart to Word report to PowerPoint | 16 | planned |
 
+## Reference repositories
+
+docs/REFERENCE_REPOS_2026-11.md records what was taken from OSWorld 2.0, BrowserGym, open-operator,
+pywinauto and FlaUI, what was adapted, and what was left out and why. Changes to the milestones:
+- **Milestone 1**: the 16 challenges are frozen as set v1, and set v1.1 adds two OSWorld-style
+  infeasible tasks plus input-file hashing.
+- **Milestone 4**: gains a ValuePattern read-back after typing.
+- **Milestone 6**: gains MiniWoB++ as an offline browser test bed.
+
 ## What S-CLAW will not claim
 
 These need a frontier-size model or a paid app that cannot be tested here, so they stay out
