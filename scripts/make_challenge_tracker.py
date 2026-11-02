@@ -1,0 +1,118 @@
+"""Number every challenge in the owner's list and track its status. Writes docs/CHALLENGES.md.
+
+    python scripts/make_challenge_tracker.py
+
+Statuses: PASSED (real brain, clean Windows, objective check) · BUILT (code and tests here, no real-brain pass yet)
+· PLANNED (milestone named) · OUT (needs a paid app or a far bigger brain; S-CLAW says so instead of faking it).
+Edit STATUS below as results come in; the numbers never change.
+"""
+
+import re
+from pathlib import Path
+
+SRC = Path(__file__).resolve().parents[1] / "docs" / "challenge-list-source.txt"
+OUT = Path(__file__).resolve().parents[1] / "docs" / "CHALLENGES.md"
+
+MILESTONE = {1: "M8", 2: "M7", 3: "M8", 4: "M8", 5: "—", 6: "M9", 7: "M3", 8: "M5", 9: "M6", 10: "—", 11: "—",
+             12: "M10", 13: "M3", 14: "M7", 15: "M4", 16: "M11", 17: "M2"}
+# Whole sections that need paid apps or accounts we cannot test, or a far bigger brain.
+NOTE = {2: " (S-CLAW's own video tools; Premiere is paid)", 12: " (free tools: FreeCAD, KiCad, Python)",
+        14: " (S-CLAW's own audio tools)", 1: " (Photoshop by script when installed, else the built-in editor)"}
+OUT_SECTIONS = {5: "Figma needs an account; UI design needs a far bigger brain",
+                10: "needs your e-mail/Slack accounts", 11: "needs Notion/Trello accounts"}
+
+# Exact results so far, by challenge number. Evidence: TEST_RESULTS.md and ci-evidence.
+STATUS = {
+    # 15. Files
+    "15.02": ("PASSED", "benchmark: files-duplicates"),
+    "15.03": ("BUILT", "baseline PASS, run 2 fail; find_files largest_first added"),
+    "15.04": ("BUILT", "baseline PASS, run 2 fail; sort_into_folders added"),
+    "15.11": ("PASSED", "benchmark: files-date-range"),
+    "15.12": ("PASSED", "benchmark: files-compare"),
+    # 7. Excel
+    "7.01": ("BUILT", "combine_tables; benchmark data-combine-csv not yet passed"),
+    "7.02": ("PASSED", "benchmark: data-dedupe"),
+    "7.03": ("BUILT", "add_chart with live totals"),
+    "7.20": ("BUILT", "add_chart (SUMIF formulas follow new rows)"),
+    # 8/10 documents
+    "8.07": ("PLANNED", ""),
+    # 3. After Effects / motion
+    "3.14": ("PASSED", "built-in maker: 10 s promo video, release check + benchmark (After Effects itself not tested)"),
+    # 1. Photoshop
+    "1.06": ("BUILT", "make_flyer; Photoshop path never run"),
+    # 13. Accounting
+    "13.11": ("BUILT", "remove_duplicates"),
+    # 17. Stress
+    "17.01": ("PASSED", "benchmark: stress-missing-info (baseline PASS, run 2 partial)"),
+    "17.04": ("BUILT", "Carry on from where it stopped (resume)"),
+    "17.06": ("FAIL", "benchmark: stress-conflict - it still makes the file"),
+    "17.07": ("PASSED", "benchmark: stress-wrong-path, twice"),
+    "17.08": ("PASSED", "benchmark: stress-contradiction (run 2, arithmetic check)"),
+    "17.09": ("BUILT", "infeasible-missing-app scenario added"),
+    "17.10": ("BUILT", "docs-five-files scenario; save_report fixed, not yet passed"),
+    "17.17": ("BUILT", "four-part report tracks done/left"),
+    "17.20": ("BUILT", "four-part final report on every task"),
+}
+OUT_ITEMS = {  # single items beyond a small local brain or needing paid apps
+    "1.01", "1.04", "1.08", "1.11", "1.16", "2.13", "3.09", "3.10", "4.01", "4.03", "4.04", "4.09",
+    "4.11", "12.01", "12.02", "12.03", "12.04", "12.05", "12.06", "12.07",
+}
+
+
+def parse():
+    sections, sec, title = [], None, ""
+    lines = SRC.read_text(encoding="utf-8").splitlines()
+    for i, line in enumerate(lines):
+        m = re.match(r"^### (\d+)\\?\. (.+)", line)
+        if m:
+            sec, title = int(m.group(1)), m.group(2).strip()
+            if sec <= 17:
+                sections.append([sec, title, []])
+            continue
+        if sec is None or sec > 17:
+            continue
+        if sec == 16:
+            mm = re.match(r"^Mission (\d+) — (.+)", line.strip())
+            if mm:
+                instr = next((l.strip().strip('"') for l in lines[i + 1:i + 6] if l.strip().startswith('"')), "")
+                sections[-1][2].append(f"Mission {mm.group(1)}: {mm.group(2)} — {instr}")
+        elif line.startswith("* "):
+            sections[-1][2].append(line[2:].strip())
+    return sections
+
+
+def main():
+    sections = parse()
+    rows, counts = [], {}
+    for sec, title, items in sections:
+        rows.append(f"\n## {sec}. {title}  ·  milestone {MILESTONE.get(sec, '—')}\n")
+        rows.append("| # | Challenge | Status | Evidence / note |")
+        rows.append("|---|---|---|---|")
+        for n, text in enumerate(items, 1):
+            cid = f"{sec}.{n:02d}"
+            if cid in STATUS:
+                st, note = STATUS[cid]
+            elif sec in OUT_SECTIONS:
+                st, note = "OUT", OUT_SECTIONS[sec]
+            elif cid in OUT_ITEMS:
+                st, note = "OUT", "needs a paid app or a far bigger brain"
+            else:
+                st, note = "PLANNED", f"milestone {MILESTONE.get(sec, '—')}" + NOTE.get(sec, "")
+            counts[st] = counts.get(st, 0) + 1
+            rows.append(f"| {cid} | {text.replace('|', '/')} | {st} | {note} |")
+    total = sum(counts.values())
+    head = ["# The challenge list, numbered and tracked", "",
+            "Every challenge from the owner's list (docs/challenge-list-source.txt), numbered section.item. "
+            "Generated by `scripts/make_challenge_tracker.py`; statuses change only on evidence (TEST_RESULTS.md).", "",
+            f"**{total} challenges:** " + " · ".join(f"{k} {v}" for k, v in sorted(counts.items())), "",
+            "- **PASSED** — done by a real brain on a clean Windows PC, checked objectively.",
+            "- **BUILT** — the capability exists and passes its tests here; no real-brain pass yet.",
+            "- **PLANNED** — scheduled in the milestone shown (docs/ROADMAP.md).",
+            "- **FAIL** — tried with a real brain and failed.",
+            "- **OUT** — needs a paid app/account or a far bigger brain; S-CLAW says so rather than fake it."]
+    OUT.write_text("\n".join(head + rows) + "\n", encoding="utf-8")
+    print(total, counts)
+
+
+if __name__ == "__main__":
+    main()

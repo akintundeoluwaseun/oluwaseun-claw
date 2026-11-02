@@ -1,0 +1,973 @@
+Now we're talking. I don't want you testing S-CLAW with commands like "Open Notepad and type Hello World." That proves almost nothing about an agent's intelligence.
+
+You need to test whether S-CLAW can operate like a genuinely capable computer-use agent: understand complex instructions, navigate professional software, make decisions, manipulate files, coordinate multiple applications, recover from errors and complete entire workflows.
+
+I'm going to give you a serious challenge list.
+
+### S-CLAW — Advanced Computer-Use Challenge
+
+200+ challengesProfessional softwareMulti-step autonomy
+
+### 1\. Adobe Photoshop — Advanced image manipulation
+
+![Adobe Learn - Learn Photoshop - Combine images in creative ways](https://images.openai.com/static-rsc-4/WkRf-gpG84C9U-o-lDSWLiiNa14onI6DKkrdlRibun3oSjFcNyz4VmncKz_8GJJ23dtd_w1npERytWyiAYM8EeicULkfS-XiSjU3lZDzwwmz9i93w7iHdlNmhjBWb6mMQ2B9MIg4S6UdytGzGVjP_9-Lbwz9mfyZV8Xl4rQhtmu9RKCZ4_0Hk2NyIF3nFKXL?purpose=fullsize)
+
+![Reverse Portrait Compositing Course with Jonny Edward - PRO EDU](https://images.openai.com/static-rsc-4/5wwGKswNooHbieHj9TFdYUe2QIHl8-kAghqVkNvPWtUt_EOC32hyRYHRAjDXcN2-tPlIbDCrVsVYA6Wrg0yS6SXTpPWz59uUmGNBh2IFCEMJKd5mgYydrBRB8dYm8edBjrBp0PnrDlxE1VwM3Nr4nNWud1pfiyT2zXTlaHFVUgp-wSq9-9kuDYLew4U8jzBE?purpose=fullsize)
+
+![Is Product Photography easy? — Amir & Raika Creative Photography](https://images.openai.com/static-rsc-4/RrJjeyopW0XuiM5ujXJiCwFooFVxoxHKOKjV4j1-aiWyu1rMr-hT5pyO1_ViJm5d3Q5DBGqXh_JYfA0FSlr3orRgcb8KowT4wrwbS2azPhG-SDupTtUeTvqUxywIg4Y3MGvI1K08wzV1wI2nmsnVkMBe5pZ9fovzWhs3-ksCp-tjxHm1y0qm0IHzAuaW2-sV?purpose=fullsize)
+
+* Remove a person from a crowded photograph while reconstructing the background naturally.
+
+* Replace the background of a portrait with a professional studio environment.
+
+* Create a cinematic movie poster using five different images.
+
+* Extract a subject from a photograph and preserve fine hair details.
+
+* Create a realistic product advertisement for a smartphone.
+
+* Design a professional company billboard.
+
+* Restore an old, damaged photograph.
+
+* Colorize a black-and-white photograph.
+
+* Create a realistic shadow beneath a product.
+
+* Change the colour of a person's clothing without affecting their skin.
+
+* Create a double-exposure portrait.
+
+* Design a YouTube thumbnail using multiple images and text.
+
+* Create a 3D-style text effect.
+
+* Make a professional magazine cover.
+
+* Create a photo collage with consistent lighting.
+
+* Remove reflections from product photography.
+
+* Improve an underexposed photograph.
+
+* Create a professional passport photograph with the correct dimensions.
+
+* Design a complete social media campaign with multiple sizes.
+
+* Create a Photoshop action to automate repetitive image editing.
+
+* Open multiple PSD files and transfer selected layers between them.
+
+* Find and fix missing fonts in a project.
+
+* Export different versions of a design for print and web.
+
+* Organize a messy PSD with hundreds of layers into logical groups.
+
+* Compare two design versions and identify visual differences.
+
+### 2\. Adobe Premiere Pro — Professional video editing
+
+![Post-Production | Hidden Woods | Denver Video Production](https://images.openai.com/static-rsc-4/NMWHcuFB3J86-SSnRF7y_pm2XZulLfTjuezho2HJwenuc315wm7n275RkD3aImnz5S-ABS1XI71FYf0kKav1H2HEh85IW_PG5k-Chdn-GOLHkhldPEltSEknfSu12qODyoDu2vHnMzviWIWj-_KtYAn_uwvoPf-FUDLck1dD6_M4cj2wtNNZpgXdDxQvAfGB?purpose=fullsize)
+
+![9 Adobe Premiere Pro Plugins for creative teams](https://images.openai.com/static-rsc-4/lgLdc0aCxTj2CRD65OBXalazwLKzVdf-9UcnUiCkwfwE9J-aZSasYxQNRu8i4UV4VDuyq3GdK2_1jWuSXmeMjnpiCTE3EFoCemtIveEg0ODiqbEUpJdPl_9wE-asDvDniQ6qZ3soPHt6Fl86ALMcHzVwDjgPQeulHzFuwHv8RtkvEfR_aOK94Jsx8KM2Du0U?purpose=fullsize)
+
+![Edición avanzada de video con Adobe Premiere Pro | Jordy Vandeput | Skillshare](https://images.openai.com/static-rsc-4/p1ym3V3WAFFmug-8zOaX2HZ9-BJwMiEHH6FGsMk4T05eCEb_RoCQmBuCWOFJX6P7l1TSS8eKiOlpMMgp3sznF-pZZsYgFhs7Zqm62u1o57Fw7VFz4Kpg4IPLQs4dtfisRt8ReGs8AvmrNLU053nA7kF7nDLPmzAy3Mvlx2zMFMUZftvZ2xVZ5mg9fubaxwd_?purpose=fullsize)
+
+![A journey through grief at the Tribeca Festival: Adobe Premiere Pro, After Effects, and Photoshop bring “The Secret Art of Human Flight” to life | Adobe Blog](https://images.openai.com/static-rsc-4/YWPw7P_WjZsRLyZ_Yv8QQE21Llw6JuhvzklQbDJrSCcXkkpRMB_Ab3-LrsJfpytbrWRigL98ZCIa1uK1exd7eSWESeI6muMdTMj2VG_Nsz0YvXpoEDK1yJzSxQDtGrIFmVZt1dqf6Y9qnyCuyc5Jcy-_4zBl7sz5dOKOsyJdWiH0SVjpjyFNN93UTNFwYpYB?purpose=fullsize)
+
+![Video-Tools für Unternehmen | Adobe Creative Cloud für Unternehmen](https://images.openai.com/static-rsc-4/ICE0aD4uVsSWYJLqZtCpYgtMQ5Q2N0ewHaeodlSsThOhlA5ExSnfB2VA_wUrYkgU4HLHhcohcS_MIKcVhdVwZV4FN4D4lIcRwKlV8ppVP3CMog1_TmvEoWm6yU_-JnVyoB0jGu9dBi1hEb0LaEhrsBQRm3eh8lr96DB08tfqifpowo568S7yL8DvS92iVRq6?purpose=fullsize)
+
+![Get started](https://images.openai.com/static-rsc-4/zyCn6w13AyaFkrY72XhIdf3_6UZc9pP9Ouk5dVS_YvTCgRrUiTm7XbCjtThqdG_ckad9NhTUgS34N2qvnjw5yYdO98Q7jjnr8g8TifYDTs_Na9rGxAT0YkfPLnvG-9tgh7BeSKQ6lSyW5VlouuY131SP2SYC1LtbOk4uQcH1o0P6LX7xHM2EnjXDfK9lrWFh?purpose=fullsize)
+
+![How to Create a Signature Look: Build Your Own Photo & Video Presets | Canon Australia](https://images.openai.com/static-rsc-4/eqwPvbN5lh-eryM37gUXdao-iq84a1VBtnzzlQe8Vbv5Nvw1RmBdcGwL3WxwXyuldPNEnn6hmAGuxtNJ9KbZL-Ta17ScsRj8blpcNiNlSmqHQZ9dwz7A2vL6vRKREk57WlFSPYcxQmQ7fCOKQQs23aVUbWEjyia2JWwhyPiw4BbJGB2KXGRHcWeuaExDgD-Y?purpose=fullsize)
+
+![Las 10 Mejores Aplicaciones para Editar Videos en MacBook](https://images.openai.com/static-rsc-4/izJsIAsg5jgh9Vvr3avGNAcFZriw0iJFOcAm94XMSQIcoE32naTuxXWaUQXNVoH5PRvLZookkxTNI7N5XHWMXJf2_TMrl7MNumRrfMdclq8oxUtual5P42vbY8guQXZFrVld273teWYu876wWaNPtJCmvgk0GxILxB1YZ6Bq2QHDBwIrycOW47p-7I9s46zB?purpose=fullsize)
+
+![Professionally edit your youtube videos heartedly by Ahmee_editor | Fiverr](https://images.openai.com/static-rsc-4/VoPmGggDTa_ZgPlgBamZzOhTKZgf9-dM_zWrUtYKRsub_SZ1Sp-GWwjYPrgTubFFXCAZb1-Qw4avb9E0LrBVR2FHqmLkCkLaskk9tkijIq51oGHDRrO2vnKsHATkXpem01wa7AXzdTBcCKYe3oaQeKjjYK15rPvc51ZPjFu8CEisPuw_547XngaTz6BwBkPE?purpose=fullsize)
+
+![Premiere Pro Multiple Videos On Screen Template](https://images.openai.com/static-rsc-4/lkfvwBu0xP3RdrPzlroMwtvGk2iHg9xiPs7SIh8yduVhtMIHpmM7DywgUjgtzllyll38CLQ2hcEXqNz_hIi6ERS2QpiNKN-EtK7xb5Tgq9vsnwUEJ51Qi6EWKOuNpSsL3zmlNLWzXA_nw-a80y212PbdI24652Zd3qHU-A2wYN6nHA6CV7ayfqNxiw_o8KyZ?purpose=fullsize)
+
+* Import 30 video clips and organize them into scenes.
+
+* Create a 60-second promotional video from raw footage.
+
+* Synchronize external audio with video footage.
+
+* Remove unnecessary pauses from a recorded interview.
+
+* Create subtitles from spoken dialogue.
+
+* Add animated lower thirds to a video.
+
+* Create a cinematic opening sequence.
+
+* Apply consistent colour grading across multiple clips.
+
+* Stabilize shaky footage.
+
+* Create a vertical 9:16 version of a horizontal video.
+
+* Add sound effects at specific moments.
+
+* Create a documentary using footage from multiple folders.
+
+* Create a multi-camera interview edit.
+
+* Add background music and automatically adjust its volume around dialogue.
+
+* Detect black frames and unwanted gaps.
+
+* Create a professional real estate promotional video.
+
+* Replace an existing clip without destroying the timeline structure.
+
+* Export a video in multiple resolutions and formats.
+
+* Identify missing media and reconnect the files.
+
+* Create a reusable video editing template.
+
+### 3\. Adobe After Effects — Motion graphics
+
+![11 powerful plugins for Adobe After Effects](https://images.openai.com/static-rsc-4/fk3bNNaUng4Qj71MtGWd23PrklWSJoNT9I7knMCfSSe80qN-kR99IBRm3iZzn1pB9Ha27o6mqEJElP05yPqlDmxkWmVwC7zOPc2n2-Cn_HLWFLpcg2QX50lF3oeSJWbgk35SF-0QKuhB-P3gEtT1FZn2jdL8plfId_hiUo6Z-eQ1y3fPLXxjIl17nG6As3ho?purpose=fullsize)
+
+![Advanced Kinetic Type Animation in Adobe After Affects | Hongshu Guo | Skillshare](https://images.openai.com/static-rsc-4/BjrE0z-pBQqyjOgmEBJT4oq0cgxuSavlwO3fkfBv8gmyFSwyHsuHQjaoZGiA0hTr4qBLVkcnYgcm0rLSZxljRfwGRpfAuy9GVyToxhMt_8hTa_8nmQ6ZR00x6lCmJltweG-Rv5stjSk9ARPNhUYHa4PD9braNOLhROjuXe5skq8PxnwAMNRLMdGOJ6T8PJ3L?purpose=fullsize)
+
+![Create a simple logo animation by Artem_1205 | Fiverr](https://images.openai.com/static-rsc-4/CuErvrf6RDZ2ZFfFokxcPKbRdyGMxysUeOIIsEgvMwVRhcYRShvnlPY-bfJjqTgy_A9ii0JVCZ5EZep2TITwlP5yi2rXd_S0LzQCyu1wuHEIJJrk6-Lv0eqjETVlVIL-V8LItVg7BAdu4Fxc0fP5IEvd1GowrF3whCsqqIc5akaFnoygAVl-ghi5YGyyB-zt?purpose=fullsize)
+
+![SHAPE COMPOSITION :: Behance](https://images.openai.com/static-rsc-4/Xa0yCwH6Za5MRIAmI8RMFvZv18OcBrRxEJQjoaMS-2RGXTEKwcwmF9qnSdYqCGosi5UhNKXcYJENIVu-bsEPKv-pOcQKItaZAm5UcveBZjB2Wn42H4o1lsYx2znyOTD2ECHYYs6zmSQSRo1AYEKhNhVFVNtpiuTO-P6qcb89RcH0jHlhKvRlzgZ9offisBkN?purpose=fullsize)
+
+![AE+E3D-科技三维数据可视化效果图文教程- 虎课网](https://images.openai.com/static-rsc-4/GKa1APcv6Zd0zMuV8OZp98MatdQqhPuyOy2S2dDXVupJaOqvLDRWd-Y1zXDG4WcFCcisvQZJNHZedia1lwpu__UR9Rk7x_X3eySalf9E7ejeNswl99C-PsYayElGjNus5C6cKzkHOj5TsJoFHSnRERok-AJsTnAZrbhhwxIPmDZuw6SNa4isoIVdimSwSFP0?purpose=fullsize)
+
+![Adobe announces major motion design upgrades in After Effects - Videomaker](https://images.openai.com/static-rsc-4/d0VvTdPkI2pkw9Pcub3h9zAF16stPHrIxlfNbSzXVMxIlNdG7_4JQG4lG6sKRqa6ryTq9-B6mQLHxyUdV7qZH2gkq-ygDj0dt2i9l0Ey3UP8Gz85wh6fmfFUWEvo_3ulxjFwaX-apScm2b9cRtHLEVrxBB6Igq2LLWdVyu9zSulBvXOfLMXWj3_SZq49nQEg?purpose=fullsize)
+
+![What Is Effects In Video Editing at Nancy Grondin blog](https://images.openai.com/static-rsc-4/IUbIySZCAIKmLOKcNwyS1qTHJI7enCFzRrZzodu41sC8Wfr17eCYS_hJmlGRBryx-K0DfYqzGc1sNuTBoF_-jF-3Vw3M-NkhW6oTKdh4_Stxh0SXfJw8CEmhBSK45t0on9DrgYxyPG34GJm76Eybmjo2Q2DGMET0DgkF4LD1TLMgAMvIniv11Dy3jBISZEI2?purpose=fullsize)
+
+![Identity Design – Animation Experiments, animação](https://images.openai.com/static-rsc-4/g1AEt82SCDj6MkYd12-OQ9gDgOl43pNG5OH94pMPuBrDW4le_-fK5q0-2OPUKx7Wyr4mIXDekgdL5OrazYTnlbnuXCKHKBPpGpje_8W3AOLKqUQQizG5kwMia4F11LfIn6jHurriPAWHbedG_a4ijoQAvukIIYPnE3HoMZaL7N8QnxJSX_fPBg2lY-Nbmi-C?purpose=fullsize)
+
+![Profesional Motion Graphic Explainer Video](https://images.openai.com/static-rsc-4/dO6oTOsnSlvQltwHOcUKmIIeeURdJxjdVNBiJl92nCxpJdbptm-SAas8rZQvVbx-3XZFCdRNvcT0bq4Z9UaXBALK2i0QNoHsLMrSPf5Pyxjpm6yCZHVu00IqS5ikeDZu8FaQUA9Mubf7zLf8Shdz8omb2Upuvof5Y6zLvT3rf_vVa98po2CKcYphefg7PfPo?purpose=fullsize)
+
+![Kinetic Typography Stretch, Warp, Glitch, Distort Text :: Behance](https://images.openai.com/static-rsc-4/vQ7UGEnImcXqOEY7WEdtsdkacGnuW_BuaIBLlJ28lD_GMgF19hJX8nT2I2dQSN6Ig8cEnpdc0-1xoxA9GCfw6CXh659a-G1eqbHDo0ZsLZ0cz1VZFMUtdgdqnOUWffnAUF_9J7KpaaAskIiG7yAbgbQS0v0O46XlVMQTgdOjf6U-wf2zMD-Df0_ipa17b_vr?purpose=fullsize)
+
+![Adobe After Effect Complete Motion Graphics Course | Yash Rajoliya | Skillshare](https://images.openai.com/static-rsc-4/KW-T68F_iqM-xVpUh-ZXrtU8TuJxT6yCCp2ELWSZ7gGp2Sojt6lCT46SxONSa4qJa1FdR9xXhZtmaW6TXEU8q1xQf_In6s8yE1CO0zG54Y2G_JidQLM2ZTX3tMx0XU87vrF7Z2hYeZquqRueVjyVeG7mdBRgfPo0uZlwv8SO0cKoEhu_FHZfLCkKU_d5Jbaa?purpose=fullsize)
+
+![Adobe After Effects | Visual effects and motion graphics software | 1-month Subscription with auto-renewal, PC/Mac - Sky Is Not The Limit](https://images.openai.com/static-rsc-4/O-PR3zUZkuKBYja856BaPMQuNsx5fwsxaOjTq6urZKzxKfN7axjiY4adNdCq2o-0SyW5q_2nHPUgiIqwvTqGR44OHOC1HcRFf6NsUYM-e4ub2cHsbN6f9PGLHBZvHHZEEutsUe4jADF-WfgYQre_7pX3tfGf4ETiN0wOmesz2d0s1FgxRXVYjR4kZW0A0TQ2?purpose=fullsize)
+
+* Create a 10-second animated company logo.
+
+* Animate typography to synchronize with music.
+
+* Create a professional product reveal animation.
+
+* Build a 3D camera movement through a composition.
+
+* Create a kinetic typography advertisement.
+
+* Animate a complex infographic.
+
+* Create a professional news broadcast opening.
+
+* Remove an unwanted object using tracking and masking.
+
+* Track text onto a moving object.
+
+* Create a particle-based animation.
+
+* Build a reusable lower-third animation template.
+
+* Create a cinematic transition between two scenes.
+
+* Synchronize animated elements with audio beats.
+
+* Create a complete 30-second advertising animation.
+
+* Render multiple compositions from one project.
+
+### 4\. Blender — 3D modelling and animation
+
+![TOMIWELLA - 3D Product Visualization & Packaging :: Behance](https://images.openai.com/static-rsc-4/rs52S9nqtFt2pArOKDJ57CBiQThLwOQumgKBchP4bHkjQ-GPXLeqxHkIALfcP351G2sMFtcO0UvEpkyret6_crq8J0pES2yM2RFAjmj2Xyq5QqYOyQMGkhxD-63-Kr7u50nOWwm1TOIJgdcLTvAK0f5y5nWu9Da4Pgy-HH4mu2KoxGMB6Z3EsS2kDAA2qgNA?purpose=fullsize)
+
+![Open space modern small apartment - kitchen and living room - Finished Projects - Blender Artists Community](https://images.openai.com/static-rsc-4/47q63ehSi6ZjD-m99lYjMtDHFgEUNKs1RRJKAc28s3W9WizuWmjbZK5yWzdZ1shjCQ0T3Ve6cUah9O6qYTruSNQCdXd-Bx7wEu9OxokSP78B_lCrlAlYU9sCdXoH4NUGlTQzk3hoqNt-5aCoMLrDd3stogDXzYGLAImXF210yO-U0V-biQwSgMJ_7rWDIfQX?purpose=fullsize)
+
+![Echoes of the Past | Cinematic 3D Short | Blender animation - Finished Projects - Blender Artists Community](https://images.openai.com/static-rsc-4/7yO3V8yGlBo02WuqBKXc5XYpY__3i-X6RAtyfvbyETMfV_1kwZIdObjEUc-JdhsW9dO5_DOyMOl9S5nKZhgqqaqUV0e5uLu55Ssp8zR8eeDiB2uxfGr_8X1RSDBwRObxXSFl6xZ6ypIcOkuYVQEF3RHXwN8eGnfs09wBs2xvtoXpUgkiN6uBykgUwFTlyTBq?purpose=fullsize)
+
+![Modelado Y Renderizado De Una Botella Con Etiqueta En Blender](https://images.openai.com/static-rsc-4/o47x4LRCP-MPjx8hwG6xnZc2YCF7lg271RUCpGUFwqZqtg1tHhrbN4f5gh6GbqPIvbh6UOSfSV6yw194_kKTgugS1ogG9yRMbKzHGkTe-XSkS4LCHFk91s_1T7XMLnrW3zsme8UZa5Wmdi9n1d_XnZx0lQ_yo5GC4EiPtOgwxQiDwI6A_eWaYXY_xdoiF1Vd?purpose=fullsize)
+
+![ᐈ Curso Blender + Cycles - Formación avanzada en visualización de interiores curso online - CGwisdom.com](https://images.openai.com/static-rsc-4/fcGs3O892rmXdfR2qWdWpNgo8kv8KIJTyKXwj1qHLl6jrz2PBwyCqy7hFLgzySOgzdODq_9fDMRVTwMB30SJWkrzFu8MN5nhs0RrSwhqwWCIFSOEz7i6Bvvw-oYXKL3r6HEPTVEepr8_b5zSEBc_VILcHXTKWUXP2KY5Nj78sMW_hg2virIU787--_c1rvz0?purpose=fullsize)
+
+![Cgi ads and vfx ads, 3d product animation video by Vcomdesign | Fiverr](https://images.openai.com/static-rsc-4/crfiFJWaGwDH0w79vMDX6wTbWrNyP_T8pHxqxy88eo5QRkXnQaQL2HPARPtew_Ygc2jUbJGfjtGm_rPTLJoIOwdw47xGbAPfYJMy1NfyfDB_Xa9_IMHnxhSCRuSS4MiRtloJMoe8vwFGyNdIAENgTIB4aCsNavHLiIUDiwlS9PJCq4O9weuipusv32TQRVpy?purpose=fullsize)
+
+![Practising cinematic lighting in Blender - Finished Projects - Blender Artists Community](https://images.openai.com/static-rsc-4/x-Yap5ha_sftrFPXTi1eUTeTi9SUkUWi8szmxs_rjuiSuq-X6_0dSr4bbQeIl5iEXCPjX2QMjFupMTUqG8MaWqXvrVEihWAK8wlbBZnuNKl5KgynM9EASBGvuA7KUpZlW67-FiYTpwYn33PInqWfYzvr6M7vo5SJsGd5Q73FsZ1ZS-eGnJNNuqBQ_8ga0p2u?purpose=fullsize)
+
+![Realistic Interior Scene – Ready to Render | Architectural Visualization | Modern Dining Room - Superhive (formerly Blender Market)](https://images.openai.com/static-rsc-4/eiGUY5tQapF6iclORi_STQNXxT5utS4q7xLGwfY0p4qaG-bJbWzmtllt7bB2DeoGHJb7UyuLy7s5ddhpqM2Zn_aBspFZAvq7b9_BIj4I3V0cZZJ2jHhiqpwRLc6qCMtsIqH6hiybXIkSpZavq4xK6lmSPus_urapULje_o4IUrKJ58ViDToBXgYOi5UmkyYv?purpose=fullsize)
+
+![Mastering Cinematic Animations in Blender | Coloso.](https://images.openai.com/static-rsc-4/pKum0hggukIXt0RLQn_nMXt0yO0vweinodwigPF4XTNIlpI_FjvA1Dw5_2NGuzzO7JlwJYHx_1oaiTPjHKmhFTAwaLoq_2zVxKs10jD11EU_N_6VETvj6-uqUZr080-WMZ7qmhCIB_bMQ7Kr869HaWy6ob06um5LAkOV_HVysKK7Tdea_5Iw-wNu162zG0tA?purpose=fullsize)
+
+![Blender 3D Cinematic Night Scene with Realistic Lighting | Sibtain Ur rehman posted on the topic | LinkedIn](https://images.openai.com/static-rsc-4/jLiF7ayV-lLtKN8HWP45ecx3aWy9kvLRYUChgD3WtLNv1rLOk8BmN40rOn7XXfrKdGMuayA7OMuaCZIPM_HtEQKAuSdeoJ55TonS9SWE6YCHMn8kAWeTni4c03ivPjhTmX01cbrLfdePnBL9uR7hplx6miOH40_J6oQQ1Rkn_ZqDv5JkRmhf-0L_Bd-UakE-?purpose=fullsize)
+
+![3D CGI Product Visualization :: Behance](https://images.openai.com/static-rsc-4/KVDgYrGFX5SDot523hbQ67-cANAbqsrhM4rz4E-Fr0rdpp4DREK3v78C1NyoDBYdLVDZhnWEJ7L-M28tc-rlhid716Z8OhWsNL4hCs36-I2YlO0-HrzZ4bRIobZsKxEphqHjT0YtuZ-eTaOKNv3dw6W2eI_ISTATf_H7Dmp8pFWGJCl-TskA74HqOmllzpXR?purpose=fullsize)
+
+![Kurs online - Blender - Wizualizacje wnętrz od podstaw - CGwisdom.pl](https://images.openai.com/static-rsc-4/JCyG5DssQWVhED4jFw9Y4ZFZ7U7Lm0t9mxgtOROUnxEh5VQq3HNY4QPN20a75evL7ez1zaD2mPcr5BUn-LQe1On5mc4hyrJ-Ue1QW_QwccZN8DP6vSFQHGWScZoJk1elLa2IuzQIu0Z0NDZPl8qA2-KhjXLeY44YHhb2BA651CriBmYcgtvCi4mgDtkc-A5U?purpose=fullsize)
+
+* Model a smartphone from reference images.
+
+* Create a realistic product advertisement render.
+
+* Model a modern office interior.
+
+* Create a complete architectural visualization of a two-bedroom apartment.
+
+* Apply materials and textures to a 3D model.
+
+* Create realistic glass, metal and plastic materials.
+
+* Animate a product rotating 360 degrees.
+
+* Create a cinematic camera movement through a 3D scene.
+
+* Create a realistic water simulation.
+
+* Generate a procedural landscape.
+
+* Create a character rig and basic walking animation.
+
+* Fix broken materials in an existing Blender project.
+
+* Optimize a high-polygon model.
+
+* Create a physics simulation involving multiple objects.
+
+* Render a 3D animation and export it as a video.
+
+* Import a model and prepare it for 3D printing.
+
+* Create a professional product packaging visualization.
+
+* Build a reusable material library.
+
+### 5\. Figma — UI/UX and product design
+
+![Figma Dashboard Design by Digivijay Sharma on Dribbble](https://images.openai.com/static-rsc-4/9AFUtZyYvy5wx-qgn9tywkekv4a0QS12LFHUjV3a4FODikNTPYc-KhmYQ4s2oqnNj3VGDJMA7lAvzNFReFOAERXFjp-7an2qG978iEWHy51PGmjuws66XmNbR-LTCrKcRgeprmSrJeYRPqv5rxdBXsVcGeCI4PKh7MyLtICA4cDmo_t5A8WYs3YT2QPG-mKE?purpose=fullsize)
+
+![Learn Figma: The Collaborative Interface Design Tool | Figma Tutorial For Beginners | - JLVTECH](https://images.openai.com/static-rsc-4/WAdI6pW4KuJBmCIvcYFpeetiuhyvVKABhZTtlEK2KRELGVQjIqs2zVZcVzht3ZqsDkHybmnaBiVEfUwQuRS2s_8-cdsEA21farcQA1548kR8pP6VspYXxs6D_iqlC6hnVz8nHnLKoMc-cEdQnwxqYOFgJ6sQVndsPlD4cnxlnJO9crvIJKl1L_dnfhv-SoOv?purpose=fullsize)
+
+![How Figma aligns customer experiences across web, mobile and retail](https://images.openai.com/static-rsc-4/gRHqre0lJ_k9ga7K5DcLtoECvCfXDEoiaRKXUq5oui8Kf5d2XGIB1oFZ98jgm3qmZRuu9A6aM6u-cfaNohYdxPuzEK8pofdKxHEPXCAFlcWsH-PWisp5DEu70BsBGE-RgU4BBYMO0F1T_bwOfzo1H0NXqpf6HO6GiNeGguqY1dgOtoUofdCIx4YSOqjn-Mpf?purpose=fullsize)
+
+![Web Application Dashboard UX UI Design (SAAS, Admin Panel, Portal) - Figma | Upwork](https://images.openai.com/static-rsc-4/0Pa83Qwj4Flnps6coebBjFv2pSHdR3uWOZolUSjkSGmheP_vbFLR31OJI-TT83IVdYK6vEqnYsXfNVog-kOCW5Q6Bn6cJweaa4cS3e0osN9b3c1r_RjzwXnpqQsHWKG7KafoJYq8u0Brlw7hkcbzt_io8eiA_8T3soAW6MCb5A9fR0IWlPANU913C4ZuFj9U?purpose=fullsize)
+
+![Learn Figma: The Collaborative Interface Design Tool | Figma Tutorial For Beginners | - JLVTECH](https://images.openai.com/static-rsc-4/w7fjUyxqNTQILL5_c6DpBxd1YjoCreNkcKJbmbs-mDFAPj4rp-wrTLk3VLgIogX_Xw5TWC2kJlLHOzuKvyMqNl7DPIQ4GGwnx8HudEgiDuXAY9lWWS-EB09PEKbcwYeg40KqP3oZZLRGXKBtx9eT5LfibBH_-IFnPCEEaNN3dmzypCoRHFQql9ArK5vVSHss?purpose=fullsize)
+
+![#uiuxdesign #figma #autolayout #prototyping #designlearning #uxdesign #designpr | Faith Awe | 11 comments](https://images.openai.com/static-rsc-4/vcZTK_OICnP3mmPvD3h4-MV-NAM2LSPLpiKJ5fb744PQp2oq_bHBl1-Qed8tRXr8L7VLRrVK0evnCjUzVqLL9hUUk679VAjIiRL9Sj0GG_KASarcIDFg36JwHBw35O4Wy3K0ucUAFwGNKvIegdouwINLqyBGRNva6wGXHvSwHIkPC0JgK-N-ZPOwkrP929xu?purpose=fullsize)
+
+![Tellimer Design System — Shivani Nallainathan](https://images.openai.com/static-rsc-4/PZplLbp9_O8EHIUC3w0q21qOIrD2G3hESivjaVq5HQf1ZUnou-u6On1nYHAIiPmuiiO-DjAb1DMMAchWRZnGA4jF12TBSTiXMpe3o7ZDHRssJF0INafCQRM8Bl4fwhB-TXNg3F-2Da1Z5ST_rtJgOY3GNDAAziQYNOvEsnTQsHA_tRGFUBvkdLQQiSmaSxbP?purpose=fullsize)
+
+![Finance SaaS | Dashboard Design | Figma | UI UX by Airzon Agency on Muzli](https://images.openai.com/static-rsc-4/Rlv3KpxU8Rq51auMM2zeUuB0-yUfzJWFkb0ztV0np0X-g0WgP1maEffrchLChwmDyHySPxB4CfCLhZO-ajEw8nJY4n1MB-ltnmTjy5ALs1X5yDi_0lgNTfZDf7fionprfik0_0YAvQWds_QJPXdm0PPpipoPZzYNv_a-8rKHu-ziDP4pha5xi-PZEjsHPFVu?purpose=fullsize)
+
+![10+ Software untuk Membuat Prototype Aplikasi (Gratis)](https://images.openai.com/static-rsc-4/hQh4mPNBS63I1TO1w9Yrh5ycZVmk7fUqLJt9_j_HMyROnaGUUebPVSyz0xBRPE7c4-f2P2_J_CNky7R3WSrfiGMoGIGOxB7LyTQBUuTWY_0rYAyFIpL14nMJd7NJ99KDRCFD_dDnWhirDg5Vgsrl3zBfOCtztYo2Ujw-irNLbGV1Flt5xOJ6rwiqtFz6KGKI?purpose=fullsize)
+
+![Disy — Saas UI Kit and Design System for Figma](https://images.openai.com/static-rsc-4/RKwvAifP66eieOEL0FxktE7BLTOdalSmI9AnXo_INvoo081UGLCSI8QlgflE3yZf8bcfGbvXKFGnc_xZln28Qxm3lbvC1nI2cWChmlK_jjnd8P7uX7lPrdhOzk_6xiF2Y7Ky9DHLE-pnqW0PDizfAga4TFF8MWiUb7-Hjl0A46z4QW5Ss1JfS8fNegrBZEhO?purpose=fullsize)
+
+![CRM development for marketers and digital agencies](https://images.openai.com/static-rsc-4/EEI02rvY0ei0kkhIYHZzvUgYQTW7ucpDzxaTvlllAiqjoRswhKxcYbFDzQ6WVkvYPA20krkrMbR8Nr6XtRMSda0UUotOz1YyWnweJ-JsFaw48NEEm_wP4GbyN4YXWWh8wBLoknSU8fiqjNO0RhLRDeByijaRhqJHiBug2_4DT14SsFj4W9hOMcLu8xhWuUz_?purpose=fullsize)
+
+![Design app ui ux in figma with prototype by Dulce_gracia | Fiverr](https://images.openai.com/static-rsc-4/0YW4n2P2jWFflw8HmFccP6jYhvdOMohCg30yAKZ4cF6PclH2HuU3Uficj_9ZMzPKJTLmY8bROiWKPrCQXXZBiJxMikXnOAzNWPLc4NxQJdrCfJRwCzVnHMQjyU1V0cvfrbpZcdspxj1Y-2eSjPem9LsOPGodLu1rr1GUjJTu84cJZ-8tDvBvmQ3Czol0zJF0?purpose=fullsize)
+
+* Recreate a website interface from a screenshot.
+
+* Design a complete SaaS dashboard.
+
+* Build a reusable design system.
+
+* Create 20 reusable components with variants.
+
+* Design a complete mobile banking application.
+
+* Create a clickable prototype with multiple user flows.
+
+* Identify inconsistent spacing across 15 screens.
+
+* Convert a desktop design into a responsive mobile design.
+
+* Create an interactive onboarding experience.
+
+* Organize a messy Figma project into pages and components.
+
+* Create a professional landing page with responsive layouts.
+
+* Identify missing design states such as loading, error and empty states.
+
+* Create a dark mode version of an existing application.
+
+* Build a developer handoff with measurements and assets.
+
+* Compare two design systems and identify inconsistencies.
+
+### 6\. VS Code — Advanced software engineering
+
+![AI Frontend Generator Comparison 2025: Claude Code vs v0 vs Lovable... | Blog | Hans Reinl](https://images.openai.com/static-rsc-4/YFvaq4udiblOPm_yDZn5myOo5UPPLOFbRIRwQPo5yZQotCZTYv-puDAtLYZHDq6SCGPBb9tAa1Rf9y9gdu4YLaCmtnD1Bbzlx0DKZqRkKNKNQgfxwPFcf-W9Pbaszy_qqRey6-2yGkOvyVGAj3HP8108UHFiQ3_8JbI9bxvtaMFfWodKI1K-r7UspSFqlHPg?purpose=fullsize)
+
+![How To Debug React Apps With VS Code - Boost Your Debugging Productivity - DEV Community](https://images.openai.com/static-rsc-4/CvSIVMl1LpFIla4_cV5hqNt9SKcZyE8rK4LvcWMUCIqu1nT7ADvD_SkKY9LCl6x1ZLW8QMnPMxzVx3sozQcmpUr7PN6MvabCa8m_69r0ntkT9gpMYcvDho1DN5Uj1bAKDPZDT1qlpKc5NhQbMDo_0_wKKTccefXFdTtSEGIgXssr9ZzNpsZx1-r0lAMW0R15?purpose=fullsize)
+
+![As A Geek, How I Customized My Visual Studio Code Terminal in Windows 10 | by Vincent Zhang | Medium](https://images.openai.com/static-rsc-4/f5BpADy4XAY7NckogtAyox_T1SaSUWub0M3rV9T1NMcwu0Z-XQKBxUhFwYhq07f5QUl6K4Q-N9LACrxaBiHCwyGuTqprDz7MNTUacXBtQULudn0SuwVME1AOUHq1mpPl26Kbemgpwu9A4oldb89Wz0XT3KWpY7ZStRiT0nKtJUBhjmko9Lbc1dPUrP6cuDZA?purpose=fullsize)
+
+![12 GitLens Features that Revolutionized My Coding Workflow in VS Code | Microsoft Community Hub](https://images.openai.com/static-rsc-4/w3Kq325ZlffjkutyD_OGAmjoqai-TyWRzksgcBSzao-KHHi3udqZyE2DN59V2u20LYwNSXZA3YjkFSTzvNSLRhLLaeZk4vuJJ8_ULMCIRyxzTvja3-elMNtbgFL50ZCrDFiRPm4Suskz9J0BBRZDtCRzYxdF4Z9ylVnD3zKneOLRrCRQ3vI2Klr-GksQ2zIK?purpose=fullsize)
+
+![From Bash to Copilot: My Bioinformatics Terminal Workflow | BioBits by Steve](https://images.openai.com/static-rsc-4/LqAdaB4S7nbbLxj0Tv-szw9ilODYyWB60-U1LT5fJdEWyX4UbggtoTrZ6QqE6bjq5x__n15Vouyll7o1qq5BQrDpBjmvNpnp8ddeNUVqhPUpaRJHw7X3uF_iynSBzG3c28HZ-c1hz00IAbh8FbtYQuH0S3shLZDWiTBjG0LxXX4Xz_tzq84l_53xjH-oED3A?purpose=fullsize)
+
+![ESP-IDF 3.0 release - Development Platforms - PlatformIO Community](https://images.openai.com/static-rsc-4/uRWgwnJppgFs2KnQ-miBK71E1u_p_ORRVgSFl6cfB8Ufg1qU33SF62IXth01WIouBNZQ1Iy4v4WT41FMKye33QU-KG1RYWlfWlbmmVNo4V9Vw97vPODV8z1JPsedNliHpYDq4PCgPolFF_vmWOil64hqq1c7UCERAFLVtW4L6Z-MNUujrj-MFva_fNXatxCY?purpose=fullsize)
+
+![paiva-it-theme - Visual Studio Marketplace](https://images.openai.com/static-rsc-4/0w4Jr45POltBki_XpGsY_ZjpvwpPX7kcqhWuUYqfQ1eacEmia_oKvlWocUoPw_tOKrsG1PbAvqV4taZ2O9eHm9U7yfXwS4xezw1UgM0d-tXlkh3b3DkJtcQImMmKvlCsUeYjlpsrgCFbI7mWcub_6bWYbguVwAPga3UXC8EwWtVCAPKxZx348eeZ6Iaho7o_?purpose=fullsize)
+
+![node.js - Visual Studio Code - Debug Node JS through TypeScript - Stack Overflow](https://images.openai.com/static-rsc-4/wY-3sUMVc6mQ_yRcmtpLmZ92WhDrESqrbE0e4mzCZgYYQXIDuCvM-Qa88JLpsNFb3KJ3OT6bNko6yuTknGSoE9KB9JzTltnEBIHuDaJaTDi5DCpeaqGgGc5_8GwxGS2gkw1JpJzsqty3WWLeoxC9kHh7uY7pN7SuJ-WT5xLFI6RAHHbtv8eXPQKJT0lfyzmK?purpose=fullsize)
+
+![Introducing Copilot for VS Code. We are excited to announce our new… | by Hanyu Xiao | AngularDoc | Medium](https://images.openai.com/static-rsc-4/yGgj8PAyZZigqe8U6AJ_fG2i1fLglGhk_aSsK1RtDwIyfcM22PwsJVv3HBXUl_bInbFWYW0-9ZvW5g9Wt8MKmtVKdFNnvGzOGh9GDugz9a4ZYbktZVdaW8aVA3QR18psc8KEdUOG-TgelXCuvzGqTh9EB5DpnX_vlaeCmlKuF72SfHaMIZlF3Po7DUQ27brC?purpose=fullsize)
+
+![KeepTrack API](https://images.openai.com/static-rsc-4/e-e4qx5gWIVEhTGOkAT2-ss6bWsQVY7korQ02n4xqqVBYnFXMLgL55pgeZ3MLwqlZ2poVZs6WzUxFgOdyDVXg170JMdCYpi5LcvohsdLNqe6E2C0LPaWcqwu064OM_4Vuc4JVx0w5XGWgPNLysL8Mk-eG6U10oYB4mYoZSrX69SERNKQMAWwWoZ7eySPJbm_?purpose=fullsize)
+
+* Open an unfamiliar repository and understand its architecture.
+
+* Identify and fix a bug across multiple files.
+
+* Build a complete authentication system.
+
+* Refactor a large component into reusable modules.
+
+* Find and fix memory leaks in an application.
+
+* Run a project, identify build errors and resolve them.
+
+* Write unit tests for an existing codebase.
+
+* Identify security vulnerabilities in dependencies.
+
+* Update outdated packages without breaking the application.
+
+* Build a REST API and connect it to a frontend.
+
+* Debug a failing API request.
+
+* Find duplicate code across a project.
+
+* Implement dark mode across an entire application.
+
+* Add database migrations.
+
+* Create and execute a deployment pipeline.
+
+* Review a Git diff and identify potentially dangerous changes.
+
+* Resolve a complicated Git merge conflict.
+
+* Build a responsive dashboard from a Figma design.
+
+* Profile a slow web application and optimize its performance.
+
+* Create documentation for an unfamiliar codebase.
+
+* Run an existing test suite and fix every failing test.
+
+* Build a complete application feature from a written specification.
+
+### 7\. Excel — Advanced data analysis
+
+![CFO Dashboard Excel Template | Biz Infograph](https://images.openai.com/static-rsc-4/F6JlXkvEsjeWcu85sEKBlC_yzzWis2Q6oXbflNQbfsdXgz51IWvnBwcZp7riLV_ai9n4RyEuRnoDi3CPEUUS7rzqZbq7sMt3nlMORR9uhns5qB_6mDhSxpuRE9j8G25OMrwWTYGWdP1eh9vI-IMe8RYMj8jeyWciqOhec8Hl47AIxWoQDasloXkde72zJeBa?purpose=fullsize)
+
+![Excel Development — Excel Forge Solutions](https://images.openai.com/static-rsc-4/MKBsGvCQnz3_OG8sOknPyn8qvDQYVzsPZI-0wISFAYU4g4Ka6UoMABeA7h_qEioIHxusF-nBan7mOVe9qjhNwSXgTZ28BqbTp0km_74vs_1bKKyRL_wdiYTNnQd0wtWpv-xy7QwSP6TrPiyzqDnt4xVtJwlscQoahJO3usGZMXtYui5YNLS7DOc2meZmDiG7?purpose=fullsize)
+
+![Excel Dashboard Toolkit: 100s of Charts & Design Elements](https://images.openai.com/static-rsc-4/fMMuUx2y26oPHw4cr7pFNIu04H3Oxig0fWiwpSjONccy3V08rsXhrnaE0RntPiF7Ew75jfjrivbGniPaMyH_QzIMvM2Pja2Mid3pjqLhLClCRXshMUni34uMebEe4jPLoLd-u9IXNkDaJtQEjn-63dGB9ZlavFVTZR3I2g91CnZt51ANuFd_QunXLvnA5OKs?purpose=fullsize)
+
+![Upscale Restaurant Financial Model: Breakeven Feb-26, $3.9M EBITDA](https://images.openai.com/static-rsc-4/OIoUX2cG6tMa5BGidD6qJvD8stPiwwYWQJfrFwWYHyJhXEa-ec73M-s0S3gfhYMGSdYq4chEpKQeIquUIpBflszL40yNX3Hm5BZKJJzuI9vrsgEqbofSH5bnjr2dez6ySo-HtTPOJae_fHw5nIitySZwGbW1yxJaAfXRtKxBpIH6YWF8G5HUovAgg1wUExSt?purpose=fullsize)
+
+![Crear un panel de excel profesional](https://images.openai.com/static-rsc-4/dyr1jGG_3vy0CI7jpxwrYn5tAvSBokfpa5fiOYlneDLFAxLIajw1BAcuzCLmSkfg70JgOHo8pxXNSTybAf4tY5T55tnt2EoQlPRXSR32ZAfiXhyvnEfkdsE-IdzJjDWQiOzJHDNnGcVYjI3PKkU2SHKSNZYHvAjO_5jeDvzfuI1a36l3vEMUtntXtyVFGeqU?purpose=fullsize)
+
+![Online Course: Power Pivot Fundamentals from Corporate Finance Institute | Class Central](https://images.openai.com/static-rsc-4/d4018N1Orv77dX8720FrUGzmJmRuLQN6g0_vblHImbfzCPadotqOEtsJnkl9dWnHk-JpaV4fQlAe_OpOa24L_IQwnPmf5XO980A8iRsFtjOv318f-Lch3hkfebnKb3fgqa4Wxi3sjD4CRkY1mHihRFjDjHGAj0S65rfK-rLYF9HbwecHNvlC15EqJtSe0xyA?purpose=fullsize)
+
+![Microsoft Excel Superstore Dynamic Dashboard | by Fatih Karahan | Medium](https://images.openai.com/static-rsc-4/PK7zDyd36UsshGT-aKO_EDShsNEya10i1JYSMbYZMlFCWMVc6khaoTzguoVd0ZYvGDTFHLVUQIWZQNQy44tSJDuleJiIOkmNbHSw6D8Iudr4PZYLcHJgRzEFhLJglSvZSc9SgzrmJYxE6Cke1R-rpNgvPt41HsSFsTHdgVBn4_AZOcwYIjXEZIdP8eleMCl2?purpose=fullsize)
+
+![Daniel Marques](https://images.openai.com/static-rsc-4/NluCV4hSysVWXBXo0Z2LOsx0_iWaQ5g7QKtF4AVCl_pXDiJrKMxqeo9odtFBEEJlCxCsXEGQ7MmtemAx7oY_Orv0vzHSqoGTF8fNOMQGb57Rbqqj1fX30QbySN6lMuAc8rGGy-vnEU-Mj7zwCtfhVS5Xq9glkmw2ciN7Mcq38chsejwR0dAfY6lHpHgkBbQo?purpose=fullsize)
+
+![Spreadsheet review – can Power Query help: part 1? | ICAEW](https://images.openai.com/static-rsc-4/9aTcpcBLLr7fKl3gDdLfwxN8GhQKe5AEa1vdRaXGMphMF4mp7U6VCJh8mM00RUCfYK3sWoBf6sHjD0xoxRVC61N9qWYqsjt7ruDGAOaDoR6pD2Sg6KxATyWAKTXIkSyReQEOO22xnmoZHoHl5JILx86htksbH_2REqGtYxqFuiwi0FAKKM4rUo0pYOuWI_uM?purpose=fullsize)
+
+![Create interactive excel dashboard, google sheets reports and data analysis by Jawwadsharif | Fiverr](https://images.openai.com/static-rsc-4/YO7V063D9YzVD93PPRDV5MN9m1POVpUfh7aNF6PlLZIhJGEOYoLZWhVvl5cd2YqVU1ImqsTaWuncq6qXGnVlXEXnX4LHjie_Lk_P6F3avU42gKbfvogTBHhqS14vl2ZfMvBcQTVRNiEHsWvmFbUADlFQncR2HiHDCwvpn8l9tQBEsTzzigz-hcXm640EofME?purpose=fullsize)
+
+* Import 10 CSV files containing inconsistent sales records and combine them.
+
+* Clean duplicate customer records.
+
+* Create a complete sales performance dashboard.
+
+* Build a financial forecasting spreadsheet.
+
+* Create a monthly inventory management system.
+
+* Use Power Query to transform messy data.
+
+* Build a PivotTable report with multiple filters.
+
+* Create an automated employee attendance tracker.
+
+* Analyze customer purchasing patterns.
+
+* Identify unusual transactions in a dataset.
+
+* Build an automated invoice generator.
+
+* Create a production planning spreadsheet.
+
+* Use Solver to optimize production quantities under resource constraints.
+
+* Build an interactive sales dashboard with slicers.
+
+* Compare performance across 12 months and identify trends.
+
+* Build a break-even analysis model.
+
+* Create an employee payroll calculation system.
+
+* Reconcile two different financial datasets.
+
+* Generate a report from multiple worksheets.
+
+* Create a spreadsheet that updates charts automatically when new data is added.
+
+### 8\. Microsoft Word and PowerPoint — Professional office work
+
+![4.1: Microsoft Word- Advanced Formatting Features - Workforce LibreTexts](https://images.openai.com/static-rsc-4/DfEFfLxcW1SakY8gmL5NMDYAjU53F5WVcPMlDuFj1K3pvMTu4xlpVF1nwL69xQlo9z3xl99ZBPgTTrzYxQmLR0_fVvRK8Y35qcSlR1CzZgsoakws1hw9tj0yA5S_sHVrNw7nu3yL5ru_woSjupTdB9DN1EIX2pgWI557romnuJvnGeYliObAnBhdGw2e98gv?purpose=fullsize)
+
+![Project Kick-off & Status Report Deck | Project Management | Corporate Slides | Business Project PPT | Modern Professional Presentation - Etsy Canada](https://images.openai.com/static-rsc-4/2Sf8hYm4yFVIwRIYtoUN9SJTU79oxMk14BPNG0FevaUkvxE2sKu-3cEV9G4BIc1VxoK3R3efcgDRvDzrXVrEJ7vChyfMMO1MBqpFS2ELLJCRjELfQ-pwYlZ8qWnn_lp4UC06O5C4QVbXSVJmeQ2-bmv8lUZn5y4H024gQUqprVCvcjpzE1h4o0DnoCI_PpuE?purpose=fullsize)
+
+![How to Create Slide in PowerPoint](https://images.openai.com/static-rsc-4/I60q_WPjhjmQwtjPMvec8nifRV7Ugqw78lceiIVfxnqslp1nEAW0Xt04XPTtMrbKoai5rSKtRjbQGHSzbw8LmgVf7TilERWO21l02rQAlG7RB5Ml17Ah9odXHlNzqmX2GL9H739uhfYqMCw28wfKjRnGDVARzrYMyO77-5nBgMgvS2iIZMkK3SQg_008f2o8?purpose=fullsize)
+
+![Cómo usar Microsoft Word para escribir un trabajo de investigación – Softwareg.com.au](https://images.openai.com/static-rsc-4/X0UxLp52uDXVVR9WtZHAxnZKXjTQMVz0a4MvovFzIve7Qvtb5wEBgDdzbOTSBoZobgL5lY6MBkSF4DxlLf_fqczm9npVk3yzT1ZHvaO-rFFYhsNR382moKCgNAXzyvj_9zfi9WvbWrSff6YdLp7vq5k7sAKfz1IIr09a0wsWu59d05vAqT3NoKkjFDlO3QEL?purpose=fullsize)
+
+![Корпоративная Бизнес презентация PowerPoint — Каталог слайдов — Слайды и инфографика для презентаций](https://images.openai.com/static-rsc-4/XNNXqtzwrhqMItNh-oSbwmrKGnhxbcLjM9JGbvasZeuYRDtX4S27UAJSHp6uJT7-hHKOpzh1S9L2QFpKl-3mSLw9BwQxBzWVFId1iU9gT2GylpKAhlpuowORcNfabERQAI9ZqVX8-K6dND8zBMnaDfUnXCjTkx_ngF3lU0Ucr5STYpIBU8BcWDn-anDRmseH?purpose=fullsize)
+
+![PowerPoint's Designer tool just got better with a new update | Neowin](https://images.openai.com/static-rsc-4/nfqMIK2Y-eRrkvAIEVDbkEJj481CBHJ2vPwkm3KLlgSL_ynFiHdK0XfHEpnDv9ntbLEUjv-EbXWUI1w7sIYSzTsZQqwJUh3bOsugDzf_ufDya5sVVwgBWPzcp7rCLMSBm1YHnhG7kKYt2-99xJEm1kYnXLPxU2cX3mU3NGeMF9hu61Y5mMXIIaAWINn8UhlL?purpose=fullsize)
+
+![تصميم عرض بوربوينت power point بشكل أنيق - خمسات](https://images.openai.com/static-rsc-4/QHsn4p8Vt7w2wLTM6JSOEn3BaLzGHjTkXZiL9fyw7_ywakEyJj7FEZGZh1mOfs7H0jqpvdWbV4DNvwVdxpygG92_QdwwMYasxUjPSChAbeW1YV_GPw1sEAvNnS1Wjm5KzZPcoIi6HF2meXn_I60IYqExqhi0bqhg-h0Feo5-cMIcx-Cm2a1GCQlVvJ5_f8aT?purpose=fullsize)
+
+![Tải Miễn Phí Microsoft Powerpoint 2013 Full Bản Quyền Với Mã Sản Phẩm](https://images.openai.com/static-rsc-4/cWs3zfVIU1NICv-H4DjeAuniRPtBD7Z1lm0lghhAjjw5ok4ieJj74QncykUMOtJ2rwNojU_WbLbOAENTKNwpYWxu44KlCDn_k9j2xngN9IMOpSrcxiiW5DX143UO-o7iNJ0YG0hat0rN0PfAKtQ3YfE9rGTVT0HHJFERrWzXUu_CdhzjLatA_YM1vN6co6Op?purpose=fullsize)
+
+![Create table of contents or fix page number issues by Raskhan97 | Fiverr](https://images.openai.com/static-rsc-4/efjeW1GNN67wlN6ULDaeFAhBkJrr1ikPYDISV4jpvuC3L2MPIiz7BYBDs5uNU-F8bEa4qGdamadJ5w5KNMnv9lj7LjZmZyMMj7dRAI0aAMehjI898L5ue80JFtScTY6bD5CgyyjZBjpQ2UBIFHbT-kSlY0HkUvEYdQCFekc_bk9u0rm2p7KwcG_XDBzTuFOC?purpose=fullsize)
+
+![Descargar Microsoft PowerPoint 2021 para windows - Filepuma.com](https://images.openai.com/static-rsc-4/CSW5E6MZbi1H3q66GMMS4TFugezShv16aUAm8mRtMY9v_MLJiGjVSUP7_7cMHv1VWkbt-cv61pSgs3JeSau5ImXCqB669lcZcCUL-e_OL40UamgoNG3o-uRt_I_GCLKFDumaU4il3elvKC6sB4c2OgFpztUZ7Xr9GOBpELB3wjfZA7MQyWzpGW4S3hntz9BA?purpose=fullsize)
+
+* Format a 100-page academic report with automatic headings and numbering.
+
+* Generate a table of contents and list of figures.
+
+* Create automatic APA 7th edition references.
+
+* Compare two versions of a document and merge the changes.
+
+* Find inconsistent formatting throughout a document.
+
+* Create a professional business proposal.
+
+* Convert a PDF report into an editable Word document.
+
+* Create a 30-slide investor presentation from a business report.
+
+* Extract charts and tables from a Word document into PowerPoint.
+
+* Create a PowerPoint presentation with animated transitions.
+
+* Reorganize a 50-slide presentation into a logical narrative.
+
+* Create a branded presentation template.
+
+* Generate speaker notes for every slide.
+
+* Create a presentation from an Excel dataset.
+
+* Export a presentation to PDF while preserving formatting.
+
+### 9\. Google Chrome — Browser intelligence
+
+* Research 20 competitors and compare their products.
+
+* Open 15 websites, extract pricing information and create a comparison spreadsheet.
+
+* Find 30 potential customers in a specific industry.
+
+* Research a company and create a detailed company profile.
+
+* Compare three online services based on features and pricing.
+
+* Download documents from multiple websites and organize them.
+
+* Fill out a multi-page application using information from approved documents.
+
+* Find relevant research papers on a particular engineering topic.
+
+* Compare different sources and identify conflicting information.
+
+* Research a product and create a purchase recommendation.
+
+* Monitor a website for changes.
+
+* Find broken links across a list of websites.
+
+* Research a business's contact information from public sources.
+
+* Extract structured information from several web pages.
+
+* Navigate a complex website and complete a multi-step workflow.
+
+### 10\. Email and communication software
+
+![Sidebar Missing In Outlook at Charles Dunaway blog](https://images.openai.com/static-rsc-4/d5K-KmTLs88NHtbYuAJOPb1sWjN_F5UooiQsswJH3aZ-4grQLen7UjKtx-rx-U-ua3Fva3hBuDj9V0C_Y4wUY9zk_w_XszldqKmzUOhZn7jmABAheDpmlDa9w0EcWpgDYv8w5ElUMauUeYdF0orYd3HuD3qnzgeSVluCM64NeCxPvW856HeOW-7tHHVp7MsE?purpose=fullsize)
+
+![Slack features: Team collaboration tools
+ | Slack](https://images.openai.com/static-rsc-4/h7-6QCQJZUwNxX-Wz7yNBkPXh4Dp85olQJypHOJeXA92DXU96AkOTyR9LJAcXf-TqheQB2k_2I764DE4-TMuDQxLodkuLeUEDlX_7FiZ8D8B2Ek0E6Fn_bmnOFNhj5rCr9n6FQ3NU1iOmvF_zCJYgUaWnjUXXXnExhVYhny_FiGja1ioP7SbKdhRJ1C-56BQ?purpose=fullsize)
+
+![Zoom & Docusign: World ID for Business | World](https://images.openai.com/static-rsc-4/MNNvR8wB0FQJcumRg72qOcRd7T_1RLlfouJs7lQ8hYJEZx7Y71Z3a8g1DmTZfd0b09oOt0q5KbBfyk775VQXDI_199C7DG5ctks0ppjMTGmjUQGJGX0vc709n_TDPxnZvNWM428fVh7uiafhUGkF8r9iLteb5AR9G9xDbRIOJXVPWlsjJa-cGPU01MRLbg4B?purpose=fullsize)
+
+* Analyze 200 emails and categorize them by importance.
+
+* Find emails related to a particular customer.
+
+* Identify unanswered emails requiring follow-up.
+
+* Draft personalized responses to 20 customer inquiries.
+
+* Extract invoices and organize them by supplier.
+
+* Find meeting invitations and create a schedule.
+
+* Summarize a long email conversation.
+
+* Identify conflicting meeting dates.
+
+* Organize an inbox using folders and labels.
+
+* Create a weekly business communication summary.
+
+* Search Slack conversations for project decisions.
+
+* Summarize conversations across multiple Slack channels.
+
+* Identify outstanding tasks from workplace conversations.
+
+* Create a meeting agenda from previous discussions.
+
+* Prepare a follow-up report after a meeting.
+
+### 11\. Notion, Trello and project management
+
+![Project Management Hub Template by Gridvio | Notion Marketplace](https://images.openai.com/static-rsc-4/6e1oG6Y_aW5V5yDl222hE8Y8t-T__05L0OPLqrtY2b6KrmvS_M-QH4eaVLv4afPJUAGCFGr_eoifL-Irt3_HiUqUmKW08dRjhIxW2MfVWL_nPAWNaujkMp5zdq2VbJkW7b3h6jvrTVNAFmmVU9MPLCBztqWrhslDc_LeRhpbcV451et11onvlpgBLkBnIYcR?purpose=fullsize)
+
+![How to Manage Multiple Projects in Trello: 3 Best Strategies](https://images.openai.com/static-rsc-4/3poAEst4SGFRippmXsJfSwOfHq_qcmOyk-tdGmj_g0bk11b0z6ZMKS6b0dSIecPZIpjG9PbvtuB1pBX9aUzy1YQkeGQVdiY-D3N5iylm7WNT4RO3Glj5fYbetC5pf19AxHau2aCtBzaLCzEZkCxKE8rjJ9CAALpj-C23DZ15JBLoWYAUrg1Z_hvtKLsQKB4_?purpose=fullsize)
+
+![Company OS + Wiki Template | Notion Marketplace](https://images.openai.com/static-rsc-4/F1oZamKzSuVUB-4wtY8SAqPqTnvmWznrQTj_UMv7RI3vdQx7XHwnFWzTMBIY3wgtF75GMDUfLj4fybK08q8NsRobbqcwViKsBhr5MfJ94yqbJBNiHLZe2jYu_4C61t4xOb7891cTi9wI1cyfJLtXSIOJ_N48LJm7tncuvox2tdj-wOLZAHdMKew-Bc9oR2Xq?purpose=fullsize)
+
+![Notion 專案排程範本 | Notion Marketplace](https://images.openai.com/static-rsc-4/30RhxcL_qdR5e_PUIzvtBiF5bqWmpApzNFPrIa7lehan5e4mGgxsog1EIgzGHVHUYTF1kKw5p5iL7auj2IF7bRwZWKhvlsVVbU74iZxTrnWjauwbzH_p3VHDZpEfs0THk8OR-751VUG-phmMdJyzoiMNCqnUJLOnQp2NSfhLH4jGIQt570eQRQqGVAPpTVfJ?purpose=fullsize)
+
+![Power of Notion. Overview and 🎁 bonus template for a design project | by Markiyan Vaskiv | OffGrid Design Community | Medium](https://images.openai.com/static-rsc-4/RHRq9xLnDoYLjVOTw7r3huc2XUHEqC0_aOrIP-VtqUK7IIyNZqOUpfUgXp9yl5KoF0fCmVrgHZQtpRvkRtxZ-w9g61TdlShDlegv4idlcd_3l3MQHo9svxc1SGOgH-LxDntczdBLmRlROkcDWEN-HQgX3GWDyKDEKZR5HxmHWP8e8N3f5Qh9vfzikJImIi0p?purpose=fullsize)
+
+![Execution Compass – Life Operating System | AI-Powered Notion System](https://images.openai.com/static-rsc-4/UCDcXIyLvYBWaEBssHa0U4IQEzfCTZbMHdj87Wmy48jgWHWRdcUfqxrX4N1zvdg4jcrDv6RRcTWkJQmlag0wT95WlUjkjYdK0xOqVIQ2eKktpvqjgPCU6PZ-ITmG1PIng_p9vAAR_VCWIDEcBIi7vzoz1BHw8DrSJ_VemRFUvuRUXZa6MhqtI4tAguHxNExg?purpose=fullsize)
+
+![ULTIMATE Project & Task Manager Notion Template
+ – The Organized Notebook](https://images.openai.com/static-rsc-4/azL4JbAQ9PB-rJaXP3uUvd6frI481VWqx-twaHG04umjsKPpOxn-8QSgBu1aWhbuxE4pe4oHMX9tXZfU90bmdfO6PwU7NRmdm__iZZ-8e2HrKi1whp1WtjW28_ezbvkPabnoGQN0_RVPvat36GWYqVSr9BqwN8D64gqjU22I-zTezyCLzSxjjekgORF7DY-L?purpose=fullsize)
+
+![How to Customize Your Trello Board: Views and New Features](https://images.openai.com/static-rsc-4/jT9Fnib5CblxlSjhSN1mbbsdY1zS1ulE-LgkpMYP1nhM0y2LONBBYtdCY5G8xyOTRyTaP5yxIuj9B8fb_V5s-9ZzrNRPQq2FTgt4S-mXNz_MFR3QOGgWxf_Iu22hXuH1xToooF1hVZ9pkhwjYWjCBJc6qGJxuZ8AYqR0Wp_C8rYuZnHErkD2QJbdcCEqe1n3?purpose=fullsize)
+
+![Small Business OS Template | Notion Marketplace](https://images.openai.com/static-rsc-4/uMcT4djFgBP3PsXIHVIUj_5xKLlqETKIpaGDhyGWbN5cJNwJPXKlcoLW7yk2ADQD6vtwYvXVTjEzWwlnEnTGU3YaiJEz-OnRCjw1ulFyTmEq7XyQ4vM7WRzZa0v3XfmvKeBaQnf0lcHaQEaIpsd0ynDjfRHUxK9Lc9TNWr9XfKO99175PQjDnRevC7Ywfg9w?purpose=fullsize)
+
+![360 Business cockpit - Notion template](https://images.openai.com/static-rsc-4/qCmMb6NfbbbEXzHyEWonj2BIRKLwocY51TcYofFnTtn6BzTEkR5Uyt8FLytOh7an8QsC9X8-KtunRTiWtT1gGXGdc0Guhoe-d1i9-TietuqCKGJLdurf9TJRr6J5qQdETC2oLpwaZtIIQcABryX1FN4KHqtaximkPqIEI7TdWAXqUkrlySIEzBrhMZ-CFgcw?purpose=fullsize)
+
+![The 6 best AI project management tools: Tested and reviewed in 2026](https://images.openai.com/static-rsc-4/45x1CvHmI2JE6JkuaJyEjysjk5UmSpT9u4JhTyZEeXI6EZQ2wUGAPKp6W43RE-wDWMh__SPPUMuV50nznLmo8RMPPzS3S6bfoywPNCLYPet2fa4r7DwEcFSTyF3LRxormEluhpI7xpe5qC__eFSFPNeC9d5vkmwFKCwMUIr0RucSw4kCLBjmYbO1V2ZD2KT1?purpose=fullsize)
+
+![Notion vs. Trello: A Detailed Comparison Guide](https://images.openai.com/static-rsc-4/X7GsGh6T7RQ4XygL2oWYdma0b0V9A8BMl_kpa3TLglaw8j8k1kKklamWRFN3A1KPTcWUWwGA8QxNNqzLHTQeZ-RMN8Kf4cGiOwhfyt00eNF7U0n-BV0wAnM_cb1YPVt4GDKCRhGqGEdGO7NcbNF94xmu57k2YoCZTCa5h4NZzRpS2jBp7kDrXokt6wZnraQC?purpose=fullsize)
+
+* Create an entire project management workspace.
+
+* Convert a document into a structured project plan.
+
+* Create a Kanban board with task dependencies.
+
+* Identify overdue tasks across multiple projects.
+
+* Generate a weekly progress report.
+
+* Organize hundreds of unstructured notes.
+
+* Create a knowledge base from multiple documents.
+
+* Build a product development roadmap.
+
+* Assign tasks to different team members.
+
+* Identify project bottlenecks from task histories.
+
+* Create a project timeline with milestones.
+
+* Convert meeting notes into actionable tasks.
+
+* Create a bug-tracking board.
+
+* Build a content calendar for an entire month.
+
+* Create a reusable project template.
+
+### 12\. Engineering and CAD software
+
+This is particularly important for testing S-CLAW beyond typical office automation.
+
+![AutoCAD : A Key Skill for Mechanical Engineers](https://images.openai.com/static-rsc-4/EwRm_roZ3ctYIENP_k8pmmFqim4-TFzjVrXfe6x289j2zdoUmV6seIUIySq-2SSy98rORaSel5p8ysKM7PePj__l0uCFhVhleYnwZyFxUukVTqJpOm0TnJnQiDjFFyizZZZoOlKhC3B9_wCGCPX8zlOoNPxbbqW1QprBpVCgWcV-j8IqgEkhkbit08ANl1td?purpose=fullsize)
+
+![Doğrulama](https://images.openai.com/static-rsc-4/2vNvTZMm9p7wiynB5oIW5_CvAet1-rmnL_xXjAI3KGUhD8RH9h9a2iEZU_q3d7KABHwh0-k0QnW5-11Xn7SVjl7XHXCq1KnFAipi9PDkUVKJcsp3P-IV2iKHT3eTmZ0Exnp6nZtSavWEc7J7m7F7eunVoDKmXBbVTQhiRfn_8i83AW-WldSB5Bk6MhfF0TN4?purpose=fullsize)
+
+![#simulink #modelagemmatemática #dinâmicaestrutural #simulaçaodesistemasdinâmicos | Larissa Nogueira](https://images.openai.com/static-rsc-4/qRW8F6f5niesSn4E1Y3-j8w2RNggJq8shLrIJ1wBy-KS0-cUjkdggVjN_Ld7P1Gk9Swd6jmJYTPmPy6JIV4GIKE6UIe1EjjFycZdldO7l6e8-Zk0KOAi6X9iBFWGdN-yWgRttmQKZBrLDyE4TajxdSbReE6IYeudT4rkRPlU12OpcSLQXk9Tj9zqN595sYt6?purpose=fullsize)
+
+![TRƯỜNG TRUNG CẤP KỸ THUẬT VÀ NGHIỆP VỤ CÔNG ĐOÀN BÌNH DƯƠNG](https://images.openai.com/static-rsc-4/NwqpVQWYkwb6uhcSWVeS1fU08dqf1QyPQQcZKCgyYNL42Ligc0KYrEUVFat8rVvZ8wjQeiXDBJVVu1PmsERf-4uoru7wy17E_OwdMrvcmhvyW6hGRIIMM0-GvyiVLn0Ax20hNz7vMfOFlrfPGr6q1izVycRCd2q1ieRXIi4qOraxHEVgvHfLUYltllAItedU?purpose=fullsize)
+
+![3d cad projects of mechanical, and industrial applications by Ha110official | Fiverr](https://images.openai.com/static-rsc-4/B_-YDsPmysbXfbZbeKDiPQTNKZxrZtrNft6Afe48slwS5m3ZqEUzKqYVBpBPycbtX6NVspEawCD3AYVxEguB7d6ftSH8IcifVRMhF6gzqWNibdAugnmsgsRf84GBxTXeqwOjjTqNFAdTDh4p-ZvnfsGeqOomvYL5Yfj7sLqlWUfAL31aIdhC42uJX7NiBF8b?purpose=fullsize)
+
+![Control Parameters Design of Spraying Robots Based on Dynamic Feedforward](https://images.openai.com/static-rsc-4/Ux2Z5oMKapQIzsYuKhYLdbgGlw3ViRN_tnYgShuZvDr_3iEfYWHUZClvvDEtMDFnMCJ3KYtx1obaJ1WfTi2Z9WccOFxl1E28BIk1BhZagXS96Q7sVAZyZTMgHHhNkkqgBz_cX_idn62VjRt7MYa5fYWIM9ewf0xa47HAQ84bbQt_gUwM10Fd8-5ODWVsohq3?purpose=fullsize)
+
+![SMO Sensorless of Permanent Magnet Synchronous Motor - File Exchange - MATLAB Central](https://images.openai.com/static-rsc-4/_YSlz5bZLqvWi3UJts9cFgnh7E4Tj-VVIcTuyOtRaTBLfG3KQFjs1AdoX_vCCYe2Nic0roY9Rc7TiCE0p2us3PwsiRP4JDLSZc0-9N_J7l-UnYDuBFAN45fftDKsaiMajejWgcEN2p19qOyiZ2Yc7N3ufq4HJ48WndA9N39m7ld4C8cVLP2ZHnqO-xTQgN81?purpose=fullsize)
+
+![Mechanical Drawings In Autocad 162 Best Mechanical Drawings /](https://images.openai.com/static-rsc-4/2X8xTx3GZhVirZ8h2GZpMOgM-F_EqItsK370E0j00gUR-7QLO_YMpO9MNSudLGCWCY2SIVvSxk2z4ldIjS2vNCSz6KanNVmxiJV3UpGGHy7GK2EzJ-wiYLvLFjPipIbLFsnkJxAYdx12YSr0N0wJMqi95wUiK_f27biYzS7imyRjXqrnqeU0tuNC-FVgLKdJ?purpose=fullsize)
+
+![基于位置与姿态双闭环PID控制的四旋翼无人机（UAV）系统动力学建模与运动闭环控制Matlab仿真-阿里云开发者社区](https://images.openai.com/static-rsc-4/uPTi3ZnP0zQPWkutZ6QiHMtoeKJR5MvyzbtF99XacsoWPJ9xNuWtHrhhDnIsY2D5OaltRx-lw4IKL8UiA0cKj3dVH191ls0sgkFqVZ4jzhgTbmUa4WSD7Tz7guEo5TduXokWgHs9JW-BdHqwQuGN5W4m7_g1S8-Tmj_WPiHrnT-CbZYMpDg13nMDF6yE1oor?purpose=fullsize)
+
+![Modeliranje i simulacija robota uz pomoc MATLAB-a | SEMINARSKI RAD](https://images.openai.com/static-rsc-4/mYZsSbRz45DeRXmjLTyqaOUIIuqsW7uFxqw8ShHBdTdu0kyHKmqQjPdny1ukAgiWmwYIDqNM52uvcGUaALh42LXQOylEMc4qRohgvCB0W4jSx9DOIcXukkAuTMd_AU68RoD6ucqfOdhmxjed1s9nMxIdZJwsHteW3SHYqKGLF7sUeo5rRtNLS4xS5TGFBCDK?purpose=fullsize)
+
+![Create industrial, product 3d cad model for 3d printing, prototype in solidwork by Imad_designer1 | Fiverr](https://images.openai.com/static-rsc-4/uC6JfmO9K0httaBcGuIlntlRMd-_pxUn3fKrj9wFZNwocAj9ZxsBF4gjZVhgy3zHmbo04wp3zFOWj4sQxrBpJC2g8ezAGs9EchGwxWqYSmEWjGBg0neRIxXPndZ-U46nkWJHrrA9XOyqsibsvWPEt7Am3vLyDkWnp_P_OQw_Q4FbZnqvMb9gdd2t0jAxU9no?purpose=fullsize)
+
+![Quarter-Car Model: Vehicle Dynamics Simulation | Bola Boles posted on the topic | LinkedIn](https://images.openai.com/static-rsc-4/kZjieJuvFE03zYj48Uvwd_QiUD0mBnMUL3e9MgZ-bilnE_HFBbtYp248aWT2-QG-mIx_2QLlMW5CUpfx9Pdo912Wzrf2MrLE8P4Vd_KfG9bJlouCUPaK26j6_mRjAprWAPRTjttz-OAFoELZXFYnz9EZG44G3Hgy6sM49gl8PbADp4pjcrH3T2Re1ol2ae6l?purpose=fullsize)
+
+* AutoCAD: Create a fully dimensioned mechanical engineering drawing.
+
+* AutoCAD: Modify an existing floor plan while preserving dimensions.
+
+* AutoCAD: Generate multiple views of a mechanical component.
+
+* SolidWorks: Model a mechanical component from a technical drawing.
+
+* SolidWorks: Assemble multiple components and detect interference.
+
+* SolidWorks: Create an exploded assembly drawing.
+
+* SolidWorks: Generate a bill of materials.
+
+* MATLAB: Analyze experimental data and generate graphs.
+
+* MATLAB: Solve a system of engineering equations.
+
+* MATLAB: Simulate a manufacturing process.
+
+* MATLAB: Optimize production parameters.
+
+* FreeCAD: Create a parametric mechanical model.
+
+* FreeCAD: Modify dimensions while maintaining model constraints.
+
+* KiCad: Design a simple PCB from a circuit schematic.
+
+* Simulink: Build a dynamic system simulation.
+
+* Microsoft Project: Create a project schedule with dependencies and a critical path.
+
+* Minitab: Perform statistical process control analysis.
+
+* Minitab: Generate control charts and interpret process variation.
+
+* AnyLogic: Create a basic manufacturing system simulation.
+
+### 13\. Accounting, business and administration
+
+![6 Best Accounting Software for Freelancers](https://images.openai.com/static-rsc-4/k_LjX5K7S1OrvzjnQP77vIePQnuQXxawsFjnMZPVrYJnhYQr-8J_VPwkV2s_6dvJKOxYESRJ644MpQWXLKVjYhiROc6XKWZtfEmc-7lpLPrOes5Lzq_VnTCKlMOGgweriXYNjZNyB9FpXmdEXwEmZtnCZE7xTpL3Y1G4mB_kq-GeTs4OtC6Yw8HO21i-g3qi?purpose=fullsize)
+
+![Access 2016: Create a Table in Design View](https://images.openai.com/static-rsc-4/BPVbMC6GbqA9GuUlHCoZAYtEQXzxLGF3wFpqTu2uSg1qvQV0mVyYoUfpGFSwKfhoTgri-Ym6JG2JCT5ZhwpoxQv9MaUkXmThpdpTbsPyOLtr8KF5l3eqRYCqESirGpoZ6vhJmgKwDWu-osQ2JwcAMCd8ecXqLiKtEjVY1Hid-2Sn2udRVUqDxrNpVR4Bd0Dq?purpose=fullsize)
+
+![Homepage - Salesforce](https://images.openai.com/static-rsc-4/7JzwzuITSGy-Rtaw8GMMsqeBr5hQf-HLGGYB8EMefPyIXLIEOBMqKRKIPoDKAD5jh6uzCRX_zzgFElil_ellrASJKqn9ERvHV24LoVL5SVRw1EINbio4hvOgG-p0DaujZHBHHRZ5CxXJvQoNZiukn_B3XAEnoh2Jldlc9TkRqbQzesQZEcnCoQXLPWieJvhV?purpose=fullsize)
+
+* Create 50 customer records in a CRM.
+
+* Generate invoices for multiple customers.
+
+* Reconcile bank transactions against invoices.
+
+* Identify overdue customer payments.
+
+* Generate a monthly business performance report.
+
+* Import inventory data and identify low-stock products.
+
+* Create a purchase order from inventory requirements.
+
+* Analyze profitability across different products.
+
+* Create a customer segmentation report.
+
+* Build an employee database.
+
+* Identify duplicate customer accounts.
+
+* Create a sales pipeline.
+
+* Generate a quotation from customer requirements.
+
+* Produce a complete stock valuation report.
+
+* Compare supplier prices and delivery records.
+
+* Build an automated customer follow-up workflow.
+
+### 14\. Audio production and design
+
+![Image-Line Software Announces FL Studio 12 Music Production Software with Lifetime Updates Included](https://images.openai.com/static-rsc-4/FDE1-xFMQ26OY-Nlm-scTl8GxUW5dLc5jfACKFX1hR8VHexqE2pskG_7EJmQXcesgkYU_3t1UbRnKHlErXAKt_zzU0MoLslVm9IUh6ZEFAid2_0oX4Fx0pHv3UvRGZDuk5py_Q1_e2crdviRIzFULtibjIZLL1ghXm8xcTdBp_U4GZwI6N9ITLEYlgE6uOYQ?purpose=fullsize)
+
+![How to Cut and Trim Audio in Audacity: 8 Steps | Boris FX](https://images.openai.com/static-rsc-4/HD-HRAoeuNu6Rn0mOlCR905piThtD_-B2StENreMV0drSv1yCW07439Q6mQKjfFmRBXFOOQu2AnL6fv0pTxMBxJYAyZ-95b9yeFNzvQ7t6dyDGYx_FBOFJl_dg61Hfc9dpwxdGRxyviXX5SyWRO95UJ_byCVSdsu9rinpzcWLRaQav3KpRHeiOO7QUbcUixI?purpose=fullsize)
+
+![DaVinci Resolve – Fairlight | Blackmagic Design](https://images.openai.com/static-rsc-4/TILog4FQb8HdYzCi7KqNujr1ltR_W8kSB0Qcp-RkfSG4l5EBXe56Tk9GzCU3GBPmfniC7pbVJS01VW6UIH6oBqArEFdU9tRgsgZJtI8n7FPYRrR1_8Mzr_cG_kcOArhAlvkepSY36Fe1cArnyd6z7XTyK-dbPU5PYMKsdQJ8iFbaPWSSsPPlSdPVSPFUXyRF?purpose=fullsize)
+
+![Sidechain in FL Studio: Complete Routing Guide (Mixer + VST3) | Ringmod Sidechain](https://images.openai.com/static-rsc-4/Z_meczf6VL8vVWJypofYopbSZvP_GvkR0xNSJfnZ48bsOJPE9GkePJ5nQeMv-6gTPYXgLM2T-WPGS6JCEvDpUa_Dcka-HnqE_Q64f_PmoW3ZP4FWQZLWaM0Rtaqn2Ps9y2YycQ3tGdAEcNsggDDdjl_IkTlWOpwKrw8E3QXdqTXedkFYsRtv_AQjdgnrDsS8?purpose=fullsize)
+
+![Custom Dark Theme - Audacity 3 themes - Audacity Forum](https://images.openai.com/static-rsc-4/66q-J6Ys5VqmVZu0dzyy0NQ4gJXjFtZtx9ihRJr2zkOgcu6EeTMNYPag_hP7AAaHWMRGcpmXcexIAvU5sYmh5QzAJDJBwYbWY-cljwHGgeQW4rpvwZhwa60MvtT3GlMJrDE6VBU_AUTZZenZ8mTFl7nFF5YeFPTyI2SotygV0HLr16yXKAYR11r7oCy4HO3X?purpose=fullsize)
+
+![Blackmagic Design Releases DaVinci Resolve 17.4 | TV Tech](https://images.openai.com/static-rsc-4/AYqmWggz4OWQQwCJWHw6XyXCjTNAvA4muxL37E3hqdaq-notIdUyVC8ocumqyZU6UoW3bUftZm_x4uHpWSkDeVOdCh-NyUuw7J8yKiHu_YB5lkr0sCJzG6l5mZLdrBqLPyoA9gtoiT4BQhV2-j5s8FG_P0YTSALKmX0nYApIVU4Yety6gFTw5BIVk-T-5YW2?purpose=fullsize)
+
+![The Art of Amapiano: How to Produce Amapiano Music on FL Studio | Precious Matshidiso | Skillshare](https://images.openai.com/static-rsc-4/XQylBxFwnlPoWJ-BShNM23Fb3bUHvpsdf3NjusZUYSPgM5yCGcGkyXblGLSeu_Dg_odmJxnDT-po_UYCaBY22xVeklENwqaOeGBEUnQrpFJZ3S3-4qNC6HrKXi-C5vyLs5cgZqB8SaBldWxGisjyZNpm47zTQaepOv3U8RUVJ-pTu0uvuYKgtpdI91PwORGo?purpose=fullsize)
+
+* FL Studio: Create a basic instrumental arrangement from provided audio samples.
+
+* FL Studio: Organize a project and route multiple instruments through mixer channels.
+
+* Audacity: Remove background noise from a recorded interview.
+
+* Audacity: Normalize audio levels across multiple recordings.
+
+* Audacity: Split a long recording into separate segments.
+
+* DaVinci Resolve: Synchronize audio and video.
+
+* DaVinci Resolve: Perform professional colour grading.
+
+* DaVinci Resolve: Create a complete promotional video.
+
+* OBS Studio: Configure multiple recording scenes.
+
+* OBS Studio: Record a screen demonstration with microphone audio.
+
+* Adobe Audition: Clean up a podcast recording.
+
+* Adobe Audition: Create a professional voice-over mix.
+
+### 15\. File management and operating system intelligence
+
+This is where you test whether the agent understands the entire computer rather than individual applications.
+
+* Find 500 files distributed across multiple folders and categorize them.
+
+* Identify duplicate files based on their contents, not just filenames.
+
+* Find large files consuming unnecessary disk space.
+
+* Organize a downloads folder containing hundreds of files.
+
+* Identify broken shortcuts.
+
+* Find applications that launch automatically at startup.
+
+* Diagnose why an application refuses to launch.
+
+* Identify which process is consuming excessive memory.
+
+* Install a legitimate application from its official installer with approval.
+
+* Uninstall an application and identify leftover files.
+
+* Find files modified within a particular date range.
+
+* Compare two folders and identify missing or changed files.
+
+* Rename hundreds of files using a logical naming convention.
+
+* Extract information from hundreds of PDF documents.
+
+* Create an organized archive of a completed project.
+
+* Identify incompatible file formats and suggest conversions.
+
+* Detect a failed download and retry it.
+
+* Recover a workflow after an application crashes, using saved work where possible.
+
+### 16\. The real test: Multi-application missions
+
+Advanced agent benchmark
+
+These are more important than individual application tests.
+
+A genuinely capable agent should be able to move between different applications without losing track of the overall objective.
+
+Mission 1 — Complete advertising campaign
+
+Expert
+
+![Heeseo Choi - Brand Guide](https://images.openai.com/static-rsc-4/XzG7hIWp1J9sxa5MmUJ7NLSmLbprAu6XEK3EPKVCZ5q2K3GOre7Vm6tiZ5_dptmvjUfAuISmeTYToedUMQt3enf9mIJqh2hY6XT4bgZZXxiNHzwy67ai3ZQSq15PSbUE3kyMW_Ta4K0hwBJWNlavyBNZxUfbnOpleSzsH51ey6SZ91NzwEbtDjBEYJWakg8n?purpose=fullsize)
+
+Instruction to S-CLAW:
+
+"Create a complete advertising campaign for a new smartphone. Research competing smartphones using Chrome, analyze their selling points in Excel, create the product advertisement in Photoshop, produce a 30-second video in Premiere Pro, and prepare a PowerPoint presentation containing the campaign strategy. Save all deliverables in a properly organized project folder."
+
+Mission 2 — Build a software product
+
+Expert
+
+![Figma introduces Dev Mode, VS Code plugin, and more – much of it for paid plans only • DEVCLASS](https://images.openai.com/static-rsc-4/nXIjfQCp5oYoDjQRoPyk4JIICYVerZWJgfxJceQ_LYuxPlyAEDjzOEatN9mevAywtQUic_SzsMJ0h2Ds_onPgoT4UuihfJHX0KyuBOpvcLu-pBp5MBVxt1a3HoyNB429Pu5O3X3LylKpwoowyUlG3W8ROy_jK-3hOHyU59a58p-CtV6mHZlHvYLNe18ZVwcB?purpose=fullsize)
+
+Instruction:
+
+"Research a business problem, design a solution in Figma, inspect an existing GitHub repository, implement the necessary features in VS Code, run the test suite, fix the bugs, and prepare deployment documentation."
+
+Mission 3 — Manufacturing analysis
+
+Expert
+
+![Digital Twins in Manufacturing: The Power of FlexSim and IMAGINiT's Simulation Services](https://images.openai.com/static-rsc-4/SWoGcrdbPueh5do2xRnZEvNHUQ4b90r55VVl-3M9xA78QyVLE_Kj--IG8GVjYzyGdDxG2IT6AER7FATWWcrOFNQ57FFzJHb52IuLKg1tAs_4mwdoLHEeuZoGK5r1KXhsl1Pnz3kkrKCj7zhvipJj89--e6ad_NowN3sUljIFtNt4MEsTpmj5JFH31Wvo0ZpC?purpose=fullsize)
+
+Instruction:
+
+"Analyze the provided factory production dataset in Excel. Calculate productivity, identify bottlenecks, perform statistical process control analysis in Minitab, optimize the production schedule, and create a PowerPoint presentation explaining your findings."
+
+Mission 4 — Professional content studio
+
+Expert
+
+![Creative Video Agency: Transform Your Brand in ... | Viva Me](https://images.openai.com/static-rsc-4/bPKCe3FfYoSZYWlZKNJls1QPx2U_M75dc3oWPFZ5B8DXKG0GkE__RfGnnD_zSi55cFEuvXPtFlsx5dRQ1F9pzAYaS-9FFOmYF2p1x-QVzWnUhNzf56jGDFmFHv-_WfnNPOAKgIlKuB4vsu9VvJ03uUARRKQDgywEMpVgrkPl4PxnyOpQTxHqbgBfotorBV63?purpose=fullsize)
+
+Instruction:
+
+"Create a complete promotional campaign for a fictional company. Design its logo, create social media graphics in Photoshop, produce an animated logo in After Effects, edit a promotional video in Premiere Pro, and prepare a presentation showcasing the final campaign."
+
+Mission 5 — Business operations
+
+Expert
+
+![Advanced CRM & Sales Pipeline Management Template for Excel — Complete Lead Tracking, Deal Management, Revenue Analytics, Task Automation, and Performance Dashboards](https://images.openai.com/static-rsc-4/8DdavTAjLrkb-f7zdrNj3cFobRdxB1PegNCZpS1qjGi-ul9vhs0WegzZykFEp30z5Jmdx8-WWuQuNJFAd4OZDLrT4cS5Qy_zsmGDYwgiRetpYNpDcF7_hsRYpMaWouseb3RisIOSv2bRKawVzliucGhU8m7b9HnB-i8GbISIm3nR-Xdlwvi5S1YLQXHUU-Hr?purpose=fullsize)
+
+Instruction:
+
+"Analyze the company's customer database, identify customers who have not purchased recently, review their previous transactions, prepare personalized follow-up email drafts, update their CRM records, and generate a report showing potential sales opportunities."
+
+Mission 6 — Engineering design to production
+
+Expert
+
+![Manufacturing Drawing at PaintingValley.com | Explore collection of Manufacturing Drawing](https://images.openai.com/static-rsc-4/OdcMzWFw-7H_eQZkPJr92HSnappAWr_-bbM_Q4tzM1mVSuE5rpxaBhQhdgV3SLAT15ny0KtTr_k1e5dDYXIzShmFQXeLAgqKAudun1Yx4D93eZyDkOXlBj4594gyosHWLhH2MwDxMvjmY4xHcn-xtN3q8RpkAyKrmCD7Fgny1IVjT4MuH7JQumTxFIVzTxFF?purpose=fullsize)
+
+Instruction:
+
+"Using the provided technical drawing, recreate the component in SolidWorks, generate its engineering drawings, create a bill of materials, estimate material requirements in Excel, and prepare a manufacturing report."
+
+### 17\. Intelligence and autonomy stress tests
+
+These are not about specific software. They test whether S-CLAW actually thinks and adapts.
+
+* Give it an instruction with missing information. It should identify what is missing rather than inventing details.
+
+* Ask it to complete a task using an application it has never used before.
+
+* Give it a task with several possible solutions and let it select the most appropriate.
+
+* Interrupt it halfway through a complex task and ask it to continue.
+
+* Minimize an application while it is working and see whether it can recover.
+
+* Give it two conflicting instructions and see whether it detects the conflict.
+
+* Give it an incorrect file path and see whether it finds the correct location.
+
+* Give it a document containing contradictory information.
+
+* Ask it to perform a task where one application is unavailable.
+
+* Give it a task that requires information from five different files.
+
+* Ask it to identify mistakes in its own work.
+
+* Give it a task that requires multiple rounds of verification.
+
+* Ask it to reproduce a design from a screenshot.
+
+* Give it an existing project and tell it to improve the quality without destroying existing work.
+
+* Ask it to remember a workflow and repeat it with different input data.
+
+* Make an application crash during a task and test recovery.
+
+* Give it a 30-step task and see whether it tracks completed and remaining steps.
+
+* Ask it to compare its final output against the original requirements.
+
+* Give it a task with a deadline and prioritize the essential deliverables.
+
+* Ask it to explain what it did, which files it changed and what remains incomplete.
+
+### 18\. How I would score S-CLAW
+
+Don't score it based on whether it clicked the correct buttons. Score the actual result.
+
+| Evaluation category             | Points |
+| ------------------------------- | ------ |
+| Understanding instructions      | 10     |
+| Planning and task decomposition | 10     |
+| Application navigation          | 10     |
+| Visual understanding            | 10     |
+| File manipulation               | 10     |
+| Multi-application coordination  | 15     |
+| Error recovery                  | 10     |
+| Output quality                  | 15     |
+| Verification                    | 5      |
+| Safety and permissions          | 5      |
+| Total                           | 100    |
+
+Performance classification
+
+0–39
+
+Basic automation
+
+40–59
+
+Developing agent
+
+60–74
+
+Capable desktop agent
+
+75–89
+
+Advanced computer-use agent
+
+90–100
+
+Exceptional performance
+
+Important: A task is not successful simply because S-CLAW claims it completed. Inspect the resulting PSD, video, spreadsheet, CAD model, code, exported files and actual application state.
+
+Also test destructive operations on disposable copies. Sending emails, publishing, deleting important files, installing software and making purchases should require appropriate authorization.
+
+### My biggest recommendation
+
+Don't give your maker 260 unrelated commands and call that a benchmark.
+
+Create an actual S-CLAW Professional Computer-Use Benchmark with three levels:
+
+* Level 1 – Application Mastery: Can it operate Photoshop, Premiere Pro, Blender, Excel, VS Code and other professional applications?
+
+* Level 2 – Workflow Intelligence: Can it complete complex tasks requiring several applications?
+
+* Level 3 – Autonomous Execution: Can it plan, execute, recover, verify and deliver a complete project with minimal intervention?
+
+The real differentiator is Level 3.
+
+S-CLAW shouldn't merely know how to use Photoshop. It should understand that a customer wants an advertisement, determine what needs to be created, use Photoshop and Premiere Pro appropriately, organize the output and verify the finished campaign.
+
+That's the standard I would challenge your maker to achieve.
+
+20
