@@ -110,3 +110,10 @@ async def test_break_even_and_forecast_models(tool_ctx):
     from claw.tools.base import ToolError
     with pytest.raises(ToolError, match="higher than the variable cost"):
         await call(tool_ctx, "build_model", kind="break_even", fixed_costs=10, price=5, variable_cost=6, folder="Models")
+
+
+async def test_swapped_path_and_folder_still_find_the_file(tool_ctx):
+    d = bench(tool_ctx, "CRM export")
+    (d / "customers.csv").write_text("name,email\nA,a@x.com\nA again,a@x.com\nB,b@x.com\n")
+    r = await call(tool_ctx, "remove_duplicates", path=str(d), folder="customers.csv")
+    assert r.data["rows_after"] == 2

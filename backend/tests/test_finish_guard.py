@@ -342,3 +342,12 @@ async def test_zero_filters_are_ignored_and_hidden_matches_are_named(tool_ctx):
     assert r.data["files"]                                                # 0 meant "no age filter"
     r = await call(tool_ctx, "find_files", name_contains="budget", extension="txt", not_modified_in_days=30)
     assert not r.data["files"] and "match the name without the date filter" in r.summary and "budget.txt" in r.summary
+
+
+def test_a_document_total_that_does_not_add_up_is_sent_back():
+    from claw.agent.executor import document_total_slip
+    doc = "Quotation for website\nDesign: 200000\nHosting: 50000\nTotal: 300000\n"
+    msg = document_total_slip("The total is correct as it is the sum of the design and hosting costs.", doc)
+    assert msg and "250,000" in msg and "300,000" in msg
+    assert document_total_slip("No - the items add up to 250,000, so the total of 300,000 is wrong.", doc) is None
+    assert document_total_slip("The total is correct.", "Design: 200000\nHosting: 50000\nTotal: 250000") is None

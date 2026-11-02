@@ -1,5 +1,19 @@
 # Test results
 
+## Challenge benchmark run 4, v0.5.0-build.43, Standard brain, 2 Nov 2026
+
+Evidence: ci-evidence:benchmarks/v0.5.0-build.43-Standard-4. This build has the run 3 fixes, but not reuse steps 1–4 or build_model.
+
+- **Set v1 (16 challenges): 84.9/100.** Run 3 was 87.9; one run to the next varies by a few points with a 4B brain.
+- **All 21: 81.5.** PASS 16, PARTIAL 1, FAIL 4. False completions 10%. 166 s per challenge. No input file was changed without being asked.
+- Now passing: stress-conflict (17.06, the no-new-files guard), stress-wrong-path (17.07, the filter fix) and infeasible-missing-app (17.09, no hang).
+- Failed or slipped:
+  - data-dedupe: path and folder swapped. Fixed by swapping them back.
+  - stress-contradiction: the answer had no "+" in it for the arithmetic check. Fixed: the document's own lines are added up.
+  - stress-missing-info: asked for the file but not the client (partial).
+  - data-break-even and data-forecast: build_model is not in this build. It tried "Microsoft Excel", which matched Microsoft Edge. Fixed: maker names no longer match on their own.
+- Set v1.2 data-chart PASSES (add_chart).
+
 ## Challenge benchmark run 3, v0.5.0-build.42, Standard brain, 2 Nov 2026
 
 Evidence: ci-evidence:benchmarks/v0.5.0-build.42-Standard-3.

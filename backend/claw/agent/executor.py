@@ -507,6 +507,34 @@ def arithmetic_slip(final: str) -> str | None:
     return None
 
 
+def document_total_slip(final: str, seen: str) -> str | None:
+    """A document whose items do not add up to its stated total, which the answer calls correct.
+
+    Run 4, 2 Nov: "Design: 200000, Hosting: 50000, Total: 300000. The total is correct as it is the
+    sum..." - no "+" in the answer, so arithmetic_slip had nothing to check. Claw adds the document's
+    own lines up instead of trusting the brain's reading of them.
+    """
+    if not seen or not re.search(r"\bcorrect\b|\bright\b|\badds? up\b|\bsum of\b|\bmatches\b|\baccurate\b", final, re.I):
+        return None
+    if re.search(r"\bnot (?:correct|right|accurate)\b|\bincorrect\b|\bwrong\b|\bdoes(?:n't| not) add up\b|\bmistake\b", final, re.I):
+        return None
+    items: list[float] = []
+    for line in seen.splitlines():
+        m = re.match(rf"^\s*([A-Za-z][\w &/()-]{{0,40}}?)\s*[:=-]\s*[₦$£€]?\s*({_NUM})\s*$", line.strip())
+        if not m:
+            continue
+        label, value = m.group(1).lower(), float(m.group(2).replace(",", ""))
+        if re.search(r"\b(?:sub)?total\b|\bgrand total\b|\bamount due\b", label):
+            if len(items) >= 2 and abs(sum(items) - value) > 0.005:
+                fmt = lambda n: f"{n:,.0f}" if float(n).is_integer() else f"{n:,.2f}"  # noqa: E731
+                return (f"Check the document's arithmetic before answering: its items add up to "
+                        f"{' + '.join(fmt(i) for i in items)} = {fmt(sum(items))}, but its total line says {fmt(value)}. Correct your answer.")
+            items = []
+        else:
+            items.append(value)
+    return None
+
+
 _FILE_IN_TASK = re.compile(r"[\w\- ()]+\.(?:pdf|docx?|xlsx|xls|txt|csv|md)\b", re.I)
 
 
@@ -914,6 +942,7 @@ async def run_agent(
                 continue
             why = (premature_finish(final, steps, fitting, example_call(registry, fitting[0]) if fitting else "",
                                     wants_save=bool(re.search(r"\bsave\b", task.split("\n")[0], re.I)), task=task)
+                   or document_total_slip(final, ctx.memory.corpus())
                    if pushbacks < MAX_PUSHBACKS else None)
             if why:
                 pushbacks += 1

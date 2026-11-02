@@ -25,3 +25,13 @@ def test_store_apps_are_found_and_started_through_the_apps_folder(monkeypatch, t
 def test_get_startapps_really_lists_apps_on_windows():
     apps = launcher.start_apps(refresh=True)
     assert len(apps) > 5, apps
+
+
+def test_a_makers_name_alone_does_not_match_another_app(tmp_path):
+    from claw.computer.launcher import find_app
+    d = tmp_path / "Programs"
+    d.mkdir()
+    for n in ("Microsoft Edge", "Microsoft Web Platform Installer", "Notepad++"):
+        (d / f"{n}.lnk").write_bytes(b"")
+    assert find_app("Microsoft Excel", [d]) == []
+    assert find_app("Microsoft Edge", [d])[0].name == "Microsoft Edge"

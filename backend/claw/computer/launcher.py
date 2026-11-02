@@ -101,6 +101,9 @@ def _target_for(app_id: str) -> str:
     return f"shell:AppsFolder\\{app_id}"
 
 
+_MAKERS = {"microsoft", "adobe", "google", "windows", "app", "the", "desktop", "corporation", "office", "mozilla"}
+
+
 def find_app(name: str, search_dirs: list[Path] | None = None) -> list[AppMatch]:
     query = name.strip().lower()
     if not query:
@@ -110,6 +113,9 @@ def find_app(name: str, search_dirs: list[Path] | None = None) -> list[AppMatch]
     if query in BUILTIN:
         return [AppMatch(query.title(), BUILTIN[query], 1.0)]
     q = set(_words(query))
+    # A maker's name is not the app: "Microsoft Excel" must not match Microsoft Edge (benchmark run 4,
+    # where Excel is not installed). Only the other words decide; the maker can still break ties.
+    core = (q - _MAKERS) or q
     matches: list[AppMatch] = []
     dirs = start_menu_dirs() if search_dirs is None else search_dirs
     for root in dirs:
@@ -120,7 +126,7 @@ def find_app(name: str, search_dirs: list[Path] | None = None) -> list[AppMatch]
             w = set(_words(stem))
             if not w or not q:
                 continue
-            overlap = len(q & w) / len(q)
+            overlap = len(core & w) / len(core)
             if overlap == 0:
                 continue
             score = overlap - 0.01 * len(w - q)
@@ -132,7 +138,7 @@ def find_app(name: str, search_dirs: list[Path] | None = None) -> list[AppMatch]
             w = set(_words(display))
             if not w or not q:
                 continue
-            overlap = len(q & w) / len(q)
+            overlap = len(core & w) / len(core)
             if overlap:
                 matches.append(AppMatch(display, _target_for(app_id), overlap - 0.01 * len(w - q)))
     matches.sort(key=lambda m: -m.score)

@@ -127,6 +127,9 @@ def find_folder(ctx: ToolContext, raw: str | None) -> Path:
 
 
 def find_table(ctx: ToolContext, raw: str, near: str | None = None) -> Path:
+    # Run 4: path="...\\CRM export" (a folder) and folder="customers.csv" (a file), swapped, five times.
+    if near and Path(str(near).replace("\\", "/")).suffix.lower() in TABLE_EXT and not Path(str(raw).replace("\\", "/")).suffix:
+        raw, near = near, raw
     try:
         p = ctx.policy.check_path(raw)
         if p.is_file():
