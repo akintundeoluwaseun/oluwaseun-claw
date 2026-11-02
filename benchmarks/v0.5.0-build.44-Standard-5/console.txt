@@ -1,0 +1,51 @@
+[1/25] files-duplicates: Find the duplicate files in the 'Photos dump' folder inside 'S-CLAW Bench' in my Documents
+    -> PASS 100/100 (completed, 123.6s)
+[2/25] files-largest: Which file is taking the most space in the 'Old projects' folder inside 'S-CLAW Bench' in 
+    -> PASS 100/100 (completed, 102.6s)
+[3/25] files-organize: Organize the 'Downloads mess' folder inside 'S-CLAW Bench' in my Documents: put the files 
+    -> PASS 96/100 (completed, 233.4s)
+[4/25] files-date-range: List the files in the 'Reports' folder inside 'S-CLAW Bench' in my Documents that were las
+    -> PASS 100/100 (completed, 72.6s)
+[5/25] files-compare: Compare the folders 'Site v1' and 'Site v2' in the 'Website' folder inside 'S-CLAW Bench' 
+    -> PASS 100/100 (completed, 114.6s)
+[6/25] data-combine-csv: Combine the three CSV files in the 'Branch sales' folder inside 'S-CLAW Bench' in my Docum
+    -> PASS 100/100 (completed, 138.7s)
+[7/25] data-total: What is the total amount of all sales in the three CSV files in the 'Branch sales 2' folde
+    -> PASS 100/100 (completed, 116.2s)
+[8/25] data-dedupe: customers.csv in the 'CRM export' folder inside 'S-CLAW Bench' in my Documents has duplica
+    -> PARTIAL 39/100 FALSE COMPLETION (completed, 151.1s)
+[9/25] docs-invoices-table: Read the three invoices in the 'Invoices' folder inside 'S-CLAW Bench' in my Documents and
+    -> PASS 96/100 (completed, 322.4s)
+[10/25] docs-five-files: Read the five notes in the 'Meeting notes' folder inside 'S-CLAW Bench' in my Documents an
+    -> PASS 96/100 (completed, 271.3s)
+[11/25] stress-missing-info: Send the invoice to my client.
+    -> PASS 96/100 (completed, 289.2s)
+[12/25] stress-wrong-path: Read C:\Users\Someone\Desktop\budget.txt and tell me how much the rent is. (If it is not t
+    -> PASS 100/100 (completed, 195.7s)
+[13/25] stress-contradiction: Check quote.txt in the 'Quote' folder inside 'S-CLAW Bench' in my Documents. Is the total 
+    -> PASS 100/100 (completed, 141.9s)
+[14/25] stress-conflict: Make a spreadsheet of 3 fruits and their colours, but do not create any new files.
+    -> PASS 90/100 (completed, 0.0s)
+[15/25] creative-story-video: Make a 6 second vertical promo video for WhatsApp status for 'Ade's Bakery' (fresh bread d
+    -> PASS 100/100 (completed, 156.9s)
+[16/25] creative-flyer: Make a square Instagram flyer for a 20% discount at 'Seun Laptop Repairs' in Ado Ekiti and
+    -> PASS 100/100 (completed, 150.8s)
+[17/25] infeasible-missing-file: Open 'Q3 forecast.xlsx' in the 'Forecasts' folder inside 'S-CLAW Bench' in my Documents an
+    -> PASS 100/100 (completed, 155.3s)
+[18/25] infeasible-missing-app: Open my project 'wedding.prproj' in Adobe Premiere Pro and export it as MP4.
+    -> FAIL 22/100 (timed_out_by_trial, 1359.9s)
+[19/25] data-break-even: Build a break-even model in the 'Models' folder inside 'S-CLAW Bench' in my Documents: fix
+    -> FAIL 24/100 (could_not_start, 0s)
+[20/25] data-forecast: Using 'monthly sales.csv' in the 'Forecast data' folder inside 'S-CLAW Bench' in my Docume
+    -> FAIL 24/100 (could_not_start, 0s)
+[21/25] data-chart: Make a chart of total sales per product from 'monthly sales.csv' in the 'Chart data' folde
+    -> FAIL 24/100 (could_not_start, 0s)
+[22/25] desktop-calculator: Open Calculator, work out 1234 times 56 in it, and tell me the result.
+    -> FAIL 24/100 (could_not_start, 0s)
+[23/25] desktop-notepad-typed: Open Notepad and type 'Meeting at 3pm with Kemi' into it. Do not save it.
+    -> PARTIAL 54/100 (could_not_start, 0s)
+[24/25] office-deck: Make a PowerPoint presentation for my laptop repair business 'Seun Repairs' with at least 
+    -> FAIL 24/100 (could_not_start, 0s)
+[25/25] office-report: Read the five notes in the 'Reports out' folder inside 'S-CLAW Bench' in my Documents and 
+    -> FAIL 24/100 (could_not_start, 0s)
+{"baseline_set": "v1", "baseline_average": 94.6, "inputs_changed_in": ["data-dedupe"], "scenarios": 25, "average_score": 73.3, "pass": 16, "partial": 2, "fail": 7, "false_completion_rate": 0.04, "average_steps": 2.4, "average_seconds": 163.8, "by_category": {"Files and OS": {"n": 5, "score": 99.2}, "Data": {"n": 6, "score": 51.8}, "Documents": {"n": 2, "score": 96.0}, "Stress": {"n": 6, "score": 84.7}, "Creative": {"n": 2, "score": 100.0}, "Desktop": {"n": 2, "score": 39.0}, "Office": {"n": 2, "score": 24.0}}}
