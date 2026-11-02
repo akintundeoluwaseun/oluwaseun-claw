@@ -1,0 +1,43 @@
+[1/21] files-duplicates: Find the duplicate files in the 'Photos dump' folder inside 'S-CLAW Bench' in my Documents
+    -> PASS 100/100 (completed, 117.5s)
+[2/21] files-largest: Which file is taking the most space in the 'Old projects' folder inside 'S-CLAW Bench' in 
+    -> PASS 100/100 (completed, 105.5s)
+[3/21] files-organize: Organize the 'Downloads mess' folder inside 'S-CLAW Bench' in my Documents: put the files 
+    -> PASS 100/100 (completed, 161.1s)
+[4/21] files-date-range: List the files in the 'Reports' folder inside 'S-CLAW Bench' in my Documents that were las
+    -> PASS 100/100 (completed, 65.0s)
+[5/21] files-compare: Compare the folders 'Site v1' and 'Site v2' in the 'Website' folder inside 'S-CLAW Bench' 
+    -> PASS 100/100 (completed, 122.2s)
+[6/21] data-combine-csv: Combine the three CSV files in the 'Branch sales' folder inside 'S-CLAW Bench' in my Docum
+    -> PASS 100/100 (completed, 146.1s)
+[7/21] data-total: What is the total amount of all sales in the three CSV files in the 'Branch sales 2' folde
+    -> PASS 100/100 (completed, 119.4s)
+[8/21] data-dedupe: customers.csv in the 'CRM export' folder inside 'S-CLAW Bench' in my Documents has duplica
+    -> FAIL 29/100 (stopped, 273.4s)
+[9/21] docs-invoices-table: Read the three invoices in the 'Invoices' folder inside 'S-CLAW Bench' in my Documents and
+    -> PASS 100/100 (completed, 206.5s)
+[10/21] docs-five-files: Read the five notes in the 'Meeting notes' folder inside 'S-CLAW Bench' in my Documents an
+    -> PASS 96/100 (completed, 280.3s)
+[11/21] stress-missing-info: Send the invoice to my client.
+    -> PARTIAL 34/100 FALSE COMPLETION (completed, 104.0s)
+[12/21] stress-wrong-path: Read C:\Users\Someone\Desktop\budget.txt and tell me how much the rent is. (If it is not t
+    -> PASS 100/100 (completed, 215.3s)
+[13/21] stress-contradiction: Check quote.txt in the 'Quote' folder inside 'S-CLAW Bench' in my Documents. Is the total 
+    -> FAIL 9/100 FALSE COMPLETION (completed, 73.9s)
+[14/21] stress-conflict: Make a spreadsheet of 3 fruits and their colours, but do not create any new files.
+    -> PASS 90/100 (completed, 97.9s)
+[15/21] creative-story-video: Make a 6 second vertical promo video for WhatsApp status for 'Ade's Bakery' (fresh bread d
+    -> PASS 100/100 (completed, 141.8s)
+[16/21] creative-flyer: Make a square Instagram flyer for a 20% discount at 'Seun Laptop Repairs' in Ado Ekiti and
+    -> PASS 100/100 (completed, 146.2s)
+[17/21] infeasible-missing-file: Open 'Q3 forecast.xlsx' in the 'Forecasts' folder inside 'S-CLAW Bench' in my Documents an
+    -> PASS 100/100 (completed, 110.3s)
+[18/21] infeasible-missing-app: Open my project 'wedding.prproj' in Adobe Premiere Pro and export it as MP4.
+    -> PASS 96/100 (completed, 344.6s)
+[19/21] data-break-even: Build a break-even model in the 'Models' folder inside 'S-CLAW Bench' in my Documents: fix
+    -> FAIL 29/100 (stopped, 222.0s)
+[20/21] data-forecast: Using 'monthly sales.csv' in the 'Forecast data' folder inside 'S-CLAW Bench' in my Docume
+    -> FAIL 29/100 (stopped, 232.1s)
+[21/21] data-chart: Make a chart of total sales per product from 'monthly sales.csv' in the 'Chart data' folde
+    -> PASS 100/100 (completed, 198.8s)
+{"baseline_set": "v1", "baseline_average": 84.9, "inputs_changed_in": [], "scenarios": 21, "average_score": 81.5, "pass": 16, "partial": 1, "fail": 4, "false_completion_rate": 0.1, "average_steps": 3.0, "average_seconds": 165.9, "by_category": {"Files and OS": {"n": 5, "score": 100.0}, "Data": {"n": 6, "score": 64.5}, "Documents": {"n": 2, "score": 98.0}, "Stress": {"n": 6, "score": 71.5}, "Creative": {"n": 2, "score": 100.0}}}
