@@ -110,6 +110,7 @@ class ReportArgs(ToolArgs):
     format: Literal["docx", "md"] = "docx"
     file_name: str | None = Field(default=None, max_length=100)
     folder: str | None = Field(default=None, max_length=500)
+    contents: bool = Field(default=False, description="Add a table of contents")
 
 
 _URL = re.compile(r"^[a-z][a-z0-9+.\-]*://", re.I)
@@ -146,16 +147,67 @@ def _write_docx(path: Path, args: ReportArgs, stamp: str) -> None:
     doc.add_heading(args.title, level=0)
     note = doc.add_paragraph(f"Prepared by S-CLAW on {stamp}.")
     note.runs[0].font.size = Pt(9)
+    if args.contents:
+        _toc(doc)
+    _page_numbers(doc)
     for sec in args.sections:
         doc.add_heading(sec.heading, level=1)
-        for para in [p for p in sec.body.split("\n\n") if p.strip()]:
-            doc.add_paragraph(para.strip())
+        for block in [p for p in sec.body.split("\n\n") if p.strip()]:
+            lines = [l for l in block.strip().split("\n") if l.strip()]
+            # Real Word lists, not paragraphs that start with a dash (milestone 5).
+            if all(re.match(r"^\s*[-*•]\s+", l) for l in lines):
+                for l in lines:
+                    doc.add_paragraph(re.sub(r"^\s*[-*•]\s+", "", l), style="List Bullet")
+            elif all(re.match(r"^\s*\d+[.)]\s+", l) for l in lines):
+                for l in lines:
+                    doc.add_paragraph(re.sub(r"^\s*\d+[.)]\s+", "", l), style="List Number")
+            else:
+                doc.add_paragraph(block.strip())
     if args.sources:
         doc.add_heading("Sources", level=1)
         for src in args.sources:
             doc.add_paragraph(f"{src.title} — {src.location}", style="List Number")
     with open(path, "xb") as fh:  # never overwrite
         doc.save(fh)
+
+
+def _field(paragraph, instruction: str, placeholder: str) -> None:
+    from docx.oxml import OxmlElement  # noqa: PLC0415
+    from docx.oxml.ns import qn  # noqa: PLC0415
+
+    run = paragraph.add_run()
+    for kind, text in (("begin", None), (None, instruction), ("separate", None), (None, placeholder), ("end", None)):
+        if kind:
+            el = OxmlElement("w:fldChar")
+            el.set(qn("w:fldCharType"), kind)
+            run._r.append(el)
+        elif text == instruction:
+            el = OxmlElement("w:instrText")
+            el.set(qn("xml:space"), "preserve")
+            el.text = text
+            run._r.append(el)
+        else:
+            el = OxmlElement("w:t")
+            el.text = text
+            run._r.append(el)
+
+
+def _toc(doc) -> None:
+    """A real Word table-of-contents field, filled in by Word (or LibreOffice) when the file opens."""
+    from docx.oxml import OxmlElement  # noqa: PLC0415
+    from docx.oxml.ns import qn  # noqa: PLC0415
+
+    doc.add_heading("Contents", level=1)
+    _field(doc.add_paragraph(), 'TOC \\o "1-3" \\h \\z \\u', "Open in Word to see the contents (right-click, Update Field).")
+    upd = OxmlElement("w:updateFields")
+    upd.set(qn("w:val"), "true")
+    doc.settings.element.append(upd)
+
+
+def _page_numbers(doc) -> None:
+    footer = doc.sections[0].footer.paragraphs[0]
+    footer.text = "Page "
+    _field(footer, "PAGE", "1")
 
 
 def _write_md(path: Path, args: ReportArgs, stamp: str) -> None:

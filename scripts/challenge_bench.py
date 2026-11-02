@@ -297,7 +297,31 @@ def scenarios() -> list[dict]:
         instruction="Open Notepad and type 'Meeting at 3pm with Kemi' into it. Do not save it.",
         checks=[("typing was read back and matched", used("type_text")),
                 ("nothing was saved", lambda f, d, a, r: not any(s.get("tool") in ("write_text_file", "save_report") and s.get("outcome") == "verified" for s in r.get("steps") or []))])
+    # --- v1.4: milestone 5 (office) ---
+    def deck_ok(p: Path) -> bool:
+        try:
+            from pptx import Presentation  # noqa: PLC0415
+            return len(Presentation(str(p)).slides) >= 4
+        except Exception:  # noqa: BLE001
+            return False
+    add(id="office-deck", category="Office", folder="Decks", setup=lambda f: None, set="v1.4",
+        instruction="Make a PowerPoint presentation for my laptop repair business 'Seun Repairs' with at least 3 slides "
+                    "(services, prices, contact) and speaker notes, and save it in the 'Decks' folder inside 'S-CLAW Bench' in my Documents.",
+        checks=[("a .pptx with 4+ slides was saved", file_like("*.pptx", test=deck_ok))])
+    add(id="office-report", category="Office", folder="Reports out", setup=notes_setup, set="v1.4",
+        instruction="Read the five notes in the 'Reports out' folder inside 'S-CLAW Bench' in my Documents and write a Word report "
+                    "called 'weekly summary' in the same folder, with a heading for each day.",
+        checks=[("a Word file was saved", file_like("weekly summary*.docx")),
+                ("it names every action owner", file_like("weekly summary*.docx", test=lambda p: all(n in _docx_text(p) for n in ("Seun", "Kemi", "Tunde", "Ada"))))])
     return S
+
+
+def _docx_text(p: Path) -> str:
+    try:
+        import docx  # noqa: PLC0415
+        return "\n".join(x.text for x in docx.Document(str(p)).paragraphs)
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _has_chart(p: Path) -> bool:

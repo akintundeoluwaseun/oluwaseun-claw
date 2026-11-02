@@ -43,7 +43,12 @@ STATUS = {
     "7.15": ("BUILT", "build_model forecast reports the trend; table_totals per group"),
     "7.16": ("BUILT", "build_model break_even (live formulas, chart)"),
     # 8/10 documents
-    "8.07": ("PLANNED", ""),
+    "8.02": ("BUILT", "save_report contents=True: a real Word TOC field (no list of figures yet)"),
+    "8.06": ("BUILT", "save_report: headings, real bullet/numbered lists, page numbers"),
+    "8.08": ("BUILT", "make_presentation (slides, notes, charts; reopened and checked)"),
+    "8.13": ("BUILT", "make_presentation speaker notes, checked on reopen"),
+    "8.14": ("BUILT", "make_presentation chart slides from numbers"),
+    "8.15": ("BUILT", "export_pdf / pdf=True through LibreOffice when installed; page count checked"),
     # 3. After Effects / motion
     "3.14": ("PASSED", "built-in maker: 10 s promo video, release check + benchmark (After Effects itself not tested)"),
     # 1. Photoshop

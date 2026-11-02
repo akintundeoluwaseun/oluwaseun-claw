@@ -251,6 +251,9 @@ def compact_args(schema: dict, notes: bool = True) -> str:
 # real-brain trial on Windows did exactly that for the flyer, the spreadsheet and the
 # copy. Naming the fitting tools next to the task is what gets them used.
 _FITTING: list[tuple[str, tuple[str, ...]]] = [
+    # Office: decks and PDFs.
+    (r"\b(?:presentation|powerpoint|slides?|slide deck|deck|pptx)\b", ("make_presentation",)),
+    (r"\b(?:export|save|convert)\b.{0,40}\b(?:as |to |into )?(?:a )?pdf\b", ("export_pdf",)),
     # The computer: startup programs, memory, shortcuts, renaming many files, archives.
     (r"\b(?:start(?:s|ing)? (?:up |automatically)|startup|at start-?up|launch(?:es)? (?:at|on) (?:start|boot|sign))", ("list_startup_apps",)),
     (r"\b(?:memory|ram)\b.{0,40}\b(?:using|eating|consum|hog|most)|\b(?:using|eating|consuming)\b.{0,30}\b(?:memory|ram)\b", ("top_memory",)),

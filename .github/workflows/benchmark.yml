@@ -74,7 +74,7 @@ jobs:
       - name: Run the benchmark
         run: |
           trap { Write-Output "::error title=Benchmark failed::$($_.Exception.Message) at line $($_.InvocationInfo.ScriptLineNumber)"; exit 1 }
-          python -m pip install -q openpyxl av pypdf
+          python -m pip install -q openpyxl av pypdf python-docx python-pptx
           $brain = "${{ inputs.brain }}"
           $env:CLAW_RESOURCES = 'D:\S-CLAW\resources'
           $env:CLAW_SESSION_TOKEN = $env:TOKEN

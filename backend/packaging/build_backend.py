@@ -34,6 +34,7 @@ def main() -> int:
         # native libraries beside them) has to come across with its layout intact.
         "--collect-all", "sherpa_onnx", "--collect-binaries", "sherpa_onnx",
         "--collect-data", "docx", "--collect-data", "openpyxl",
+        "--collect-all", "pptx", "--collect-submodules", "xlsxwriter",  # PowerPoint template + chart data (milestone 5)
         "--collect-binaries", "av",  # voice notes: FFmpeg decoders inside PyAV
         "--collect-data", "claw",  # built-in skills (claw/skills/*/SKILL.md)
         *[x for m in ("uvicorn.logging", "uvicorn.loops.auto", "uvicorn.protocols.http.auto",

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — reuse plan step 5: milestone 5 (Word and PowerPoint)
+
+- New tool, make_presentation (python-pptx 1.0.2, MIT): a 16:9 deck with a dark cover, an accent bar, bullets, speaker notes and chart slides. It is reopened to check the slide count, every title, the notes and the charts.
+- New tool, export_pdf: Word, PowerPoint or Excel to PDF through LibreOffice, when installed; the page count is checked. Without LibreOffice it says so.
+- save_report: an optional real table-of-contents field, page numbers, and real bullet and numbered lists.
+- New dependencies: python-pptx 1.0.2 (MIT) and XlsxWriter 3.3.1 (BSD-2, needed by python-pptx for charts).
+- New benchmark set v1.4: a deck and a Word report.
+
 ## Unreleased — reuse plan step 4: milestone 4 (the computer)
 
 - New tools:
