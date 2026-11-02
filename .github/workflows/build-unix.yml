@@ -4,9 +4,14 @@ name: Build Linux and Mac
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional: also put the AppImage and dmg on this release (fixed names, for direct download links)"
+        type: string
+        default: ""
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -53,3 +58,12 @@ jobs:
             build/app-local/*.AppImage
             build/app-local/*.dmg
           if-no-files-found: error
+      - name: Put it on the release
+        if: inputs.release_tag != ''
+        run: |
+          # Fixed names, so a website can link to releases/latest/download/<name> and it downloads directly.
+          for f in build/app-local/*.AppImage; do [ -f "$f" ] && cp "$f" S-CLAW-Linux.AppImage; done
+          for f in build/app-local/*.dmg; do [ -f "$f" ] && cp "$f" S-CLAW-Mac.dmg; done
+          for f in S-CLAW-Linux.AppImage S-CLAW-Mac.dmg; do
+            [ -f "$f" ] && gh release upload "${{ inputs.release_tag }}" "$f" --clobber && echo "::notice title=Uploaded::$f"
+          done; true

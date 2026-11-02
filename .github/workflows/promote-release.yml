@@ -1,0 +1,38 @@
+# Makes a checked release the one the website links to.
+# After this, these links always download the newest checked files directly, with no GitHub page:
+#   https://github.com/<owner>/<repo>/releases/latest/download/S-CLAW-Windows-Setup.exe
+#   .../S-CLAW-Linux.AppImage, .../S-CLAW-Mac.dmg, .../S-CLAW-Brain-Light-2B.gguf and the other brain files
+name: Make a release the download
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Checked release to publish as the latest"
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Windows installer under a fixed name
+        run: |
+          set -e
+          mkdir -p dl && cd dl
+          gh release download "${{ inputs.tag }}" --pattern "S-CLAW-*-Setup.exe"
+          f=$(ls *Setup.exe | head -1)
+          [ "$f" = "S-CLAW-Windows-Setup.exe" ] || cp "$f" S-CLAW-Windows-Setup.exe
+          gh release upload "${{ inputs.tag }}" S-CLAW-Windows-Setup.exe --clobber
+      - name: Publish as the latest release
+        run: |
+          gh release edit "${{ inputs.tag }}" --prerelease=false --draft=false --latest
+          gh release view "${{ inputs.tag }}" --json assets --jq '.assets[].name' | while read -r n; do
+            echo "::notice title=Direct link::https://github.com/${GH_REPO}/releases/latest/download/$n"
+          done
