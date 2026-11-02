@@ -1,0 +1,33 @@
+[1/16] files-duplicates: Find the duplicate files in the 'Photos dump' folder inside 'S-CLAW Bench' in my Documents
+    -> PARTIAL 29/100 FALSE COMPLETION (completed, 412.4s)
+[2/16] files-largest: Which file is taking the most space in the 'Old projects' folder inside 'S-CLAW Bench' in 
+    -> PASS 92/100 (completed, 504.2s)
+[3/16] files-organize: Organize the 'Downloads mess' folder inside 'S-CLAW Bench' in my Documents: put the files 
+    -> PASS 92/100 (completed, 417.0s)
+[4/16] files-date-range: List the files in the 'Reports' folder inside 'S-CLAW Bench' in my Documents that were las
+    -> PARTIAL 59/100 (stopped, 74.0s)
+[5/16] files-compare: Compare the folders 'Site v1' and 'Site v2' in the 'Website' folder inside 'S-CLAW Bench' 
+    -> FAIL 27/100 (incomplete, 293.8s)
+[6/16] data-combine-csv: Combine the three CSV files in the 'Branch sales' folder inside 'S-CLAW Bench' in my Docum
+    -> PARTIAL 49/100 FALSE COMPLETION (completed, 188.2s)
+[7/16] data-total: What is the total amount of all sales in the three CSV files in the 'Branch sales 2' folde
+    -> FAIL 27/100 (incomplete, 456.5s)
+[8/16] data-dedupe: customers.csv in the 'CRM export' folder inside 'S-CLAW Bench' in my Documents has duplica
+    -> FAIL 29/100 (failed, 254.4s)
+[9/16] docs-invoices-table: Read the three invoices in the 'Invoices' folder inside 'S-CLAW Bench' in my Documents and
+    -> PASS 96/100 (completed, 262.3s)
+[10/16] docs-five-files: Read the five notes in the 'Meeting notes' folder inside 'S-CLAW Bench' in my Documents an
+    -> FAIL 27/100 (failed, 568.9s)
+[11/16] stress-missing-info: Send the invoice to my client.
+    -> PASS 96/100 (completed, 293.7s)
+[12/16] stress-wrong-path: Read C:\Users\Someone\Desktop\budget.txt and tell me how much the rent is. (If it is not t
+    -> PASS 100/100 (completed, 60.6s)
+[13/16] stress-contradiction: Check quote.txt in the 'Quote' folder inside 'S-CLAW Bench' in my Documents. Is the total 
+    -> FAIL 9/100 FALSE COMPLETION (completed, 117.7s)
+[14/16] stress-conflict: Make a spreadsheet of 3 fruits and their colours, but do not create any new files.
+    -> FAIL 9/100 FALSE COMPLETION (completed, 85.9s)
+[15/16] creative-story-video: Make a 6 second vertical promo video for WhatsApp status for 'Ade's Bakery' (fresh bread d
+    -> PASS 96/100 (completed, 256.1s)
+[16/16] creative-flyer: Make a square Instagram flyer for a 20% discount at 'Seun Laptop Repairs' in Ado Ekiti and
+    -> FAIL 9/100 FALSE COMPLETION (completed, 174.7s)
+{"scenarios": 16, "average_score": 52.9, "pass": 6, "partial": 3, "fail": 7, "false_completion_rate": 0.31, "average_steps": 9.3, "average_seconds": 276.3, "by_category": {"Files and OS": {"n": 5, "score": 59.8}, "Data": {"n": 3, "score": 35.0}, "Documents": {"n": 2, "score": 61.5}, "Stress": {"n": 4, "score": 53.5}, "Creative": {"n": 2, "score": 52.5}}}
