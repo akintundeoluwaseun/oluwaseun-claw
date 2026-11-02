@@ -226,6 +226,29 @@ class WindowsUIADriver(DesktopDriver):
         escaped = "".join(_ESCAPE.get(c, c) for c in text)
         send_keys(escaped, with_spaces=True, with_tabs=True, with_newlines=True, pause=0.01)
 
+    def focused_text(self) -> str | None:
+        """UI Automation's focused element, read the way FlaUI/pywinauto do: ValuePattern, then
+        TextPattern (rich edit boxes such as Windows 11 Notepad), then the window text."""
+        self._check()
+        try:
+            from pywinauto.controls.uiawrapper import UIAWrapper  # noqa: PLC0415
+            from pywinauto.uia_defines import IUIA  # noqa: PLC0415
+            from pywinauto.uia_element_info import UIAElementInfo  # noqa: PLC0415
+
+            el = UIAWrapper(UIAElementInfo(IUIA().iuia.GetFocusedElement()))
+        except Exception:  # noqa: BLE001 - nothing focused, or UIA unavailable
+            return None
+        try:
+            iface = el.iface_text
+            if iface is not None:
+                text = iface.DocumentRange.GetText(-1)
+                if isinstance(text, str) and text:
+                    return text
+        except Exception:  # noqa: BLE001 - TextPattern not supported
+            pass
+        v = self._value(el)
+        return v if v else None
+
     def send_keys(self, keys: list[str]) -> None:
         self._check()
         from pywinauto.keyboard import send_keys  # noqa: PLC0415

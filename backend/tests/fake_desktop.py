@@ -283,6 +283,12 @@ class FakeDesktop(DesktopDriver):
         if w and w["controls"] and w["controls"][0]["role"] in ("Document", "Edit"):
             w["controls"][0]["value"] += text
 
+    def focused_text(self):
+        w = self.windows.get(self.active)
+        if w and w["controls"] and w["controls"][0]["role"] in ("Document", "Edit"):
+            return w["controls"][0]["value"]
+        return None
+
     def send_keys(self, keys):
         w = self.windows.get(self.active, {})
         if keys == ["enter"] and w.get("process") == "WhatsApp.Root.exe" and w.get("open_chat"):

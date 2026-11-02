@@ -287,6 +287,16 @@ def scenarios() -> list[dict]:
     add(id="data-chart", category="Data", folder="Chart data", setup=sales_setup, set="v1.2",
         instruction="Make a chart of total sales per product from 'monthly sales.csv' in the 'Chart data' folder inside 'S-CLAW Bench' in my Documents.",
         checks=[("a workbook with a chart was saved", file_like("*.xlsx", test=lambda p: _has_chart(p)))])
+    # --- v1.3: desktop apps through UI Automation (reuse step 2) ---
+    def used(tool, outcome="verified"):
+        return lambda f, d, a, r: any(s.get("tool") == tool and s.get("outcome") == outcome for s in r.get("steps") or [])
+    add(id="desktop-calculator", category="Desktop", folder="Empty", setup=lambda f: None, set="v1.3",
+        instruction="Open Calculator, work out 1234 times 56 in it, and tell me the result.",
+        checks=[("Calculator was opened", used("launch_app")), ("answer 69,104", lambda f, d, a, r: "69104" in (a or "").replace(",", ""))])
+    add(id="desktop-notepad-typed", category="Desktop", folder="Notepad", setup=lambda f: None, set="v1.3",
+        instruction="Open Notepad and type 'Meeting at 3pm with Kemi' into it. Do not save it.",
+        checks=[("typing was read back and matched", used("type_text")),
+                ("nothing was saved", lambda f, d, a, r: not any(s.get("tool") in ("write_text_file", "save_report") and s.get("outcome") == "verified" for s in r.get("steps") or []))])
     return S
 
 

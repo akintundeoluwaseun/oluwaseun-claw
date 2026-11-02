@@ -443,7 +443,23 @@ async def type_text(args: TypeArgs, ctx: ToolContext) -> ToolResult:
     ctx.desktop.last_typed = args.text
     for i in range(0, len(args.text), TYPE_CHUNK):
         await _d(ctx, "type_keys", args.text[i:i + TYPE_CHUNK])
-    return ToolResult(True, f"Typed {len(args.text)} characters into the active window.", {"chars": len(args.text)}, verified=False)
+    # Read it back from the focused control (UIA ValuePattern / TextPattern). Release checks once
+    # typed "S-CLAt" for "S-CLAW" and called it done; now a wrong result is seen as wrong.
+    try:
+        back = await _d(ctx, "focused_text")
+    except ToolError:
+        back = None
+    if back is None:
+        return ToolResult(True, f"Typed {len(args.text)} characters into the active window (it cannot be read back to check).",
+                          {"chars": len(args.text)}, verified=False)
+    norm = lambda t: t.replace("\r\n", "\n").replace("\r", "\n")  # noqa: E731
+    if norm(args.text) in norm(back):
+        return ToolResult(True, f"Typed {len(args.text)} characters and read them back from the window: they match.",
+                          {"chars": len(args.text)}, verified=True)
+    tail = norm(back)[-max(40, len(args.text) + 10):]
+    return ToolResult(False, f"Typed {len(args.text)} characters, but the window now shows \"{tail}\" - the text did not arrive as typed. "
+                             "Check which window had focus, then type it again or use write_text_file.",
+                      {"chars": len(args.text), "seen": tail}, verified=True)
 
 
 # ---------- press_keys ----------

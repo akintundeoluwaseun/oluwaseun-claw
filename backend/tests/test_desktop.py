@@ -264,3 +264,18 @@ async def test_typing_is_only_verified_when_it_reads_back(desk_ctx, monkeypatch)
     monkeypatch.setattr(desk_ctx.fake, "read", lambda index: "something else entirely")
     bad = await call(desk_ctx, "type_into", number=0, text="Hello again")
     assert bad.verified is False and "could not read it back" in bad.summary
+
+
+async def test_typing_is_read_back_and_a_garble_is_caught(desk_ctx):
+    from tests.test_phase_a import call
+    await call(desk_ctx, "launch_app", name="Notepad")
+    r = await call(desk_ctx, "type_text", text="S-CLAW release check")
+    assert r.ok and r.verified and "they match" in r.summary
+    drv = desk_ctx.desktop.driver
+    orig = drv.type_keys
+    drv.type_keys = lambda t: orig(t.replace("W", "t"))          # what the release check saw: "S-CLAt"
+    r = await call(desk_ctx, "type_text", text="S-CLAW again")
+    assert not r.ok and r.verified and "did not arrive as typed" in r.summary
+    drv.focused_text = lambda: None                              # a window that cannot be read
+    r = await call(desk_ctx, "type_text", text="x")
+    assert r.ok and not r.verified and "cannot be read back" in r.summary

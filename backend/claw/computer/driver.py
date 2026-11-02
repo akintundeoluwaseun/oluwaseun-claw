@@ -100,6 +100,14 @@ class DesktopDriver(ABC):
     def type_keys(self, text: str) -> None:
         """Type literal text into whatever has keyboard focus."""
 
+    def focused_text(self) -> str | None:
+        """The text of the control that has keyboard focus, or None when it cannot be read.
+
+        Used to check typing (reuse audit §2.4): drivers that cannot read it return None, and
+        typing then stays honestly "done, not checked".
+        """
+        return None
+
     @abstractmethod
     def send_keys(self, keys: list[str]) -> None:
         """Press a validated key combination, e.g. ['ctrl', 's']."""

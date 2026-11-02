@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — reuse plan steps 2 and 3
+
+- Step 2: type_text now reads the text back from the control that has focus, the way FlaUI and pywinauto do (UIA TextPattern, then ValuePattern, then the window text).
+  - Matching text marks the step verified.
+  - Garbled text fails, and the result says what the window shows.
+  - A window that cannot be read stays "done, not checked".
+- Benchmark set v1.3 adds two desktop tasks: Calculator, and Notepad typing that is read back.
+- Step 3: `tools/kinds.py` is now the single answer to "does this tool only look, or does it make files?". It replaces three hand-kept lists that had drifted apart: compare_folders and table_totals were counted as work done.
+
 ## Unreleased — reuse plan step 1: the limits in a request
 
 - `agent/constraints.py` reads "do not create files", "don't change…", "don't delete…" and "don't send…" from the request before planning.

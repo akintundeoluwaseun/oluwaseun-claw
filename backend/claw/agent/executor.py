@@ -381,12 +381,7 @@ def example_call(registry: ToolRegistry, name: str) -> str:
     return json.dumps({"thought": "...", "action": "tool", "tool": name, "args": args})
 
 
-LOOKING_TOOLS = {"web_search", "open_search_result", "read_page", "open_url", "extract_links", "list_tabs", "new_tab",
-                 "switch_tab", "list_folder", "find_files", "read_file", "read_document_pages", "search_document",
-                 "summarize_document", "list_windows", "look_at_window", "describe_screen", "take_screenshot",
-                 "current_time", "disk_space", "is_program_running", "list_events", "check_whatsapp", "inspect_image"}
-SAVING_TOOLS = {"save_links", "save_report", "write_text_file", "create_spreadsheet", "make_flyer", "make_motion_video", "combine_tables", "remove_duplicates", "add_chart", "copy_files",
-                "edit_text_file", "create_folder", "move_file", "rename_file"}
+from claw.tools.kinds import MAKES_FILES, is_looking  # noqa: E402 - one list for every guard
 
 
 _NUMBERS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
@@ -425,7 +420,7 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
         return f"You finished without doing anything or saying why. Do the task now by calling a tool.{tools}"
     save_tools = [t for t in fitting if t in ("save_links", "save_report", "write_text_file", "create_spreadsheet")]
     # Anything beyond looking counts: saving through an app's own menus is saving too.
-    saved = any(s.get("tool") not in LOOKING_TOOLS and s.get("outcome") in ("verified", "done_unverified") for s in steps)
+    saved = any(not is_looking(s.get("tool")) and s.get("outcome") in ("verified", "done_unverified") for s in steps)
     gave_up = bool(steps) and re.search(r"\b(?:could not|couldn't|cannot|can't|unable|was not able)\b", final, re.I)
     if save_tools and wants_save and not saved and not last_failed and not gave_up:
         return (f"The task asks you to save it, and nothing has been saved yet. Save it now with {save_tools[0]}."
@@ -446,7 +441,6 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
     return None
 
 
-_MAKING_TOOLS = {"create_spreadsheet", "write_text_file", "save_report", "list_to_table", "combine_files"}
 
 
 def invents_named_file(task: str, tool: str, args: dict[str, Any]) -> str | None:
@@ -455,7 +449,7 @@ def invents_named_file(task: str, tool: str, args: dict[str, Any]) -> str | None
     Benchmark v1.1, 2 Nov: asked to read 'Q3 forecast.xlsx', which does not exist, the 4B brain
     created a 'Q3 forecast.xlsx' holding a made-up 150,000 and reported that number as the answer.
     """
-    if tool not in _MAKING_TOOLS:
+    if tool not in MAKES_FILES:
         return None
     name = str(args.get("file_name") or args.get("path") or "").replace("\\", "/").split("/")[-1].lower()
     if not name:

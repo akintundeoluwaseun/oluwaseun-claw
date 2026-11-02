@@ -13,11 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-LOOKING = {"web_search", "open_search_result", "read_page", "open_url", "extract_links", "list_tabs", "new_tab",
-           "switch_tab", "list_folder", "find_files", "read_file", "read_document_pages", "search_document",
-           "summarize_document", "list_windows", "look_at_window", "describe_screen", "take_screenshot",
-           "current_time", "disk_space", "is_program_running", "list_events", "check_whatsapp", "inspect_image",
-           "look_at_page", "recall", "check_file"}
+from claw.tools.kinds import is_looking  # noqa: E402
 
 
 def _line(step: dict[str, Any]) -> str:
@@ -32,7 +28,7 @@ def final_report(steps: list[dict[str, Any]], files: list[dict[str, Any]], statu
         tool, out = s.get("tool"), s.get("outcome")
         if out in ("denied", "blocked"):
             rep["blocked"].append(f"{tool}: {_line(s)}")
-        elif tool in LOOKING and tool != "check_file":
+        elif is_looking(tool) and tool != "check_file":
             continue  # looking is how work is done, not work done
         elif out == "verified":
             rep["completed"].append(_line(s))
@@ -59,7 +55,7 @@ def done_so_far(events: list[dict[str, Any]]) -> list[str]:
         if e.get("kind") != "verified":
             continue
         d = e.get("data") or {}
-        if d.get("tool") in LOOKING and d.get("tool") != "check_file":
+        if is_looking(d.get("tool")) and d.get("tool") != "check_file":
             continue
         line = f"{d.get('tool')}: {str(d.get('detail') or '')[:200]}"
         if line not in seen:

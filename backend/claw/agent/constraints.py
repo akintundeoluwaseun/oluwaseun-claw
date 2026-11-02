@@ -28,11 +28,9 @@ _JUST_TELL = re.compile(r"\b(?:just|only)\s+(?:tell|show|list|answer|say)\b|\bre
 _WANTS_FILE = re.compile(r"\b(?:make|create|save|build|generate|produce|write|export)\b[^.]{0,60}?"
                          r"\b(?:spreadsheet|sheet|workbook|file|report|document|docx|xlsx|csv|pdf|flyer|poster|video|mp4|chart|table)\b", re.I)
 
-MAKING = {"create_spreadsheet", "write_text_file", "save_report", "list_to_table", "combine_files", "combine_tables",
-          "remove_duplicates", "add_chart", "build_model", "make_flyer", "make_motion_video", "edit_image",
-          "save_links", "create_folder", "copy_files", "sort_lines", "add_computed_column", "make_searchable_pdf",
-          "download_file", "edit_text_file"}
-CHANGING = {"move_file", "rename_file", "edit_text_file", "sort_into_folders"}
+from claw.tools.kinds import CHANGES_FILES as CHANGING  # noqa: E402
+from claw.tools.kinds import MAKES_FILES as MAKING  # noqa: E402
+
 DELETING = {"delete_file", "delete_files"}
 SENDING = {"send_whatsapp_message", "send_message", "send_email"}
 
