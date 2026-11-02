@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import model_validator, BaseModel, Field, field_validator
 
 from claw.agent.schemas import Capability
 from claw.permissions.policy import PathNotAuthorized, RiskLevel
@@ -80,6 +80,22 @@ async def write_text_file(args: WriteTextArgs, ctx: ToolContext) -> ToolResult:
 class Section(BaseModel):
     heading: str = Field(min_length=1, max_length=200)
     body: str = Field(min_length=1, max_length=50_000)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _names(cls, v):
+        # Benchmark, 2 Nov: {"title": ..., "content": ...} rejected seven times in a row.
+        if isinstance(v, dict):
+            v = dict(v)
+            for want, alts in (("heading", ("title", "name", "header")), ("body", ("content", "text", "details", "items"))):
+                for a in alts:
+                    if want not in v and a in v:
+                        v[want] = v.pop(a)
+            if isinstance(v.get("body"), list):
+                v["body"] = "\n".join(f"- {x}" for x in v["body"])
+        elif isinstance(v, str):
+            v = {"heading": "Notes", "body": v}
+        return v
 
 
 class Source(BaseModel):

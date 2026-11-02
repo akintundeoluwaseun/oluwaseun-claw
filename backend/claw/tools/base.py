@@ -163,6 +163,10 @@ class ToolSpec:
         if not isinstance(raw, dict):
             raise ToolError(f"Arguments for {self.name} must be an object.")
         raw = _with_synonyms(raw, set(self.args_model.model_fields))
+        # A small brain writes "None" or "null" for "not this one" (benchmark, 2 Nov: group_by="None").
+        for k, f in self.args_model.model_fields.items():
+            if isinstance(raw.get(k), str) and raw[k].strip().lower() in ("none", "null", "n/a") and not f.is_required() and f.default is None:
+                raw[k] = None
         try:
             return self.args_model.model_validate(raw)
         except ValidationError as exc:

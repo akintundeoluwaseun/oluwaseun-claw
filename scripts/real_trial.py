@@ -49,6 +49,9 @@ class Api:
                 return e.code, json.loads(e.read() or b"null")
             except ValueError:
                 return e.code, None
+        except (TimeoutError, urllib.error.URLError, ConnectionError, OSError):
+            # Benchmark, 2 Nov: one slow answer crashed the whole run before its summary was written.
+            return 0, None
 
 
 def run_task(api: Api, text: str, limit_s: int) -> dict:

@@ -185,7 +185,7 @@ def _fmt(n: float) -> str:
 class CombineTablesArgs(ToolArgs):
     folder: str = Field(min_length=1, max_length=500, description="Folder name or path")
     pattern: str = Field(default="*", max_length=100, description="e.g. *.csv")
-    file_name: str = Field(default="combined", max_length=100)
+    file_name: str = Field(default="combined", max_length=100, description="The name the person asked for")
     source_column: str = Field(default="Source", max_length=40, description="Column naming each row's file")
     format: Literal["xlsx", "csv"] = "xlsx"
     save_in: str | None = Field(default=None, max_length=500, description="Default: same folder")
@@ -193,7 +193,9 @@ class CombineTablesArgs(ToolArgs):
 
 async def combine_tables(args: CombineTablesArgs, ctx: ToolContext) -> ToolResult:
     folder = find_folder(ctx, args.folder)
-    files = [p for p in _tables_in(folder, args.pattern)]
+    made = {str(Path(o["path"])).lower() for o in ctx.memory.outputs if o.get("path")}
+    # Never fold an earlier result back in (benchmark, 2 Nov: the second run combined combined.csv too).
+    files = [p for p in _tables_in(folder, args.pattern) if str(p).lower() not in made and not p.stem.lower().startswith(("combined", args.file_name.lower()))]
     if len(files) < 1:
         raise ToolError(f"There are no CSV or Excel files matching '{args.pattern}' in {folder}.")
 

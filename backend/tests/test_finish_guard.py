@@ -296,3 +296,29 @@ async def test_duplicates_dates_and_folder_comparison(tool_ctx):
     (w / "Site v2" / "about.html").write_text("about us")
     r = await call(tool_ctx, "compare_folders", first="Site v1", second="Site v2")
     assert r.data["missing_from_second"] == ["contact.html"] and r.data["changed"] == ["about.html"]
+
+
+def test_making_the_file_it_was_asked_to_open_is_refused():
+    from claw.agent.executor import invents_named_file
+    t = "Open 'Q3 forecast.xlsx' in the 'Forecasts' folder inside 'S-CLAW Bench' in my Documents and tell me the Q3 total."
+    assert "not to make it" in invents_named_file(t, "create_spreadsheet", {"file_name": "Q3 forecast.xlsx"})
+    assert invents_named_file("Read invoice.pdf in my Documents and tell me the total.", "write_text_file", {"file_name": "invoice.txt"})
+    assert invents_named_file(t, "read_file", {"path": "Q3 forecast.xlsx"}) is None
+    assert invents_named_file("Make a spreadsheet called 'Q3 forecast.xlsx' with my numbers.", "create_spreadsheet",
+                              {"file_name": "Q3 forecast.xlsx"}) is None
+    assert invents_named_file("Read notes.txt and save a summary as summary.txt", "write_text_file", {"file_name": "summary.txt"}) is None
+
+
+async def test_sorting_a_folder_and_finding_the_biggest_file(tool_ctx):
+    from pathlib import Path
+    from tests.test_phase_a import call
+    d = Path(tool_ctx.settings.permissions.authorized_folders[0]) / "S-CLAW Bench" / "Downloads mess"
+    d.mkdir(parents=True)
+    for n, size in (("invoice.pdf", 10), ("cv.docx", 10), ("photo.jpg", 10), ("prices.xlsx", 10), ("site backup.zip", 9000), ("odd.xyz", 5)):
+        (d / n).write_bytes(b"x" * size)
+    r = await call(tool_ctx, "find_files", folder="Downloads mess", largest_first=True)
+    assert "Largest: site backup.zip" in r.summary
+    r = await call(tool_ctx, "sort_into_folders", folder="Downloads mess")
+    assert r.verified and (d / "Documents" / "cv.docx").is_file() and (d / "Images" / "photo.jpg").is_file()
+    assert (d / "Spreadsheets" / "prices.xlsx").is_file() and (d / "Archives" / "site backup.zip").is_file() and (d / "odd.xyz").is_file()
+    assert "Left where they were" in r.summary

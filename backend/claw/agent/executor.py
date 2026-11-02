@@ -251,7 +251,9 @@ def compact_args(schema: dict) -> str:
 # real-brain trial on Windows did exactly that for the flyer, the spreadsheet and the
 # copy. Naming the fitting tools next to the task is what gets them used.
 _FITTING: list[tuple[str, tuple[str, ...]]] = [
-    # Files: duplicates by content, comparing folders.
+    # Files: tidying, the biggest files, duplicates by content, comparing folders.
+    (r"\b(?:organi[sz]e|tidy|sort|arrange|clean up)\b.{0,60}\b(?:folder|downloads|files)\b|\bsubfolders?\b.{0,40}\btype", ("sort_into_folders",)),
+    (r"\b(?:largest|biggest|most space|largest files?|taking (?:up )?(?:the most )?space)\b", ("find_files",)),
     (r"\bduplicate\w*\b.{0,40}\b(?:files?|photos?|pictures?|images?|documents?)\b|\bsame content\b", ("find_duplicate_files",)),
     (r"\bcompare\b.{0,60}\bfolders?\b|\bfolders?\b.{0,60}\b(?:missing|changed|differen)", ("compare_folders",)),
     (r"\b(?:modified|changed|edited|saved)\b.{0,30}\b(?:in|during|between|since)\b.{0,20}\b(?:january|february|march|april|may|june|july|august|september|october|november|december|20\d\d)", ("find_files",)),
@@ -440,6 +442,38 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
     if not steps and fitting and not worked and re.search(r"\b(?:cannot|can't|unable|not possible)\b", final, re.I):
         return (f"Nothing has been tried yet. Try the task with these tools first: {', '.join(fitting)}. "
                 "Finish only if a tool has actually failed, and say how.")
+    return None
+
+
+_MAKING_TOOLS = {"create_spreadsheet", "write_text_file", "save_report", "list_to_table", "combine_files"}
+
+
+def invents_named_file(task: str, tool: str, args: dict[str, Any]) -> str | None:
+    """Refuse to MAKE the file the person asked to OPEN or READ.
+
+    Benchmark v1.1, 2 Nov: asked to read 'Q3 forecast.xlsx', which does not exist, the 4B brain
+    created a 'Q3 forecast.xlsx' holding a made-up 150,000 and reported that number as the answer.
+    """
+    if tool not in _MAKING_TOOLS:
+        return None
+    name = str(args.get("file_name") or args.get("path") or "").replace("\\", "/").split("/")[-1].lower()
+    if not name:
+        return None
+    first = task.strip().split("\n")[0]
+    for m in _FILE_IN_TASK.finditer(first):
+        whole = m.group(0).rstrip()
+        quoted = m.start() > 0 and first[m.start() - 1] in "'\"\u2018\u201c"
+        named = (whole.strip() if quoted else whole.split(" ")[-1]).lower()
+        start = m.start() if quoted else m.start() + len(whole) - len(named)
+        stem_task, stem_args = Path(named).stem.lower(), Path(name).stem.lower()
+        if not stem_task or (stem_task not in stem_args and stem_args not in stem_task):
+            continue
+        before = first[:start].lower()
+        asked_to_read = re.search(r"\b(open|read|check|look at|tell me|from|in)\b[^.]*$", before)
+        asked_to_make = re.search(r"\b(create|make|save|write|build|generate|called|named|as)\b[^.]*$", before)
+        if asked_to_read and not asked_to_make:
+            return (f"You were asked to open '{named}', not to make it. Making a file with that name would invent its "
+                    f"contents. If it does not exist, finish and say plainly that it was not found and where you looked.")
     return None
 
 
@@ -935,6 +969,16 @@ async def run_agent(
             shape = compact_args(_strip_titles(spec.for_model()["args"]))
             messages.append(ChatMessage(role="user", content=format_observation(spec.name, None, exc.message)
                                         + f"\nFix the arguments and call {spec.name} again. It takes: {shape}"))
+            if (stop := await after_failure()) is not None:
+                return stop
+            continue
+
+        fake = invents_named_file(task, spec.name, args.model_dump(mode="json"))
+        if fake:
+            record.update(outcome="rejected", detail=fake)
+            steps.append(record)
+            emit("rejected", {"step": step_no, "reason": fake})
+            messages.append(ChatMessage(role="user", content=fake))
             if (stop := await after_failure()) is not None:
                 return stop
             continue

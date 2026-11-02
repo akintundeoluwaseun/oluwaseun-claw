@@ -1,5 +1,27 @@
 # Test results
 
+## Challenge benchmark run 2, v0.5.0-build.41, Standard brain, 2 Nov 2026
+
+Evidence: ci-evidence:benchmarks/v0.5.0-build.41-Standard-2. The harness crashed on an API timeout in the 18th scenario (fixed), so the overall summary was worked out from benchmark.json.
+
+**Set v1 (the 16 baseline challenges): 67.8/100**, up from 52.9. PASS 9 (was 6), PARTIAL 1, FAIL 6. False completions 2 of 16 (was 5). 193 s per challenge on average (was 276).
+
+- Now passing: files-duplicates, files-date-range, files-compare, data-dedupe, stress-contradiction (the arithmetic check), creative-flyer (the folder found by name).
+- Fell back:
+  - files-largest: called disk_space over and over.
+  - files-organize: drove File Explorer by hand.
+  - data-combine-csv: re-combined its own output.
+  - data-total: sent group_by "None".
+  - docs-five-files: section keys title/content.
+- v1.1 infeasible-missing-file: **FAIL, false completion**. The brain *created* the missing 'Q3 forecast.xlsx' with a made-up 150,000 and reported it.
+- Every one of these is fixed in the next build:
+  - "None" read as empty;
+  - section synonyms;
+  - combine_tables skips its own outputs;
+  - largest_first and sort_into_folders;
+  - Claw refuses to make a file the person asked to open;
+  - the authorized folder wins for "Documents".
+
 ## Challenge benchmark BASELINE (set v1, 16 challenges), v0.5.0-build.40, Standard brain, 2 Nov 2026
 
 This is the reference that later runs are compared with. Evidence: ci-evidence:benchmarks/v0.5.0-build.40-Standard-1.

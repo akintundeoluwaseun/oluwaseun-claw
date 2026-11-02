@@ -84,6 +84,7 @@ class FindArgs(ToolArgs):
     extension: str | None = Field(default=None, max_length=10, description="e.g. .pdf")
     folder: str | None = Field(default=None, max_length=500)
     newest_first: bool = True
+    largest_first: bool = Field(default=False, description="Biggest first")
     not_modified_in_days: int | None = Field(
         default=None, ge=1, le=36500,
         description="Only files untouched for at least this many days, e.g. 30 for old files")
@@ -137,7 +138,10 @@ async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:
             hits.append({"path": str(p), "size": st.st_size, "modified": st.st_mtime})
         if scanned > 50000:
             break
-    hits.sort(key=lambda h: -h["modified"] if args.newest_first else h["path"])
+    if args.largest_first:
+        hits.sort(key=lambda h: -h["size"])
+    else:
+        hits.sort(key=lambda h: -h["modified"] if args.newest_first else h["path"])
     hits = hits[:100]
     for h in hits:
         h["modified"] = _when(h["modified"])
@@ -149,7 +153,8 @@ async def find_files(args: FindArgs, ctx: ToolContext) -> ToolResult:
         window = f", changed in the last {args.modified_in_days} day(s)"
     if args.modified_from or args.modified_to:
         window += f", changed between {args.modified_from or 'the start'} and {args.modified_to or 'today'}"
-    return ToolResult(True, f"Found {len(hits)} file(s) under {root}{window}.",
+    biggest = f" Largest: {Path(hits[0]['path']).name} ({_size(hits[0]['size'])})." if args.largest_first and hits else ""
+    return ToolResult(True, f"Found {len(hits)} file(s) under {root}{window}.{biggest}",
                       {"files": hits, "scanned": scanned}, True, text)
 
 
@@ -219,10 +224,78 @@ async def compare_folders(args: CompareFoldersArgs, ctx: ToolContext) -> ToolRes
                       {"missing_from_second": only_a, "only_in_second": only_b, "changed": changed, "identical": same}, True)
 
 
+def _size(n: int) -> str:
+    for unit in ("bytes", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:,} bytes" if unit == "bytes" else f"{n:,.1f} {unit}"
+        n /= 1024
+    return str(n)
+
+
+KINDS = {
+    "Documents": {".pdf", ".doc", ".docx", ".txt", ".rtf", ".odt", ".md", ".ppt", ".pptx"},
+    "Images": {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".heic", ".svg", ".tif", ".tiff"},
+    "Spreadsheets": {".xlsx", ".xls", ".csv", ".ods"},
+    "Videos": {".mp4", ".mov", ".avi", ".mkv", ".webm"},
+    "Audio": {".mp3", ".wav", ".m4a", ".ogg", ".aac"},
+    "Archives": {".zip", ".rar", ".7z", ".tar", ".gz"},
+    "Programs": {".exe", ".msi"},
+}
+
+
+class SortArgs(ToolArgs):
+    folder: str = Field(min_length=1, max_length=500, description="Folder name or path")
+    groups: dict[str, list[str]] = Field(default_factory=dict,
+                                         description='Optional, e.g. {"Docs": [".pdf"]}')
+
+
+def check_sort(args: SortArgs, ctx: ToolContext) -> None:
+    existing_folder(ctx, args.folder, write=True)
+
+
+async def sort_into_folders(args: SortArgs, ctx: ToolContext) -> ToolResult:
+    """Move a folder's loose files into subfolders by type. Never overwrites; checks every move."""
+    import shutil  # noqa: PLC0415
+    root = existing_folder(ctx, args.folder, write=True)
+    groups = {k: {e.lower() if e.startswith(".") else "." + e.lower() for e in v} for k, v in args.groups.items()} or KINDS
+
+    def work():
+        moved, left, problems = {}, [], []
+        for p in sorted(x for x in root.iterdir() if x.is_file() and not x.name.startswith(".")):
+            group = next((g for g, exts in groups.items() if p.suffix.lower() in exts), None)
+            if group is None:
+                left.append(p.name)
+                continue
+            dest = root / group
+            dest.mkdir(exist_ok=True)
+            target = dest / p.name
+            if target.exists():
+                problems.append(f"{p.name} (a file of that name is already in {group})")
+                continue
+            ctx.policy.check_path(str(target), write=True)
+            shutil.move(str(p), str(target))
+            if target.is_file() and not p.exists():
+                moved.setdefault(group, []).append(p.name)
+            else:
+                problems.append(f"{p.name} (move not confirmed)")
+        return moved, left, problems
+
+    moved, left, problems = await asyncio.to_thread(work)
+    n = sum(len(v) for v in moved.values())
+    parts = "; ".join(f"{g}: {', '.join(v)}" for g, v in moved.items())
+    ok = not problems
+    return ToolResult(ok or n > 0, f"Moved {n} file(s) in {root.name} into subfolders and checked each one. {parts}."
+                      + (f" Left where they were (no matching type): {', '.join(left)}." if left else "")
+                      + (f" Not moved: {'; '.join(problems)}." if problems else ""),
+                      {"moved": moved, "left": left, "problems": problems}, verified=ok)
+
+
 def register_file_inspect_tools(reg: ToolRegistry) -> None:
     F, R = Capability.FILES, RiskLevel.READ_ONLY
     reg.register(ToolSpec("list_folder", "List what is in an authorized folder.", F, R, FolderArgs, list_folder))
     reg.register(ToolSpec("read_file", "Read a file: text, PDF (scanned pages are read with OCR), Word (.docx) or Excel (.xlsx).", F, R, ReadArgs, read_file))
-    reg.register(ToolSpec("find_duplicate_files", "Find files with identical content in a folder, whatever their names.", F, R, DupArgs, find_duplicate_files))
-    reg.register(ToolSpec("compare_folders", "List files missing, added or changed between two folders.", F, R, CompareFoldersArgs, compare_folders))
+    reg.register(ToolSpec("sort_into_folders", "Move a folder's files into subfolders by type.",
+                          F, RiskLevel.LOCAL_WRITE, SortArgs, sort_into_folders, precheck=check_sort))
+    reg.register(ToolSpec("find_duplicate_files", "Find files with identical content.", F, R, DupArgs, find_duplicate_files))
+    reg.register(ToolSpec("compare_folders", "Files missing or changed between two folders.", F, R, CompareFoldersArgs, compare_folders))
     reg.register(ToolSpec("find_files", "Find files by name, type or age inside authorized folders, newest first.", F, R, FindArgs, find_files))

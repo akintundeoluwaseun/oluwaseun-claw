@@ -45,10 +45,14 @@ def folder_named(ctx: ToolContext, raw: str) -> Path | None:
     name = re.split(r"[\\/]+", str(raw).strip().strip("'\"").rstrip("\\/"))[-1].lower()
     if not name:
         return None
+    roots = [Path(r) for r in ctx.settings.permissions.authorized_folders]
+    # "Documents" means the authorized Documents folder, not a "Documents" subfolder somewhere
+    # inside it (benchmark, 2 Nov: after a folder was sorted, every "Documents" became ambiguous).
+    exact = [r for r in roots if r.name.lower() == name and r.is_dir()]
+    if len(exact) == 1:
+        return exact[0]
     hits: list[Path] = []
-    for root in (Path(r) for r in ctx.settings.permissions.authorized_folders):
-        if root.name.lower() == name and root.is_dir():
-            hits.append(root)
+    for root in roots:
         if root.is_dir():
             for pattern in ("*", "*/*", "*/*/*", "*/*/*/*"):
                 hits += [d for d in root.glob(pattern) if d.is_dir() and d.name.lower() == name]

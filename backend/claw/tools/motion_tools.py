@@ -18,8 +18,8 @@ from claw.tools.image_tools import FlyerArgs, _ocr_words, _output, _title_seen
 class MotionArgs(ToolArgs):
     title: str = Field(min_length=1, max_length=80, description="The headline, e.g. the product name")
     subtitle: str = Field(default="", max_length=120)
-    points: list[str] = Field(default_factory=list, max_length=5, description="Up to 5 short selling points, one scene each")
-    contact: str = Field(default="", max_length=120, description="Phone, website or call to action for the last scene")
+    points: list[str] = Field(default_factory=list, max_length=5, description="Up to 5 selling points")
+    contact: str = Field(default="", max_length=120, description="Phone or website")
     seconds: float = Field(default=10, ge=4, le=30, description="Length of the video in seconds")
     size: Literal["landscape", "square", "story"] = "landscape"
     style: Literal["slide", "pop", "fade"] = "slide"
@@ -28,7 +28,7 @@ class MotionArgs(ToolArgs):
     file_name: str = Field(default="promo video", max_length=80)
     folder: str | None = Field(default=None, max_length=500)
     editor: Literal["auto", "aftereffects", "builtin"] = Field(
-        default="auto", description="auto: After Effects if installed, else Claw's built-in maker")
+        default="auto", description="auto, aftereffects or builtin")
 
     @field_validator("points", mode="before")
     @classmethod
@@ -90,6 +90,5 @@ async def make_motion_video(args: MotionArgs, ctx: ToolContext) -> ToolResult:
 
 def register_motion_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("make_motion_video",
-                          "Make a short animated promo video (motion graphics: headline, selling points, contact) and save it as MP4. "
-                          "Uses After Effects if installed (and saves its project), otherwise Claw's built-in video maker, and says which.",
+                          "Make a short animated promo video (MP4), with After Effects if installed.",
                           Capability.DOCUMENTS, RiskLevel.LOCAL_WRITE, MotionArgs, make_motion_video, precheck=check_motion))
