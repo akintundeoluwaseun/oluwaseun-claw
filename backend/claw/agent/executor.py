@@ -251,6 +251,8 @@ def compact_args(schema: dict, notes: bool = True) -> str:
 # real-brain trial on Windows did exactly that for the flyer, the spreadsheet and the
 # copy. Naming the fitting tools next to the task is what gets them used.
 _FITTING: list[tuple[str, tuple[str, ...]]] = [
+    # 3D through Blender.
+    (r"\b3d\b|\bblender\b|\bturntable\b|\brotating\b.{0,20}\b360|\b360\b.{0,20}\b(?:spin|rotat|turn)", ("make_3d_render",)),
     # Office: decks and PDFs.
     (r"\b(?:presentation|powerpoint|slides?|slide deck|deck|pptx)\b", ("make_presentation",)),
     (r"\b(?:export|save|convert)\b.{0,40}\b(?:as |to |into )?(?:a )?pdf\b", ("export_pdf",)),

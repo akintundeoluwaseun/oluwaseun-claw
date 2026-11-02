@@ -18,7 +18,7 @@ MAKES_FILES = frozenset({
     "create_spreadsheet", "write_text_file", "save_report", "list_to_table", "combine_files", "combine_tables",
     "remove_duplicates", "add_chart", "build_model", "make_flyer", "make_motion_video", "edit_image", "save_links",
     "create_folder", "copy_files", "sort_lines", "add_computed_column", "make_searchable_pdf", "download_file",
-    "edit_text_file", "move_file", "rename_file", "sort_into_folders", "extract_emails", "rename_many", "archive_folder", "make_presentation", "export_pdf",
+    "edit_text_file", "move_file", "rename_file", "sort_into_folders", "extract_emails", "rename_many", "archive_folder", "make_presentation", "export_pdf", "make_3d_render",
 })
 CHANGES_FILES = frozenset({"move_file", "rename_file", "edit_text_file", "sort_into_folders", "rename_many"})
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — reuse plan steps 6 and 7 (video licences, Blender)
+
+- Step 6: THIRD_PARTY_NOTICES had the wrong licence for the bundled video library. PyAV's FFmpeg is LGPL-3.0+, and it ships libx264 and libx265, which are GPL-2.0+. It is now corrected, and the options are written up in docs/LICENSING_VIDEO.md. No code changed.
+- Step 7: new tool, make_3d_render, uses Blender (free, optional, detected, never bundled):
+  - a product turntable: a placeholder shape or the person's own .obj/.stl/.glb, spun on a pivot and rendered with Cycles on the CPU, then encoded to MP4 by S-CLAW and checked;
+  - 3D lettering as a PNG.
+  - The person's words enter the script only as JSON. Without Blender it says so and makes nothing.
+- The real run was tested here with Blender 5.2.3 LTS (the bpy module): 24 frames at 960×540. That test runs when CLAW_TEST_BPY is set.
+
 ## Unreleased — reuse plan step 5: milestone 5 (Word and PowerPoint)
 
 - New tool, make_presentation (python-pptx 1.0.2, MIT): a 16:9 deck with a dark cover, an accent bar, bullets, speaker notes and chart slides. It is reopened to check the slide count, every title, the notes and the charts.

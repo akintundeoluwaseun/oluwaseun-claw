@@ -152,3 +152,4 @@ boost. None of its code is used: its retrieval path requires `chromadb` and
 | BrowserGym (github.com/ServiceNow/BrowserGym) | studied, not used | Apache-2.0 | Not installed (pins playwright 1.44 and lxml<6). Its MiniWoB++ approach is planned for milestone 6. |
 | python-pptx 1.0.2 | dependency | MIT | PowerPoint decks (milestone 5). |
 | XlsxWriter 3.3.1 | dependency | BSD-2-Clause | Required by python-pptx for chart data. |
+| Blender (blender.org) | run as a separate program when the user has installed it; not bundled | GPL-2.0-or-later | make_3d_render writes a Python script and runs `blender -b`. S-CLAW does not ship or link Blender. |

@@ -43,6 +43,8 @@ STATUS = {
     "7.15": ("BUILT", "build_model forecast reports the trend; table_totals per group"),
     "7.16": ("BUILT", "build_model break_even (live formulas, chart)"),
     # 8/10 documents
+    "4.07": ("BUILT", "make_3d_render turntable with Blender: rendered and checked with real Blender 5.2.3 (bpy) here"),
+    "4.15": ("BUILT", "make_3d_render: Blender renders frames, S-CLAW encodes and checks the MP4"),
     "8.02": ("BUILT", "save_report contents=True: a real Word TOC field (no list of figures yet)"),
     "8.06": ("BUILT", "save_report: headings, real bullet/numbered lists, page numbers"),
     "8.08": ("BUILT", "make_presentation (slides, notes, charts; reopened and checked)"),
