@@ -366,3 +366,15 @@ async def test_the_folder_named_in_the_request_is_used(tool_ctx):
     kept = spec.parse_args({"title": "x", "slides": [{"title": "y"}], "folder": "Elsewhere"})
     assert with_task_folder(t, "make_presentation", kept, tool_ctx).folder == "Elsewhere"
     assert with_task_folder("Make a deck about cats.", "make_presentation", args, tool_ctx).folder is None
+
+
+def test_worded_sums_are_checked():
+    from claw.agent.executor import worded_slip, obvious_first_step
+    msg = worded_slip("The result of 1234 times 56 is 68,024.")
+    assert msg and "69,104" in msg
+    assert worded_slip("1234 times 56 is 69,104.") is None and worded_slip("Call 0803 000 0000.") is None
+    t = "Open Calculator, work out 1234 times 56 in it, and tell me the result."
+    f = fitting_tools(t, build_registry())
+    ok = lambda tool: {"tool": tool, "outcome": "verified"}
+    assert obvious_first_step(t, f, [ok("launch_app")]).args == {"text": "1234*56="}
+    assert obvious_first_step(t, f, [ok("launch_app"), ok("type_text")]).tool == "look_at_window"

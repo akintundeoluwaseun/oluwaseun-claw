@@ -30,7 +30,8 @@ PAGE_CHARS = 6000
 
 
 class CompareArgs(ToolArgs):
-    fields: list[str] = Field(min_length=1, max_length=8, description='What to collect from each page, e.g. ["price", "free plan"]')
+    fields: list[str] = Field(min_length=1, max_length=8,
+                              description='What to collect, in the person\'s own words, e.g. ["screen replacement price", "warranty"]')
     urls: list[str] = Field(default_factory=list, max_length=15, description="Pages to compare; default: the last search results")
     how_many: int = Field(default=5, ge=1, le=15, description="How many search results to use when no urls are given")
     file_name: str = Field(default="comparison", max_length=100)

@@ -1,5 +1,22 @@
 # Test results
 
+## Challenge benchmark run 7, v0.5.0-build.46, Standard brain, 3 Nov 2026
+
+Evidence: ci-evidence:benchmarks/v0.5.0-build.46-Standard-7. This build has milestones 6 and 7 and the run 6 fixes.
+
+- **All 27 challenges: 92.1/100, with 0 FAIL.** PASS 24, PARTIAL 3.
+- **Set v1: 94.5** (runs 5 and 6: 94.6 and 94.2).
+- No input file was changed without being asked.
+- By category: Files 100, Data 99.3, Office 98, Creative 98, Documents 96, Media 100.
+- **New passes:**
+  - office-deck: saved in the requested folder;
+  - office-report: a Word report through save_report;
+  - media-vertical: reformat_video, 1080×1920.
+- **Partial:**
+  - desktop-calculator, a false completion: the brain clicked buttons and then answered "1234 times 56 is 68,024", which is wrong. Fixed: worded sums ("A times B is C") are now checked by Claw and sent back, and Claw types the sum into Calculator itself when the brain stops short.
+  - web-compare, a false completion: compare_pages ran and every value was grounded, but the brain asked for "price" rather than "screen replacement price", so the screen prices were not all in the sheet. The field description now asks for the person's own words.
+  - stress-missing-info: asked for "the invoice file or client information", which the frozen v1 check does not accept.
+
 ## Challenge benchmark run 6, v0.5.0-build.45, Standard brain, 2 Nov 2026
 
 Evidence: ci-evidence:benchmarks/v0.5.0-build.45-Standard-6. This build has the hang fix, office and Blender, but not milestones 6 and 7.

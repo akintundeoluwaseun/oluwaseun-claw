@@ -448,7 +448,7 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
         return (f"The task asks you to save it, and nothing has been saved yet. Save it now with {save_tools[0]}."
                 + (f" Reply like this, with real values: {example}" if example and fitting[0] in save_tools else ""))
     worked = any(s.get("outcome") not in ("failed", "rejected", "denied", "blocked") for s in steps)
-    slip = arithmetic_slip(final)
+    slip = arithmetic_slip(final) or worded_slip(final)
     if slip:
         return slip
     short = _too_few_rows(task, steps)
@@ -518,6 +518,25 @@ def with_task_folder(task: str, tool: str, args, ctx):
 
 
 _NUM = r"\d[\d,]*(?:\.\d+)?"
+
+
+_OPS = {"times": "*", "x": "*", "×": "*", "*": "*", "multiplied by": "*", "plus": "+", "minus": "-", "-": "-",
+        "divided by": "/", "/": "/", "÷": "/", "+": "+"}
+_WORDED = re.compile(rf"({_NUM})\s*(times|multiplied by|divided by|plus|minus|[x×*/÷-])\s*({_NUM})"
+                     rf"\s*(?:is|=|equals|comes to|gives)\s*(?:about\s+)?({_NUM})", re.I)
+
+
+def worded_slip(final: str) -> str | None:
+    """"1234 times 56 is 68,024" - checked by Claw (run 7: the brain answered without reading Calculator)."""
+    for m in _WORDED.finditer(final):
+        a, op, b, said = (float(m.group(1).replace(",", "")), _OPS[m.group(2).lower()],
+                          float(m.group(3).replace(",", "")), float(m.group(4).replace(",", "")))
+        right = {"*": a * b, "+": a + b, "-": a - b, "/": a / b if b else float("nan")}[op]
+        if right == right and abs(right - said) > max(0.005, abs(right) * 1e-6):
+            fmt = lambda n: f"{n:,.0f}" if float(n).is_integer() else f"{n:,.4g}"  # noqa: E731
+            return (f"Check the arithmetic: {m.group(1)} {m.group(2)} {m.group(3)} = {fmt(right)}, not {m.group(4)}. "
+                    "If you used an app for it, read its result again; correct your answer.")
+    return None
 
 
 def arithmetic_slip(final: str) -> str | None:
@@ -644,6 +663,16 @@ def obvious_first_step(task: str, fitting: list[str], steps: list[dict[str, Any]
             return ModelAction(thought="Claw reopens the file and checks it.", action="tool", tool="check_file",
                                args={"path": f"{where}/{name}", "expected_text": text})
         return None
+    calc = re.search(rf"\bcalculator\b.*?({_NUM})\s*(times|multiplied by|divided by|plus|minus|[x×*/÷+-])\s*({_NUM})", first, re.I)
+    if calc:
+        sym = _OPS.get(calc.group(2).lower(), "+")
+        expr = f"{calc.group(1).replace(',', '')}{sym}{calc.group(3).replace(',', '')}="
+        if "launch_app" not in done:
+            return ModelAction(thought="Claw opens Calculator.", action="tool", tool="launch_app", args={"name": "Calculator"})
+        if "type_text" not in done:
+            return ModelAction(thought="Claw types the sum.", action="tool", tool="type_text", args={"text": expr})
+        if "look_at_window" not in done:
+            return ModelAction(thought="Claw reads the result.", action="tool", tool="look_at_window", args={"title": "Calculator"})
     copy = re.search(r"\bcopy\s+([\w\-. ()]+?\.\w{2,5})\s+from\s+(?:my\s+|the\s+)?(documents|desktop|downloads)\b.*?"
                      r"\b(?:into|to)\s+(?:a\s+new\s+folder\s+(?:called|named)\s+|the\s+folder\s+|folder\s+)?['\"]?([\w\- ]+?)['\"]?[.!]?$",
                      task.strip().split("\n")[0], re.I)
