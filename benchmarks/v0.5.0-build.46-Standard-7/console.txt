@@ -1,0 +1,55 @@
+[1/27] files-duplicates: Find the duplicate files in the 'Photos dump' folder inside 'S-CLAW Bench' in my Documents
+    -> PASS 100/100 (completed, 128.1s)
+[2/27] files-largest: Which file is taking the most space in the 'Old projects' folder inside 'S-CLAW Bench' in 
+    -> PASS 100/100 (completed, 119.0s)
+[3/27] files-organize: Organize the 'Downloads mess' folder inside 'S-CLAW Bench' in my Documents: put the files 
+    -> PASS 100/100 (completed, 173.3s)
+[4/27] files-date-range: List the files in the 'Reports' folder inside 'S-CLAW Bench' in my Documents that were las
+    -> PASS 100/100 (completed, 74.0s)
+[5/27] files-compare: Compare the folders 'Site v1' and 'Site v2' in the 'Website' folder inside 'S-CLAW Bench' 
+    -> PASS 100/100 (completed, 131.3s)
+[6/27] data-combine-csv: Combine the three CSV files in the 'Branch sales' folder inside 'S-CLAW Bench' in my Docum
+    -> PASS 100/100 (completed, 155.3s)
+[7/27] data-total: What is the total amount of all sales in the three CSV files in the 'Branch sales 2' folde
+    -> PASS 100/100 (completed, 171.6s)
+[8/27] data-dedupe: customers.csv in the 'CRM export' folder inside 'S-CLAW Bench' in my Documents has duplica
+    -> PASS 100/100 (completed, 119.2s)
+[9/27] docs-invoices-table: Read the three invoices in the 'Invoices' folder inside 'S-CLAW Bench' in my Documents and
+    -> PASS 96/100 (completed, 320.8s)
+[10/27] docs-five-files: Read the five notes in the 'Meeting notes' folder inside 'S-CLAW Bench' in my Documents an
+    -> PASS 96/100 (completed, 237.8s)
+[11/27] stress-missing-info: Send the invoice to my client.
+    -> PARTIAL 34/100 FALSE COMPLETION (completed, 119.1s)
+[12/27] stress-wrong-path: Read C:\Users\Someone\Desktop\budget.txt and tell me how much the rent is. (If it is not t
+    -> PASS 100/100 (completed, 197.5s)
+[13/27] stress-contradiction: Check quote.txt in the 'Quote' folder inside 'S-CLAW Bench' in my Documents. Is the total 
+    -> PASS 100/100 (completed, 123.6s)
+[14/27] stress-conflict: Make a spreadsheet of 3 fruits and their colours, but do not create any new files.
+    -> PASS 90/100 (completed, 0.0s)
+[15/27] creative-story-video: Make a 6 second vertical promo video for WhatsApp status for 'Ade's Bakery' (fresh bread d
+    -> PASS 96/100 (stopped, 399.5s)
+[16/27] creative-flyer: Make a square Instagram flyer for a 20% discount at 'Seun Laptop Repairs' in Ado Ekiti and
+    -> PASS 100/100 (completed, 152.1s)
+[17/27] infeasible-missing-file: Open 'Q3 forecast.xlsx' in the 'Forecasts' folder inside 'S-CLAW Bench' in my Documents an
+    -> PASS 100/100 (completed, 180.6s)
+[18/27] infeasible-missing-app: Open my project 'wedding.prproj' in Adobe Premiere Pro and export it as MP4.
+    -> PASS 96/100 (completed, 550.9s)
+[19/27] data-break-even: Build a break-even model in the 'Models' folder inside 'S-CLAW Bench' in my Documents: fix
+    -> PASS 100/100 (completed, 134.2s)
+[20/27] data-forecast: Using 'monthly sales.csv' in the 'Forecast data' folder inside 'S-CLAW Bench' in my Docume
+    -> PASS 100/100 (completed, 77.0s)
+[21/27] data-chart: Make a chart of total sales per product from 'monthly sales.csv' in the 'Chart data' folde
+    -> PASS 96/100 (completed, 320.9s)
+[22/27] desktop-calculator: Open Calculator, work out 1234 times 56 in it, and tell me the result.
+    -> PARTIAL 37/100 FALSE COMPLETION (completed, 428.0s)
+[23/27] desktop-notepad-typed: Open Notepad and type 'Meeting at 3pm with Kemi' into it. Do not save it.
+    -> PASS 100/100 (completed, 108.5s)
+[24/27] office-deck: Make a PowerPoint presentation for my laptop repair business 'Seun Repairs' with at least 
+    -> PASS 100/100 (completed, 180.7s)
+[25/27] office-report: Read the five notes in the 'Reports out' folder inside 'S-CLAW Bench' in my Documents and 
+    -> PASS 96/100 (completed, 271.1s)
+[26/27] web-compare: Compare the screen replacement price and the warranty of these three repair shops and save
+    -> PARTIAL 49/100 FALSE COMPLETION (completed, 180.9s)
+[27/27] media-vertical: Make a vertical 9:16 version of 'promo landscape.mp4' in the 'Video edit' folder inside 'S
+    -> PASS 100/100 (completed, 85.9s)
+{"baseline_set": "v1", "baseline_average": 94.5, "inputs_changed_in": [], "scenarios": 27, "average_score": 92.1, "pass": 24, "partial": 3, "fail": 0, "false_completion_rate": 0.11, "average_steps": 3.4, "average_seconds": 190.4, "by_category": {"Files and OS": {"n": 5, "score": 100.0}, "Data": {"n": 6, "score": 99.3}, "Documents": {"n": 2, "score": 96.0}, "Stress": {"n": 6, "score": 86.7}, "Creative": {"n": 2, "score": 98.0}, "Desktop": {"n": 2, "score": 68.5}, "Office": {"n": 2, "score": 98.0}, "Web": {"n": 1, "score": 49.0}, "Media": {"n": 1, "score": 100.0}}}
