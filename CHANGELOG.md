@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — milestone 8 (design campaign, logo animation, lower third)
+
+- make_campaign: one design in several sizes at once (Instagram post, portrait, story, landscape, X header, Facebook cover, A5, A4), saved into a new folder; each file is reopened, its size checked and its headline read back with OCR. Everyday words ("instagram story", "facebook cover", "poster") map to the sizes. Photoshop is used when installed (not tested: no Photoshop here).
+- Flyers on very wide sizes size their type from the height, so the contact line stays inside the picture.
+- make_motion_video gains two styles: logo (a ring draws itself, the name scales in, the tagline follows; the whole name always fits) and lower_third (a name and role bar that slides in and out, saved as a see-through .mov for any video editor). Both by S-CLAW's built-in maker; the After Effects template still covers promo styles only, and S-CLAW says so.
+- Benchmark set v1.7: design-campaign and design-lower-third (not yet run).
+- Build 46 is now the download behind the direct links (Windows, Linux, Mac and the brains).
+
 ## Unreleased — fixes from benchmark run 6
 
 - A folder named in the request ("in the 'Decks' folder") is used when the brain leaves the folder out.

@@ -334,7 +334,39 @@ def scenarios() -> list[dict]:
     add(id="media-vertical", category="Media", folder="Video edit", setup=vid_setup, set="v1.6",
         instruction="Make a vertical 9:16 version of 'promo landscape.mp4' in the 'Video edit' folder inside 'S-CLAW Bench' in my Documents for WhatsApp status.",
         checks=[("a 1080x1920 MP4 was saved", file_like("*.mp4", test=lambda p: _video_size(p) == (1080, 1920)))])
+    # --- v1.7: milestone 8 (design campaign, logo animation, lower third) ---
+    def _png_sizes(f):
+        out = set()
+        for q in f.rglob("*.png"):
+            try:
+                from PIL import Image  # noqa: PLC0415
+                with Image.open(q) as im:
+                    out.add(im.size)
+            except Exception:  # noqa: BLE001
+                pass
+        return out
+    add(id="design-campaign", category="Creative", folder="Campaign", setup=lambda f: None, set="v1.7",
+        instruction="Make a 'Back to School Sale' design for 'Ade Stationery' (exercise books from N500, call 0803 000 0000) as an "
+                    "Instagram post, an Instagram story and a Facebook cover, and save them in the 'Campaign' folder inside "
+                    "'S-CLAW Bench' in my Documents.",
+        checks=[("an Instagram post 1080x1080", lambda f, d, a, r: (1080, 1080) in _png_sizes(f)),
+                ("an Instagram story 1080x1920", lambda f, d, a, r: (1080, 1920) in _png_sizes(f)),
+                ("a Facebook cover 1640x624", lambda f, d, a, r: (1640, 624) in _png_sizes(f))])
+    add(id="design-lower-third", category="Creative", folder="Videos", setup=lambda f: None, set="v1.7",
+        instruction="Make an animated lower third for 'Adaeze Okafor, Head of Sales' with a see-through background, and save it "
+                    "in the 'Videos' folder inside 'S-CLAW Bench' in my Documents.",
+        checks=[("a video was saved", lambda f, d, a, r: any(q.suffix.lower() in (".mov", ".mp4") for q in f.rglob("*"))),
+                ("it is see-through (has alpha)", file_like("*.mov", test=lambda p: _video_alpha(p)))])
     return S
+
+
+def _video_alpha(path: Path) -> bool:
+    try:
+        import av  # noqa: PLC0415
+        with av.open(str(path)) as c:
+            return (c.streams.video[0].codec_context.pix_fmt or "").startswith(("rgba", "argb", "yuva", "bgra"))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _make_test_video(path: Path, seconds: int = 3) -> None:

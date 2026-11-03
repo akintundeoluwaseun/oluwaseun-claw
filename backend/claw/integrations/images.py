@@ -26,6 +26,9 @@ PRESETS = {
     "a5": (1748, 2480),  # A5 at 300 dpi
     "a4": (2480, 3508),  # A4 at 300 dpi
     "landscape": (1920, 1080),
+    "banner": (1500, 500),  # X / Twitter header
+    "cover": (1640, 624),  # Facebook page cover
+    "portrait": (1080, 1350),  # Instagram portrait post
 }
 FORMATS = {".png": "PNG", ".jpg": "JPEG", ".jpeg": "JPEG", ".pdf": "PDF", ".webp": "WEBP"}
 
@@ -116,7 +119,10 @@ def render_flyer(spec: FlyerSpec) -> Image.Image:
     for y in range(H):
         t = y / H
         draw.line([(0, y), (W, y)], fill=tuple(int(bg[i] * (1 - t) + darker[i] * t) for i in range(3)))
-    m = int(W * 0.07)
+    # Type is sized from the width, except on very wide banners (X header, Facebook cover), where the
+    # height would run out first: there it is sized as if the page were twice as wide as it is tall.
+    u = W if W <= 2 * H else 2 * H
+    m = int(u * 0.07)
     y = m
     if spec.images:
         hero_h = int(H * (0.38 if len(spec.images) == 1 else 0.30))
@@ -134,7 +140,7 @@ def render_flyer(spec: FlyerSpec) -> Image.Image:
         y += int(H * 0.03)
     else:
         y += int(H * 0.04)
-    band = int(H * 0.09) if spec.contact else 0
+    band = int(max(H * 0.09, u * 0.075)) if spec.contact else 0
     # Text goes on its own layer first, so it can be centred in the space left under the pictures,
     # and shrunk until it fits that space.
     def text_block(scale: float):
@@ -143,19 +149,19 @@ def render_flyer(spec: FlyerSpec) -> Image.Image:
         ty = 0
         ld.rectangle([m, ty, m + int(W * 0.12), ty + max(6, H // 300)], fill=accent)
         ty += int(H * 0.03 * scale)
-        tf, tlines = _fit_title(ld, spec.title, W - 2 * m, int(W * 0.11 * scale))
+        tf, tlines = _fit_title(ld, spec.title, W - 2 * m, int(u * 0.11 * scale))
         for line in tlines:
             ld.text((m, ty), line, font=tf, fill=ink)
             ty += int(tf.size * 1.12)
         if spec.subtitle:
             ty += int(H * 0.01 * scale)
-            sf = font(int(W * 0.042 * scale))
+            sf = font(int(u * 0.042 * scale))
             for line in _wrap(ld, spec.subtitle, sf, W - 2 * m, 3):
                 ld.text((m, ty), line, font=sf, fill=accent)
                 ty += int(sf.size * 1.3)
         if spec.points:
             ty += int(H * 0.025 * scale)
-            pf = font(int(W * 0.036 * scale))
+            pf = font(int(u * 0.036 * scale))
             r = max(3, pf.size // 5)
             indent = int(pf.size * 1.1)
             for p in spec.points[:6]:
@@ -177,8 +183,8 @@ def render_flyer(spec: FlyerSpec) -> Image.Image:
     draw = ImageDraw.Draw(img)
     if spec.contact:
         draw.rectangle([0, H - band, W, H], fill=accent)
-        cf, _ = _fit_title(draw, spec.contact, W - 2 * m, int(W * 0.045), max_lines=1)
-        cf = font(min(cf.size, int(W * 0.045)), bold=True)
+        cf, _ = _fit_title(draw, spec.contact, W - 2 * m, int(u * 0.045), max_lines=1)
+        cf = font(min(cf.size, int(u * 0.045), int(band * 0.6)), bold=True)
         text = _wrap(draw, spec.contact, cf, W - 2 * m, 1)[0]
         draw.text((m, H - band + (band - cf.size) // 2), text, font=cf, fill=accent_ink)
     return img

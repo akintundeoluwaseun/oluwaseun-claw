@@ -18,7 +18,7 @@ GitHub's Windows machines can run the free ones, so the work can actually be tes
 | 5 | Documents and office | Extracting from many PDFs, a report built from several files, Word reports with real headings and a table of contents, PowerPoint decks from a report or a dataset | 8, 10 | planned |
 | 6 | Web research into a table | Research several sites into one comparison sheet, with every value linked to its source page | 9 | planned |
 | 7 | Video and audio by script | 9:16 versions, several resolutions, cutting silence, finding black frames, normalising audio, subtitles from speech (PyAV/ffmpeg plus the speech model S-CLAW already has) | 2, 14 | planned |
-| 8 | Creative apps by script | Blender (free, testable): product turntable render, materials. After Effects: logo animation and lower-third templates. Photoshop: one campaign exported in several sizes | 1, 3, 4 | planned |
+| 8 | Creative apps by script | Blender (free, testable): product turntable render, materials. After Effects: logo animation and lower-third templates. Photoshop: one campaign exported in several sizes | 1, 3, 4 | built, not yet run on the real brain: Blender turntable/3D text (tested with bpy), make_campaign (8 sizes), logo reveal and see-through lower third (built-in makers; After Effects and Photoshop themselves never run) |
 | 9 | Code workspace | Run a project's tests, read the failures, apply a fix, Git status/diff/commit (with approval) | 6 | planned |
 | 10 | Engineering by script | FreeCAD parametric part, KiCad netlist checks, MATLAB-style analysis in Python, control charts (SPC) | 12 | planned |
 | 11 | Multi-app missions | Chaining milestones 3–10 into one task graph, for example: CSV to analysis to chart to Word report to PowerPoint | 16 | planned |

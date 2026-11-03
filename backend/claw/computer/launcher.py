@@ -103,7 +103,7 @@ def _target_for(app_id: str) -> str:
 
 # Run 6: Word was not installed, so the brain typed the report into Notepad and got lost in Save As.
 _OWN_TOOLS = [(("word",), "save_report"), (("excel",), "create_spreadsheet or the table tools"),
-              (("powerpoint", "power point"), "make_presentation"), (("photoshop",), "make_flyer or edit_image"),
+              (("powerpoint", "power point"), "make_presentation"), (("photoshop",), "make_flyer, make_campaign or edit_image"),
               (("after effects", "premiere"), "make_motion_video or reformat_video")]
 
 _MAKERS = {"microsoft", "adobe", "google", "windows", "app", "the", "desktop", "corporation", "office", "mozilla"}

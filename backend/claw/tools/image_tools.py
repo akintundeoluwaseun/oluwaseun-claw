@@ -167,6 +167,83 @@ async def make_flyer(args: FlyerArgs, ctx: ToolContext) -> ToolResult:
                       {"path": str(out), "editor": editor, **info, "headline_seen": seen}, verified=ok)
 
 
+# ---------- make_campaign (one design, every size) ----------
+CAMPAIGN_SIZES = ("square", "portrait", "story", "landscape", "banner", "cover", "a5", "a4")
+
+
+class CampaignArgs(FlyerArgs):
+    sizes: list[Literal["square", "portrait", "story", "landscape", "banner", "cover", "a5", "a4"]] = Field(
+        default_factory=lambda: ["square", "story", "landscape", "a5"], min_length=1, max_length=8,
+        description="square post, portrait post, story, landscape, banner (X header), cover (Facebook), a5, a4")
+    file_name: str = Field(default="campaign", max_length=80)
+    format: Literal["png", "jpg", "pdf", "psd"] = "png"
+
+    @field_validator("sizes", mode="before")
+    @classmethod
+    def _size_words(cls, v):
+        if isinstance(v, str):
+            v = [x for x in re.split(r"[,\s]+", v) if x]
+        if isinstance(v, list):  # "instagram story" / "facebook cover" / "twitter header" -> the size names
+            alias = {"post": "square", "instagram": "square", "status": "story", "reel": "story", "header": "banner",
+                     "twitter": "banner", "x": "banner", "facebook": "cover", "youtube": "landscape", "poster": "a4",
+                     "flyer": "a5", "print": "a5"}
+            out = []
+            for x in v:
+                t = str(x).strip().lower()
+                t = t if t in CAMPAIGN_SIZES else next((alias[w] for w in reversed(t.split()) if w in alias), t)
+                if t not in out:
+                    out.append(t)
+            return out
+        return v
+
+
+async def make_campaign(args: CampaignArgs, ctx: ToolContext) -> ToolResult:
+    check_flyer(args, ctx)
+    base = resolve_folder(ctx, args.folder)
+    folder = unique_path(base / safe_file_name(args.file_name, ""))
+    ctx.policy.check_path(folder, write=True)
+    folder.mkdir(parents=True)
+    pictures = _usable_images(ctx, args.images)
+    use_ps = args.editor == "photoshop" or (args.editor == "auto" and im.photoshop_available()[0])
+    if args.format == "psd" and not use_ps:
+        raise ToolError("PSD files can only be made with Photoshop, which is not installed. Choose PNG, JPG or PDF.")
+    made, problems = [], []
+    for size in args.sizes:
+        spec = im.FlyerSpec(args.title, args.subtitle, args.points, args.contact, im.PRESETS[size],
+                            "#" + args.background.lstrip("#"), "#" + args.accent.lstrip("#"), pictures)
+        out = folder / safe_file_name(f"{args.file_name} {size} {spec.size[0]}x{spec.size[1]}", "." + args.format)
+        rendered = None
+        try:
+            if use_ps:
+                await asyncio.to_thread(im.run_photoshop, spec, out)
+            else:
+                rendered = await asyncio.to_thread(im.render_flyer, spec)
+                await asyncio.to_thread(im.save_image, rendered, out)
+        except Exception as exc:  # noqa: BLE001
+            problems.append(f"{size}: {str(exc)[:120]}")
+            continue
+        info = await asyncio.to_thread(im.inspect, out) if args.format != "pdf" else {"format": "PDF"}
+        size_ok = args.format == "pdf" or (info.get("width"), info.get("height")) == spec.size
+        ran, text = await asyncio.to_thread(_ocr_words, rendered if rendered is not None else out) if args.format != "psd" else (False, "")
+        seen = _title_seen(args.title, text) if ran else None
+        ok = out.is_file() and size_ok and (seen is None or seen >= 0.6)
+        if not ok:
+            problems.append(f"{size}: " + ("wrong size" if not size_ok else f"headline only {round((seen or 0) * 100)}% readable"))
+        made.append({"size": size, "path": str(out), "width": spec.size[0], "height": spec.size[1], "verified": ok,
+                     "headline_seen": seen})
+        ctx.memory.outputs.append({"path": str(out), "kind": "image", "verified": ok, "note": ""})
+    if not made:
+        raise ToolError("None of the sizes could be made: " + "; ".join(problems))
+    editor = "Photoshop" if use_ps else "Claw's built-in image editor (Photoshop was not used)"
+    ok = not problems and len(made) == len(args.sizes)
+    checked = sum(1 for m in made if m["headline_seen"] is not None)
+    listing = ", ".join(f"{m['size']} {m['width']}×{m['height']}" for m in made)
+    return ToolResult(True, f"Made the campaign with {editor} in {len(made)} size(s) in the folder {folder.name}: {listing}. "
+                            f"Each file reopened and its size checked; headline read back with OCR on {checked}."
+                            + (f" Problems: {'; '.join(problems)}." if problems else ""),
+                      {"folder": str(folder), "files": made, "editor": editor}, verified=ok)
+
+
 # ---------- edit_image ----------
 class EditArgs(ToolArgs):
     path: str = Field(min_length=1, max_length=500)
@@ -251,6 +328,8 @@ def register_image_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("make_flyer",
                           "Design a promotional flyer (headline, points, contact, pictures) and save it. Uses Photoshop if installed, "
                           "otherwise Claw's built-in editor, and says which.", F, W, FlyerArgs, make_flyer, precheck=check_flyer))
+    reg.register(ToolSpec("make_campaign", "One design in several sizes at once (post, story, banner, cover, print), "
+                          "each saved and checked; Photoshop if installed.", F, W, CampaignArgs, make_campaign, precheck=check_flyer))
     reg.register(ToolSpec("edit_image", "Crop, rotate, resize, brighten, adjust contrast, make black-and-white or convert a picture; saves a new file.",
                           F, W, EditArgs, edit_image))
     reg.register(ToolSpec("inspect_image", "Check a picture's format and size.", F, RiskLevel.READ_ONLY, InspectArgs, inspect_image))

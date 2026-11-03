@@ -287,7 +287,10 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     # A video comes first: "a promotional video" is not a flyer.
     # Making one, not searching for "video editors".
     (r"\b(?:make|create|produce|render|design|build|do)\b.{0,60}\b(?:videos?|animations?|animated|mp4|promo clip)\b"
-     r"|\bmotion graphics?\b|\bafter ?effects\b", ("make_motion_video",)),
+     r"|\bmotion graphics?\b|\bafter ?effects\b|\blogo (?:reveal|animation|intro)|\banimate\b.{0,30}\blogo\b|\blower[ -]?thirds?\b|\bname bar\b",
+     ("make_motion_video",)),
+    (r"\b(?:several|multiple|many|different|all (?:the )?)\s*(?:social[- ]media )?sizes\b|\bcampaign\b|\bresize(?:d)? for\b",
+     ("make_campaign",)),
     (r"\bflyers?\b|\bposters?\b|\bbanners?\b|\badverts?\b|promotional", ("make_flyer",)),
     (r"\bspreadsheets?\b|\bexcel\b|\.xlsx\b|\btable of\b", ("create_spreadsheet",)),
     (r"\bcopy\b|\bback ?up\b", ("copy_files", "create_folder")),

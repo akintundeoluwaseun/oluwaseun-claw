@@ -65,6 +65,10 @@ STATUS = {
     "3.14": ("PASSED", "built-in maker: 10 s promo video, release check + benchmark (After Effects itself not tested)"),
     # 1. Photoshop
     "1.06": ("BUILT", "make_flyer; Photoshop path never run"),
+    "1.19": ("BUILT", "make_campaign: one design in up to 8 sizes, each reopened and OCR-checked (Photoshop path never run)"),
+    "1.23": ("BUILT", "make_campaign with web sizes plus A5/A4 print sizes (PNG/JPG/PDF)"),
+    "3.01": ("BUILT", "make_motion_video style=logo: logo reveal MP4, built-in maker (After Effects not used for this style)"),
+    "3.11": ("BUILT", "make_motion_video style=lower_third: see-through .mov name bar, reusable with any name/role"),
     # 13. Accounting
     "13.11": ("PASSED", "remove_duplicates - same check as benchmark data-dedupe (7.02)"),
     # 17. Stress

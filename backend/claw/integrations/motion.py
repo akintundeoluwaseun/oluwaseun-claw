@@ -48,7 +48,8 @@ class MotionSpec:
     background: str = "#14212b"
     accent: str = "#3cc2aa"
     seconds: float = 10.0
-    style: str = "slide"  # slide | pop | fade
+    style: str = "slide"  # slide | pop | fade | logo | lower_third
+    transparent: bool = False  # lower_third only: a see-through background (.mov with alpha)
 
     def scenes(self) -> list[tuple[str, float, float]]:
         """(name, start, end) in seconds: the headline, each point, then the contact."""
@@ -63,6 +64,8 @@ class MotionSpec:
 
     def title_moment(self) -> float:
         """A time when the headline is fully on screen (for checking the video afterwards)."""
+        if self.style in ("logo", "lower_third"):
+            return self.seconds * 0.55
         _, s, e = self.scenes()[0]
         return s + (e - s) * 0.6
 
@@ -101,7 +104,104 @@ def _draw_text(base: Image.Image, text: str, f, xy, colour, alpha: float, max_w:
     return line_h * len(lines)
 
 
+def _fit_inside(draw, text: str, width: int, start: int, max_lines: int):
+    """The largest bold font at which the text wraps into max_lines with every line (even one long word) inside width."""
+    size = start
+    while size > 12:
+        f = im.font(size, bold=True)
+        lines = im._wrap(draw, text, f, width, 99)
+        if len(lines) <= max_lines and all(draw.textlength(l, font=f) <= width for l in lines):
+            return f
+        size = int(size * 0.92)
+    return im.font(12, bold=True)
+
+
+def logo_name_box(spec: MotionSpec) -> tuple[int, int, int, int]:
+    """The area inside the logo ring (OCR reads the name there; the ring itself confuses it)."""
+    W, H = spec.size
+    cx, cy, r = W // 2, int(H * 0.44), int(min(W, H) * 0.30)
+    k = int(r * 0.85)
+    return cx - k, cy - k, cx + k, cy + k
+
+
+def _logo_frame(spec: MotionSpec, t: float) -> Image.Image:
+    """Logo reveal: a ring draws itself, the name scales in inside it, the tagline follows, all hold, then fade."""
+    W, H = spec.size
+    bg, accent = im.hex_rgb(spec.background), im.hex_rgb(spec.accent)
+    fg = im._on(bg)
+    frame = Image.new("RGBA", (W, H), (*bg, 255))
+    out_a = min(1.0, max(0.0, (spec.seconds - t) / 0.6))
+    cx, cy, r = W // 2, int(H * 0.44), int(min(W, H) * 0.30)
+    ring = ease_out(t / max(spec.seconds * 0.25, 0.1))
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    width = max(6, r // 14)
+    if ring > 0:
+        d.arc((cx - r, cy - r, cx + r, cy + r), -90, -90 + 360 * ring, fill=(*accent, int(255 * out_a)), width=width)
+    frame.alpha_composite(layer)
+    k = ease_back((t - spec.seconds * 0.15) / 0.7)
+    if k > 0:
+        tl = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        td = ImageDraw.Draw(tl)
+        full = _fit_inside(td, spec.title, int(r * 1.45), int(min(W, H) * 0.12), 3)  # the whole name, inside the ring
+        size = max(8, int(full.size * min(max(k, 0.01), 1.15)))
+        f = im.font(size, bold=True)
+        lines = im._wrap(td, spec.title, f, int(r * 1.45 * size / full.size) + 1, 3)
+        line_h = int(size * 1.15)
+        y0 = cy - line_h * len(lines) // 2
+        for i, line in enumerate(lines):
+            w = td.textlength(line, font=f)
+            td.text((cx - w / 2, y0 + i * line_h), line, font=f, fill=(*fg, int(255 * min(1.0, k) * out_a)))
+        frame.alpha_composite(tl)
+    tag = spec.subtitle or spec.contact
+    if tag:
+        a = min(1.0, max(0.0, (t - spec.seconds * 0.4) / 0.5)) * out_a
+        f = im.font(int(min(W, H) * 0.045))
+        tl = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        td = ImageDraw.Draw(tl)
+        w = td.textlength(tag, font=f)
+        td.text((cx - w / 2, cy + r + int(H * 0.05)), tag, font=f, fill=(*accent, int(255 * a)))
+        frame.alpha_composite(tl)
+    return frame.convert("RGB")
+
+
+def lower_third_frame(spec: MotionSpec, t: float) -> Image.Image:
+    """A name bar for the bottom of a video: slides in, holds, slides out. RGBA (see-through when transparent)."""
+    W, H = spec.size
+    bg, accent = im.hex_rgb(spec.background), im.hex_rgb(spec.accent)
+    frame = Image.new("RGBA", (W, H), (0, 0, 0, 0) if spec.transparent else (*bg, 255))
+    inn = ease_out(t / 0.7)
+    out = ease_out((t - (spec.seconds - 0.7)) / 0.7) if t > spec.seconds - 0.7 else 0.0
+    k = inn - out
+    if k <= 0:
+        return frame
+    m = int(W * 0.06)
+    name_f = im.font(int(H * 0.055), bold=True)
+    role_f = im.font(int(H * 0.034))
+    d0 = ImageDraw.Draw(frame)
+    box_w = int(max(d0.textlength(spec.title, font=name_f), d0.textlength(spec.subtitle or "", font=role_f)) + W * 0.05)
+    box_w = min(box_w, W - 2 * m)
+    name_h, role_h = int(H * 0.085), int(H * 0.06) if spec.subtitle else 0
+    top = H - m - name_h - role_h
+    x = int(m - (1 - k) * (box_w + m))
+    panel = (20, 20, 20) if im._lum(bg) > 0.5 or spec.transparent else bg
+    d = ImageDraw.Draw(frame)
+    d.rectangle((x, top, x + int(W * 0.008), top + name_h + role_h), fill=(*accent, 255))
+    d.rectangle((x + int(W * 0.008), top, x + box_w, top + name_h), fill=(*panel, 235))
+    d.text((x + int(W * 0.025), top + (name_h - name_f.size) // 2 - 2), spec.title, font=name_f, fill=(*im._on(panel), 255))
+    if spec.subtitle:
+        d.rectangle((x + int(W * 0.008), top + name_h, x + box_w, top + name_h + role_h), fill=(*accent, 235))
+        d.text((x + int(W * 0.025), top + name_h + (role_h - role_f.size) // 2 - 2), spec.subtitle, font=role_f,
+               fill=(*im._on(accent), 255))
+    return frame
+
+
 def render_frame(spec: MotionSpec, t: float) -> Image.Image:
+    if spec.style == "logo":
+        return _logo_frame(spec, t)
+    if spec.style == "lower_third":
+        f = lower_third_frame(spec, t)
+        return f if spec.transparent else f.convert("RGB")
     W, H = spec.size
     bg, accent = im.hex_rgb(spec.background), im.hex_rgb(spec.accent)
     fg = im._on(bg)
@@ -152,6 +252,17 @@ def render_builtin(spec: MotionSpec, out: Path) -> str:
     import av  # noqa: PLC0415 - PyAV ships its own FFmpeg
 
     frames = max(1, int(round(spec.seconds * FPS)))
+    if spec.transparent:  # PNG-in-MOV keeps the see-through background; video editors read it
+        with av.open(str(out), mode="w") as container:
+            stream = container.add_stream("png", rate=FPS)
+            stream.width, stream.height = spec.size
+            stream.pix_fmt = "rgba"
+            for n in range(frames):
+                for packet in stream.encode(av.VideoFrame.from_image(render_frame(spec, n / FPS))):
+                    container.mux(packet)
+            for packet in stream.encode():
+                container.mux(packet)
+        return "png"
     codec = "libx264"
     try:
         av.codec.Codec(codec, "w")
@@ -174,6 +285,10 @@ def render_builtin(spec: MotionSpec, out: Path) -> str:
     return codec
 
 
+def _has_alpha(pix_fmt: str) -> bool:
+    return pix_fmt.startswith(("rgba", "argb", "bgra", "abgr", "yuva", "ya"))
+
+
 def inspect_video(path: Path, at_s: float | None = None) -> dict:
     """Open the finished video again: size, length, frame count, and one frame as a picture."""
     import av  # noqa: PLC0415
@@ -181,7 +296,8 @@ def inspect_video(path: Path, at_s: float | None = None) -> dict:
     info: dict = {"bytes": path.stat().st_size}
     with av.open(str(path)) as c:
         v = c.streams.video[0]
-        info.update(width=v.codec_context.width, height=v.codec_context.height, codec=v.codec_context.name)
+        info.update(width=v.codec_context.width, height=v.codec_context.height, codec=v.codec_context.name,
+                    alpha=_has_alpha(v.codec_context.pix_fmt or ""))
         dur = float(c.duration / 1_000_000) if c.duration else (float(v.duration * v.time_base) if v.duration else 0.0)
         info["seconds"] = round(dur, 2)
         frames, grab = 0, None
