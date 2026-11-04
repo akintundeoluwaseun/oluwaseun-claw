@@ -123,6 +123,7 @@ from tests.test_chats import finish, wait_done
 def test_a_greeting_finishes_without_asking_the_brain(make_client, fake_server):
     c = make_client()
     c.put("/settings", json=settings_for(fake_server))
+    fake_server.replies.clear()
     fake_server.requests.clear()
 
     tid = c.post("/tasks/run", json={"task": "hi"}).json()["id"]
@@ -142,6 +143,10 @@ def test_a_real_job_still_goes_through_the_planner(make_client, fake_server):
     """The other side of the guard: work must not be short-circuited."""
     c = make_client()
     c.put("/settings", json=settings_for(fake_server))
+    # Clear rather than append: a reply left in the queue by an earlier test
+    # would be served to the planner instead of the plan, and this test would
+    # fail for a reason that has nothing to do with what it is checking.
+    fake_server.replies.clear()
     fake_server.replies += [json.dumps(VALID_PLAN), finish("Done.")]
     fake_server.requests.clear()
 

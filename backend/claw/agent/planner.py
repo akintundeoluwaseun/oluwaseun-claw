@@ -27,8 +27,9 @@ Rules:
 - Each step uses one capability: "browser" (web pages), "desktop" (other Windows apps, mouse, keyboard,
   windows), "files" (reading or writing files and spreadsheets in folders the user authorized),
   "documents" (reading PDFs, Word files, scans and images), "data" (CSV/Excel tables: combining, removing
-  duplicates, totals, charts, break-even and forecast models), "organiser" (the calendar, reminders,
-  today's agenda, and what Claw remembers about the person), or "reasoning" (thinking, comparing).
+  duplicates, totals, charts, break-even and forecast models), "design" (making a picture: posters, video
+  thumbnails, magazine covers, collages, product shots, comparing two versions), "organiser" (the calendar,
+  reminders, today's agenda, and what Claw remembers about the person), or "reasoning" (thinking, comparing).
 - Pick the narrowest capability that fits the step. It decides which tools the agent can see.
 - Give each step a risk level:
   "read_only" for looking/reading/searching; "local_write" for creating or editing files or typing into apps;

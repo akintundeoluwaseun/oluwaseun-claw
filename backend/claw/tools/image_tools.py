@@ -507,6 +507,12 @@ async def compare_designs(args: CompareArgs, ctx: ToolContext) -> ToolResult:
 
 def register_image_tools(reg: ToolRegistry) -> None:
     F, W = Capability.DOCUMENTS, RiskLevel.LOCAL_WRITE
+    # Milestone 8's design tools go in their own capability rather than on top of
+    # "documents", which was already at 1835 of its 2000-token budget: six more
+    # there put it over, and that budget is what keeps a small brain able to see
+    # its own tools. Nothing already measured moves - make_flyer, make_campaign,
+    # edit_image and inspect_image stay exactly where the benchmark found them.
+    D = Capability.DESIGN
     reg.register(ToolSpec("make_flyer",
                           "Design a promotional flyer (headline, points, contact, pictures) and save it. Uses Photoshop if installed, "
                           "otherwise Claw's built-in editor, and says which.", F, W, FlyerArgs, make_flyer, precheck=check_flyer))
@@ -518,14 +524,14 @@ def register_image_tools(reg: ToolRegistry) -> None:
     # Milestone 8. Short descriptions on purpose: every tool in a capability is
     # carried in the prompt of any task that uses it, so each new one is paid
     # for by every image task.
-    reg.register(ToolSpec("make_poster", "A film/event poster, a 1280x720 video thumbnail or a magazine cover, from pictures and a title.", F, W, PosterArgs, make_poster, precheck=check_poster))
+    reg.register(ToolSpec("make_poster", "A film/event poster, a 1280x720 video thumbnail or a magazine cover, from pictures and a title.", D, W, PosterArgs, make_poster, precheck=check_poster))
     reg.register(ToolSpec("make_collage", "Several pictures in one sheet, each levelled so the set matches.",
-                          F, W, CollageArgs, make_collage))
+                          D, W, CollageArgs, make_collage))
     reg.register(ToolSpec("brighten_photo", "Rescue an underexposed photograph; reports the brightness before and after.",
-                          F, W, BrightenArgs, brighten_photo))
+                          D, W, BrightenArgs, brighten_photo))
     reg.register(ToolSpec("passport_photo", "Crop a portrait to a passport size (UK/EU 35x45mm, US 51x51mm) at print resolution.",
-                          F, W, PassportArgs, passport_photo))
+                          D, W, PassportArgs, passport_photo))
     reg.register(ToolSpec("product_shadow", "Put a product on a plain background with a soft shadow under it.",
-                          F, W, ShadowArgs, product_shadow))
+                          D, W, ShadowArgs, product_shadow))
     reg.register(ToolSpec("compare_designs", "Show what changed between two versions of a design, as marked regions.",
-                          F, W, CompareArgs, compare_designs))
+                          D, W, CompareArgs, compare_designs))
