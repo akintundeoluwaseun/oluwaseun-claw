@@ -57,6 +57,9 @@ const TOOL_LABEL = {
   extract_emails: 'Collected e-mail addresses', compose_mail: 'Opened a draft e-mail',
   disk_space: 'Checked free space', is_program_running: 'Checked whether a program is running',
   pause_for_me: 'Waited for you',
+  make_poster: 'Made a poster', make_collage: 'Made a collage',
+  brighten_photo: 'Brightened a photo', passport_photo: 'Made a passport photo',
+  product_shadow: 'Put a shadow under a product', compare_designs: 'Compared two designs',
 };
 const TOOL_ASK = {
   click: 'Click this on the page', type_in: 'Type into the page', choose_option: 'Choose an option on the page',
@@ -77,6 +80,9 @@ const TOOL_ASK = {
   combine_files: 'Join files into a new one', sort_lines: 'Sort a file into a new one',
   list_to_table: 'Turn a list into a table', add_computed_column: 'Add a worked-out column',
   extract_emails: 'Save the e-mail addresses it found', compose_mail: 'Open a draft e-mail',
+  make_poster: 'Design a poster', make_collage: 'Make a collage',
+  brighten_photo: 'Brighten a photo', passport_photo: 'Make a passport photo',
+  product_shadow: 'Put a shadow under a product', compare_designs: 'Compare two designs',
 };
 const OUTCOME = {
   verified: ['Done', 'ok', 'check'], done_unverified: ['Done, not checked', 'warn-done', 'check'],

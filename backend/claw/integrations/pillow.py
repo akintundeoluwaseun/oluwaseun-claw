@@ -21,7 +21,7 @@ import importlib
 from types import ModuleType
 from typing import Any
 
-__all__ = ["Image", "ImageDraw", "ImageEnhance", "ImageFont", "ImageOps"]
+__all__ = ["Image", "ImageChops", "ImageDraw", "ImageEnhance", "ImageFilter", "ImageFont", "ImageOps", "ImageStat"]
 
 
 class _LazyModule:
@@ -52,3 +52,6 @@ ImageDraw = _LazyModule("PIL.ImageDraw")
 ImageEnhance = _LazyModule("PIL.ImageEnhance")
 ImageFont = _LazyModule("PIL.ImageFont")
 ImageOps = _LazyModule("PIL.ImageOps")
+ImageChops = _LazyModule("PIL.ImageChops")
+ImageFilter = _LazyModule("PIL.ImageFilter")
+ImageStat = _LazyModule("PIL.ImageStat")

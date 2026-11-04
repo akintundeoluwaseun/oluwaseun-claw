@@ -221,6 +221,42 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             except Exception:  # noqa: BLE001 — a failed background check must never stop the loop
                 log.warning("background WhatsApp check failed", exc_info=True)
 
+    async def warm_brain():
+        """Load the brain in the background at start-up, so the first task does not.
+
+        The engine is started lazily, and stopped again after a few quiet
+        minutes to give the memory back. Both are right on their own, and
+        together they mean every first task - and every task after a coffee -
+        waits for gigabytes to come off disk before a word is planned. That wait
+        is the one people describe as the program being slow, because it is the
+        only one they ever see.
+
+        So: start it once, quietly, after the window is up. Guarded, because the
+        memory is the whole reason the idle unload exists -
+          * only the built-in brain (a hosted model has nothing to load),
+          * only when a brain is actually installed and fits this machine,
+          * never while something else is already running,
+        and any failure is swallowed. A warm-up that cannot work must cost
+        nothing but a line in the log; the next real task will start it the old
+        way and report properly if that fails.
+        """
+        await asyncio.sleep(1.5)                 # let the interface finish opening first
+        try:
+            ms = state.settings.model
+            if ms.mode != "builtin" or state.runner.busy:
+                return
+            model = state.brain.active_model(ms.selected)
+            if model is None or not state.brain.engine.available()[0]:
+                return
+            if state.brain.engine.running():
+                return
+            log_event(log, "warming the brain", model=model.id)
+            started = time.perf_counter()
+            await state.brain.engine.ensure(model.id, model.model_path, model.mmproj_path)
+            log_event(log, "brain warm", model=model.id, seconds=round(time.perf_counter() - started, 1))
+        except Exception:  # noqa: BLE001 - never let a warm-up stop the app starting
+            log.info("brain warm-up did not run", exc_info=True)
+
     async def idle_watch():
         """Stop the engine when Claw has been quiet for a while, to give the memory back."""
         while True:
@@ -284,6 +320,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app):
+        warm = asyncio.create_task(warm_brain())
         watcher = asyncio.create_task(idle_watch())
         wa_task = asyncio.create_task(whatsapp_watch())
         jobs_task = asyncio.create_task(JobRunner(state).loop())
@@ -291,6 +328,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         yield
         await stop_phone()
         await stop_link()
+        warm.cancel()
         watcher.cancel()
         wa_task.cancel()
         jobs_task.cancel()

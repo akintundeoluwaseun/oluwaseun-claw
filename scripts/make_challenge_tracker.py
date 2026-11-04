@@ -67,6 +67,16 @@ STATUS = {
     "1.06": ("BUILT", "make_flyer; Photoshop path never run"),
     "1.19": ("BUILT", "make_campaign: one design in up to 8 sizes, each reopened and OCR-checked (Photoshop path never run)"),
     "1.23": ("BUILT", "make_campaign with web sizes plus A5/A4 print sizes (PNG/JPG/PDF)"),
+    # Milestone 8, built-in editor only. BUILT, not PASSED: each has tests that
+    # reopen the file and measure it, but no real brain has run them on Windows.
+    "1.03": ("BUILT", "make_poster style=poster: up to 5 pictures, tagline, title, credits; A4 at 300 dpi"),
+    "1.09": ("BUILT", "product_shadow: the subject's own silhouette, squashed and blurred beneath it"),
+    "1.12": ("BUILT", "make_poster style=thumbnail: 1280x720, outlined title, inset second picture"),
+    "1.14": ("BUILT", "make_poster style=magazine: masthead, issue line, cover lines down the page"),
+    "1.15": ("BUILT", "make_collage: grid, each picture auto-levelled so the set matches"),
+    "1.17": ("BUILT", "brighten_photo: reports mean brightness before and after, original untouched"),
+    "1.18": ("BUILT", "passport_photo: 35x45mm / 51x51mm exact at 300 dpi; crop is positional, no face detection"),
+    "1.25": ("BUILT", "compare_designs: grid difference merged into regions, marked on the second version"),
     "3.01": ("BUILT", "make_motion_video style=logo: logo reveal MP4, built-in maker (After Effects not used for this style)"),
     "3.11": ("BUILT", "make_motion_video style=lower_third: see-through .mov name bar, reusable with any name/role"),
     # 13. Accounting

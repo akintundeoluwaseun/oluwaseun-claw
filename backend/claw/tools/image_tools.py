@@ -323,6 +323,188 @@ async def inspect_image(args: InspectArgs, ctx: ToolContext) -> ToolResult:
     return ToolResult(True, f"{p.name}: {info['width']}×{info['height']} {info['format']} ({info['bytes']:,} bytes).", {"path": str(p), **info}, verified=True)
 
 
+# ---------- Milestone 8: the design jobs that do not need Photoshop ----------
+# Each of these saves a new file, reopens it and reports its real size, exactly
+# as make_flyer does. None of them claims a Photoshop path it does not have.
+
+class PosterArgs(ToolArgs):
+    title: str = Field(min_length=1, max_length=120)
+    style: Literal["poster", "thumbnail", "magazine"] = "poster"
+    images: list[str] = Field(default_factory=list, max_length=5, description="The first is the background")
+    subtitle: str = Field(default="", max_length=160)
+    tagline: str = Field(default="", max_length=160)
+    credits: str = Field(default="", max_length=400)
+    cover_lines: list[str] = Field(default_factory=list, max_length=5)
+    background: str = Field(default="#0d0f14", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
+    accent: str = Field(default="#e4b43c", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
+    file_name: str = Field(default="poster", max_length=80)
+    format: Literal["png", "jpg", "pdf"] = "png"
+    folder: str | None = Field(default=None, max_length=500)
+
+
+def check_poster(args: PosterArgs, ctx: ToolContext) -> None:
+    """Same checks as a flyer minus the Photoshop ones: these layouts are the
+    built-in editor's only, so there is no editor to choose."""
+    _usable_images(ctx, args.images)
+    resolve_folder(ctx, args.folder)
+
+
+async def make_poster(args: PosterArgs, ctx: ToolContext) -> ToolResult:
+    pics = _usable_images(ctx, args.images)
+    out = _output(ctx, args.folder, args.file_name, "." + args.format)
+
+    def work():
+        img = im.render_poster(im.PosterSpec(
+            title=args.title, images=pics, style=args.style, subtitle=args.subtitle,
+            tagline=args.tagline, credits=args.credits, cover_lines=args.cover_lines,
+            background=args.background, accent=args.accent))
+        im.save_image(img, out)
+        return img.size
+
+    size = await asyncio.to_thread(work)
+    info = await asyncio.to_thread(im.inspect, out) if out.suffix.lower() != ".pdf" else {"format": "PDF", "width": size[0], "height": size[1]}
+    ok = (info["width"], info["height"]) == size
+    ctx.memory.outputs.append({"path": str(out), "kind": "image", "verified": ok, "note": args.style})
+    return ToolResult(True, f"Saved {out.name}: a {args.style} at {info['width']}×{info['height']}, "
+                      f"made with Claw's built-in editor from {len(pics)} picture(s).",
+                      {"path": str(out), "style": args.style, **info}, verified=ok)
+
+
+class CollageArgs(ToolArgs):
+    images: list[str] = Field(min_length=1, max_length=16)
+    size: Literal["square", "a4", "landscape", "story"] = "square"
+    even_exposure: bool = True
+    background: str = Field(default="#101317", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
+    file_name: str = Field(default="collage", max_length=80)
+    format: Literal["png", "jpg", "pdf"] = "png"
+    folder: str | None = Field(default=None, max_length=500)
+
+
+async def make_collage(args: CollageArgs, ctx: ToolContext) -> ToolResult:
+    pics = _usable_images(ctx, args.images)
+    if not pics:
+        raise ToolError("None of those pictures could be found in an authorized folder.")
+    out = _output(ctx, args.folder, args.file_name, "." + args.format)
+    box = {"square": (2480, 2480), "a4": (2480, 3508), "landscape": (3508, 2480), "story": (1080, 1920)}[args.size]
+
+    def work():
+        sheet, n = im.render_collage(pics, box, args.background, even_exposure=args.even_exposure)
+        im.save_image(sheet, out)
+        return sheet.size, n
+
+    (size, n) = await asyncio.to_thread(work)
+    info = await asyncio.to_thread(im.inspect, out) if out.suffix.lower() != ".pdf" else {"format": "PDF", "width": size[0], "height": size[1]}
+    ok = (info["width"], info["height"]) == size and n == len(pics)
+    ctx.memory.outputs.append({"path": str(out), "kind": "image", "verified": ok, "note": f"{n} pictures"})
+    return ToolResult(True, f"Saved {out.name}: {n} picture(s) at {info['width']}×{info['height']}"
+                      + (", each levelled so the set matches." if args.even_exposure else "."),
+                      {"path": str(out), "pictures": n, **info}, verified=ok)
+
+
+class BrightenArgs(ToolArgs):
+    path: str = Field(min_length=1, max_length=500)
+    file_name: str | None = Field(default=None, max_length=80)
+    folder: str | None = Field(default=None, max_length=500)
+
+
+async def brighten_photo(args: BrightenArgs, ctx: ToolContext) -> ToolResult:
+    src = _input_image(ctx, args.path)
+    out = _output(ctx, args.folder or str(src.parent), args.file_name or f"{src.stem} brightened", src.suffix.lower() or ".png")
+
+    def work():
+        img, before, after = im.brighten(src)
+        im.save_image(img, out)
+        return img.size, before, after
+
+    size, before, after = await asyncio.to_thread(work)
+    info = await asyncio.to_thread(im.inspect, out)
+    # The claim is a measurement: mean brightness before and after, out of 255.
+    ok = (info["width"], info["height"]) == size and after > before
+    ctx.memory.outputs.append({"path": str(out), "kind": "image", "verified": ok, "note": f"{before}->{after}"})
+    return ToolResult(True, f"Saved {out.name}. Mean brightness {before} → {after} out of 255. The original is unchanged.",
+                      {"path": str(out), "brightness_before": before, "brightness_after": after, **info}, verified=ok)
+
+
+class PassportArgs(ToolArgs):
+    path: str = Field(min_length=1, max_length=500)
+    country: Literal["uk", "eu", "schengen", "ng", "us", "india"] = "uk"
+    dpi: int = Field(default=300, ge=150, le=600)
+    background: str | None = Field(default=None, pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
+    file_name: str | None = Field(default=None, max_length=80)
+    folder: str | None = Field(default=None, max_length=500)
+
+
+async def passport_photo(args: PassportArgs, ctx: ToolContext) -> ToolResult:
+    src = _input_image(ctx, args.path)
+    out = _output(ctx, args.folder or str(src.parent), args.file_name or f"{src.stem} passport", ".png")
+
+    def work():
+        img, px, note = im.passport_crop(src, args.country, args.dpi, args.background)
+        im.save_image(img, out)
+        return px, note
+
+    px, note = await asyncio.to_thread(work)
+    info = await asyncio.to_thread(im.inspect, out)
+    ok = (info["width"], info["height"]) == px
+    ctx.memory.outputs.append({"path": str(out), "kind": "image", "verified": ok, "note": note})
+    return ToolResult(True, f"Saved {out.name}: {info['width']}×{info['height']} pixels, {note}. "
+                      "The crop is positional - Claw does not find the face - so check the head sits correctly before using it.",
+                      {"path": str(out), "spec": note, **info}, verified=ok)
+
+
+class ShadowArgs(ToolArgs):
+    path: str = Field(min_length=1, max_length=500, description="Cut out, or on a plain background")
+    background: str = Field(default="#ffffff", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
+    file_name: str | None = Field(default=None, max_length=80)
+    folder: str | None = Field(default=None, max_length=500)
+
+
+async def product_shadow(args: ShadowArgs, ctx: ToolContext) -> ToolResult:
+    src = _input_image(ctx, args.path)
+    out = _output(ctx, args.folder or str(src.parent), args.file_name or f"{src.stem} on shadow", ".png")
+
+    def work():
+        img, found = im.add_product_shadow(src, args.background)
+        im.save_image(img, out)
+        return img.size, found
+
+    size, found = await asyncio.to_thread(work)
+    info = await asyncio.to_thread(im.inspect, out)
+    ok = (info["width"], info["height"]) == size and found
+    note = ("a soft contact shadow under it" if found
+            else "no subject could be separated from the background, so no shadow was added")
+    ctx.memory.outputs.append({"path": str(out), "kind": "image", "verified": ok, "note": note})
+    return ToolResult(True, f"Saved {out.name}: the product on {args.background} with {note}.",
+                      {"path": str(out), "subject_found": found, **info}, verified=ok)
+
+
+class CompareArgs(ToolArgs):
+    before: str = Field(min_length=1, max_length=500)
+    after: str = Field(min_length=1, max_length=500)
+    file_name: str | None = Field(default=None, max_length=80)
+    folder: str | None = Field(default=None, max_length=500)
+
+
+async def compare_designs(args: CompareArgs, ctx: ToolContext) -> ToolResult:
+    a, b = _input_image(ctx, args.before), _input_image(ctx, args.after)
+    out = _output(ctx, args.folder or str(b.parent), args.file_name or f"{b.stem} differences", ".png")
+
+    def work():
+        marked, boxes, pct = im.compare_images(a, b)
+        im.save_image(marked, out)
+        return marked.size, boxes, pct
+
+    size, boxes, pct = await asyncio.to_thread(work)
+    info = await asyncio.to_thread(im.inspect, out)
+    ok = (info["width"], info["height"]) == size
+    where = "; ".join(f"({x0},{y0})-({x1},{y1})" for x0, y0, x1, y1 in boxes[:8])
+    ctx.memory.outputs.append({"path": str(out), "kind": "image", "verified": ok, "note": f"{len(boxes)} regions"})
+    msg = (f"{len(boxes)} region(s) differ, {pct}% of the picture. Marked in {out.name}: {where}"
+           if boxes else f"No visible difference: the two are the same to within the threshold ({pct}% changed).")
+    return ToolResult(True, msg, {"path": str(out), "regions": [list(x) for x in boxes],
+                                  "changed_percent": pct, **info}, verified=ok)
+
+
 def register_image_tools(reg: ToolRegistry) -> None:
     F, W = Capability.DOCUMENTS, RiskLevel.LOCAL_WRITE
     reg.register(ToolSpec("make_flyer",
@@ -333,3 +515,17 @@ def register_image_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("edit_image", "Crop, rotate, resize, brighten, adjust contrast, make black-and-white or convert a picture; saves a new file.",
                           F, W, EditArgs, edit_image))
     reg.register(ToolSpec("inspect_image", "Check a picture's format and size.", F, RiskLevel.READ_ONLY, InspectArgs, inspect_image))
+    # Milestone 8. Short descriptions on purpose: every tool in a capability is
+    # carried in the prompt of any task that uses it, so each new one is paid
+    # for by every image task.
+    reg.register(ToolSpec("make_poster", "A film/event poster, a 1280x720 video thumbnail or a magazine cover, from pictures and a title.", F, W, PosterArgs, make_poster, precheck=check_poster))
+    reg.register(ToolSpec("make_collage", "Several pictures in one sheet, each levelled so the set matches.",
+                          F, W, CollageArgs, make_collage))
+    reg.register(ToolSpec("brighten_photo", "Rescue an underexposed photograph; reports the brightness before and after.",
+                          F, W, BrightenArgs, brighten_photo))
+    reg.register(ToolSpec("passport_photo", "Crop a portrait to a passport size (UK/EU 35x45mm, US 51x51mm) at print resolution.",
+                          F, W, PassportArgs, passport_photo))
+    reg.register(ToolSpec("product_shadow", "Put a product on a plain background with a soft shadow under it.",
+                          F, W, ShadowArgs, product_shadow))
+    reg.register(ToolSpec("compare_designs", "Show what changed between two versions of a design, as marked regions.",
+                          F, W, CompareArgs, compare_designs))
