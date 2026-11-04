@@ -8,12 +8,12 @@ import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from claw.agent import constraints, persona
+from claw.agent import constraints, conversation, persona
 from claw.agent.executor import RunOutcome, run_agent
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.agent.titles import clean_model_title, fallback_title
 from claw.logging_setup import log_event
-from claw.models.base import ModelError
+from claw.models.base import ChatMessage, ModelError
 #: What to assume for a model whose window Claw cannot read. Conservative on
 #: purpose: trimming a little early costs context, trimming too late costs the run.
 HOSTED_CONTEXT_TOKENS = 32768
@@ -131,6 +131,46 @@ class TaskRunner:
             db.update_task(task_id, status="completed", result=RunOutcome("completed", own).summary())
             emit("task_completed", {})
             return
+        # ---- talk, not work -------------------------------------------------
+        # Before the brain is woken at all. Everything below this point costs a
+        # planning call carrying the whole tool catalogue, which is why "hi"
+        # used to take most of a minute on a laptop.
+        canned = conversation.quick_reply(task_text, persona.identity(state.data_dir).get("name", "S-CLAW"),
+                                          standalone=first_in_chat)
+        if canned:
+            if first_in_chat and thread_id:
+                db.set_thread_title(thread_id, fallback_title(task_text))
+            emit("chat_reply", {"kind": "canned"})
+            emit("finished", {"final_answer": canned})
+            db.update_task(task_id, status="completed", result=RunOutcome("completed", canned).summary())
+            emit("task_completed", {})
+            return
+
+        if conversation.is_conversation(task_text, standalone=first_in_chat):
+            # No canned line fits, but there is no work in it either: one short
+            # call with no tools, rather than planning and executing nothing.
+            try:
+                adapter = await state.think_adapter()
+                emit("model_call", {"provider": adapter.provider, "model": adapter.model, "purpose": "chat"})
+                name = persona.identity(state.data_dir).get("name", "S-CLAW")
+                reply = (await adapter.chat([
+                    ChatMessage(role="system", content=conversation.CHAT_SYSTEM.format(name=name)),
+                    *([ChatMessage(role="user", content=context)] if context else []),
+                    ChatMessage(role="user", content=task_text),
+                ])).strip()
+            except Exception as exc:  # noqa: BLE001 - a chat reply must never fail the task
+                log_event(log, "chat reply failed", error=str(exc))
+                reply = ""
+            if reply:
+                if first_in_chat and thread_id:
+                    db.set_thread_title(thread_id, fallback_title(task_text))
+                emit("chat_reply", {"kind": "model"})
+                emit("finished", {"final_answer": reply})
+                db.update_task(task_id, status="completed", result=RunOutcome("completed", reply).summary())
+                emit("task_completed", {})
+                return
+            # the brain had nothing to say: fall through and treat it as work
+
         ask = constraints.conflict_question(constraints.read_limits(task_text))
         if ask:
             # A request that contradicts itself is asked about before anything runs (challenge 17.06).

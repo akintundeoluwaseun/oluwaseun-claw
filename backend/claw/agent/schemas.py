@@ -87,6 +87,10 @@ class Plan(BaseModel):
 class PlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    task: str = Field(min_length=3, max_length=4000)
+    # One character is a task. Three was the old floor, and it is why "hi" was
+    # refused with a 422 before anything looked at it - the window had its own
+    # matching minimum, so a two-letter message simply did nothing in either
+    # layer. Empty is still nothing to run.
+    task: str = Field(min_length=1, max_length=4000)
     # Continue an existing chat (a retry or a follow-up) instead of starting a new one.
     thread_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")

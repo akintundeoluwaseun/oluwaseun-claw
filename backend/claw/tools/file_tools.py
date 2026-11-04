@@ -15,9 +15,31 @@ from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, Tool
 _SAFE_NAME = re.compile(r"[^A-Za-z0-9 ._-]+")
 _RESERVED = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)), *(f"lpt{i}" for i in range(1, 10))}
 
+# Extensions a name may carry that we are willing to replace. Deliberately a
+# list rather than "anything after the last dot": a version like "v1.2" or a
+# date like "report.2026" has a suffix too, and chopping it would rename the
+# person's file for them.
+_KNOWN_EXTENSIONS = {
+    ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".svg", ".ico",
+    ".pdf", ".doc", ".docx", ".odt", ".rtf", ".txt", ".md", ".csv", ".tsv",
+    ".xls", ".xlsx", ".ods", ".ppt", ".pptx", ".odp",
+    ".mp4", ".mov", ".avi", ".mkv", ".webm", ".mp3", ".wav", ".m4a", ".flac", ".ogg",
+    ".zip", ".json", ".xml", ".html", ".htm",
+}
+
 
 def safe_file_name(name: str, extension: str) -> str:
-    stem = Path(name).stem if Path(name).suffix.lower() == extension else Path(name).name
+    """`name` with `extension`, replacing a file extension it already carries.
+
+    A real run produced "flyer.docx.png". The brain asked for a flyer called
+    "flyer.docx" and the image tool saved a PNG; the old rule only dropped an
+    existing suffix when it already matched the one being applied, so a wrong
+    extension was kept as part of the name and the right one added after it.
+    A name that carries a known extension loses it; anything else is kept whole,
+    so "v1.2" stays "v1.2".
+    """
+    suffix = Path(name).suffix.lower()
+    stem = Path(name).stem if suffix == extension.lower() or suffix in _KNOWN_EXTENSIONS else Path(name).name
     stem = _SAFE_NAME.sub("-", stem).strip(" .-")[:80] or "links"
     if stem.lower() in _RESERVED:
         stem = f"{stem}-file"

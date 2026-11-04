@@ -112,8 +112,13 @@ def test_plan_with_no_model_selected(make_client, fake_server):
     assert "No model" in r.json()["error"]["message"]
 
 
-def test_task_too_short_rejected(make_client):
-    assert make_client().post("/tasks/plan", json={"task": "x"}).status_code == 422
+def test_an_empty_task_is_rejected(make_client):
+    """The floor was three characters, which refused "hi" with a 422 before
+    anything looked at it - see test_conversation.py. One character is now a
+    task; nothing at all still is not."""
+    c = make_client()
+    assert c.post("/tasks/plan", json={"task": ""}).status_code == 422
+    assert c.post("/tasks/plan", json={"task": "x"}).status_code != 422
 
 
 def test_like_wildcards_escaped(make_client, fake_server):
