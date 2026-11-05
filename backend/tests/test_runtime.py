@@ -232,7 +232,13 @@ def test_import_and_forget_local_file(tmp_path, tiny):
         store.import_file(tmp_path / "notes.txt")
     m = store.import_file(tiny)
     assert m.kind == "imported" and m.present()
-    assert "not deleted" in store.remove(m.id)
+    # Importing copies the file into Claw's folder now (see test_brain_import.py),
+    # so removal deletes that copy. The invariant this test exists for is the
+    # last line, and it is unchanged: the file the person chose is theirs.
+    kept = Path(m.model_path)
+    assert kept != tiny and kept.is_file()
+    note = store.remove(m.id)
+    assert "not touched" in note and not kept.exists()
     assert tiny.exists()  # the user's own file is never deleted
 
 

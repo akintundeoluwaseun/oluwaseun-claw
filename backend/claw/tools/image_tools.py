@@ -20,6 +20,24 @@ IMAGE_IN = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", ".tiff"}
 MAX_PIXELS = 60_000_000
 
 
+def as_list(v, limit: int):
+    """A list, from whatever shape a brain sent.
+
+    A small brain writes `images: "a.png, b.png"` or `points: "fast\ncheap"`
+    where a list was asked for, and pydantic refuses the whole call. The request
+    was not ambiguous and the fix is not more prompting: motion_tools has
+    tolerated this for its own points field since the first benchmark, and the
+    same mistake was still fatal three tools away. Making the tolerance shared
+    is most of what "the brain is not clever enough" turns out to mean.
+    """
+    if isinstance(v, str):
+        parts = [p.strip() for p in v.replace("\n", ",").split(",") if p.strip()]
+        return parts[:limit]
+    if isinstance(v, list):
+        return [str(p).strip() for p in v if str(p).strip()][:limit]
+    return v
+
+
 def _input_image(ctx: ToolContext, raw: str) -> Path:
     try:
         p = ctx.policy.check_path(raw)
@@ -61,20 +79,79 @@ def _ocr_words(path_or_img) -> tuple[bool, str]:
         tmp.unlink(missing_ok=True)
 
 
-def _usable_images(ctx: ToolContext, raws: list[str]) -> list[Path]:
-    """Pictures for a flyer. One the brain made up ("logo.png") is left out, not fatal.
+#: Enough for a collage; past this a design is a contact sheet, not a design.
+MAX_FROM_FOLDER = 16
 
-    Seen on Windows: the whole flyer failed over an invented logo file. A picture the
-    person named and that cannot be used still stops it, with the reason.
-    """
+
+def _images_in(ctx: ToolContext, folder: Path) -> list[Path]:
+    """Every picture directly inside a folder, in name order."""
+    found = sorted((p for p in folder.iterdir()
+                    if p.is_file() and p.suffix.lower() in IMAGE_IN), key=lambda p: p.name.lower())
     out = []
-    for raw in raws:
+    for p in found[:MAX_FROM_FOLDER]:
         try:
-            out.append(_input_image(ctx, raw))
+            out.append(_input_image(ctx, str(p)))
+        except ToolError:
+            continue          # a damaged or enormous file in the folder is skipped, not fatal
+    return out
+
+
+def _usable_images(ctx: ToolContext, raws: list[str]) -> list[Path]:
+    """Pictures for a design. Accepts files, a folder, or a pattern like Photos/*.jpg.
+
+    "Make a flyer with the pictures in this folder" is how a person says it, and
+    it used to need the brain to list the folder first and pass every name back.
+    A 2B brain often does not: it passes the folder, the tool says that is not a
+    file, and the flyer fails on a request that was perfectly clear. Listing a
+    folder is deterministic work, so the tool does it rather than spending a
+    planning step and the brain's judgement on it.
+
+    One the brain made up ("logo.png") is still left out rather than fatal: seen
+    on Windows, a whole flyer failed over an invented logo file.
+    """
+    out: list[Path] = []
+    for raw in raws:
+        text = str(raw).strip()
+        if not text:
+            continue
+        # A pattern: let the folder it names do the matching.
+        if any(ch in text for ch in "*?"):
+            parent, _, pattern = text.replace("\\", "/").rpartition("/")
+            try:
+                base = ctx.policy.check_path(parent or ".")
+            except PathNotAuthorized as exc:
+                raise ToolError(str(exc)) from exc
+            if base.is_dir():
+                for p in sorted(base.glob(pattern))[:MAX_FROM_FOLDER]:
+                    if p.is_file() and p.suffix.lower() in IMAGE_IN:
+                        try:
+                            out.append(_input_image(ctx, str(p)))
+                        except ToolError:
+                            continue
+                continue
+        try:
+            resolved = ctx.policy.check_path(text)
+        except PathNotAuthorized as exc:
+            raise ToolError(str(exc)) from exc
+        if resolved.is_dir():
+            inside = _images_in(ctx, resolved)
+            if not inside:
+                raise ToolError(f"There are no pictures in {resolved.name}.")
+            out.extend(inside)
+            continue
+        try:
+            out.append(_input_image(ctx, text))
         except ToolError as exc:
             if "There is no file" not in exc.message:
                 raise
-    return out
+    # The same picture named twice (once by itself, once inside its folder) is
+    # one picture.
+    seen, unique = set(), []
+    for p in out:
+        if p not in seen:
+            seen.add(p)
+            unique.append(p)
+    return unique
 
 
 def _title_seen(title: str, text: str) -> float:
@@ -103,6 +180,11 @@ class FlyerArgs(ToolArgs):
     accent: str = Field(default="#3cc2aa", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$",
                         description="A colour: #RRGGBB or a plain name like gold")
 
+    @field_validator("points", "images", mode="before")
+    @classmethod
+    def _lists(cls, v, info):
+        return as_list(v, 6 if info.field_name == "points" else 4)
+
     @field_validator("background", "accent", mode="before")
     @classmethod
     def _named_colours(cls, v, info):
@@ -116,7 +198,7 @@ class FlyerArgs(ToolArgs):
             return t
         hexed = _COLOURS.get(t) or _COLOURS.get(t.split()[-1] if t else "")
         return hexed or ("#14212b" if info.field_name == "background" else "#3cc2aa")
-    images: list[str] = Field(default_factory=list, max_length=4, description="Pictures to use, from authorized folders")
+    images: list[str] = Field(default_factory=list, max_length=4, description="Files, a folder, or Photos/*.jpg")
     file_name: str = Field(default="flyer", max_length=80)
     format: Literal["png", "jpg", "pdf", "psd"] = "png"
     folder: str | None = Field(default=None, max_length=500)
@@ -330,7 +412,7 @@ async def inspect_image(args: InspectArgs, ctx: ToolContext) -> ToolResult:
 class PosterArgs(ToolArgs):
     title: str = Field(min_length=1, max_length=120)
     style: Literal["poster", "thumbnail", "magazine"] = "poster"
-    images: list[str] = Field(default_factory=list, max_length=5, description="The first is the background")
+    images: list[str] = Field(default_factory=list, max_length=5, description="Files, a folder, or a pattern; first is the background")
     subtitle: str = Field(default="", max_length=160)
     tagline: str = Field(default="", max_length=160)
     credits: str = Field(default="", max_length=400)
@@ -338,6 +420,12 @@ class PosterArgs(ToolArgs):
     background: str = Field(default="#0d0f14", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
     accent: str = Field(default="#e4b43c", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
     file_name: str = Field(default="poster", max_length=80)
+
+    @field_validator("images", "cover_lines", mode="before")
+    @classmethod
+    def _lists(cls, v, info):
+        return as_list(v, 5)
+
     format: Literal["png", "jpg", "pdf"] = "png"
     folder: str | None = Field(default=None, max_length=500)
 
@@ -371,11 +459,17 @@ async def make_poster(args: PosterArgs, ctx: ToolContext) -> ToolResult:
 
 
 class CollageArgs(ToolArgs):
-    images: list[str] = Field(min_length=1, max_length=16)
+    images: list[str] = Field(min_length=1, max_length=16, description="Files, a folder, or a pattern")
     size: Literal["square", "a4", "landscape", "story"] = "square"
     even_exposure: bool = True
     background: str = Field(default="#101317", pattern=r"^#?[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$")
     file_name: str = Field(default="collage", max_length=80)
+
+    @field_validator("images", mode="before")
+    @classmethod
+    def _lists(cls, v):
+        return as_list(v, 16)
+
     format: Literal["png", "jpg", "pdf"] = "png"
     folder: str | None = Field(default=None, max_length=500)
 

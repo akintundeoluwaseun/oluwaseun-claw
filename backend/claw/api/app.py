@@ -649,7 +649,15 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         """Main-process only (path comes from the file dialog); not in the UI route allowlist."""
         body = await _body(request)
         try:
-            m = state.brain.store.import_file(Path(str(body.get("path"))), Path(body["mmproj"]) if body.get("mmproj") else None)
+            # In a thread: importing copies the file into Claw's folder, and a
+            # six-gigabyte copy on the event loop stops the whole backend -
+            # including the status the window polls to show it is alive.
+            m = await asyncio.to_thread(
+                state.brain.store.import_file,
+                Path(str(body.get("path"))),
+                Path(body["mmproj"]) if body.get("mmproj") else None,
+                bool(body.get("copy_in", True)),
+            )
         except ValueError as exc:
             return error_response(422, "import", str(exc))
         _save_model_settings(selected=m.id, mode="builtin")

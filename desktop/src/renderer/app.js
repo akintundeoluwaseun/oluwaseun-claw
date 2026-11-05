@@ -330,7 +330,7 @@ function renderReady() {
       }));
       actions.push(list);
     }
-    actions.push(brainAction('Use a GGUF file I have', false, importBrain));
+    actions.push(brainAction('I already have a brain file', false, importBrain));
   }
   $('ready-actions').replaceChildren(...actions);
   card.hidden = false;
@@ -443,7 +443,7 @@ async function importBrain() {
     showBrainProblem(e);
   } else {
     note.dataset.tone = 'ok';
-    note.textContent = 'Claw will use your file. It starts the next time a task needs it.';
+    note.textContent = 'Copied into Claw. It starts the next time a task needs it, and keeps working if you move or delete your own copy.';
   }
   loadBrain();
 }

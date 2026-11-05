@@ -34,6 +34,10 @@ class InstalledModel:
     verified: bool  # SHA-256 matched the library's published checksum
     source: str
     added_at: float
+    #: True when Claw holds its own copy, so removing the brain removes that copy
+    #: and not the person's file. Defaulted, because manifests written before
+    #: copying existed do not carry it and must still load.
+    copied_in: bool = False
 
     @property
     def model_path(self) -> Path:
@@ -124,7 +128,22 @@ class ModelStore:
         (folder / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         return self.get(model_id)  # type: ignore[return-value]
 
-    def import_file(self, path: Path, mmproj: Path | None = None) -> InstalledModel:
+    def import_file(self, path: Path, mmproj: Path | None = None,
+                    copy_in: bool = True, on_progress=None) -> InstalledModel:
+        """Take a brain file the person already has.
+
+        `copy_in` copies it into Claw's own model folder. That is the default
+        because the alternative - a manifest pointing at wherever the file
+        happened to be - is a brain that works until Downloads is cleared or the
+        stick comes out, and then fails with the engine unable to start. The
+        person who imports a file has usually just moved it from another machine,
+        which is exactly when it is about to be tidied away.
+
+        It is a choice, not a rule: these files are one to six gigabytes, and
+        somebody keeping their models on a second drive on purpose should not
+        have them silently duplicated. The caller passes copy_in=False and the
+        manifest points at the original, as it always did.
+        """
         if not path.is_file() or not is_gguf(path):
             raise ValueError("That file is not a GGUF model.")
         if mmproj is not None and (not mmproj.is_file() or not is_gguf(mmproj)):
@@ -155,16 +174,63 @@ class ModelStore:
         slug = re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-")[:50] or "model"
         model_id = f"local-{slug}"
         self.imported.mkdir(parents=True, exist_ok=True)
+
+        size = sum(p.stat().st_size for p in parts) + (mmproj.stat().st_size if mmproj else 0)
+        if copy_in:
+            parts, mmproj = self._copy_in(model_id, parts, mmproj, size, on_progress)
+            path = parts[0]
+
         manifest = {
             "id": model_id, "name": f"S-CLAW {pack.group(1).title()} brain" if pack else stem,
             "model_file": str(path), "mmproj_file": str(mmproj) if mmproj else None,
-            "size_bytes": sum(p.stat().st_size for p in parts) + (mmproj.stat().st_size if mmproj else 0),
+            "copied_in": copy_in,
+            "size_bytes": size,
             "license": "apache-2.0 (Qwen3-VL)" if pack else "unknown (your own file)", "verified": False,
             "source": "S-CLAW release page" if pack else "chosen from this computer",
             "added_at": time.time(),
         }
         (self.imported / f"{model_id}.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         return self.get(model_id)  # type: ignore[return-value]
+
+    def _copy_in(self, model_id: str, parts: list[Path], mmproj: Path | None,
+                 size: int, on_progress=None) -> tuple[list[Path], Path | None]:
+        """Copy a brain's files into Claw's own folder, or say why it cannot.
+
+        Copied beside each other, because llama.cpp finds the later parts of a
+        split model by name in the same directory. Written to a temporary name
+        and renamed, so a copy interrupted half way leaves nothing that looks
+        like a usable brain.
+        """
+        dest = self.root / model_id
+        dest.mkdir(parents=True, exist_ok=True)
+        free = shutil.disk_usage(dest).free
+        if free < size + (256 << 20):
+            shutil.rmtree(dest, ignore_errors=True)
+            raise ValueError(
+                f"There is not enough room to copy this brain: it needs {size / 1e9:.1f} GB "
+                f"and {free / 1e9:.1f} GB is free. Free some space, or keep the file where it is.")
+
+        done = 0
+        copied: list[Path] = []
+        try:
+            for src in [*parts, *( [mmproj] if mmproj else [] )]:
+                target = dest / src.name
+                tmp = target.with_suffix(target.suffix + ".part")
+                with src.open("rb") as r, tmp.open("wb") as w:
+                    while chunk := r.read(8 << 20):
+                        w.write(chunk)
+                        done += len(chunk)
+                        if on_progress:
+                            on_progress(done, size)
+                tmp.replace(target)
+                copied.append(target)
+        except OSError as exc:
+            shutil.rmtree(dest, ignore_errors=True)
+            raise ValueError(f"The brain file could not be copied: {exc}") from exc
+
+        if mmproj:
+            return copied[:-1], copied[-1]
+        return copied, None
 
     def remove(self, model_id: str) -> str:
         m = self.get(model_id)
@@ -174,6 +240,12 @@ class ModelStore:
             raise ValueError("This brain came with Claw and can't be removed. Uninstall Claw to remove it.")
         if m.kind == "imported":
             (self.imported / f"{model_id}.json").unlink(missing_ok=True)
+            copy = self.root / model_id
+            if copy.is_dir():
+                # Claw made this copy, so Claw clears it up. The file the person
+                # chose is theirs and is never touched.
+                shutil.rmtree(copy, ignore_errors=True)
+                return "The copy Claw kept was deleted. Your own file was not touched."
             return "Claw no longer uses this file. The file itself was not deleted."
         shutil.rmtree(self.folder_for(model_id), ignore_errors=True)
         return "The brain was deleted from this computer."
