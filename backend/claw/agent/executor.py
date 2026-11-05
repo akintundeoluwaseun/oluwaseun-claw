@@ -731,11 +731,16 @@ def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
     return "\n".join(lines)
 
 
+#: Every observation starts with this, which is how a trimmed transcript can
+#: tell a step's result from anything else a step may have appended.
+OBSERVATION_PREFIX = "Result of "
+
+
 def format_observation(spec_name: str, result: ToolResult | None, error: str | None) -> str:
     if error:
-        return f"Result of {spec_name}: FAILED — {error}"
+        return f"{OBSERVATION_PREFIX}{spec_name}: FAILED — {error}"
     assert result is not None
-    text = f"Result of {spec_name}: {'OK' if result.ok else 'FAILED'} — {result.summary}"
+    text = f"{OBSERVATION_PREFIX}{spec_name}: {'OK' if result.ok else 'FAILED'} — {result.summary}"
     if result.untrusted_text:
         body = result.untrusted_text[:MAX_OBSERVATION_CHARS]
         body = body.replace("</untrusted>", "</ untrusted>")  # content cannot close the wrapper
@@ -768,6 +773,31 @@ class Fitted:
         smaller catalogue, not a shorter history.
         """
         return self.over_tokens > 0
+
+
+def _whole_steps(tail: list[ChatMessage]) -> list[ChatMessage]:
+    """Start the kept history at a step, not in the middle of one.
+
+    A step is two messages: the assistant's action, then "Result of ...". The
+    trim keeps a suffix, so an action can never lose its result - the result
+    comes after it. The reverse happens easily: the cut lands between them and
+    the oldest thing the model sees is the outcome of something it has no
+    record of doing. A large model shrugs; a 2B reads it as work still to do
+    and does it again, and "again" can mean a second file written or a second
+    message sent.
+
+    The idea is OpenClaw's (MIT, see OPENCLAW_LICENSE.txt): its context engine
+    pairs every tool call with its result and will not let a cut separate them
+    (packages/agent-core/src/harness/session/tool-result-pairing.ts). The
+    implementation here is our own and much smaller, because S-CLAW's
+    transcript is plain chat messages rather than typed tool frames - one
+    orphan is possible instead of several.
+
+    Dropping one more message is cheap. Keeping a dangling result is not.
+    """
+    while tail and tail[0].role == "user" and tail[0].content.startswith(OBSERVATION_PREFIX):
+        tail = tail[1:]
+    return tail
 
 
 def fit_context(messages: list[ChatMessage], window_tokens: int,
@@ -820,6 +850,7 @@ def fit_context(messages: list[ChatMessage], window_tokens: int,
     history = [m for m in messages[2:] if m not in sticky]
     if history and len(tail) < MIN_RECENT:
         tail = history[-MIN_RECENT:]        # never blind the model to its last step
+    tail = _whole_steps(tail)
     dropped = len(messages) - len(head) - len(sticky) - len(tail)
     if dropped <= 0:
         return Fitted(messages, 0, max(0, sum(cost) - budget), len(history))
