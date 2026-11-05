@@ -68,6 +68,39 @@ def is_gguf(path: Path) -> bool:
         return False
 
 
+#: What the person actually picked, when it is not a brain.
+#:
+#: "That file is not a GGUF model." was the whole message, and it is no help at
+#: all: it says what the file is not. The owner picked a .bin part of the
+#: Windows installer off the release page, tried to load it as a brain, and had
+#: no way to know what had gone wrong. Each of these is a mistake somebody is
+#: going to make, so each gets its own sentence saying what the file IS and
+#: what to pick instead.
+def why_not_a_brain(path: Path) -> str:
+    name = path.name
+    low = name.lower()
+    if re.search(r"setup.*\.bin$|\.bin$", low) and "gguf" not in low:
+        return (f"{name} is part of the S-CLAW installer, not a brain. The .bin files on the "
+                "release page belong to the Setup program. A brain is a file ending in .gguf, "
+                "between 1 and 6 GB.")
+    if low.endswith((".exe", ".msi")):
+        return f"{name} is the S-CLAW installer, not a brain. A brain is a file ending in .gguf."
+    if low.endswith((".zip", ".7z", ".rar", ".tar", ".gz")):
+        return f"{name} is a compressed folder. Unpack it first, then choose the .gguf file inside."
+    if low.endswith(".part") or low.endswith(".crdownload"):
+        return f"{name} is a download that has not finished. Wait for it to complete, then choose it."
+    if not low.endswith(".gguf"):
+        return (f"{name} is not a brain file. A brain ends in .gguf - for example "
+                "S-CLAW-Brain-Standard-4B-00001-of-00002.gguf.")
+    # It is named .gguf but does not start with GGUF.
+    size = path.stat().st_size if path.is_file() else 0
+    if size < 100 * 1024 * 1024:
+        return (f"{name} ends in .gguf but is only {size / 1024**2:.0f} MB and does not start like "
+                "a brain file. It is probably an incomplete download - download it again.")
+    return (f"{name} ends in .gguf but its contents are not a brain. Download it again; "
+            "the file may have been damaged.")
+
+
 def _bundled_root() -> Path:
     if os.environ.get("CLAW_RESOURCES"):
         return Path(os.environ["CLAW_RESOURCES"]) / "models"
@@ -144,10 +177,19 @@ class ModelStore:
         have them silently duplicated. The caller passes copy_in=False and the
         manifest points at the original, as it always did.
         """
-        if not path.is_file() or not is_gguf(path):
-            raise ValueError("That file is not a GGUF model.")
+        if not path.is_file():
+            raise ValueError(f"{path.name} could not be opened. It may have been moved or deleted.")
+        if not is_gguf(path):
+            raise ValueError(why_not_a_brain(path))
+        # The vision file picked INSTEAD of the brain: a real mistake, because
+        # it sits right next to the brain in the same folder and is a .gguf too.
+        if "mmproj" in path.name.lower():
+            raise ValueError(f"{path.name} is the vision file that goes with a brain, not the brain "
+                             "itself. Choose the file without -mmproj in its name; Claw finds this "
+                             "one by itself.")
         if mmproj is not None and (not mmproj.is_file() or not is_gguf(mmproj)):
-            raise ValueError("The vision file is not a GGUF file.")
+            raise ValueError(f"{mmproj.name} is not a vision file. It should end in .gguf and have "
+                             "mmproj in its name.")
         # A model split into parts (llama.cpp's "-00001-of-00003.gguf" naming, as the brain
         # files on S-CLAW's release page are, to stay under GitHub's 2 GB per file): choose
         # the first part; llama.cpp reads the rest from the same folder.

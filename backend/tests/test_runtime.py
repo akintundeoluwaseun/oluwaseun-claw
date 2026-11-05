@@ -227,7 +227,10 @@ async def test_brain_cancel_download(lib, tmp_path):
 
 def test_import_and_forget_local_file(tmp_path, tiny):
     store = ModelStore(tmp_path)
-    with pytest.raises(ValueError, match="not a GGUF"):
+    # The refusal now names the file and says what a brain looks like instead of
+    # "not a GGUF model", which told the person only what the file was not.
+    # See test_brain_file_errors.py for every wrong file someone actually picks.
+    with pytest.raises(ValueError, match=r"notes\.txt is not a brain file.*\.gguf"):
         (tmp_path / "notes.txt").write_text("hi")
         store.import_file(tmp_path / "notes.txt")
     m = store.import_file(tiny)
