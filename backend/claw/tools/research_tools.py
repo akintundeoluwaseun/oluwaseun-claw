@@ -228,3 +228,195 @@ def register_more_research_tools(reg: ToolRegistry) -> None:
                           LinkCheckArgs, check_links))
     reg.register(ToolSpec("page_changes", "See what changed on a web page since the last check.", Capability.BROWSER,
                           RiskLevel.READ_ONLY, WatchArgs, page_changes))
+    reg.register(ToolSpec("collect_documents",
+                          "Download the PDFs and other documents linked from several web pages into one folder, "
+                          "sorted by type or by site. Dead links that answer with a web page are reported, not saved.",
+                          Capability.BROWSER, RiskLevel.LOCAL_WRITE, CollectArgs, collect_documents))
+
+
+# ---------- collect_documents (9.06) ----------
+#: What counts as a document worth collecting, and what each one must actually
+#: start with. The magic bytes are the point of this table: a great many sites
+#: answer a dead .pdf link with 200 OK and an HTML "page not found", and a
+#: collector that trusts the extension reports a folder of twelve PDFs of which
+#: four are error pages. None means "we cannot tell from the first bytes", and
+#: those are saved but reported as unverified rather than claimed as checked.
+DOCUMENT_KINDS: dict[str, tuple[bytes, ...] | None] = {
+    ".pdf": (b"%PDF",),
+    ".docx": (b"PK\x03\x04",), ".xlsx": (b"PK\x03\x04",), ".pptx": (b"PK\x03\x04",),
+    ".odt": (b"PK\x03\x04",), ".ods": (b"PK\x03\x04",), ".odp": (b"PK\x03\x04",),
+    ".epub": (b"PK\x03\x04",),
+    ".doc": (b"\xd0\xcf\x11\xe0",), ".xls": (b"\xd0\xcf\x11\xe0",), ".ppt": (b"\xd0\xcf\x11\xe0",),
+    ".rtf": (b"{\\rtf",),
+    ".csv": None, ".tsv": None, ".txt": None, ".md": None, ".json": None, ".xml": None,
+}
+#: Anything whose first bytes look like a web page is an error page dressed as a
+#: document, whatever the link said.
+_HTML_START = (b"<!doctype html", b"<html", b"<head", b"<body")
+MAX_COLLECT_BYTES = 40 * 1024 * 1024       # per file
+MAX_COLLECT_TOTAL = 200 * 1024 * 1024      # per run
+
+
+class CollectArgs(ToolArgs):
+    urls: list[str] = Field(default_factory=list, max_length=15,
+                            description="Pages to look on; default: the open page")
+    kinds: list[str] = Field(default_factory=list, max_length=12,
+                             description='Document types to take, e.g. ["pdf", "xlsx"]; default: all documents')
+    folder: str | None = Field(default=None, max_length=500, description="Authorized folder to save into")
+    sort_into: str = Field(default="kind", description='Subfolders: "kind", "site" or "none"')
+    limit: int = Field(default=25, ge=1, le=60, description="How many files at most")
+
+    @field_validator("urls", "kinds", mode="before")
+    @classmethod
+    def _list(cls, v):
+        return [x.strip() for x in v.split(",") if x.strip()] if isinstance(v, str) else v
+
+    @field_validator("kinds")
+    @classmethod
+    def _known(cls, v):
+        out = []
+        for k in v:
+            ext = "." + k.strip().lower().lstrip(".")
+            if ext not in DOCUMENT_KINDS:
+                raise ValueError(f"'{k}' is not a document type Claw collects. "
+                                 f"Try one of: {', '.join(sorted(e[1:] for e in DOCUMENT_KINDS))}.")
+            out.append(ext)
+        return out
+
+    @field_validator("sort_into")
+    @classmethod
+    def _how(cls, v):
+        how = v.strip().lower()
+        if how not in ("kind", "site", "none"):
+            raise ValueError('sort_into must be "kind", "site" or "none".')
+        return how
+
+
+def _looks_like(body: bytes, ext: str) -> str:
+    """'' if the bytes are what the extension promised, otherwise what is wrong.
+
+    Returns a reason, not a boolean, because the reason is what the person needs:
+    "the site sent a web page instead" tells them the link is dead, while a bare
+    failure count tells them nothing.
+    """
+    head = body[:512]
+    if not body:
+        return "the file was empty"
+    expected = DOCUMENT_KINDS.get(ext)
+    if expected and not head.startswith(expected):
+        if head.lstrip()[:200].lower().startswith(_HTML_START):
+            return "the site sent a web page, not a document (the link is probably dead)"
+        return f"the contents are not {ext[1:].upper()}"
+    if expected is None and head.lstrip()[:200].lower().startswith(_HTML_START):
+        return "the site sent a web page, not a document (the link is probably dead)"
+    return ""
+
+
+async def collect_documents(args: CollectArgs, ctx: ToolContext) -> ToolResult:
+    """Gather the documents linked from several pages into one tidy folder.
+
+    Every file is checked after it is saved: the request succeeded, the bytes are
+    on disk, and the first bytes are the kind the link claimed. A dead link that
+    answers with an HTML error page is reported as a failure, never counted as a
+    collected document. Programs and scripts are refused outright.
+    """
+    from pathlib import Path  # noqa: PLC0415
+    from urllib.parse import urlparse  # noqa: PLC0415
+
+    from claw.tools.browser_tools import BLOCKED_DOWNLOADS, _remember
+    from claw.tools.file_tools import resolve_folder
+
+    wanted = set(args.kinds) or set(DOCUMENT_KINDS)
+    root = resolve_folder(ctx, args.folder)
+    pages = list(args.urls)
+    if not pages:
+        page = await ctx.browser.page()
+        if page.url in ("about:blank", ""):
+            raise ToolError("Open a page first, or say which pages to collect from.")
+        pages = [page.url]
+
+    # ---- find the document links, keeping the page each came from ----
+    found: list[dict] = []
+    seen: set[str] = set()
+    unreachable: list[dict] = []
+    for src in pages:
+        try:
+            await ctx.browser.goto(src)
+        except Exception as exc:                       # a bad page must not lose the others
+            unreachable.append({"page": src, "why": str(exc).splitlines()[0][:160]})
+            continue
+        for link in await extract.page_links(await ctx.browser.page()):
+            url = link["url"]
+            if not url.startswith(("http://", "https://")) or url in seen:
+                continue
+            ext = Path(urlparse(url).path).suffix.lower()
+            if ext in BLOCKED_DOWNLOADS:
+                continue                               # a program, whatever the page calls it
+            if ext not in wanted:
+                continue
+            seen.add(url)
+            found.append({"url": url, "ext": ext, "page": src, "text": link["text"][:120]})
+    if not found:
+        kinds = ", ".join(sorted(e[1:] for e in wanted))
+        return ToolResult(False, f"No {kinds} links were found on {len(pages)} page(s). "
+                                 "Nothing was downloaded.", {"saved": [], "pages": pages}, True)
+
+    # ---- fetch them through the browser, so a logged-in site still works ----
+    page = await ctx.browser.page()
+    saved: list[dict] = []
+    failed: list[dict] = list(unreachable)
+    total = 0
+    for item in found[:args.limit]:
+        if total >= MAX_COLLECT_TOTAL:
+            failed.append({"url": item["url"], "why": "the run reached its 200 MB total"})
+            continue
+        try:
+            got = await page.context.request.get(item["url"], timeout=60000)
+        except Exception as exc:
+            failed.append({"url": item["url"], "why": str(exc).splitlines()[0][:160]})
+            continue
+        if not got.ok:
+            failed.append({"url": item["url"], "why": f"the site answered {got.status}"})
+            continue
+        body = await got.body()
+        if len(body) > MAX_COLLECT_BYTES:
+            failed.append({"url": item["url"], "why": f"{len(body) / 1024**2:.0f} MB is over the 40 MB limit"})
+            continue
+        wrong = _looks_like(body, item["ext"])
+        if wrong:
+            failed.append({"url": item["url"], "why": wrong})
+            continue
+
+        stem = Path(urlparse(item["url"]).path).stem or item["text"] or "document"
+        where = root
+        if args.sort_into == "kind":
+            where = root / item["ext"][1:].upper()
+        elif args.sort_into == "site":
+            where = root / safe_file_name(urlparse(item["page"]).netloc or "site", "").rstrip(".")
+        ctx.policy.check_path(where / "x", write=True)
+        where.mkdir(parents=True, exist_ok=True)
+        target = unique_path(where / safe_file_name(stem, item["ext"]))
+        ctx.policy.check_path(target, write=True)
+        target.write_bytes(body)
+        ok = target.is_file() and target.stat().st_size == len(body)
+        total += len(body)
+        saved.append({"path": str(target), "bytes": len(body), "from": item["url"],
+                      "page": item["page"], "kind": item["ext"][1:], "verified": ok})
+        ctx.memory.outputs.append({"path": str(target), "kind": "download", "verified": ok,
+                                   "note": "" if ok else "The saved file is not the size that was downloaded."})
+    _remember(ctx, [s["from"] for s in saved])
+
+    by_kind: dict[str, int] = {}
+    for s in saved:
+        by_kind[s["kind"]] = by_kind.get(s["kind"], 0) + 1
+    spread = ", ".join(f"{n} {k}" for k, n in sorted(by_kind.items()))
+    where_text = {"kind": " sorted by type", "site": " sorted by site", "none": ""}[args.sort_into]
+    summary = (f"Saved {len(saved)} document(s) ({spread}) from {len(pages)} page(s) "
+               f"into {root}{where_text}.") if saved else "No document could be downloaded."
+    if failed:
+        summary += (f" {len(failed)} did not come through: "
+                    + "; ".join(f"{f.get('url', f.get('page', '?'))} — {f['why']}" for f in failed[:4]) + ".")
+    detail = "\n".join(f"- {s['path']}  ({s['bytes']:,} bytes, from {s['from']})" for s in saved)
+    return ToolResult(bool(saved), summary,
+                      {"saved": saved, "failed": failed, "folder": str(root), "looked_at": pages},
+                      verified=bool(saved) and all(s["verified"] for s in saved), untrusted_text=detail)

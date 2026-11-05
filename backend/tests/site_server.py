@@ -37,6 +37,21 @@ DIRECTORY = [
 ]
 
 
+#: First bytes that make each kind what it claims to be. A collector checks
+#: these, so a fixture that served "fake pdf" would test nothing.
+DOCUMENT_BODIES = {
+    ".pdf": b"%PDF-1.7\n1 0 obj<</Type/Catalog>>endobj\ntrailer<<>>\n%%EOF\n",
+    ".docx": b"PK\x03\x04" + b"\x00" * 26 + b"word/document.xml",
+    ".xlsx": b"PK\x03\x04" + b"\x00" * 26 + b"xl/workbook.xml",
+    ".txt": b"Plain notes.\n",
+}
+
+
+def _suffix(name: str) -> str:
+    dot = name.rfind(".")
+    return name[dot:].lower() if dot >= 0 else ""
+
+
 def _page(title: str, body: str) -> bytes:
     return (
         "<!doctype html><html><head><meta charset='utf-8'>"
@@ -111,9 +126,33 @@ class SiteServer:
                         "<p><a href='/files/price-list.csv'>Download price list</a> <a href='/files/setup.exe'>Get the installer</a></p>"
                     )
                     self._send(200, _page("Register", form))
+                elif url.path == "/library":
+                    self._send(200, _page("Document library",
+                        "<h1>Reports</h1><ul>"
+                        "<li><a href='/files/annual-report.pdf'>Annual report (PDF)</a></li>"
+                        "<li><a href='/files/price-list.csv'>Price list</a></li>"
+                        "<li><a href='/files/staff-handbook.docx'>Staff handbook</a></li>"
+                        "<li><a href='/files/moved-report.pdf'>Last year's report (PDF)</a></li>"
+                        "<li><a href='/files/setup.exe'>Installer</a></li>"
+                        "<li><a href='/articles/cooking'>An ordinary page</a></li>"
+                        "</ul>"))
+                elif url.path == "/library/second":
+                    self._send(200, _page("More documents",
+                        "<h1>Finance</h1><ul>"
+                        "<li><a href='/files/budget-2026.xlsx'>Budget 2026</a></li>"
+                        "<li><a href='/files/annual-report.pdf'>Annual report (again)</a></li>"
+                        "</ul>"))
                 elif url.path.startswith("/files/"):
                     name = url.path.rsplit("/", 1)[1]
-                    body = b"item,price\nCharger,3500\nCable,1500\n" if name.endswith(".csv") else b"MZ fake program"
+                    # A dead document link that still answers 200 with a web page. Real
+                    # sites do this constantly, and a collector that trusts the .pdf in
+                    # the address reports an error page as a collected document.
+                    if name == "moved-report.pdf":
+                        self._send(200, _page("Not found", "<h1>That report has moved</h1>"))
+                        return
+                    body = DOCUMENT_BODIES.get(_suffix(name), b"MZ fake program")
+                    if name.endswith(".csv"):
+                        body = b"item,price\nCharger,3500\nCable,1500\n"
                     self.send_response(200)
                     self.send_header("Content-Type", "application/octet-stream")
                     self.send_header("Content-Disposition", f'attachment; filename="{name}"')
