@@ -5,6 +5,21 @@
    colours, which is why the bar and the app stopped matching.
 */
 
+/* The window is transparent, and `color-scheme` is what breaks that.
+   tokens.css sets color-scheme: dark for the dark themes, which is right for
+   the main window - it makes scrollbars and form controls dark. On a
+   transparent Electron window it also makes Chromium composite an opaque dark
+   canvas underneath, so the bar arrives as a black rectangle with a rounded
+   pill drawn inside it. Photographed on a red desktop, 5 November.
+
+   `normal` here turns that off for this window only. The bar draws every
+   colour it uses itself and has no scrollbars or form controls, so it loses
+   nothing; the main window keeps its dark scheme.
+
+   NOT VERIFIED: this cannot be reproduced in a browser - the corners stay
+   transparent there whatever the scheme - and there is no Electron or Windows
+   in the build container. It needs looking at on Windows. */
+html { color-scheme: normal; }
 html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
 body {
   font: 14px/1.4 var(--font);
