@@ -1014,6 +1014,24 @@ function setChatTitle(title) {
 /* Earlier messages in this chat, above the one being shown: what was asked and
    what came of it, in a line or two each. The full steps of the latest message
    stay below, where they always were. */
+/** What an earlier turn shows underneath its status pill.
+ *
+ * The status is already on screen as a pill with its own colour. This used to
+ * fall back to the same status text when a task had neither an answer nor an
+ * error, so a stopped or empty run printed its status twice - "Stopped" above
+ * "Stopped" - which reads like a stutter rather than a state. An empty string
+ * means there is nothing to add, and the caller renders no second line at all.
+ *
+ * Pure on purpose: the duplication was invisible in a DOM full of real runs and
+ * obvious the moment the decision was a function with a return value.
+ */
+function pastReply(task, statusText) {
+  const answer = (task.result && task.result.final_answer) || task.error || '';
+  const text = String(answer).trim();
+  if (!text || text === String(statusText).trim()) return '';
+  return text.slice(0, 600);
+}
+
 async function loadEarlier(threadId, currentId) {
   const box = $('chat-earlier');
   box.replaceChildren();
@@ -1025,18 +1043,14 @@ async function loadEarlier(threadId, currentId) {
   for (const t of res.body.tasks || []) {
     if (t.id === currentId) break;
     const [statusText, tone] = STATUS[t.status] || [t.status, 'muted'];
-    const reply = (t.result && t.result.final_answer) || t.error || statusText;
+    const reply = pastReply(t, statusText);
     turns.push(el('div', { className: 'turn turn-you' }, [el('p', { className: 'bubble', text: t.task_text })]));
     const open = el('button', { className: 'turn-open', attrs: { type: 'button' }, text: 'Show steps' });
     open.addEventListener('click', () => openTask(t.id));
-    turns.push(el('div', { className: 'turn turn-claw turn-past' }, [
-      clawMark(),
-      el('div', { className: 'turn-body' }, [
-        el('p', { className: 'turn-state', attrs: { 'data-tone': tone }, text: statusText }),
-        el('p', { className: 'turn-text', text: String(reply).slice(0, 600) }),
-        open,
-      ]),
-    ]));
+    const body = [el('p', { className: 'turn-state', attrs: { 'data-tone': tone }, text: statusText })];
+    if (reply) body.push(el('p', { className: 'turn-text', text: reply }));
+    body.push(open);
+    turns.push(el('div', { className: 'turn turn-claw turn-past' }, [clawMark(), el('div', { className: 'turn-body' }, body)]));
   }
   box.replaceChildren(...turns);
 }
