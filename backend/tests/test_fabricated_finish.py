@@ -64,7 +64,11 @@ def test_a_claim_with_no_tool_run_is_sent_back():
 
 def test_the_same_claim_after_real_work_is_accepted():
     # The guard must not fire on a brain that did the job and then described it.
-    steps = [{"tool": "find_files", "outcome": "verified"}]
+    # The work has to be work: SCREEN claims the files were MOVED, so a search
+    # is not enough - see test_a_search_does_not_license_a_claim_to_have_moved
+    # _anything below, which is the gap this premise originally missed.
+    steps = [{"tool": "find_files", "outcome": "verified"},
+             {"tool": "sort_into_folders", "outcome": "verified"}]
     assert premature_finish(SCREEN, steps, []) is None
     assert premature_finish("I have created the spreadsheet.",
                             [{"tool": "create_spreadsheet", "outcome": "verified"}], []) is None
@@ -104,3 +108,60 @@ def test_the_honest_message_says_nothing_changed():
     assert "Nothing was done" in NOTHING_WAS_DONE
     assert "no tool was ever run" in NOTHING_WAS_DONE
     assert "Nothing on this computer was changed" in NOTHING_WAS_DONE
+
+
+# ---------- one step of cover ----------
+# The first version of this guard only fired when NO tool had run. A brain that
+# called list_folder and then announced it had moved the files into subfolders
+# went straight through: the same lie with a receipt stapled to it. On the task
+# from the screenshot that is one find_files away.
+
+from claw.agent.executor import (  # noqa: E402
+    NOTHING_WAS_CHANGED, changed_anything, claims_a_change, did_anything,
+)
+
+LOOKED = [{"tool": "find_files", "outcome": "verified"}]
+MOVED = [{"tool": "find_files", "outcome": "verified"},
+         {"tool": "sort_into_folders", "outcome": "verified"}]
+
+
+def test_looking_is_not_changing():
+    assert did_anything(LOOKED) and not changed_anything(LOOKED)
+    assert did_anything(MOVED) and changed_anything(MOVED)
+    assert not did_anything([{"tool": "find_files", "outcome": "failed"}])
+    assert not changed_anything([{"tool": "move_file", "outcome": "failed"}])
+
+
+def test_which_claims_are_about_changing_something():
+    for text in ("I have moved the files.", "The report has been saved.",
+                 "I sent the message.", "I deleted the duplicates.",
+                 "I've renamed them.", "The files have been sorted."):
+        assert claims_a_change(text), text
+    # finding, reading and listing change nothing, so they are not change claims
+    for text in ("I found 12 PDFs.", "I have read the document.",
+                 "I listed them by date.", "The folder contains 12 files."):
+        assert not claims_a_change(text), text
+
+
+def test_a_search_does_not_license_a_claim_to_have_moved_anything():
+    why = premature_finish(SCREEN, LOOKED, [])
+    assert why and "only looked" in why and "find_files" in why
+
+
+def test_the_same_claim_after_a_real_move_is_accepted():
+    assert premature_finish(SCREEN, MOVED, []) is None
+
+
+def test_an_honest_summary_of_looking_is_accepted():
+    assert premature_finish("I found 12 PDFs, the newest is report.pdf.", LOOKED, []) is None
+
+
+def test_a_write_that_failed_is_an_honest_ending():
+    assert premature_finish("I could not move them.",
+                            [{"tool": "move_file", "outcome": "failed"}], []) is None
+
+
+def test_the_person_is_told_what_was_looked_at_and_what_was_not_done():
+    assert "Nothing was changed" in NOTHING_WAS_CHANGED
+    assert "no tool that can do any of that was ever run" in NOTHING_WAS_CHANGED
+    assert "No file was created, moved or deleted" in NOTHING_WAS_CHANGED
