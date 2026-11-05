@@ -143,6 +143,10 @@ class RunOutcome:
     files: list[dict[str, Any]] = field(default_factory=list)
     replans: int = 0
     warnings: list[str] = field(default_factory=list)
+    #: The request, so the report can check the output against what was asked
+    #: for (challenge 17.18). Last and defaulted: every existing caller that
+    #: builds a RunOutcome positionally keeps working.
+    task: str = ""
 
     def summary(self) -> dict[str, Any]:
         counts: dict[str, int] = {}
@@ -158,7 +162,7 @@ class RunOutcome:
             "replans": self.replans,
             "warnings": self.warnings,
             # COMPLETED / UNVERIFIED / INCOMPLETE / BLOCKED, from what Claw observed, not the brain's words.
-            "report": report.final_report(self.steps, self.files, self.status, self.error),
+            "report": report.final_report(self.steps, self.files, self.status, self.error, self.task),
         }
 
 
@@ -1105,7 +1109,7 @@ async def run_agent(
         warnings = []
         if ctx.memory.injection_seen:
             warnings.append("Something Claw read during this task tried to give it instructions. Claw ignored it and asked before every change.")
-        return RunOutcome(status, final, steps, error, list(ctx.memory.outputs), replans, warnings)
+        return RunOutcome(status, final, steps, error, list(ctx.memory.outputs), replans, warnings, task)
 
     async def after_failure() -> RunOutcome | None:
         """Called after any failed step. Re-plans once failures pile up; stops when the budget is spent."""
