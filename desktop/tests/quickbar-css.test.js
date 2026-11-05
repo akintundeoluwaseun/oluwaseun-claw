@@ -101,3 +101,47 @@ test('the close button can be seen without hovering first', () => {
     'the close button rests at opacity 0, so nobody can tell it is there',
   );
 });
+
+test('the transparency rule can actually beat tokens.css', () => {
+  // The bug this exists to stop coming back. `html { color-scheme: normal }`
+  // was written, shipped and did nothing: `html` is a type selector (0-0-1),
+  // while tokens.css sets color-scheme on `:root` (a pseudo-class, 0-1-0) and
+  // on `:root[data-theme="dark"]` (0-2-0). It lost in all six combinations of
+  // system preference and theme setting, so the bar kept arriving as a solid
+  // rectangle. Nothing in the source showed that - only computing the cascade
+  // does, which tests/quickbar-transparency.mjs now measures in Chromium.
+  const rule = /(:root[^{]*)\{[^}]*color-scheme:\s*normal/.exec(css);
+  assert.ok(rule, 'color-scheme: normal is no longer set on a :root selector');
+
+  const selectors = rule[1].split(',').map((s) => s.trim()).filter(Boolean);
+  assert.ok(
+    selectors.some((s) => /:root\[data-theme\]/.test(s)),
+    'nothing here matches :root[data-theme="dark"] (0-2-0), so an explicit dark theme still wins',
+  );
+  assert.ok(
+    selectors.some((s) => /:root:not\(\[data-theme\]\)/.test(s)),
+    'nothing matches :root:not([data-theme="light"]) (0-2-0), so Windows being dark still wins',
+  );
+  assert.ok(
+    !/^html\s*\{[^}]*color-scheme/m.test(css),
+    'color-scheme is being set on bare `html` again, which loses to every :root rule',
+  );
+});
+
+test('nothing paints a background behind the bar', () => {
+  // A transparent window shows whatever is behind it; any opaque background on
+  // the root or the body is the rectangle the owner kept photographing.
+  // Root-level only: ":root", "html", "body", optionally with an attribute.
+  // A descendant selector like `body[data-listening] .mic` paints a control,
+  // not the window, and is none of this test's business.
+  const roots = [...css.matchAll(/(?:^|\})\s*((?::root|html|body)(?:\[[^\]]*\])*\s*(?:,\s*(?::root|html|body)(?:\[[^\]]*\])*\s*)*)\{([^}]*)\}/g)];
+  assert.ok(roots.length, 'no root-level rules found; this check has stopped working');
+  for (const [, selector, block] of roots) {
+    const bg = /background(?:-color)?:\s*([^;]+)/.exec(block);
+    if (!bg) continue;
+    assert.match(
+      bg[1].trim(), /^(transparent|none|rgba\(0,\s*0,\s*0,\s*0\))$/,
+      `${selector.trim()} paints "${bg[1].trim()}" behind a transparent window`,
+    );
+  }
+});
