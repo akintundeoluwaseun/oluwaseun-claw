@@ -1,5 +1,7 @@
 """Brains downloaded from the release page in parts (llama.cpp split naming) import as one brain."""
 
+from pathlib import Path
+
 import pytest
 
 from claw.runtime.store import ModelStore
@@ -18,7 +20,15 @@ def test_split_brain_with_its_vision_file(tmp_path):
     vision = gguf(d / "S-CLAW-Brain-Standard-4B-mmproj.gguf", 16)
     m = ModelStore(tmp_path / "data").import_file(first)
     assert m.name == "S-CLAW Standard brain"
-    assert m.mmproj_file == str(vision) and m.size_bytes == (4 + 64) + (4 + 128) + (4 + 16)
+    assert m.size_bytes == (4 + 64) + (4 + 128) + (4 + 16)
+    # Importing copies into Claw's folder now (test_brain_import.py), so the
+    # path is no longer the download's. What this test is really about is that
+    # the vision file was recognised and kept with the model, which llama.cpp
+    # requires to be in the same directory as the first part.
+    assert m.mmproj_file is not None
+    kept = Path(m.mmproj_file)
+    assert kept.name == vision.name and kept.is_file()
+    assert kept.parent == Path(m.model_file).parent
 
 
 def test_wrong_part_or_missing_part_is_explained(tmp_path):
