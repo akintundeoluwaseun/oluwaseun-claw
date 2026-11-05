@@ -297,3 +297,18 @@ def test_an_acknowledgement_in_front_of_talk_is_stripped_like_a_greeting():
     assert quick_reply("ok what now") is not None
     assert quick_reply("ok open notepad") is None          # still a job
     assert quick_reply("nice, make me a flyer") is None    # still a job
+
+
+def test_calling_it_off_is_not_a_job():
+    # "forget it" read as work only because "forget" is a verb Claw has a tool
+    # for, so it reached the planner, which then had to plan how to forget
+    # something.
+    for text in ("forget it", "never mind", "nevermind", "don't bother", "skip it",
+                 "leave it", "cancel that"):
+        assert quick_reply(text) == "Right - nothing done.", text
+
+
+def test_forgetting_a_real_thing_is_still_a_job():
+    for text in ("forget the invoice I asked you to remember", "forget my password",
+                 "never mind, open notepad instead"):
+        assert quick_reply(text) is None, text

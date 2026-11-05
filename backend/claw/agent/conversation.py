@@ -119,6 +119,16 @@ _THANKS_FOR = re.compile(
 #: Words that turn gratitude back into a request.
 _THEN_A_REQUEST = re.compile(r"\b(?:now|then|next|also|again|after\s+that|could\s+you|can\s+you|please)\b", re.I)
 
+#: Calling it off. "forget it" reads as work only because "forget" is a verb
+#: Claw has a tool for, so it went to the planner, which then had to plan how
+#: to forget something. Checked before the work guard for that reason, and
+#: anchored to the whole message so "forget the invoice I asked you to
+#: remember" still reaches the planner, where it belongs.
+_NEVER_MIND = re.compile(
+    r"^(?:never\s*mind|nevermind|forget\s+(?:it|that|about\s+it)|"
+    r"don'?t\s+(?:worry|bother)(?:\s+about\s+it)?|skip\s+it|leave\s+it|cancel\s+that|it'?s\s+fine)"
+    r"\b[\s!.,?]*$", re.I)
+
 _EMOJI_ONLY = re.compile(r"^[\W_]+$", re.U)
 
 # Long enough to be a brief, whatever else it looks like.
@@ -156,6 +166,8 @@ def quick_reply(text: str, name: str = "S-CLAW", standalone: bool = True) -> str
     # still a job.
     if _THANKS_FOR.match(t) and not _THEN_A_REQUEST.search(t) and "," not in t:
         return "Any time."
+    if _NEVER_MIND.match(t):
+        return "Right - nothing done."
     if smells_like_work(t):
         return None
     answer = _canned(t, name, standalone)
