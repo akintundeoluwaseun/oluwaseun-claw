@@ -257,3 +257,43 @@ def test_none_of_this_costs_a_model_call():
     for _ in range(2000):
         quick_reply("Hi, what can you do?")
     assert time.perf_counter() - start < 1.0
+
+
+# ---------- thanking Claw ----------
+# Reported: "I just told it thank you and it's taking a year to reply."
+# Bare "thank you" already had a canned answer. Nobody types the bare word.
+
+def test_thanks_in_the_shapes_people_type_it():
+    for text in ("thank you", "thanks", "thank you so much", "thanks a lot",
+                 "thanks very much", "thank u", "tysm", "thanks o", "thanks claw",
+                 "thank you sir", "thanks for the help", "thank you for everything",
+                 "ok thanks", "ok thank you", "alright, thanks", "well done", "great job",
+                 "thanks 🙏"):
+        assert quick_reply(text) == "Any time.", text
+
+
+def test_being_thanked_for_a_job_does_not_do_the_job_again():
+    # The one that could actually hurt. "Thanks for opening Notepad" names a
+    # job, smells exactly like a job, and went to the planner - which would
+    # open Notepad a second time. Being thanked is not an instruction.
+    for text in ("thank you for opening notepad", "thanks for finding the pdf",
+                 "thanks for the flyer", "thanks for sending the message",
+                 "thanks for deleting them"):
+        assert quick_reply(text) == "Any time.", text
+
+
+def test_gratitude_with_a_new_request_in_it_is_still_a_request():
+    # The guard on the rule above. A clause break or a word that starts a new
+    # ask puts the message back in front of the planner, where it belongs.
+    for text in ("thanks, now open notepad", "thanks for opening notepad, now close it",
+                 "thanks for opening notepad then close it",
+                 "thanks for that, can you also print it",
+                 "thanks for opening it please do the next one"):
+        assert quick_reply(text) is None, text
+
+
+def test_an_acknowledgement_in_front_of_talk_is_stripped_like_a_greeting():
+    assert quick_reply("so what can you do") is not None
+    assert quick_reply("ok what now") is not None
+    assert quick_reply("ok open notepad") is None          # still a job
+    assert quick_reply("nice, make me a flyer") is None    # still a job

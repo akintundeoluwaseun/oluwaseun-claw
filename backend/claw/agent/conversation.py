@@ -66,7 +66,17 @@ _GREETING = re.compile(
     r"^(?:hi|hii+|hey+|hello+|yo|sup|whats?\s*up|good\s+(?:morning|afternoon|evening|day)|"
     r"howdy|hiya|greetings|salut|hola)"
     r"(?:\s+(?:there|again|claw|s-?claw|mate|buddy))?\b[\s!.,?]*$", re.I)
-_THANKS = re.compile(r"^(?:thanks?|thank\s+you|thx|ty|cheers|much\s+appreciated|nice\s+one|well\s+done|good\s+job)\b[\s!.,?]*$", re.I)
+#: Nobody types the bare word. "thank you so much", "thanks a lot", "thank u",
+#: "ok thanks" are all the same sentence, and each one that misses costs a
+#: model call - which on a small brain is a long wait to be told "you're
+#: welcome".
+_THANKS = re.compile(
+    r"^(?:thanks?|thank\s*(?:you|u)|thx|thnx|tnx|ty|tysm|cheers|much\s+appreciated|"
+    r"nice\s+one|well\s+done|good\s+job|great\s+job|good\s+work|perfect\s+thanks)"
+    r"(?:\s+(?:so|very)?\s*much|\s+a\s+lot|\s+a\s+million|\s+again)?"
+    r"(?:\s+(?:man|boss|sir|ma|madam|claw|s-?claw|mate|buddy|o+))?"
+    r"(?:\s+for\s+(?:the\s+|your\s+)?(?:help|that|this|it|everything|the\s+work))?"
+    r"\b[\s!.,?😊🙏👍]*$", re.I)
 _OK = re.compile(r"^(?:ok(?:ay)?|k|kk|cool|nice|great|good|fine|alright|sure|got\s+it|understood|perfect|lovely|yes|yeah|yep|no|nope|nah)\b[\s!.,?]*$", re.I)
 _BYE = re.compile(r"^(?:bye+|goodbye|good\s*night|see\s+you|see\s+ya|later|cya|that(?:'s| is)\s+all|done\s+for\s+now)\b[\s!.,?]*$", re.I)
 _HOW_ARE_YOU = re.compile(r"^(?:how\s+(?:are|r)\s+(?:you|u)|how'?s\s+it\s+going|you\s+(?:there|ok|okay|alright)|are\s+you\s+(?:there|awake|ready|working))\b[\s!.,?]*$", re.I)
@@ -90,11 +100,24 @@ _CAPABILITY = re.compile(
 #: string beginning with "what". It fell through to a model call instead - two
 #: words of small talk costing a 2B brain its whole thinking time, which is
 #: precisely what the fast path exists to prevent.
-_LEADING_GREETING = re.compile(
+_LEADING_FILLER = re.compile(
     r"^(?:hi|hii+|hey+|hello+|yo|sup|whats?\s*up|good\s+(?:morning|afternoon|evening|day)|"
-    r"howdy|hiya|greetings|salut|hola)"
+    r"howdy|hiya|greetings|salut|hola|ok(?:ay)?|alright|right|so|well|wow|cool|nice|great)"
     r"(?:\s+(?:there|again|claw|s-?claw|mate|buddy|sir|ma|madam|please))?"
-    r"\s*[,!.;:-]+\s*", re.I)
+    r"(?:\s*[,!.;:–—-]+\s*|\s+)", re.I)
+
+#: "Thanks for opening Notepad." Gratitude that names the job it is grateful
+#: for, which every tester types and which smells exactly like the job itself -
+#: so it went to the planner, and the planner opened Notepad a second time.
+#: Being thanked is not an instruction to do it again.
+#:
+#: Guarded hard, because "thanks, now close it" is an instruction wearing the
+#: same coat: the message has to be nothing but "thanks for <something>", with
+#: no clause break and no word that starts a new request.
+_THANKS_FOR = re.compile(
+    r"^(?:thanks?|thank\s*(?:you|u)|thx|cheers)\s+for\s+(?:the\s+|your\s+)?[\w\s'.-]{1,60}$", re.I)
+#: Words that turn gratitude back into a request.
+_THEN_A_REQUEST = re.compile(r"\b(?:now|then|next|also|again|after\s+that|could\s+you|can\s+you|please)\b", re.I)
 
 _EMOJI_ONLY = re.compile(r"^[\W_]+$", re.U)
 
@@ -126,15 +149,23 @@ def quick_reply(text: str, name: str = "S-CLAW", standalone: bool = True) -> str
     purely social ones survive a thread.
     """
     t = _first_line(text)
-    if not t or len(t) > 60 or smells_like_work(t):
+    if not t or len(t) > 60:
+        return None
+    # Checked before the work guard, and only this one is: "thanks for opening
+    # Notepad" names a job on purpose. Everything else that smells of work is
+    # still a job.
+    if _THANKS_FOR.match(t) and not _THEN_A_REQUEST.search(t) and "," not in t:
+        return "Any time."
+    if smells_like_work(t):
         return None
     answer = _canned(t, name, standalone)
     if answer is not None:
         return answer
-    # "Hi, what can you do?" - a greeting, then plain talk. Strip the greeting
-    # and ask again. Nothing that smells of work can reach here, so what
-    # follows a greeting is either more talk or nothing we answer.
-    rest = _LEADING_GREETING.sub("", t, count=1)
+    # "Hi, what can you do?" - an opener, then plain talk. Strip the opener and
+    # ask again. Greetings and acknowledgements both count: "ok thanks" and
+    # "so, what can you do" are the same shape. Nothing that smells of work can
+    # reach here, so what follows is either more talk or nothing we answer.
+    rest = _LEADING_FILLER.sub("", t, count=1)
     if rest != t and rest:
         return _canned(rest, name, standalone)
     return None
