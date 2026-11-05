@@ -77,6 +77,12 @@ CREATE INDEX IF NOT EXISTS idx_events_task ON task_events(task_id, id);
 """
 
 
+#: A task that has not finished. The same four the interface treats as live
+#: (ACTIVE in app.js): a chat holding one of these cannot be deleted, because
+#: the run would carry on writing events for a chat that no longer exists.
+ACTIVE_STATUSES = frozenset({"created", "planning", "running", "awaiting_approval"})
+
+
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="milliseconds")
 
@@ -379,6 +385,47 @@ class Database:
                                      (1 if enabled else 0, _now(), job_id))
             self._conn.commit()
             return cur.rowcount > 0
+
+    def delete_thread(self, thread_id: str) -> dict[str, Any]:
+        """Delete a whole chat: every message in it, and every step of each one.
+
+        A chat is the unit the person sees, so it is the unit they can delete.
+        Deleting one message of a conversation and leaving the rest would leave
+        a thread whose answers have no questions.
+
+        What is deliberately NOT deleted:
+
+        - memories. If the person told Claw their business address during a
+          chat, that is a fact about them, not a line of the transcript; losing
+          it because they tidied their history would be a silent data loss they
+          never asked for. The row keeps a task_id that no longer resolves,
+          which costs nothing - it is provenance, not a join anybody depends on.
+        - the files Claw produced. They are in the person's own folders and are
+          theirs. A history list that reaches into Documents when it is tidied
+          is not something anyone should have to expect.
+
+        A chat with a task still running is refused rather than deleted, so a
+        run cannot carry on writing events for a chat that no longer exists.
+
+        task_events has ON DELETE CASCADE and foreign keys are on, but the
+        events are deleted explicitly anyway: the cascade is one PRAGMA away
+        from being silently off, and the failure mode would be a database that
+        grows with the events of chats nobody can see.
+        """
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT id, status FROM tasks WHERE thread_id=? OR id=?", (thread_id, thread_id),
+            ).fetchall()
+            if not rows:
+                return {"deleted": 0, "running": False}
+            if any(r["status"] in ACTIVE_STATUSES for r in rows):
+                return {"deleted": 0, "running": True}
+            ids = [r["id"] for r in rows]
+            marks = ",".join("?" * len(ids))
+            self._conn.execute(f"DELETE FROM task_events WHERE task_id IN ({marks})", ids)
+            cur = self._conn.execute(f"DELETE FROM tasks WHERE id IN ({marks})", ids)
+            self._conn.commit()
+            return {"deleted": cur.rowcount, "running": False}
 
     def delete_job(self, job_id: str) -> bool:
         with self._lock:

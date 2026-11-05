@@ -941,7 +941,11 @@ async function loadHistory() {
           el('span', { className: 'h-sub', text: `${statusText} · ${timeAgo(t.created_at)}${count}` }),
         ]);
         btn.addEventListener('click', () => openTask(t.id));
-        return btn;
+        const row = el('div', { className: 'history-row' }, [btn, deleteChatButton(t)]);
+        // Right-click the chat itself does the same thing, for anyone who looks
+        // for a menu before they look for a button.
+        row.addEventListener('contextmenu', (e) => { e.preventDefault(); removeChat(t); });
+        return row;
       }),
     ]),
   );
@@ -954,6 +958,48 @@ async function loadHistory() {
 
 function encodeQuery(q) {
   return encodeURIComponent(q).replace(/[!'()*~]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+}
+
+/** The delete control on one chat in the history.
+ *
+ *  A separate button rather than something inside the chat button: a button
+ *  nested in a button is invalid markup and, in practice, unclickable. It stays
+ *  in the tab order, so it works without a mouse, and CSS reveals it on hover
+ *  or focus rather than JS, so it cannot get stuck shown.
+ */
+function deleteChatButton(task) {
+  const name = task.title || task.task_text || 'this chat';
+  const btn = el('button', {
+    className: 'history-del',
+    attrs: { type: 'button', title: `Delete "${name}"`, 'aria-label': `Delete the chat "${name}"` },
+  }, [icon('trash')]);
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();          // do not also open the chat being deleted
+    removeChat(task);
+  });
+  return btn;
+}
+
+/** Delete a whole chat, after asking.
+ *
+ *  Asking is not ceremony here: a chat holds what the person asked and what
+ *  Claw answered, and there is no undo. The dialog says what goes and what
+ *  stays, because the thing people fear losing is the work - the files Claw
+ *  saved are in their own folders and are not touched.
+ */
+async function removeChat(task) {
+  const thread = task.thread_id || task.id;
+  const name = task.title || task.task_text || 'this chat';
+  const count = task.messages > 1 ? `All ${task.messages} messages in it are deleted. ` : '';
+  const sure = await api.confirm(`Delete "${String(name).slice(0, 80)}"?`,
+    `${count}Files Claw saved stay in your folders, and anything it remembered stays remembered. `
+    + 'The chat itself cannot be brought back.', 'Delete');
+  if (!sure) return;
+  const res = await api.api('DELETE', `/chats/${encodeURIComponent(thread)}`);
+  if (!res.ok) return showError(res.body, 'That chat could not be deleted.');
+  // If it was the one on screen, there is nothing left to show.
+  if (state.threadId === thread || state.currentTaskId === task.id) goHome();
+  loadHistory();
 }
 
 function markHistorySelection() {

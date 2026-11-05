@@ -1143,6 +1143,26 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             return {"tasks": state.db.thread_tasks(thread), "title": state.db.thread_title(thread)}
         return {"tasks": state.db.list_threads(limit=limit, query=q)}
 
+    @app.delete("/chats/{thread_id}")
+    async def delete_chat(thread_id: str):
+        """Delete one chat: every message in it and every step of each message.
+
+        A chat with a message still running is refused rather than stopped for
+        the person: stopping someone's work as a side effect of tidying their
+        history is not what they asked for, and the message says what to do.
+
+        Memories and saved files are left alone. See db.delete_thread.
+        """
+        if not re.fullmatch(r"[0-9a-f]{32}", thread_id):
+            return error_response(422, "thread", "That is not a chat id.")
+        outcome = await asyncio.to_thread(state.db.delete_thread, thread_id)
+        if outcome["running"]:
+            return error_response(409, "busy", "That chat is still working.",
+                                  "Stop it first, then delete it.")
+        if not outcome["deleted"]:
+            return error_response(404, "not_found", "There is no such chat.")
+        return {"deleted": thread_id, "messages": outcome["deleted"]}
+
     @app.get("/tasks/{task_id}")
     async def get_task(task_id: str):
         task = state.db.get_task(task_id)

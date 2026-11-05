@@ -118,12 +118,34 @@ svg { flex-shrink: 0; }
   font-family: var(--font); font-size: 12px; font-weight: 600; color: var(--ink-3);
   padding: 0 10px var(--s1); letter-spacing: 0; text-transform: none;
 }
+/* A chat and its delete control. The control is a sibling of the chat button,
+   not a child: a button inside a button is invalid and, in Chromium, not
+   clickable. It is revealed by CSS on hover or keyboard focus rather than by
+   JS, so it cannot get stuck visible, and it keeps its place in the tab order
+   either way - a delete you can only reach with a mouse is not a delete
+   everyone has. */
+.history-row { position: relative; }
 .history-item {
   display: grid; grid-template-columns: 8px 1fr; gap: 10px; align-items: center; width: 100%;
   border: 0; background: transparent; text-align: left; padding: 9px 10px;
   border-radius: var(--r-sm); cursor: pointer; position: relative;
   transition: background-color var(--fast) var(--ease);
 }
+.history-row:hover .history-item,
+.history-row:focus-within .history-item { background: var(--surface-2); }
+.history-del {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: var(--r-sm); background: transparent; color: var(--ink-3);
+  cursor: pointer; opacity: 0; transition: opacity var(--fast) var(--ease),
+    color var(--fast) var(--ease), background-color var(--fast) var(--ease);
+}
+.history-del svg { width: 15px; height: 15px; }
+.history-row:hover .history-del, .history-del:focus-visible { opacity: 1; }
+.history-del:hover { color: var(--red); background: var(--surface-3); }
+/* The title must stop before the control, or a long one runs underneath it. */
+.history-row:hover .h-text, .history-row:focus-within .h-text { padding-right: 24px; }
+@media (prefers-reduced-motion: reduce) { .history-del { transition: none; } }
 .history-item:hover { background: var(--surface-2); }
 .history-item[aria-current="true"] { background: var(--surface-3); }
 .history-item[aria-current="true"]::before {
