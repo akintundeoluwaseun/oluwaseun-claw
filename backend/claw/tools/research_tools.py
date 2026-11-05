@@ -20,6 +20,7 @@ from pydantic import Field, field_validator
 from claw.agent import jsonfix
 from claw.agent.schemas import Capability
 from claw.browser import extract
+from claw.tools.browser_tools import _remember
 from claw.models.base import ChatMessage
 from claw.permissions.policy import RiskLevel
 from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec
@@ -232,6 +233,10 @@ def register_more_research_tools(reg: ToolRegistry) -> None:
                           "Download the PDFs and other documents linked from several web pages into one folder, "
                           "sorted by type or by site. Dead links that answer with a web page are reported, not saved.",
                           Capability.BROWSER, RiskLevel.LOCAL_WRITE, CollectArgs, collect_documents))
+    reg.register(ToolSpec("find_contacts",
+                          "A business's public contact details (e-mail, phone, address) from its own website, "
+                          "each with the page it is written on.",
+                          Capability.BROWSER, RiskLevel.READ_ONLY, ContactArgs, find_contacts))
 
 
 # ---------- collect_documents (9.06) ----------
@@ -323,7 +328,7 @@ async def collect_documents(args: CollectArgs, ctx: ToolContext) -> ToolResult:
     from pathlib import Path  # noqa: PLC0415
     from urllib.parse import urlparse  # noqa: PLC0415
 
-    from claw.tools.browser_tools import BLOCKED_DOWNLOADS, _remember
+    from claw.tools.browser_tools import BLOCKED_DOWNLOADS
     from claw.tools.file_tools import resolve_folder
 
     wanted = set(args.kinds) or set(DOCUMENT_KINDS)
@@ -420,3 +425,152 @@ async def collect_documents(args: CollectArgs, ctx: ToolContext) -> ToolResult:
     return ToolResult(bool(saved), summary,
                       {"saved": saved, "failed": failed, "folder": str(root), "looked_at": pages},
                       verified=bool(saved) and all(s["verified"] for s in saved), untrusted_text=detail)
+
+
+# ---------- find_contacts (9.13) ----------
+#: Found by matching the page's own text, never by asking the brain. A 2B model
+#: asked for "the phone number on this page" will produce a plausible one, and a
+#: plausible phone number is worse than none: the person rings a stranger. A
+#: regex can only return something that is actually there.
+_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}")
+#: International, local and Nigerian mobile shapes: +234 803 111 2233,
+#: 0803 111 2233, (01) 271 0000, 555-0100. Seven digits minimum, so years,
+#: prices and street numbers do not come back as telephones.
+#:
+#: The separator is a space, dot or hyphen - deliberately not \s, which includes
+#: the newline. With \s a number at the end of one line joined the house number
+#: on the next and "+234 805 444 5566" came back as "+234 805 444 5566\n14".
+#: The tail is "not another digit, with or without a dot" rather than "not a dot",
+#: so a number at the end of a sentence keeps its last group - "0803 111 2233."
+#: was being cut to "0803 111" - while a decimal is still not mistaken for one.
+_PHONE = re.compile(r"(?<![\w.])(?:\+\d{1,3}[ .\-]?)?(?:\(\d{1,4}\)[ .\-]?)?\d(?:[ .\-]?\d){6,14}(?!\.?\d)(?![A-Za-z])")
+#: Addresses are matched on the words that make a line an address at all, which
+#: is the only part that can be done without a gazetteer.
+_ADDRESS = re.compile(
+    r"\d{1,5}[^\n,]{0,60}\b(?:street|st\.?|road|rd\.?|avenue|ave\.?|close|crescent|drive|lane|way|boulevard|blvd\.?"
+    r"|plaza|suite|floor|estate|layout|way)\b[^\n]{0,80}", re.I)
+#: Matched by host rather than by one long alternation, because a social
+#: account arrives two different ways and only one of them is text. "Find us on
+#: Instagram" renders as the word Instagram; the address is in the href, which
+#: the page's text does not contain at all. So links are checked by their host,
+#: and the text is scanned as well for the case where someone has typed the
+#: address out instead of linking it.
+_SOCIAL_HOSTS = ("facebook.com", "instagram.com", "twitter.com", "x.com", "linkedin.com",
+                 "youtube.com", "tiktok.com", "wa.me", "t.me", "threads.net")
+_SOCIAL_IN_TEXT = re.compile(
+    r"\b(?:https?://)?(?:[a-z0-9-]+\.)?(" + "|".join(h.replace(".", r"\.") for h in _SOCIAL_HOSTS)
+    + r")/[A-Za-z0-9._/@-]{1,80}", re.I)
+#: Pages a business keeps its details on. Followed in this order, and only
+#: within the same site - a contact page is not evidence about someone else.
+_CONTACT_WORDS = ("contact", "about", "impressum", "legal", "support", "help", "reach")
+
+
+class ContactArgs(ToolArgs):
+    url: str = Field(min_length=4, max_length=500, description="The business's website")
+    pages: int = Field(default=4, ge=1, le=8, description="How many of its pages to read")
+
+
+def _digits_plausible(text: str) -> bool:
+    """A run of digits long enough to be a telephone and not a date or a price."""
+    digits = re.sub(r"\D", "", text)
+    return 7 <= len(digits) <= 15 and not re.fullmatch(r"(19|20)\d{2}", digits)
+
+
+def _social_links(urls) -> list[str]:
+    """The links that point at an account on a social site, as written."""
+    from urllib.parse import urlparse  # noqa: PLC0415
+
+    out = []
+    for url in urls:
+        host = urlparse(url).netloc.lower().removeprefix("www.")
+        if any(host == h or host.endswith("." + h) for h in _SOCIAL_HOSTS) and urlparse(url).path not in ("", "/"):
+            out.append(url)
+    return out
+
+
+def _harvest(text: str, links=()) -> dict[str, list[str]]:
+    found = {
+        "emails": [m for m in _EMAIL.findall(text)],
+        "phones": [m.strip() for m in _PHONE.findall(text) if _digits_plausible(m)],
+        "addresses": [m.strip() for m in _ADDRESS.findall(text)],
+        "social": _social_links(links) + [m.group(0) for m in _SOCIAL_IN_TEXT.finditer(text)],
+    }
+    for key, values in found.items():
+        seen, out = set(), []
+        for v in values:
+            k = v.lower().rstrip(".,;")
+            if k not in seen:
+                seen.add(k)
+                out.append(v.rstrip(".,;"))
+        found[key] = out
+    return found
+
+
+async def find_contacts(args: ContactArgs, ctx: ToolContext) -> ToolResult:
+    """A business's public contact details, each one tied to the page it is on.
+
+    Reads the site's own home page and then its contact-ish pages, and pulls out
+    what is written there. Nothing is inferred and nothing is asked of the
+    brain: every value returned appears literally in the text of the page named
+    beside it, so the person can check it in one click. A site that publishes no
+    telephone number comes back with no telephone number.
+    """
+    from urllib.parse import urljoin, urlparse  # noqa: PLC0415
+
+    start = args.url if args.url.startswith(("http://", "https://")) else f"https://{args.url}"
+    host = urlparse(start).netloc.lower()
+    queue, visited = [start], []
+    details: dict[str, list[dict]] = {"emails": [], "phones": [], "addresses": [], "social": []}
+    unreachable: list[dict] = []
+
+    while queue and len(visited) < args.pages:
+        url = queue.pop(0)
+        if url in visited:
+            continue
+        try:
+            await ctx.browser.goto(url)
+            page = await ctx.browser.page()
+            # keep_chrome: a business's address and telephone number usually live
+            # in the footer of every page and nowhere else, so the one tool that
+            # is looking for them is the one that must not strip it.
+            content = await extract.read_page(page, keep_chrome=True)
+            links = await extract.page_links(page, scope="body")
+        except Exception as exc:
+            unreachable.append({"page": url, "why": str(exc).splitlines()[0][:140]})
+            continue
+        visited.append(url)
+        text = content.get("text") or ""
+        for field, values in _harvest(text, [l["url"] for l in links]).items():
+            known = {d["value"].lower() for d in details[field]}
+            for v in values:
+                if v.lower() not in known:
+                    known.add(v.lower())
+                    details[field].append({"value": v, "page": url})
+        # queue this site's own contact-ish pages, nearest-first
+        if len(visited) < args.pages:
+            for link in links:
+                nxt = urljoin(url, link["url"])
+                if urlparse(nxt).netloc.lower() != host or nxt in visited or nxt in queue:
+                    continue
+                haystack = (link["text"] + " " + nxt).lower()
+                if any(w in haystack for w in _CONTACT_WORDS):
+                    queue.append(nxt)
+
+    counts = {k: len(v) for k, v in details.items()}
+    total = sum(counts.values())
+    if not visited:
+        raise ToolError(f"None of {args.url}'s pages could be opened."
+                        + (f" {unreachable[0]['why']}" if unreachable else ""), transient=True)
+    parts = [f"{n} {name[:-1] if n == 1 else name}" for name, n in counts.items() if n]
+    summary = (f"Read {len(visited)} page(s) of {host} and found "
+               + (", ".join(parts) if parts else "no contact details")
+               + (f": {details['emails'][0]['value']}" if details["emails"] else "")
+               + (f", {details['phones'][0]['value']}" if details["phones"] else "") + ".")
+    if not total:
+        summary += " The site does not publish them on the pages Claw could read."
+    detail = "\n".join(f"{field}: {d['value']}  (on {d['page']})"
+                       for field in details for d in details[field])
+    _remember(ctx, visited)
+    return ToolResult(True, summary,
+                      {**details, "pages_read": visited, "unreachable": unreachable, "counts": counts},
+                      verified=True, untrusted_text=detail)
