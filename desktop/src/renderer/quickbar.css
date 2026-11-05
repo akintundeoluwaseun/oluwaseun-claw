@@ -16,10 +16,24 @@
    colour it uses itself and has no scrollbars or form controls, so it loses
    nothing; the main window keeps its dark scheme.
 
-   NOT VERIFIED: this cannot be reproduced in a browser - the corners stay
-   transparent there whatever the scheme - and there is no Electron or Windows
-   in the build container. It needs looking at on Windows. */
-html { color-scheme: normal; }
+   The first attempt set color-scheme: normal on `html` and did nothing at
+   all, which is why the black rectangle kept coming back. `html` is
+   a type selector, specificity 0-0-1. `:root` is a PSEUDO-CLASS, 0-1-0, so
+   tokens.css beat it before the theme was even considered - and
+   `:root[data-theme="dark"]` is 0-2-0, beating it twice over. Measured in
+   Chromium across both system preferences and all three theme settings: the
+   computed value was dark or light in all six, never normal.
+
+   So the selectors below match the shapes tokens.css uses, at equal
+   specificity, from a stylesheet that loads after it. quickbar-css.test.js
+   asserts all six combinations resolve to normal, so this cannot quietly
+   regress again. */
+:root,
+:root[data-theme],
+:root:not([data-theme]) {
+  color-scheme: normal;
+  background: transparent;
+}
 html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
 body {
   font: 14px/1.4 var(--font);
