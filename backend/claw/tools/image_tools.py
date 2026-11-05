@@ -21,6 +21,23 @@ IMAGE_IN = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", ".tiff"}
 MAX_PIXELS = 60_000_000
 
 
+def _beside(pics: list[Path]) -> str | None:
+    """The folder the pictures came from, when they all came from one.
+
+    "Make a flyer with the pictures in this folder" ends with the flyer in the
+    first authorized folder, which is usually not the folder being talked
+    about: the person said "do everything there" and Claw put the result
+    somewhere else. The single-picture tools already save beside their input -
+    brighten_photo, passport_photo, product_shadow all do - so this is that
+    rule applied where several pictures agree on an answer, not a new one.
+
+    None when they disagree or there are none, and an explicit folder always
+    wins.
+    """
+    parents = {p.parent for p in pics}
+    return str(parents.pop()) if len(parents) == 1 else None
+
+
 def _input_image(ctx: ToolContext, raw: str) -> Path:
     try:
         p = ctx.policy.check_path(raw)
@@ -202,9 +219,10 @@ def check_flyer(args: FlyerArgs, ctx: ToolContext) -> None:
 
 async def make_flyer(args: FlyerArgs, ctx: ToolContext) -> ToolResult:
     check_flyer(args, ctx)
+    pics = _usable_images(ctx, args.images)
     spec = im.FlyerSpec(args.title, args.subtitle, args.points, args.contact, im.PRESETS[args.size],
-                        "#" + args.background.lstrip("#"), "#" + args.accent.lstrip("#"), _usable_images(ctx, args.images))
-    out = _output(ctx, args.folder, args.file_name, "." + args.format)
+                        "#" + args.background.lstrip("#"), "#" + args.accent.lstrip("#"), pics)
+    out = _output(ctx, args.folder or _beside(pics), args.file_name, "." + args.format)
     use_ps = args.editor == "photoshop" or (args.editor == "auto" and im.photoshop_available()[0])
     if args.format == "psd" and not use_ps:
         raise ToolError("PSD files can only be made with Photoshop, which is not installed. Choose PNG, JPG or PDF.")
@@ -428,7 +446,7 @@ def check_poster(args: PosterArgs, ctx: ToolContext) -> None:
 
 async def make_poster(args: PosterArgs, ctx: ToolContext) -> ToolResult:
     pics = _usable_images(ctx, args.images)
-    out = _output(ctx, args.folder, args.file_name, "." + args.format)
+    out = _output(ctx, args.folder or _beside(pics), args.file_name, "." + args.format)
 
     def work():
         img = im.render_poster(im.PosterSpec(
@@ -467,7 +485,7 @@ async def make_collage(args: CollageArgs, ctx: ToolContext) -> ToolResult:
     pics = _usable_images(ctx, args.images)
     if not pics:
         raise ToolError("None of those pictures could be found in an authorized folder.")
-    out = _output(ctx, args.folder, args.file_name, "." + args.format)
+    out = _output(ctx, args.folder or _beside(pics), args.file_name, "." + args.format)
     box = {"square": (2480, 2480), "a4": (2480, 3508), "landscape": (3508, 2480), "story": (1080, 1920)}[args.size]
 
     def work():

@@ -132,3 +132,55 @@ async def test_end_to_end_a_bare_folder_string_makes_the_collage(tool_ctx, shots
     """Both halves together: a string, naming a folder."""
     r = await call(tool_ctx, "make_collage", images="Shoot", file_name="c8")
     assert r.ok and r.data["pictures"] == 3
+
+
+# ---------------------------------------------------------------------------
+# "and do everything there".
+#
+# The pictures are in one folder, so that is where the result belongs. It used
+# to go to the first authorized folder instead - the person said "there" and
+# Claw put it somewhere else, which on a machine with several authorized
+# folders means hunting for it. The single-picture tools already save beside
+# their input; this is the same rule where several pictures agree.
+
+@pytest.mark.asyncio
+async def test_the_result_lands_where_the_pictures_came_from(tool_ctx, shots, folder):
+    r = await call(tool_ctx, "make_collage", images=["Shoot"], file_name="made")
+    assert Path(r.data["path"]).parent == shots, (
+        f"saved to {Path(r.data['path']).parent}, not the folder the pictures came from")
+
+
+@pytest.mark.asyncio
+async def test_a_flyer_too(tool_ctx, shots):
+    r = await call(tool_ctx, "make_flyer", title="Open Day", images=["Shoot"], file_name="f-here")
+    assert Path(r.data["path"]).parent == shots
+
+
+@pytest.mark.asyncio
+async def test_a_poster_too(tool_ctx, shots):
+    r = await call(tool_ctx, "make_poster", title="Show", images=["Shoot"], file_name="p-here")
+    assert Path(r.data["path"]).parent == shots
+
+
+@pytest.mark.asyncio
+async def test_an_explicit_folder_still_wins(tool_ctx, shots, folder):
+    """Saying where it goes must always beat the guess."""
+    (folder / "Output").mkdir()
+    r = await call(tool_ctx, "make_collage", images=["Shoot"], folder="Output", file_name="elsewhere")
+    assert Path(r.data["path"]).parent == folder / "Output"
+
+
+@pytest.mark.asyncio
+async def test_pictures_from_two_folders_fall_back_to_the_default(tool_ctx, shots, folder):
+    """No single answer, so do not invent one."""
+    other = folder / "Other"
+    other.mkdir()
+    make_photo(other / "z.png")
+    r = await call(tool_ctx, "make_collage", images=["Shoot/img0.png", "Other/z.png"], file_name="mixed")
+    assert Path(r.data["path"]).parent == folder, "guessed a folder when the pictures disagreed"
+
+
+@pytest.mark.asyncio
+async def test_a_design_with_no_pictures_still_has_somewhere_to_go(tool_ctx, folder):
+    r = await call(tool_ctx, "make_poster", title="Words only", images=[], file_name="bare-here")
+    assert Path(r.data["path"]).parent == folder
