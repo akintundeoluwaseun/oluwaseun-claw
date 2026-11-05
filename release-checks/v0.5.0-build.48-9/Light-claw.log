@@ -1,0 +1,66 @@
+{"ts": "2026-11-05T14:12:19.658+00:00", "level": "INFO", "logger": "claw.main", "msg": "backend starting", "fields": {"version": "0.5.0", "port": 18800, "data_dir": "D:\\data-Light", "log_file": "D:\\data-Light\\logs\\claw.log"}}
+{"ts": "2026-11-05T14:12:19.677+00:00", "level": "INFO", "logger": "claw.api", "msg": "starter folders added", "fields": {"count": 3}}
+{"ts": "2026-11-05T14:12:19.739+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Started server process [3092]"}
+{"ts": "2026-11-05T14:12:19.740+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Waiting for application startup."}
+{"ts": "2026-11-05T14:12:19.741+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Application startup complete."}
+{"ts": "2026-11-05T14:12:19.742+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Uvicorn running on http://127.0.0.1:18800 (Press CTRL+C to quit)"}
+{"ts": "2026-11-05T14:12:21.242+00:00", "level": "INFO", "logger": "claw.api", "msg": "warming the brain", "fields": {"model": "qwen3-vl-4b"}}
+{"ts": "2026-11-05T14:12:21.263+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine starting", "fields": {"model": "qwen3-vl-4b", "port": 50228, "need_gb": 4.2}}
+{"ts": "2026-11-05T14:12:21.563+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50228/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:22.890+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50228/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:24.664+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50228/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:25.003+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50228/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:25.318+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50228/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:25.648+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50228/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:25.984+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50228/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:26.304+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50228/health \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:12:26.320+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine ready", "fields": {"model": "qwen3-vl-4b", "seconds": 5.1}}
+{"ts": "2026-11-05T14:12:26.321+00:00", "level": "INFO", "logger": "claw.api", "msg": "brain warm", "fields": {"model": "qwen3-vl-4b", "seconds": 5.1}}
+{"ts": "2026-11-05T14:12:32.570+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine stopped", "fields": {"model": "qwen3-vl-4b"}}
+{"ts": "2026-11-05T14:12:41.568+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine starting", "fields": {"model": "local-s-claw-brain-light-2b", "port": 50283, "need_gb": 2.7}}
+{"ts": "2026-11-05T14:12:41.807+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:42.109+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:42.442+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:42.750+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:43.076+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:43.378+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:43.688+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:44.001+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:44.330+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T14:12:44.648+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/health \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:12:44.650+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine ready", "fields": {"model": "local-s-claw-brain-light-2b", "seconds": 3.1}}
+{"ts": "2026-11-05T14:12:44.890+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:13:11.713+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:13:11.717+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 1232}}
+{"ts": "2026-11-05T14:13:11.957+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:13:38.782+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:13:39.879+00:00", "level": "INFO", "logger": "claw.executor", "msg": "step", "fields": {"step": 1, "tool": "launch_app", "outcome": "verified", "detail": "Opened Notepad: window 'Untitled - Notepad'."}}
+{"ts": "2026-11-05T14:13:45.487+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:13:52.828+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:13:54.284+00:00", "level": "INFO", "logger": "claw.executor", "msg": "step", "fields": {"step": 3, "tool": "type_text", "outcome": "verified", "detail": "Typed 20 characters and read them back from the window: they match."}}
+{"ts": "2026-11-05T14:13:58.697+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:14:00.089+00:00", "level": "INFO", "logger": "claw.executor", "msg": "step", "fields": {"step": 4, "tool": "write_text_file", "outcome": "verified", "detail": "Created release-check.txt (20 characters)."}}
+{"ts": "2026-11-05T14:14:03.262+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:14:03.914+00:00", "level": "INFO", "logger": "claw.executor", "msg": "step", "fields": {"step": 5, "tool": "launch_app", "outcome": "verified", "detail": "Opened Notepad: window 'Untitled - Notepad'."}}
+{"ts": "2026-11-05T14:14:08.439+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:14:08.445+00:00", "level": "INFO", "logger": "claw.executor", "msg": "step", "fields": {"step": 6, "tool": "check_file", "outcome": "verified", "detail": "Checked release-check.txt: its contents match exactly."}}
+{"ts": "2026-11-05T14:14:14.787+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:14:14.793+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "f3bd67cc74a64126a023497d86c80c76", "status": "completed", "steps": 5}}
+{"ts": "2026-11-05T14:14:15.550+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:14:23.604+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:14:23.608+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 614}}
+{"ts": "2026-11-05T14:14:23.800+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:14:46.175+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:14:47.314+00:00", "level": "INFO", "logger": "claw.executor", "msg": "step", "fields": {"step": 1, "tool": "read_file", "outcome": "verified", "detail": "Read invoice.pdf: 1 page, 1 read by OCR."}}
+{"ts": "2026-11-05T14:14:54.301+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:14:54.307+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "1e07c98c66b1488d8ef1cab0eda0826c", "status": "completed", "steps": 1}}
+{"ts": "2026-11-05T14:14:54.865+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:15:03.001+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:15:03.003+00:00", "level": "INFO", "logger": "claw.planner", "msg": "model replied", "fields": {"attempt": 1, "chars": 628}}
+{"ts": "2026-11-05T14:15:03.234+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:50283/props \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:15:26.943+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:15:28.115+00:00", "level": "INFO", "logger": "claw.executor", "msg": "step", "fields": {"step": 1, "tool": "create_folder", "outcome": "verified", "detail": "Created the folder 'Backup' in C:\\Users\\runneradmin\\Documents."}}
+{"ts": "2026-11-05T14:15:32.868+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:15:34.329+00:00", "level": "INFO", "logger": "claw.executor", "msg": "step", "fields": {"step": 2, "tool": "copy_files", "outcome": "verified", "detail": "Copied 1 file(s) into C:\\Users\\runneradmin\\Documents\\Backup and checked each copy matches its original."}}
+{"ts": "2026-11-05T14:15:38.900+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: POST http://127.0.0.1:50283/v1/chat/completions \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T14:15:38.905+00:00", "level": "INFO", "logger": "claw.runner", "msg": "task ended", "fields": {"task_id": "5d96d1b2125a4618a591925be816f939", "status": "completed", "steps": 2}}
