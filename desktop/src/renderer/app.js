@@ -2127,6 +2127,19 @@ async function openCreatorSite() {
   }
 }
 
+/** The Home badge. Same route as the About badge: creator.js holds the address and
+ *  the main process checks it against the allowlist; the markup never carries it. */
+async function openCreatorFromHome() {
+  if (!api.creator || !api.openLink) return;
+  const text = $('home-credit-text');
+  creator = creator || await api.creator();
+  const res = creator ? await api.openLink(creator.site) : null;
+  if (res && res.ok !== false) return;
+  const was = text.innerHTML;
+  text.textContent = 'Could not open the link';
+  setTimeout(() => { text.innerHTML = was; }, 2200);
+}
+
 async function copyWhatsApp() {
   if (!creator || !api.copyText) return;
   const res = await api.copyText(creator.whatsapp);
@@ -2408,6 +2421,7 @@ function wire() {
   $('mem-export').addEventListener('click', exportMemories);
   $('mem-clear').addEventListener('click', clearMemories);
   $('credit-badge').addEventListener('click', openCreatorSite);
+  $('home-credit').addEventListener('click', openCreatorFromHome);
   $('copy-whatsapp').addEventListener('click', copyWhatsApp);
   for (const id of ['s-provider', 's-base-url', 's-model', 's-remote']) {
     $(id).addEventListener('input', () => {

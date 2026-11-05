@@ -1320,3 +1320,21 @@ body[data-view="task"] .stage { padding-bottom: var(--s4); }
 .report-group[data-tone="ok"] h4 { color: var(--green, #3fb27f); }
 .report-group[data-tone="warn"] h4 { color: var(--amber, #d9a441); }
 .report-group[data-tone="bad"] h4 { color: var(--red, #e5675f); }
+
+/* ---------- "Built by" badge on Home (opens the maker's website via creator.js) ----------
+   Styled from the theme's own tokens: the accent for the icon, the ink/line tokens
+   for the pill, so it follows light and dark with the rest of the window. No inline
+   styles - the page's CSP forbids them. */
+.made-by {
+  justify-self: center; display: inline-flex; align-items: center; gap: 10px;
+  padding: 5px 16px 5px 5px; border-radius: var(--r-pill);
+  background: #18181b; color: #c9c9d1; font: 500 13px var(--font); cursor: pointer;
+  border: 1px solid var(--line-strong); box-shadow: var(--shadow-1);
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+.made-by:hover { transform: translateY(-1px); border-color: var(--brass); box-shadow: var(--shadow-2); }
+.made-by:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+.made-by-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--brass); color: var(--brass-ink); flex: none; }
+.made-by-icon svg { width: 15px; height: 15px; }
+.made-by-text strong { color: #fff; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .made-by { transition: none; } .made-by:hover { transform: none; } }

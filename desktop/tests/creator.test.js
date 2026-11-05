@@ -27,6 +27,14 @@ test('the address is never written on screen', () => {
   assert.ok(!html.includes(host), `the markup still shows ${host}`);
 });
 
+test('the Home screen badge is a button wired through creator.js, not a raw link', () => {
+  const html = read('src', 'renderer', 'index.html');
+  assert.ok(/<button[^>]*id="home-credit"/.test(html), 'the Home badge button is missing');
+  assert.ok(!/<a[^>]*made-by/.test(html), 'the Home badge must not be a plain link: it would bypass the allowlist');
+  const app = read('src', 'renderer', 'app.js');
+  assert.ok(app.includes("$('home-credit').addEventListener('click', openCreatorFromHome)"), 'the badge is not wired up');
+});
+
 test('the installer carries the publisher, the link and the copyright', () => {
   const iss = fs.readFileSync(path.join(__dirname, '..', '..', 'packaging', 'claw.iss'), 'utf8');
   assert.ok(iss.includes(`AppPublisherURL=${CREATOR.site}`), 'AppPublisherURL does not match');
