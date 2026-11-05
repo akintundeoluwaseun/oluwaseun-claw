@@ -819,22 +819,101 @@ def obvious_first_step(task: str, fitting: list[str], steps: list[dict[str, Any]
     return None
 
 
+#: Words too common to tell one tool from another.
+_RANK_STOP = frozenset({
+    "the", "and", "for", "with", "that", "this", "from", "into", "about", "please", "them",
+    "then", "all", "any", "its", "it", "of", "to", "in", "on", "my", "me", "is", "are", "be",
+    "every", "each", "some", "new", "old", "your", "you", "do", "does", "get", "want", "need",
+    "one", "two", "can", "will", "has", "have", "was", "were", "out", "use", "using", "like",
+})
+
+
+def _rank_words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z]{3,}", text.lower())} - _RANK_STOP
+
+
+def tool_relevance(task: str, spec: ToolSpec) -> float:
+    """How much this tool looks like what the request is asking for.
+
+    A word shared with the tool's NAME counts for three, one shared with its
+    description for one: "flyer" in make_flyer says far more than "save"
+    appearing somewhere in a sentence about saving.
+
+    Used for ordering, never for hiding. A small brain reads a list of twenty
+    tools from the top, and the one it needs used to sit wherever the registry
+    happened to put it - make_flyer was fourteenth of twenty for "make a
+    flyer".
+    """
+    want = _rank_words(task)
+    if not want:
+        return 0.0
+    return (len(want & _rank_words(spec.name.replace("_", " "))) * 3.0
+            + len(want & _rank_words(spec.description)))
+
+
+#: Tokens of catalogue a capability may spend before the least relevant tools
+#: are reduced to names. Under this, nothing is trimmed and the model sees
+#: exactly what it saw before, so adding the ordering changes no behaviour on
+#: its own; above it, the catalogue degrades by relevance instead of failing a
+#: test and blocking every new tool.
+CATALOGUE_BUDGET = 1800
+#: However tight the budget, this many tools keep their arguments. A brain shown
+#: three tools in full is worse off than one reading a slightly longer list.
+MIN_DETAILED = 10
+
+
 def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
-                   always: list[str] | None = None) -> str:
-    """Full details for tools the plan needs; names only for the rest (keeps prompts small for small models)."""
-    lines, others = [], []
+                   always: list[str] | None = None, task: str = "") -> str:
+    """Full details for tools the plan needs; names only for the rest (keeps prompts small for small models).
+
+    With `task`, the chosen capability's tools are ordered by how well they
+    match the request, with the curated matches from fitting_tools first.
+    Nothing is removed by ordering. If the result is over CATALOGUE_BUDGET the
+    least relevant tools drop to names only - never a fitting tool, and never
+    below MIN_DETAILED.
+    """
     always_set = set(always or [])
+    chosen, others = [], []
     for spec in registry.all():
         if capabilities and spec.capability.value not in capabilities and spec.name not in always_set:
             others.append(spec.name)
-            continue
+        else:
+            chosen.append(spec)
+
+    if task and capabilities:
+        # The curated list says WHICH tools fit; relevance says which fits best.
+        # Both, in that order: a curated tool always comes before an uncurated
+        # one, but among themselves the closest match leads. fitting_tools
+        # returns list_events before create_event for "put the call in my
+        # calendar", and the brain reads from the top.
+        pinned = set(fitting_tools(task, registry))
+        order = {s.name: i for i, s in enumerate(chosen)}
+        chosen.sort(key=lambda s: (s.name not in pinned,
+                                   -tool_relevance(task, s),
+                                   order[s.name]))
+
+    def detail(spec) -> str:
         d = spec.for_model()
         # The whole catalogue (no capability chosen) leaves out argument notes: 90+ tools must still
         # fit a small brain's window. A tool used with wrong arguments gets its full shape back anyway.
-        lines.append(f"- {d['name']}({compact_args(_strip_titles(d['args']), notes=capabilities is not None)}) [{d['risk']}]: {d['description']}")
-    if others:
-        lines.append("Also available (ask for details by using them): " + ", ".join(others))
-    return "\n".join(lines)
+        return f"- {d['name']}({compact_args(_strip_titles(d['args']), notes=capabilities is not None)}) [{d['risk']}]: {d['description']}"
+
+    def render(keep: int) -> str:
+        out = [detail(s) for s in chosen[:keep]]
+        rest = [s.name for s in chosen[keep:]] + others
+        if rest:
+            out.append("Also available (ask for details by using them): " + ", ".join(rest))
+        return "\n".join(out)
+
+    keep = len(chosen)
+    # Measured on the whole catalogue, including the names line, because that is
+    # what the model reads and what the window has to hold.
+    if task and capabilities:
+        pinned = len(fitting_tools(task, registry))
+        floor = max(MIN_DETAILED, pinned)
+        while keep > floor and estimate_tokens(render(keep)) > CATALOGUE_BUDGET:
+            keep -= 1
+    return render(keep)
 
 
 #: Every observation starts with this, which is how a trimmed transcript can
@@ -1089,7 +1168,12 @@ async def run_agent(
                     # With tools that plainly fit, only those are described in full and the rest
                     # are listed by name. The full "files" section alone is ~5.8k tokens, which a
                     # small brain on a CPU spends minutes reading before it says a word.
-                    content=EXEC_PROMPT.format(tools=tool_catalogue(registry, {"__none__"} if fitting else capabilities, fitting))
+                    # task= orders what is left by how well it matches the request.
+                    # It matters most when `fitting` found nothing and the whole
+                    # capability is sent: "find every PDF and list them by date"
+                    # matched no pattern, so find_files sat seventh of twenty-one.
+                    content=EXEC_PROMPT.format(tools=tool_catalogue(
+                        registry, {"__none__"} if fitting else capabilities, fitting, task=task))
                     + persona.for_prompt(getattr(ctx, "data_dir", None))
                     + person_limits.for_prompt()
                     + remembered(ctx, task)),
