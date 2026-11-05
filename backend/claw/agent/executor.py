@@ -364,10 +364,57 @@ _CLAIMED_DONE = re.compile(
     r"|\ball\s+(?:the\s+)?(?:files|pdfs?|documents|items)\s+(?:have|were|are)\b)", re.I)
 
 
+#: Claims that something on the computer was CHANGED, as opposed to merely
+#: looked at. "I found the files" after a successful search is true; "I moved
+#: them" after the same search is not, and the difference is whether any tool
+#: that can change something ever ran.
+_CLAIMED_CHANGE = re.compile(
+    r"\b(?:I(?:'ve| have)?\s+(?:now\s+)?(?:created|made|saved|written|moved|copied|deleted|removed|renamed|"
+    r"sent|downloaded|sorted|organis(?:ed)?|organiz(?:ed)?|placed|put|added|updated|changed)"
+    r"|(?:has|have|had)\s+been\s+(?:created|made|saved|written|moved|copied|deleted|removed|renamed|sent|"
+    r"downloaded|sorted|organised|organized|placed|added|updated))", re.I)
+
+
 def claims_work_done(final: str) -> bool:
     """True when a summary asserts that something was actually done to the computer."""
     return bool(_CLAIMED_DONE.search(final or ""))
 
+
+def claims_a_change(final: str) -> bool:
+    """True when a summary asserts something was changed, not merely inspected."""
+    return bool(_CLAIMED_CHANGE.search(final or ""))
+
+
+def _succeeded(step: dict[str, Any]) -> bool:
+    return step.get("outcome") in ("verified", "done_unverified")
+
+
+def did_anything(steps: list[dict[str, Any]]) -> bool:
+    """Did any tool actually run and succeed?"""
+    return any(_succeeded(s) for s in steps)
+
+
+def changed_anything(steps: list[dict[str, Any]]) -> bool:
+    """Did any tool that can change something actually run and succeed?
+
+    One harmless step is all the cover a fabrication needs. The first version
+    of this guard only fired when NO tool had run, so a brain that called
+    list_folder and then announced it had moved the files into subfolders went
+    straight through - the same lie with a receipt stapled to it. Looking is
+    read from each tool's own risk level (claw/tools/kinds.py), so this cannot
+    drift away from what the tools actually do.
+    """
+    return any(_succeeded(s) and not is_looking(s.get("tool")) for s in steps)
+
+
+#: The same lie with one step of cover: it looked at something, then described
+#: moving or saving it. What it looked at was real, so the person is told that
+#: much, and told plainly that the rest did not happen.
+NOTHING_WAS_CHANGED = (
+    "Nothing was changed. Claw looked at things on this computer, but the brain then described "
+    "moving, saving or sending something, and no tool that can do any of that was ever run. "
+    "No file was created, moved or deleted. Try again, or try a larger brain."
+)
 
 #: What the person is told when the brain insists it finished work it never
 #: started. Not the brain's sentence, and not a bare "failed": the person needs
@@ -487,10 +534,17 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
         return f"You finished without doing anything or saying why. Do the task now by calling a tool.{tools}"
     # No tool has run, and the summary says the job is done. Whatever it
     # describes did not happen.
-    if not steps and claims_work_done(final):
+    if not did_anything(steps) and claims_work_done(final):
         return ("You have not called a single tool, so nothing has been done and nothing on this "
                 "computer has changed. Do not describe work you have not done. "
                 f"Do the task now by calling a tool.{tools}")
+    # Something ran, but only looking. A claim to have moved, saved, sent or
+    # deleted anything is false, however many searches came before it.
+    if claims_a_change(final) and not changed_anything(steps) and not last_failed:
+        looked = ", ".join(dict.fromkeys(str(s.get("tool")) for s in steps if _succeeded(s))) or "nothing"
+        return (f"You have only looked ({looked}). Nothing has been created, moved, saved or sent, "
+                "so do not say that it has. Either do it now with a tool that changes something, "
+                f"or say plainly what you found and that nothing was changed.{tools}")
     save_tools = [t for t in fitting if t in ("save_links", "save_report", "write_text_file", "create_spreadsheet")]
     # Anything beyond looking counts: saving through an app's own menus is saving too.
     saved = any(not is_looking(s.get("tool")) and s.get("outcome") in ("verified", "done_unverified") for s in steps)
@@ -1111,12 +1165,21 @@ async def run_agent(
                 # Its sentence does not reach the person: there is no work to
                 # report, and printing a confident account of moved files under
                 # a green "Finished" is the one failure they cannot detect.
-                if not steps and claims_work_done(final):
+                if not did_anything(steps) and claims_work_done(final):
                     emit("fabricated_finish", {"step": step_no, "claimed": final[:300]})
                     log_event(log, "fabricated finish refused", task_id=ctx.task_id, claimed=final[:200])
                     emit("finished", {"final_answer": NOTHING_WAS_DONE})
                     return outcome("failed", NOTHING_WAS_DONE,
                                    error="The brain reported work it never did; no tool was run.")
+                # Looked, then claimed to have changed something. What it found
+                # is real and worth keeping; the claim on the end of it is not.
+                if claims_a_change(final) and not changed_anything(steps):
+                    emit("fabricated_finish", {"step": step_no, "claimed": final[:300], "looked_only": True})
+                    log_event(log, "fabricated change refused", task_id=ctx.task_id, claimed=final[:200])
+                    honest = NOTHING_WAS_CHANGED
+                    emit("finished", {"final_answer": honest})
+                    return outcome("failed", honest,
+                                   error="The brain reported a change, but only read-only tools ran.")
                 final = match_money(final, ctx.memory.corpus())
                 emit("finished", {"final_answer": final})
                 return outcome("completed", final)

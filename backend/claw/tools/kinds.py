@@ -19,6 +19,13 @@ MAKES_FILES = frozenset({
     "remove_duplicates", "add_chart", "build_model", "make_flyer", "make_campaign", "make_motion_video", "edit_image", "save_links",
     "create_folder", "copy_files", "sort_lines", "add_computed_column", "make_searchable_pdf", "download_file",
     "edit_text_file", "move_file", "rename_file", "sort_into_folders", "extract_emails", "rename_many", "archive_folder", "make_presentation", "export_pdf", "make_3d_render", "compare_pages", "reformat_video", "cut_silence", "normalize_audio",
+    # Design (milestone 8) and the analysis tools. Every one of these saves a
+    # file and none of them was listed - they were added after the list, and
+    # the test below only checked that everything listed exists, never that
+    # everything that writes is listed. So "do not create new files" did not
+    # cover a tool that downloads twenty-five documents into a folder.
+    "make_poster", "make_collage", "brighten_photo", "passport_photo", "product_shadow", "compare_designs",
+    "pivot_table", "filter_rows", "reconcile_tables", "find_outliers", "collect_documents",
 })
 CHANGES_FILES = frozenset({"move_file", "rename_file", "edit_text_file", "sort_into_folders", "rename_many"})
 
