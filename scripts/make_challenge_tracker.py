@@ -77,6 +77,19 @@ STATUS = {
     "1.17": ("BUILT", "brighten_photo: reports mean brightness before and after, original untouched"),
     "1.18": ("BUILT", "passport_photo: 35x45mm / 51x51mm exact at 300 dpi; crop is positional, no face detection"),
     "1.25": ("BUILT", "compare_designs: grid difference merged into regions, marked on the second version"),
+    # Milestone 3: four operations, not twenty-eight features. BUILT, not
+    # PASSED - the arithmetic is checked here against hand-worked figures, but
+    # no real brain has run them on Windows.
+    "7.07": ("BUILT", "pivot_table: group down the side, a second column across, totals"),
+    "7.09": ("BUILT", "pivot_table by customer or product, sum/average/count"),
+    "7.10": ("BUILT", "find_outliers: median and MAD, so one huge row cannot hide itself"),
+    "7.18": ("BUILT", "reconcile_tables: matched, missing each side, amounts differing"),
+    "13.03": ("BUILT", "reconcile_tables on a reference column, with a rounding tolerance"),
+    "13.04": ("BUILT", "filter_rows before a date"),
+    "13.06": ("BUILT", "filter_rows below a quantity"),
+    "13.08": ("BUILT", "pivot_table by product, sum or average"),
+    "13.09": ("BUILT", "pivot_table by customer segment"),
+    "13.15": ("BUILT", "reconcile_tables between two supplier lists"),
     "3.01": ("BUILT", "make_motion_video style=logo: logo reveal MP4, built-in maker (After Effects not used for this style)"),
     "3.11": ("BUILT", "make_motion_video style=lower_third: see-through .mov name bar, reusable with any name/role"),
     # 13. Accounting

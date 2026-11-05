@@ -58,6 +58,8 @@ const TOOL_LABEL = {
   disk_space: 'Checked free space', is_program_running: 'Checked whether a program is running',
   pause_for_me: 'Waited for you',
   make_poster: 'Made a poster', make_collage: 'Made a collage',
+  pivot_table: 'Summed up a table', filter_rows: 'Picked out the matching rows',
+  reconcile_tables: 'Compared two tables', find_outliers: 'Looked for unusual numbers',
   brighten_photo: 'Brightened a photo', passport_photo: 'Made a passport photo',
   product_shadow: 'Put a shadow under a product', compare_designs: 'Compared two designs',
 };
@@ -81,6 +83,8 @@ const TOOL_ASK = {
   list_to_table: 'Turn a list into a table', add_computed_column: 'Add a worked-out column',
   extract_emails: 'Save the e-mail addresses it found', compose_mail: 'Open a draft e-mail',
   make_poster: 'Design a poster', make_collage: 'Make a collage',
+  pivot_table: 'Sum up a table', filter_rows: 'Pick out the matching rows',
+  reconcile_tables: 'Compare two tables', find_outliers: 'Look for unusual numbers',
   brighten_photo: 'Brighten a photo', passport_photo: 'Make a passport photo',
   product_shadow: 'Put a shadow under a product', compare_designs: 'Compare two designs',
 };

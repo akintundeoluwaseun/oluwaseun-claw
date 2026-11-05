@@ -23,6 +23,7 @@ from claw.tools.office_tools import register_office_tools
 from claw.tools.os_tools import register_os_tools
 from claw.tools.research_tools import register_more_research_tools, register_research_tools
 from claw.tools.three_d_tools import register_three_d_tools
+from claw.tools.analysis_tools import register_analysis_tools
 from claw.tools.table_tools import register_model_tools, register_table_tools
 from claw.tools.pdf_tools import register_pdf_tools
 from claw.tools import page_tools
@@ -54,5 +55,6 @@ def build_registry() -> ToolRegistry:
     register_three_d_tools(reg)
     register_table_tools(reg)
     register_model_tools(reg)
+    register_analysis_tools(reg)
     page_tools.register(reg)
     return reg
