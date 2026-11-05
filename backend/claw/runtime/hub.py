@@ -37,10 +37,20 @@ def hub_base() -> str:
 
 
 class DownloadError(Exception):
-    def __init__(self, message: str, hint: str = ""):
+    """Something stopped a download.
+
+    `transient` says whether trying again could reasonably work. A dropped
+    connection on a 2 GB file is transient and the retry resumes from the .part
+    file, so it costs nothing; a repository that does not exist, a licence Claw
+    may not use, a full disk or a file that failed its checksum are not, and
+    retrying those just wastes someone's data allowance.
+    """
+
+    def __init__(self, message: str, hint: str = "", transient: bool = False):
         super().__init__(message)
         self.message = message
         self.hint = hint
+        self.transient = transient
 
 
 @dataclass
@@ -91,11 +101,13 @@ async def _model_info(repo: str, label: str, client: httpx.AsyncClient | None) -
         try:
             r = await client.get(url)
         except httpx.HTTPError as exc:
-            raise DownloadError("Could not reach the brain download server.", "Check the internet connection.") from exc
+            raise DownloadError("Could not reach the brain download server.", "Check the internet connection.",
+                                transient=True) from exc
         if r.status_code == 404:
             raise DownloadError(f"The model library no longer has {repo}.")
         if r.status_code >= 400:
-            raise DownloadError(f"The model library answered with an error ({r.status_code}).")
+            raise DownloadError(f"The model library answered with an error ({r.status_code}).",
+                            transient=r.status_code in TRANSIENT_STATUS)
         return r.json()
     finally:
         if own:
@@ -146,6 +158,10 @@ def check_disk(folder: Path, needed: int) -> None:
         )
 
 
+#: Server answers that mean "not now" rather than "not ever". 429 is rate
+#: limiting, 5xx is the library having a bad minute; both are worth waiting out.
+TRANSIENT_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
+
 Progress = Callable[[int, int], None]
 
 
@@ -163,7 +179,8 @@ async def download_file(repo: str, f: RemoteFile, dest: Path, progress: Progress
             if r.status_code == 416:  # already complete
                 pass
             elif r.status_code not in (200, 206):
-                raise DownloadError(f"Download failed ({r.status_code}) for {f.name}.")
+                raise DownloadError(f"Download failed ({r.status_code}) for {f.name}.",
+                                        transient=r.status_code in TRANSIENT_STATUS)
             else:
                 if r.status_code == 200:
                     have = 0  # server ignored the range: start over
@@ -175,12 +192,14 @@ async def download_file(repo: str, f: RemoteFile, dest: Path, progress: Progress
                         have += len(chunk)
                         progress(have, f.size)
     except httpx.HTTPError as exc:
-        raise DownloadError("The download was interrupted. Try again to continue where it stopped.") from exc
+        raise DownloadError("The download was interrupted. Try again to continue where it stopped.",
+                            transient=True) from exc
     finally:
         if own:
             await client.aclose()
     if f.size and part.stat().st_size != f.size:
-        raise DownloadError(f"{f.name} is incomplete ({part.stat().st_size:,} of {f.size:,} bytes). Try again.")
+        raise DownloadError(f"{f.name} is incomplete ({part.stat().st_size:,} of {f.size:,} bytes). Try again.",
+                            transient=True)
     verified = False
     if f.sha256:
         digest = await asyncio.to_thread(_sha256, part)

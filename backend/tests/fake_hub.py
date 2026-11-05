@@ -16,6 +16,12 @@ class FakeHub:
         self.repos: dict[str, dict] = {}  # repo -> {"license": str, "files": {name: bytes}, "sha_override": {name: sha}}
         self.requests: list[str] = []
         self.chunk_delay = 0.0
+        #: Drop the connection part-way through this many file responses, after
+        #: `cut_after` bytes, the way a real network does on a 2 GB download.
+        #: Content-Length has already been sent, so the client sees a truncated
+        #: body and raises, which is exactly the real failure.
+        self.cuts_remaining = 0
+        self.cut_after = 65536
         hub = self
 
         class H(BaseHTTPRequestHandler):
@@ -56,13 +62,28 @@ class FakeHub:
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
                     import time
+                    cut = None
+                    if hub.cuts_remaining > 0:
+                        hub.cuts_remaining -= 1
+                        cut = hub.cut_after
+                    sent = 0
                     for i in range(0, len(body), 65536):
                         if hub.chunk_delay:
                             time.sleep(hub.chunk_delay)
+                        piece = body[i:i + 65536]
+                        if cut is not None and sent + len(piece) >= cut:
+                            try:
+                                self.wfile.write(piece[:max(0, cut - sent)])
+                                self.wfile.flush()
+                            except (BrokenPipeError, ConnectionResetError):
+                                pass
+                            self.close_connection = True
+                            return
                         try:
-                            self.wfile.write(body[i:i + 65536])
+                            self.wfile.write(piece)
                         except (BrokenPipeError, ConnectionResetError):
                             return
+                        sent += len(piece)
                     return
                 self._json(404, {"error": "not found"})
 

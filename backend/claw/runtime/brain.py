@@ -135,6 +135,54 @@ class Brain:
             return True
         return False
 
+    #: A 2 GB file over a library's wifi will not always arrive in one piece.
+    #: Reported from a real install: the download reached 2 GB and failed,
+    #: twice, and only finished on the third attempt - three attempts the
+    #: person had to make themselves, each time noticing the failure and
+    #: pressing the button again. download_file already resumes from the .part
+    #: file, so an attempt that follows a dropped connection costs only what is
+    #: left, which makes doing it automatically nearly free.
+    MAX_ATTEMPTS = 6
+    #: Backoff, seconds. Capped rather than doubling forever: past half a
+    #: minute the person is better served by being told it is not working.
+    BACKOFF = (3, 8, 20, 30, 30)
+
+    async def _download_with_retries(self, entry, f, dest, prog) -> bool:
+        """One file, retried while trying again could reasonably help.
+
+        Only retries a failure hub marks transient - a dropped connection, a
+        429, a 5xx, a short file. A missing repository, a licence Claw may not
+        use, a full disk or a checksum that did not match are not retried:
+        there is nothing to be gained, and a checksum failure has already
+        deleted the part file, so trying again would spend the whole 2 GB over
+        someone's data.
+
+        Cancelling is honoured immediately, including during a wait.
+        """
+        st = self.download
+        last: hub.DownloadError | None = None
+        for attempt in range(1, self.MAX_ATTEMPTS + 1):
+            try:
+                return await hub.download_file(entry.repo, f, dest, prog, self._dl_cancel)
+            except hub.DownloadError as exc:
+                if self._dl_cancel.is_set() or not exc.transient or attempt == self.MAX_ATTEMPTS:
+                    raise
+                last = exc
+                delay = self.BACKOFF[min(attempt - 1, len(self.BACKOFF) - 1)]
+                st.message = (f"{exc.message} Trying again in {delay}s "
+                              f"(attempt {attempt + 1} of {self.MAX_ATTEMPTS}) - "
+                              "it carries on from where it stopped.")
+                log_event(log, "brain download retrying", id=entry.id, attempt=attempt,
+                          reason=exc.message, delay=delay)
+                try:
+                    await asyncio.wait_for(self._dl_cancel.wait(), delay)
+                except asyncio.TimeoutError:
+                    pass
+                if self._dl_cancel.is_set():
+                    raise
+                st.message = f"Downloading {entry.name} again from where it stopped…"
+        raise last or hub.DownloadError("The download did not finish.")
+
     async def _download(self, entry: catalog.CatalogEntry) -> None:
         st = self.download
         try:
@@ -151,7 +199,7 @@ class Brain:
                 def prog(done, _total, base=base):
                     st.done_bytes = base + done
 
-                ok = await hub.download_file(entry.repo, f, folder / f.name, prog, self._dl_cancel)
+                ok = await self._download_with_retries(entry, f, folder / f.name, prog)
                 verified_all = verified_all and ok
                 base += f.size
             st.status, st.message = "verifying", "Checking the files…"
