@@ -16,13 +16,55 @@ MAX_PAGE_CHARS = 12000
 MAX_LINKS = 80
 
 # Runs inside the page. Prefers <main>/<article>, drops scripts, nav and hidden parts.
+#: The page's readable text, with one line per block.
+#:
+#: This used to clone the root, strip the unwanted elements and read innerText
+#: off the clone. The clone is detached, a detached node has no layout, and
+#: innerText needs layout - so it fell through to textContent and every block
+#: ran into the next. "Email: hello@x.example" followed by "Phone: 0803 111
+#: 2233" arrived as "Email: hello@x.examplePhone: 0803 111 2233". Measured in
+#: Chromium, not inferred: the live element gives the newlines, the clone does
+#: not.
+#:
+#: It mattered well beyond readability. compare_pages keeps only values that
+#: appear in the page's own text, so a price at the end of a paragraph became
+#: "$12Licence" and a true value was reported as "not found on the page" -
+#: which reads exactly like the brain inventing it. clean_text's split on
+#: lines, below, had nothing to split.
+#:
+#: Walking the tree rather than inserting the clone into the document: no
+#: mutation of someone's page, no layout pass, and the same treatment of
+#: CSS-hidden text as before (textContent included it, so this is not a
+#: change). Blocks get a newline on each side; inline elements do not.
 _READ_JS = """
-() => {
-  const root = document.querySelector('main, article, [role=main]') || document.body;
+(keepChrome) => {
+  const root = keepChrome
+    ? document.body
+    : (document.querySelector('main, article, [role=main]') || document.body);
   if (!root) return '';
-  const clone = root.cloneNode(true);
-  clone.querySelectorAll('script,style,noscript,template,svg,nav,footer,[hidden],[aria-hidden=true]').forEach(n => n.remove());
-  return clone.innerText || clone.textContent || '';
+  const SKIP = new Set(keepChrome
+    ? ['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'SVG', 'IFRAME']
+    : ['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'SVG', 'NAV', 'FOOTER', 'IFRAME']);
+  const BLOCK = new Set([
+    'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'BR', 'BUTTON', 'CAPTION', 'DD', 'DETAILS', 'DIALOG',
+    'DIV', 'DL', 'DT', 'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+    'HEADER', 'HR', 'LABEL', 'LEGEND', 'LI', 'MAIN', 'OL', 'OPTION', 'P', 'PRE', 'SECTION', 'SUMMARY',
+    'TABLE', 'TBODY', 'TD', 'TH', 'THEAD', 'TR', 'UL',
+  ]);
+  let out = '';
+  const nl = () => { if (out && !out.endsWith('\\n')) out += '\\n'; };
+  const walk = (node) => {
+    if (node.nodeType === 3) { out += node.nodeValue; return; }
+    if (node.nodeType !== 1) return;
+    if (SKIP.has(node.tagName) || node.hasAttribute('hidden')
+        || node.getAttribute('aria-hidden') === 'true') return;
+    const block = BLOCK.has(node.tagName);
+    if (block) nl();
+    for (const child of node.childNodes) walk(child);
+    if (block) nl();
+  };
+  walk(root);
+  return out;
 }
 """
 
@@ -84,8 +126,20 @@ async def evaluate(page, script, arg=None):
         raise ToolError(f"The page could not be read: {detail[:160]}", transient=True) from exc
 
 
-async def read_page(page) -> dict:
-    text, truncated = clean_text(await evaluate(page, _READ_JS))
+async def read_page(page, keep_chrome: bool = False) -> dict:
+    """The page's readable text.
+
+    By default the navigation, the footer and anything outside <main> are left
+    out: for reading an article they are repetition that costs a small brain its
+    context window.
+
+    keep_chrome=True reads the whole body instead, for the one job where that
+    furniture is the content - a business's address and telephone number are
+    usually in the footer of every page and nowhere else on the site, so
+    hunting for contact details with the footer stripped finds nothing and
+    reports, wrongly, that the site does not publish them.
+    """
+    text, truncated = clean_text(await evaluate(page, _READ_JS, bool(keep_chrome)))
     return {"url": page.url, "title": await page.title(), "text": text, "truncated": truncated}
 
 
