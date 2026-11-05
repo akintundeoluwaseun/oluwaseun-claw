@@ -20,7 +20,7 @@ from claw.agent.schemas import Capability
 from claw.computer.driver import ControlInfo, DesktopUnavailable, Snapshot, WindowInfo
 from claw.computer.launcher import choose_app, is_system_tool
 from claw.permissions.policy import RiskLevel
-from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec, escalate_by_label
+from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec, as_str_list, escalate_by_label
 
 SETTLE_S = 0.6  # give the app a moment to react before checking
 
@@ -483,6 +483,12 @@ class KeysArgs(ToolArgs):
             raise ValueError("that key combination is not allowed")
         return keys
 
+    @field_validator("keys", mode="before")
+    @classmethod
+    def _as_list(cls, v):
+        return as_str_list(v, 4, extra_separators="+")
+
+
 
 async def press_keys(args: KeysArgs, ctx: ToolContext) -> ToolResult:
     handle = ctx.desktop.last_window
@@ -597,6 +603,12 @@ async def scroll(args: ScrollArgs, ctx: ToolContext) -> ToolResult:
 class MenuArgs(ToolArgs):
     path: list[str] = Field(min_length=1, max_length=5, description='Menu path, e.g. ["File", "Save As..."]')
     title: str | None = Field(default=None, max_length=200)
+
+    @field_validator("path", mode="before")
+    @classmethod
+    def _as_list(cls, v):
+        return as_str_list(v, extra_separators=">")
+
 
 
 def menu_risk(args: MenuArgs, ctx: ToolContext) -> RiskLevel:

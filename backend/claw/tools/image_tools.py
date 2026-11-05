@@ -13,29 +13,12 @@ from pydantic import Field, field_validator
 from claw.agent.schemas import Capability
 from claw.integrations import images as im
 from claw.permissions.policy import PathNotAuthorized, RiskLevel
-from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec
+from claw.tools.base import (ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec,
+                             as_int_list, as_str_list)
 from claw.tools.file_tools import resolve_folder, safe_file_name, unique_path
 
 IMAGE_IN = {".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", ".tiff"}
 MAX_PIXELS = 60_000_000
-
-
-def as_list(v, limit: int):
-    """A list, from whatever shape a brain sent.
-
-    A small brain writes `images: "a.png, b.png"` or `points: "fast\ncheap"`
-    where a list was asked for, and pydantic refuses the whole call. The request
-    was not ambiguous and the fix is not more prompting: motion_tools has
-    tolerated this for its own points field since the first benchmark, and the
-    same mistake was still fatal three tools away. Making the tolerance shared
-    is most of what "the brain is not clever enough" turns out to mean.
-    """
-    if isinstance(v, str):
-        parts = [p.strip() for p in v.replace("\n", ",").split(",") if p.strip()]
-        return parts[:limit]
-    if isinstance(v, list):
-        return [str(p).strip() for p in v if str(p).strip()][:limit]
-    return v
 
 
 def _input_image(ctx: ToolContext, raw: str) -> Path:
@@ -183,7 +166,7 @@ class FlyerArgs(ToolArgs):
     @field_validator("points", "images", mode="before")
     @classmethod
     def _lists(cls, v, info):
-        return as_list(v, 6 if info.field_name == "points" else 4)
+        return as_str_list(v, 6 if info.field_name == "points" else 4)
 
     @field_validator("background", "accent", mode="before")
     @classmethod
@@ -347,6 +330,12 @@ class EditArgs(ToolArgs):
             raise ValueError("crop must be [left, top, right, bottom] with right > left and bottom > top")
         return v
 
+    @field_validator("crop", mode="before")
+    @classmethod
+    def _as_box(cls, v):
+        return as_int_list(v, 4)
+
+
 
 async def edit_image(args: EditArgs, ctx: ToolContext) -> ToolResult:
     src = _input_image(ctx, args.path)
@@ -424,7 +413,7 @@ class PosterArgs(ToolArgs):
     @field_validator("images", "cover_lines", mode="before")
     @classmethod
     def _lists(cls, v, info):
-        return as_list(v, 5)
+        return as_str_list(v, 5)
 
     format: Literal["png", "jpg", "pdf"] = "png"
     folder: str | None = Field(default=None, max_length=500)
@@ -468,7 +457,7 @@ class CollageArgs(ToolArgs):
     @field_validator("images", mode="before")
     @classmethod
     def _lists(cls, v):
-        return as_list(v, 16)
+        return as_str_list(v, 16)
 
     format: Literal["png", "jpg", "pdf"] = "png"
     folder: str | None = Field(default=None, max_length=500)

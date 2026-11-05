@@ -23,7 +23,7 @@ from pydantic import Field, field_validator
 from claw.agent.schemas import Capability
 from claw.documents.readers import read_document
 from claw.permissions.policy import PathNotAuthorized, RiskLevel
-from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec
+from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec, as_str_list
 from claw.tools.file_tools import resolve_folder, safe_file_name, unique_path
 
 MAX_READ_BYTES = 20 * 1024 * 1024
@@ -173,6 +173,12 @@ class CombineArgs(ToolArgs):
             if not p.strip() or len(p) > 500:
                 raise ValueError("each path must be a non-empty path under 500 characters")
         return v
+
+    @field_validator("paths", mode="before")
+    @classmethod
+    def _as_list(cls, v):
+        return as_str_list(v)
+
 
 
 def check_combine(args: CombineArgs, ctx: ToolContext) -> None:
@@ -432,6 +438,12 @@ class TableArgs(ToolArgs):
     separator: str | None = Field(default=None, max_length=10,
                                   description='What splits each line - a character, or the word '
                                               '"tab"; worked out from the text if left out')
+
+    @field_validator("columns", mode="before")
+    @classmethod
+    def _as_list(cls, v):
+        return as_str_list(v)
+
 
 
 def check_table(args: TableArgs, ctx: ToolContext) -> None:

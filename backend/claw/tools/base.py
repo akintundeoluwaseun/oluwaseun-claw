@@ -43,6 +43,43 @@ class ToolResult:
     untrusted_text: str = ""  # page/document content: fed to the model as data, never as instructions
 
 
+
+def as_str_list(value, limit: int | None = None, extra_separators: str = "") -> object:
+    """A list of strings, from whatever shape a brain sent.
+
+    Small brains write a string where a list was asked for - `to: "a@b.com,
+    c@d.com"`, `keys: "ctrl+s"`, `columns: "Name, Price"` - and pydantic
+    refuses the whole call. Nothing about those requests is unclear, and the
+    answer is not more prompting: a tool that only accepts one spelling of an
+    unambiguous argument is brittle, and it is brittle on every brain.
+
+    Returns the value untouched when it is not a string, so a correct call
+    costs nothing and a shape this cannot read still reaches pydantic and gets
+    pydantic's own error.
+    """
+    if not isinstance(value, str):
+        if isinstance(value, list):
+            cleaned = [str(v).strip() for v in value if str(v).strip()]
+            return cleaned[:limit] if limit else cleaned
+        return value
+    text = value
+    for sep in ";\n" + extra_separators:
+        text = text.replace(sep, ",")
+    parts = [p.strip() for p in text.split(",") if p.strip()]
+    return parts[:limit] if limit else parts
+
+
+def as_int_list(value, limit: int | None = None) -> object:
+    """The same, for a box or a size written as "0, 0, 100, 100"."""
+    if isinstance(value, str):
+        parts = [p.strip() for p in value.replace(";", ",").split(",") if p.strip()]
+        try:
+            nums = [int(float(p)) for p in parts]
+        except ValueError:
+            return value          # let pydantic explain it
+        return nums[:limit] if limit else nums
+    return value
+
 class ToolError(Exception):
     """An expected failure with a message fit for the user and the model."""
 

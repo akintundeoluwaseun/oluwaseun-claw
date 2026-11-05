@@ -22,7 +22,7 @@ from pydantic import model_validator, BaseModel, Field, field_validator
 
 from claw.agent.schemas import Capability
 from claw.permissions.policy import PathNotAuthorized, RiskLevel
-from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec
+from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec, as_str_list
 from claw.tools.file_tools import resolve_folder, safe_file_name, unique_path
 
 TEXT_EXTS = {".txt", ".md", ".csv", ".json", ".html"}
@@ -300,6 +300,12 @@ class SheetArgs(ToolArgs):
         if re.search(r"[\[\]:*?/\\]", v):
             raise ValueError("sheet names can't contain [ ] : * ? / \\")
         return v
+
+    @field_validator("columns", mode="before")
+    @classmethod
+    def _as_list(cls, v):
+        return as_str_list(v)
+
 
 
 def check_sheet(args: SheetArgs, ctx: ToolContext) -> None:

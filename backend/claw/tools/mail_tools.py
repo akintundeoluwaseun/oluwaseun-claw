@@ -23,7 +23,7 @@ from pydantic import Field, field_validator
 
 from claw.agent.schemas import Capability
 from claw.permissions.policy import RiskLevel
-from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec
+from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec, as_str_list
 
 ADDRESS = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$")
 MAX_RECIPIENTS = 20
@@ -77,6 +77,12 @@ class MailArgs(ToolArgs):
         if v not in SERVICES:
             raise ValueError(f"service must be one of: {', '.join(SERVICES)}")
         return v
+
+    @field_validator("to", "cc", "bcc", mode="before")
+    @classmethod
+    def _as_list(cls, v):
+        return as_str_list(v)
+
 
 
 def compose_url(args: MailArgs) -> str:
