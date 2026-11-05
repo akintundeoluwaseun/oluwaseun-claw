@@ -70,7 +70,31 @@ _THANKS = re.compile(r"^(?:thanks?|thank\s+you|thx|ty|cheers|much\s+appreciated|
 _OK = re.compile(r"^(?:ok(?:ay)?|k|kk|cool|nice|great|good|fine|alright|sure|got\s+it|understood|perfect|lovely|yes|yeah|yep|no|nope|nah)\b[\s!.,?]*$", re.I)
 _BYE = re.compile(r"^(?:bye+|goodbye|good\s*night|see\s+you|see\s+ya|later|cya|that(?:'s| is)\s+all|done\s+for\s+now)\b[\s!.,?]*$", re.I)
 _HOW_ARE_YOU = re.compile(r"^(?:how\s+(?:are|r)\s+(?:you|u)|how'?s\s+it\s+going|you\s+(?:there|ok|okay|alright)|are\s+you\s+(?:there|awake|ready|working))\b[\s!.,?]*$", re.I)
-_CAPABILITY = re.compile(r"^(?:what\s+can\s+you\s+do|what\s+are\s+you\s+able\s+to\s+do|help|what\s+now|how\s+(?:do|does)\s+(?:this|it)\s+work)\b[\s!.,?]*$", re.I)
+#: "What can you do?" in the shapes people actually type it. The first thing
+#: anyone asks a new assistant, and the one question it must never need the
+#: brain to answer: a tester on a light brain asked exactly this and the app
+#: sat there.
+_CAPABILITY = re.compile(
+    r"^(?:what\s+(?:can|could)\s+(?:you|claw|s-?claw|it|i)\s+(?:do|ask|say)"
+    r"|what\s+(?:else\s+)?can\s+you\s+(?:do|help\s+(?:me\s+)?with)"
+    r"|what\s+(?:do|does)\s+(?:you|claw|s-?claw|it)\s+do"
+    r"|what\s+are\s+you(?:\s+able)?(?:\s+to)?(?:\s+do)?"
+    r"|what\s+are\s+you\s+for|who\s+are\s+you"
+    r"|help|what\s+now|what\s+next"
+    r"|how\s+(?:do|does)\s+(?:this|it|you)\s+work)\b[\s!.,?]*$", re.I)
+
+#: A greeting at the FRONT of a longer message, with whatever separates it from
+#: the rest. "Hi, what can you do?" is a greeting and then plain talk, and it
+#: was getting neither answer: the greeting pattern is anchored to the whole
+#: message, so the comma defeated it, and the capability pattern never saw a
+#: string beginning with "what". It fell through to a model call instead - two
+#: words of small talk costing a 2B brain its whole thinking time, which is
+#: precisely what the fast path exists to prevent.
+_LEADING_GREETING = re.compile(
+    r"^(?:hi|hii+|hey+|hello+|yo|sup|whats?\s*up|good\s+(?:morning|afternoon|evening|day)|"
+    r"howdy|hiya|greetings|salut|hola)"
+    r"(?:\s+(?:there|again|claw|s-?claw|mate|buddy|sir|ma|madam|please))?"
+    r"\s*[,!.;:-]+\s*", re.I)
 
 _EMOJI_ONLY = re.compile(r"^[\W_]+$", re.U)
 
@@ -104,6 +128,20 @@ def quick_reply(text: str, name: str = "S-CLAW", standalone: bool = True) -> str
     t = _first_line(text)
     if not t or len(t) > 60 or smells_like_work(t):
         return None
+    answer = _canned(t, name, standalone)
+    if answer is not None:
+        return answer
+    # "Hi, what can you do?" - a greeting, then plain talk. Strip the greeting
+    # and ask again. Nothing that smells of work can reach here, so what
+    # follows a greeting is either more talk or nothing we answer.
+    rest = _LEADING_GREETING.sub("", t, count=1)
+    if rest != t and rest:
+        return _canned(rest, name, standalone)
+    return None
+
+
+def _canned(t: str, name: str, standalone: bool) -> str | None:
+    """The table itself, run against a whole message or against what follows a greeting."""
     if _GREETING.match(t):
         return "Hi. What would you like done?"
     if _THANKS.match(t):

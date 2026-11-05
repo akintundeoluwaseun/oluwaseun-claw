@@ -190,3 +190,70 @@ def test_a_follow_up_about_earlier_work_reaches_the_planner():
     for text in ["tell me the total", "how long was it", "what was the answer", "give me the list"]:
         assert not is_conversation(text), f"{text!r} would have been answered without the work"
         assert quick_reply(text) is None
+
+
+# ---------- "Hi, what can you do?" ----------
+# Reported from a real install on a light brain: the tester's first message was
+# "Hi, what can you do?" and the app could not complete it. Reproduced exactly.
+# "What can you do?" had a canned answer; the same question with a greeting in
+# front of it had none, because the greeting pattern is anchored to the whole
+# message and the comma defeated it, while the capability pattern never saw a
+# string starting with "what". So the first thing anyone types to a new
+# assistant fell through to a model call - the one path the fast path exists to
+# avoid, and on a 2B the one that looks like the app has frozen.
+
+def test_the_exact_message_that_failed_on_a_real_install():
+    answer = quick_reply("Hi, what can you do?")
+    assert answer is not None, "the message that started this is still unanswered"
+    assert "files and folders" in answer
+
+
+def test_a_greeting_in_front_of_plain_talk_does_not_hide_it():
+    for text in ("Hi, what can you do?", "Hello! What can you do?", "hey - what can you do",
+                 "Good morning, what can you do?", "hi there, what can you do",
+                 "hiya: what can you do?", "hi claw, what can you do?"):
+        assert quick_reply(text) is not None, text
+
+
+def test_a_greeting_in_front_of_other_small_talk_too():
+    assert "Running" in quick_reply("good morning, how are you?")
+    assert quick_reply("hello, thanks") == "Any time."
+    assert quick_reply("hi, are you there?") is not None
+
+
+def test_a_greeting_in_front_of_WORK_is_still_work():
+    # The whole guard. Stripping a greeting must never turn a job into chat.
+    for text in ("hi, open notepad", "Hello, can you make me a flyer",
+                 "good morning, find my invoice.pdf", "hey, search the web for a laptop",
+                 "hi claw, put the meeting in my calendar"):
+        assert quick_reply(text) is None, text
+        assert smells_like_work(text), text
+
+
+def test_the_question_in_the_shapes_people_type_it():
+    for text in ("what can you do", "What can you do?", "what are you able to do",
+                 "what can claw do", "what do you do", "what does claw do",
+                 "what else can you do", "what can you help me with",
+                 "who are you", "what are you for", "how does this work", "help"):
+        assert quick_reply(text) is not None, text
+
+
+def test_things_that_only_look_like_the_question():
+    # "what can you do with my files" is a job: it names files.
+    assert quick_reply("what can you do with my downloads folder") is None
+    assert quick_reply("what can you do to make this spreadsheet smaller") is None
+
+
+def test_a_greeting_on_its_own_is_still_a_greeting():
+    assert quick_reply("hi") == "Hi. What would you like done?"
+    assert quick_reply("Good morning") == "Hi. What would you like done?"
+
+
+def test_none_of_this_costs_a_model_call():
+    # The point of the whole module, stated as an assertion: the answer comes
+    # back from a function, so there is nothing to wait for.
+    import time
+    start = time.perf_counter()
+    for _ in range(2000):
+        quick_reply("Hi, what can you do?")
+    assert time.perf_counter() - start < 1.0
