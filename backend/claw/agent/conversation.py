@@ -129,6 +129,32 @@ _NEVER_MIND = re.compile(
     r"don'?t\s+(?:worry|bother)(?:\s+about\s+it)?|skip\s+it|leave\s+it|cancel\s+that|it'?s\s+fine)"
     r"\b[\s!.,?]*$", re.I)
 
+#: Typing noise. Four of the eight failed chats in the screenshot someone sent
+#: were "sdddsss", "sdddsss", "44y" and "sdddsss" - a hand on a keyboard, or a
+#: test. They went to the planner and came back "Failed", which is a harsh
+#: answer to a slip of the hand, and a slow one.
+#:
+#: Deliberately narrow: one token, no spaces, and one of three shapes that a
+#: real word does not have. A one-word job - "screenshot", "shutdown",
+#: "backup" - has vowels, no tripled letter and no stray digits, so it goes to
+#: the planner as before. Anything with a space in it is a sentence and is
+#: never touched.
+_ONE_TOKEN = re.compile(r"^[A-Za-z0-9]{2,14}$")
+_TRIPLED = re.compile(r"([A-Za-z])\1{2,}")
+_VOWEL = re.compile(r"[aeiouy]", re.I)
+_DIGITS_THEN_LETTER = re.compile(r"^\d{1,4}[A-Za-z]{1,2}$")
+
+
+def looks_like_typing_noise(text: str) -> bool:
+    """One token that is not a word anyone meant."""
+    t = _first_line(text)
+    if not _ONE_TOKEN.match(t):
+        return False
+    return bool(_TRIPLED.search(t)
+                or (len(t) >= 4 and t.isalpha() and not _VOWEL.search(t))
+                or _DIGITS_THEN_LETTER.match(t))
+
+
 _EMOJI_ONLY = re.compile(r"^[\W_]+$", re.U)
 
 # Long enough to be a brief, whatever else it looks like.
@@ -201,6 +227,8 @@ def _canned(t: str, name: str, standalone: bool) -> str | None:
                 "and I'll plan it, ask before anything that changes or sends something, and check the work.")
     if _EMOJI_ONLY.match(t):
         return "Hi. What would you like done?"
+    if looks_like_typing_noise(t):
+        return "I didn't catch that. What would you like done?"
     return None
 
 

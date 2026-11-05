@@ -312,3 +312,25 @@ def test_forgetting_a_real_thing_is_still_a_job():
     for text in ("forget the invoice I asked you to remember", "forget my password",
                  "never mind, open notepad instead"):
         assert quick_reply(text) is None, text
+
+
+def test_typing_noise_gets_an_answer_not_a_failure():
+    # Four of the eight failed chats in the screenshot were "sdddsss" and
+    # "44y" - a hand on a keyboard. "Failed" is a harsh answer to a slip.
+    for text in ("sdddsss", "44y", "jjjj", "aaaaaa", "kkk", "qwrtp", "12x"):
+        assert quick_reply(text) == "I didn't catch that. What would you like done?", text
+
+
+def test_a_one_word_job_is_not_mistaken_for_noise():
+    # The risk of the rule above. A real word has vowels, no tripled letter
+    # and no stray digits, so it still reaches the planner.
+    for text in ("screenshot", "shutdown", "backup", "notepad", "excel",
+                 "calculator", "restart", "settings", "pdf", "wifi", "cv", "flyer"):
+        answer = quick_reply(text)
+        assert answer is None or "didn't catch" not in answer, text
+
+
+def test_a_sentence_is_never_treated_as_noise():
+    from claw.agent.conversation import looks_like_typing_noise
+    for text in ("sdddsss please", "open sdddsss.txt", "find jjjj in my files"):
+        assert not looks_like_typing_noise(text), text
