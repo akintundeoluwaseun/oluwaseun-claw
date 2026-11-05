@@ -337,6 +337,48 @@ _STILL_TO_DO = re.compile(
 _NO_TOOL = re.compile(
     r"(?:tools?\b[^.]{0,60}\bnot (?:available|provided|listed)|not (?:available|provided) in the (?:list of )?tools|"
     r"do(?:es)? not have (?:a|the|any) (?:tool|way)|no tool (?:to|for|that))", re.I)
+#: A finish that describes work nobody did.
+#:
+#: Reported with a photograph of the screen: "Find every PDF in my Documents
+#: folder and list them by date" came back as "I have found all PDF files in
+#: the Documents folder and sorted them by date. The files have been moved into
+#: subfolders based on their type... I have completed the task." The audit
+#: trail beside it held two entries - requested_task and model_call. No tool
+#: ran. Nothing was found, nothing was listed, and nothing was moved; moving
+#: files was not even asked for. A second message, "thank you", was answered
+#: with "Thank you. I have completed the task as requested."
+#:
+#: Every other guard here looks for a brain that admits it has not finished -
+#: "I will now", "I have no tool for that". This one is the opposite and far
+#: more dangerous, because the person has no way to tell it from a real
+#: success: the brain is confident, past-tense and wrong, and the interface
+#: prints it under a green "Finished".
+_CLAIMED_DONE = re.compile(
+    r"\b(?:I(?:'ve| have)?\s+(?:now\s+)?(?:found|located|listed|created|made|saved|written|moved|copied|"
+    r"deleted|removed|renamed|opened|closed|sent|downloaded|sorted|organis|organiz|placed|put|added|"
+    r"updated|changed|completed|finished|done)"
+    r"|(?:has|have|had)\s+been\s+(?:found|listed|created|made|saved|written|moved|copied|deleted|removed|"
+    r"renamed|opened|sent|downloaded|sorted|organised|organized|placed|added|updated|completed)"
+    r"|\bthe\s+task\s+(?:is|has\s+been)\s+(?:complete|completed|done|finished)"
+    r"|\bcompleted\s+the\s+task\b"
+    r"|\ball\s+(?:the\s+)?(?:files|pdfs?|documents|items)\s+(?:have|were|are)\b)", re.I)
+
+
+def claims_work_done(final: str) -> bool:
+    """True when a summary asserts that something was actually done to the computer."""
+    return bool(_CLAIMED_DONE.search(final or ""))
+
+
+#: What the person is told when the brain insists it finished work it never
+#: started. Not the brain's sentence, and not a bare "failed": the person needs
+#: to know the difference between "Claw tried and could not" and "Claw did
+#: nothing and said otherwise".
+NOTHING_WAS_DONE = (
+    "Nothing was done. The brain reported this as finished, but no tool was ever run, "
+    "so there is no work to show and its description of what happened was not true. "
+    "Nothing on this computer was changed. Try again, or try a larger brain."
+)
+
 MAX_PUSHBACKS = 2
 MAX_FORCED = 4    # steps Claw takes for a brain that keeps stopping, per task
 
@@ -443,6 +485,12 @@ def premature_finish(final: str, steps: list[dict[str, Any]], fitting: list[str]
                 f"Carry on with the next step now by calling a tool.{tools}")
     if not steps and final.startswith("(The model finished without a summary"):
         return f"You finished without doing anything or saying why. Do the task now by calling a tool.{tools}"
+    # No tool has run, and the summary says the job is done. Whatever it
+    # describes did not happen.
+    if not steps and claims_work_done(final):
+        return ("You have not called a single tool, so nothing has been done and nothing on this "
+                "computer has changed. Do not describe work you have not done. "
+                f"Do the task now by calling a tool.{tools}")
     save_tools = [t for t in fitting if t in ("save_links", "save_report", "write_text_file", "create_spreadsheet")]
     # Anything beyond looking counts: saving through an app's own menus is saving too.
     saved = any(not is_looking(s.get("tool")) and s.get("outcome") in ("verified", "done_unverified") for s in steps)
@@ -1058,6 +1106,17 @@ async def run_agent(
                              or _unfinished_recipe(task, steps))
             forced = obvious_first_step(task, fitting, steps) if forced_count < MAX_FORCED and stopped_short else None
             if forced is None:
+                # Last line. The pushbacks are spent, Claw has no step of its own
+                # to take, and the brain is still describing work it never did.
+                # Its sentence does not reach the person: there is no work to
+                # report, and printing a confident account of moved files under
+                # a green "Finished" is the one failure they cannot detect.
+                if not steps and claims_work_done(final):
+                    emit("fabricated_finish", {"step": step_no, "claimed": final[:300]})
+                    log_event(log, "fabricated finish refused", task_id=ctx.task_id, claimed=final[:200])
+                    emit("finished", {"final_answer": NOTHING_WAS_DONE})
+                    return outcome("failed", NOTHING_WAS_DONE,
+                                   error="The brain reported work it never did; no tool was run.")
                 final = match_money(final, ctx.memory.corpus())
                 emit("finished", {"final_answer": final})
                 return outcome("completed", final)
