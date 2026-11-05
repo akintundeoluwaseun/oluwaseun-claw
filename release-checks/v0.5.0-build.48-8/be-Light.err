@@ -1,0 +1,21 @@
+{"ts": "2026-11-05T13:55:59.424+00:00", "level": "INFO", "logger": "claw.main", "msg": "backend starting", "fields": {"version": "0.5.0", "port": 18800, "data_dir": "D:\\data-Light", "log_file": "D:\\data-Light\\logs\\claw.log"}}
+{"ts": "2026-11-05T13:55:59.439+00:00", "level": "INFO", "logger": "claw.api", "msg": "starter folders added", "fields": {"count": 3}}
+{"ts": "2026-11-05T13:55:59.488+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Started server process [3728]"}
+{"ts": "2026-11-05T13:55:59.488+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Waiting for application startup."}
+{"ts": "2026-11-05T13:55:59.490+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Application startup complete."}
+{"ts": "2026-11-05T13:55:59.490+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Uvicorn running on http://127.0.0.1:18800 (Press CTRL+C to quit)"}
+{"ts": "2026-11-05T13:56:00.979+00:00", "level": "INFO", "logger": "claw.api", "msg": "warming the brain", "fields": {"model": "qwen3-vl-4b"}}
+{"ts": "2026-11-05T13:56:00.988+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine starting", "fields": {"model": "qwen3-vl-4b", "port": 56781, "need_gb": 4.2}}
+{"ts": "2026-11-05T13:56:01.160+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T13:56:01.473+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T13:56:01.778+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T13:56:02.076+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T13:56:02.379+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T13:56:02.675+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T13:56:03.023+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T13:56:03.328+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T13:56:03.630+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T13:56:03.926+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 503 Service Unavailable\""}
+{"ts": "2026-11-05T13:56:04.243+00:00", "level": "INFO", "logger": "httpx", "msg": "HTTP Request: GET http://127.0.0.1:56781/health \"HTTP/1.1 200 OK\""}
+{"ts": "2026-11-05T13:56:04.245+00:00", "level": "INFO", "logger": "claw.runtime", "msg": "engine ready", "fields": {"model": "qwen3-vl-4b", "seconds": 3.3}}
+{"ts": "2026-11-05T13:56:04.245+00:00", "level": "INFO", "logger": "claw.api", "msg": "brain warm", "fields": {"model": "qwen3-vl-4b", "seconds": 3.3}}
