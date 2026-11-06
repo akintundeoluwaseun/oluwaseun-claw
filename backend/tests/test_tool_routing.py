@@ -56,6 +56,26 @@ ASKED = [
     # One document per row
     ("send one reminder letter to each customer", "mail_merge"),
     ("mail merge the certificates", "mail_merge"),
+
+    # --- Tools that existed but nothing pointed at ---------------------------
+    # An audit found 62 tools no pattern ever named. Several were worse than
+    # unnamed: a general pattern claimed the words and sent the brain
+    # elsewhere. These are the ones a person asks for by name.
+    ("make an invoice for Ade Stores for 20 exercise books at N500", "make_document"),
+    ("write a quotation for Bola Ventures", "make_document"),
+    ("prepare a receipt", "make_document"),
+    ("write a python script to rename these files", "run_script"),
+    ("run ffmpeg on this", "run_command"),
+    ("find which files mention the word refund", "search_in_folder"),
+    ("make a pivot table of sales by city", "pivot_table"),
+    ("total sales by branch", "pivot_table"),
+    ("show me anything unusual in the amounts", "find_outliers"),
+    ("reconcile the bank statement against my records", "reconcile_tables"),
+    ("make a passport photo", "passport_photo"),
+    ("this photo is too dark, brighten it", "brighten_photo"),
+    ("put these photos into one collage", "make_collage"),
+    ("design a bracket 60 by 40 mm", "make_part"),
+    ("what is taking up my disk space", "disk_space"),
 ]
 
 
@@ -98,6 +118,36 @@ def test_reading_a_pdf_still_beats_changing_one(registry):
     found = fitting_tools("read the invoice pdf and tell me the total", registry)
     assert "read_document_pages" in found
     assert found[0] in ("read_document_pages", "summarize_document"), found
+
+
+def test_making_an_invoice_is_not_confused_with_reading_one(registry):
+    """The worst of the mis-routes: both say "invoice".
+
+    "Make an invoice" was answered with the tool that reads a PDF, which
+    cannot make anything, so the request failed with the capability sitting
+    right there.
+    """
+    making = fitting_tools("make an invoice for Ade Stores", registry)
+    reading = fitting_tools("read the invoice pdf and tell me the total", registry)
+    assert making[0] == "make_document", making
+    assert reading[0] in ("read_document_pages", "summarize_document"), reading
+
+
+def test_writing_a_program_reaches_the_code_tools(registry):
+    """The general capability was unreachable by the words people use."""
+    for asked in ("write a python script to tidy these files",
+                  "write a little program to work out the totals",
+                  "run a command on this computer"):
+        found = fitting_tools(asked, registry)
+        assert found and found[0] in ("run_script", "run_command"), f"{asked!r} -> {found}"
+
+
+def test_searching_inside_files_is_not_searching_for_files(registry):
+    """find_files looks at names; search_in_folder looks at contents."""
+    by_name = fitting_tools("find all the pdf files in Documents", registry)
+    by_content = fitting_tools("which files mention the word refund", registry)
+    assert "find_files" in by_name
+    assert by_content[0] == "search_in_folder", by_content
 
 
 def test_every_tool_named_in_the_list_exists(registry):

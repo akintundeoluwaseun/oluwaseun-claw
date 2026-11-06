@@ -289,6 +289,74 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
 
     # Opening an archive. Must come before archive_folder's pattern, which
     # also matches the word zip.
+    # --- Tools that existed but nothing pointed at ---------------------------
+    #
+    # An audit of the list against the registry found 62 tools no pattern
+    # ever named, and several of those were worse than unnamed: a general
+    # pattern claimed the words and sent the brain somewhere else. "Make an
+    # invoice" matched \binvoice\b and was answered with the tool for READING
+    # a PDF. "Write a python script" landed on rename_file. These are the
+    # shape of "it cannot do anything" when the thing is in fact built.
+
+    # MAKING a priced document, before the pattern that reads one.
+    (r"\b(?:make|create|write|draw up|prepare|issue|send)\b.{0,30}"
+     r"\b(?:invoice|quotation|quote|purchase order|receipt|bill)\b"
+     r"|\b(?:invoice|quotation|quote|receipt)\b.{0,20}\bfor\b.{0,40}\b(?:at|each|x)\b",
+     ("make_document",)),
+
+    # Writing a program, or running one. The code capability was reachable
+    # only by the planner choosing it, never by the words.
+    (r"\b(?:write|make|run)\b.{0,20}\b(?:a |small )?(?:python|node|java ?script)\b"
+     r"|\bscript\b.{0,30}\b(?:to|that|which)\b|\bwrite (?:a )?(?:little )?program\b",
+     ("run_script",)),
+    (r"\brun\b.{0,20}\b(?:ffmpeg|git|python|node|blender|openscad|libreoffice|imagemagick|command)\b"
+     r"|\bcommand ?line\b|\bterminal\b", ("run_command", "run_script")),
+
+    # Searching INSIDE files, as opposed to finding files by name.
+    (r"\bwhich files?\b.{0,30}\b(?:mention|contain|say|include|have)\b"
+     r"|\b(?:search|look|find)\b.{0,30}\b(?:inside|within|in the text of|through)\b.{0,25}\bfiles?\b"
+     r"|\bfind\b.{0,25}\bthe word\b|\bgrep\b", ("search_in_folder", "search_in_file")),
+
+    # The data tools, by the words people use for them.
+    (r"\bpivot\b|\b(?:group|break)\b.{0,20}\bby\b.{0,30}\b(?:and (?:total|sum|count)|column)\b"
+     r"|\b(?:total|sum|count|average)\b.{0,20}\bby\b.{0,20}\b(?:city|month|product|customer|branch|category)\b",
+     ("pivot_table",)),
+    (r"\bonly the rows?\b|\b(?:rows?|records?|orders?|customers?)\b.{0,30}\b(?:where|above|below|over|under|more than|less than)\b",
+     ("filter_rows",)),
+    (r"\b(?:outlier|unusual|odd|strange|suspicious|stands? out)\b.{0,30}\b(?:numbers?|amounts?|values?|rows?|prices?)\b"
+     r"|\banything unusual\b", ("find_outliers",)),
+    (r"\b(?:match|reconcile|tally|cross[- ]?check)\b.{0,40}\b(?:two|both|against)\b.{0,30}\b(?:tables?|lists?|spreadsheets?|files?)\b"
+     r"|\breconcile\b", ("reconcile_tables",)),
+    (r"\b(?:average|highest|lowest|mean)\b.{0,30}\bcolumn\b|\bcolumn\b.{0,30}\b(?:average|total|highest|lowest)\b",
+     ("summarize_column",)),
+
+    # Design tools that the general picture pattern was swallowing.
+    (r"\bpassport\b.{0,20}\b(?:photo|picture|size)\b", ("passport_photo",)),
+    (r"\bcollages?\b|\b(?:several|many|all)\b.{0,20}\b(?:photos?|pictures?)\b.{0,25}\bone (?:picture|image|sheet)\b",
+     ("make_collage",)),
+    # Either order: "brighten the photo" and "the photo is too dark" are the
+    # same request, and people write it both ways round.
+    (r"\b(?:too dark|underexposed|brighten|lighten)\b.{0,30}\b(?:photo|picture|image|it)\b"
+     r"|\b(?:photo|picture|image)\b.{0,30}\b(?:too dark|underexposed|brighten|lighten)\b",
+     ("brighten_photo",)),
+    (r"\bproduct (?:shot|photo|picture)\b|\bdrop shadow\b|\bwhite background\b",
+     ("product_shadow",)),
+    # A dimensioned part in CAD, not a pretty render of one.
+    (r"\b(?:\d+\s*(?:mm|millimet)|dimension\w*|bracket|flange|spacer|stl|3d print)\b.{0,40}\b(?:part|model|cad|print)\b"
+     r"|\b(?:make|design|model)\b.{0,25}\b(?:a )?(?:plate|bracket|spacer|flange|tube)\b", ("make_part",)),
+
+    # Looking at a picture and saying what is in it.
+    (r"\b(?:what(?:'s| is)? in|describe|look at|read)\b.{0,25}\b(?:this |the |that )?(?:photo|picture|image|screenshot|png|jpe?g)\b",
+     ("read_picture",)),
+
+    # Housekeeping questions that had nothing at all.
+    (r"\bdisk space\b|\bhow much (?:space|room)\b|\bdrive (?:is )?full\b|\brunning out of space\b",
+     ("disk_space",)),
+    (r"\bis\b.{0,25}\b(?:running|open|started)\b.{0,20}\b(?:program|app|application)\b"
+     r"|\bis (?:word|excel|chrome|outlook|whatsapp)\b.{0,15}\b(?:running|open)\b", ("is_program_running",)),
+    (r"\bwhat(?:'s| is) the (?:time|date)\b|\btoday'?s date\b", ("current_time",)),
+    # ------------------------------------------------------------------------
+
     # Asking what is INSIDE comes first, and leads with the tool that only
     # looks. "What's in this zip" should not unpack two hundred files onto
     # the desktop to answer a question.

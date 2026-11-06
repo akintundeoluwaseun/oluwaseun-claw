@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased — tools that existed but nothing pointed at
+
+Auditing the fitting list against the registry found 62 of 136 tools that no
+pattern ever named. Several were worse than unnamed, because a general
+pattern claimed the words and sent the brain elsewhere:
+
+- "Make an invoice" matched the word invoice and was answered with the tool
+  that READS a PDF. The request failed with the right tool sitting there.
+- "Write a python script to rename these files" landed on rename_file, so the
+  whole code capability was unreachable by the words people use for it.
+- "Which files mention the word refund" landed on find_files, which searches
+  names, not contents.
+- "Make a pivot table" landed on create_spreadsheet; "make a passport photo"
+  on edit_image; "design a bracket 60 by 40 mm" on a 3D render rather than
+  actual CAD.
+- "What is taking up my disk space" matched nothing at all.
+
+All fixed, plus routing for filtering rows, outliers, reconciling two tables,
+summarising a column, collages, brightening a dark photo, product shots,
+describing a picture, whether a program is running, and the time.
+
+Down to 43 unnamed, and those are browser and desktop sub-steps (click_link,
+switch_tab, scroll) that are reached once a flow is under way rather than
+asked for by name.
+
+The routing tests now hold 40 phrasings and separately assert that making an
+invoice is not confused with reading one, that writing a program reaches the
+code tools, and that searching inside files is not searching for files.
+
 ## Unreleased — the new tools can actually be reached
 
 The sixteen tools added above were invisible. fitting_tools decides which
