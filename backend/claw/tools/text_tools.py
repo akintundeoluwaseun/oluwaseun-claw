@@ -25,6 +25,7 @@ from claw.documents.readers import read_document
 from claw.permissions.policy import PathNotAuthorized, RiskLevel
 from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec, as_str_list
 from claw.tools.file_tools import resolve_folder, safe_file_name, unique_path
+from claw.tools.table_tools import clean_number_text
 
 MAX_READ_BYTES = 20 * 1024 * 1024
 MAX_MATCHES = 200
@@ -397,9 +398,23 @@ def _pick(column: str, columns: list[str]) -> str:
 
 
 def _number(value: str) -> float | None:
-    """The number in a cell like "₦1,500.00" or "12 kg", or None if there isn't one."""
-    m = NUMBER_RE.search(str(value).replace(",", ""))
-    return float(m.group()) if m else None
+    """The number in a cell like "₦1,500.00" or "12 kg", or None if there isn't one.
+
+    Brackets mean negative. (1,500) is -1500: that is how a ledger, a bank
+    statement and every accounts package write a refund, a debit or a loss.
+    Reading it as +1500 puts a total out by twice the amount, silently, and
+    the tool still reports itself verified - the worst way for something that
+    adds up money to be wrong. table_tools.to_number has always read brackets
+    this way; this one did not, so the same column totalled by summarize_column
+    and by table_totals gave two different answers. test_money_signs.py holds
+    the two to the same rule.
+    """
+    s, negative = clean_number_text(str(value))
+    m = NUMBER_RE.search(s)
+    if not m:
+        return None
+    n = float(m.group())
+    return -abs(n) if negative else n
 
 
 def _tidy(x: float) -> float | int:

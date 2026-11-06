@@ -36,6 +36,42 @@ def norm_header(h: Any) -> str:
     return re.sub(r"[\s_]+", " ", str(h or "").strip().lower())
 
 
+#: Minus characters that are not the ASCII one: the real MINUS SIGN, which is
+#: what Word's autocorrect and many spreadsheet exports produce, and the
+#: fullwidth form. Dashes are deliberately absent - an en dash in a cell
+#: usually marks a range ("10-20"), not a negative.
+_MINUS_SIGNS = ("\u2212", "\uff0d")
+
+#: A bare "N" in front of the digits. Naira is written this way constantly -
+#: "N15,000" on invoices, in WhatsApp messages and in exported statements -
+#: and without this the whole cell read as no number at all, so the row was
+#: skipped and the total came out short with nothing to say it had. Only
+#: before a digit or a decimal point, so "N/A" and ordinary words are
+#: untouched.
+_NAIRA_N = re.compile(r"^N(?=[\d.])", re.I)
+
+
+def clean_number_text(s: str) -> tuple[str, bool]:
+    """Strip currency and sign decoration from a cell. Returns (text, negative).
+
+    Shared so that the two number readers in this codebase cannot drift apart
+    again: a column totalled by table_totals and summarized by
+    summarize_column used to disagree, because only one of them knew that
+    brackets mean negative.
+    """
+    for sign in _MINUS_SIGNS:
+        s = s.replace(sign, "-")
+    s = s.strip()
+    # Brackets mean negative: that is how a ledger, a bank statement and every
+    # accounts package write a refund, a debit or a loss.
+    negative = s.startswith("(") and s.endswith(")")
+    s = _NAIRA_N.sub("", s.strip("()").strip())
+    s = re.sub(r"[₦$£€¥,\s]|NGN|USD|naira", "", s, flags=re.I)
+    if s.endswith("-"):                     # "1500-", as some exports write it
+        negative, s = True, s[:-1]
+    return s, negative
+
+
 def to_number(v: Any) -> float | None:
     if isinstance(v, bool):
         return None
@@ -44,15 +80,12 @@ def to_number(v: Any) -> float | None:
     s = str(v or "").strip()
     if not s:
         return None
-    neg = s.startswith("(") and s.endswith(")")
-    s = re.sub(r"[₦$£€¥,\s]|NGN|USD|naira", "", s.strip("()"), flags=re.I)
-    if s.endswith("-"):
-        neg, s = True, s[:-1]
+    s, negative = clean_number_text(s)
     try:
         n = float(s)
     except ValueError:
         return None
-    return -n if neg else n
+    return -abs(n) if negative else n
 
 
 def read_table(path: Path) -> tuple[list[str], list[list[Any]]]:

@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased — two bugs in how money was read
+
+Found by probing the table tools with the kind of column a real ledger has,
+rather than the tidy one the tests used. Both were silent: the tool reported
+itself verified and gave a wrong number.
+
+- A refund written the way ledgers, bank statements and accounts packages
+  write one - "(2,000)" - was read by summarize_column and
+  add_computed_column as POSITIVE 2000. A total with one bracketed refund in
+  it came out wrong by twice the amount. table_tools.to_number had read
+  brackets correctly all along, so the same column totalled by table_totals
+  and summarized by summarize_column gave two different answers and nothing
+  said which to believe. The Unicode minus sign (what Word's autocorrect and
+  many spreadsheet exports produce) was also read as positive.
+- "N2,000" - naira with a bare N, as written on invoices, in WhatsApp and in
+  exported statements - was no number at all to the data tools, so the row was
+  skipped and the total came out short with nothing to say it had.
+- Both readers now share one cleaner (clean_number_text), so they cannot drift
+  apart again, and tests hold them to the same table of cases. An en dash is
+  still not a minus: "10-20" in a cell is a range.
+
+Anyone who has totalled a column containing bracketed amounts or N-prefixed
+naira should re-run it.
+
 ## Unreleased — jobs with no tool of their own
 
 The gap this closes is not a missing tool. It is that every capability so far
