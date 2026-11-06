@@ -152,6 +152,7 @@ async def make_document(args: DocumentArgs, ctx: ToolContext) -> ToolResult:
     """Write a priced document and check its own arithmetic from the saved file."""
     import openpyxl  # noqa: PLC0415
     from openpyxl.styles import Alignment, Border, Font, Side  # noqa: PLC0415
+    from openpyxl.worksheet.properties import PageSetupProperties  # noqa: PLC0415
 
     words = KINDS[args.kind]
     lines = _rows(args.items)
@@ -226,6 +227,20 @@ async def make_document(args: DocumentArgs, ctx: ToolContext) -> ToolResult:
         ws[f"A{row}"] = args.note
     for col, width in zip("ABCD", (46, 12, 16, 16)):
         ws.column_dimensions[col].width = width
+
+    # Make it print on one page across. Those four columns come to about 8.7
+    # inches, and A4 portrait leaves roughly 6.8 once the margins are taken
+    # off, so the Amount column - every figure on the invoice - went onto a
+    # second page on its own. The file was correct and the printout was not,
+    # which is the worse of the two for a document whose whole purpose is to
+    # be sent to somebody. Found by rendering one and looking at it.
+    # fitToHeight 0 means "as many pages down as it needs": a 60-line invoice
+    # must not be squeezed to illegibility to fit one page.
+    ws.print_area = f"A1:D{row}"
+    ws.page_setup.orientation = "portrait"
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
     wb.save(out)
 
     # ---- check it from the file, not from the variables above ----

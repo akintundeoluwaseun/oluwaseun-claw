@@ -194,3 +194,26 @@ async def test_a_discount_line_adds_up_and_is_checked_on_the_sheet(tool_ctx):
     prices = [c.value for row in ws.iter_rows() for c in row
               if isinstance(c.value, (int, float)) and c.value == -1000]
     assert prices, "the discount is not on the sheet as a negative number"
+
+
+async def test_the_document_prints_on_one_page_across(tool_ctx):
+    """Found by rendering an invoice and looking at it.
+
+    The four columns come to about 8.7 inches and A4 portrait leaves roughly
+    6.8 once margins are off, so the Amount column - every figure on the
+    invoice - went onto a second page by itself. The file was correct and the
+    printout was not, which is the worse of the two for a document whose only
+    purpose is to be sent to somebody.
+
+    fitToHeight is 0 on purpose: a long invoice may run to several pages down
+    rather than be squeezed until nobody can read it.
+    """
+    r = await call(tool_ctx, "make_document", kind="invoice", to="Bola Ventures",
+                   items=["20 x Exercise books @ N500", "2 x Biro @ N150"])
+    ws = openpyxl.load_workbook(Path(r.data["path"])).active
+    assert ws.sheet_properties.pageSetUpPr.fitToPage is True
+    assert ws.page_setup.fitToWidth == 1
+    assert ws.page_setup.fitToHeight == 0
+    assert ws.print_area, "without a print area the blank columns to the right can come too"
+    # openpyxl qualifies it with the sheet name: "'Invoice'!A1:D13".
+    assert ws.print_area.replace("$", "").endswith(tuple(f"A1:D{n}" for n in range(1, 200)))

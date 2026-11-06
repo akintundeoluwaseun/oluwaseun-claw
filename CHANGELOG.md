@@ -2,6 +2,15 @@
 
 ## Unreleased — invoices can carry a discount
 
+- The printed invoice was missing every figure. The four columns come to about
+  8.7 inches and A4 portrait leaves roughly 6.8 once margins are off, so the
+  Amount column - and the subtotal, tax and total with it - went onto a second
+  page on its own. The file was right and the printout was wrong, which is the
+  worse way round for a document whose only purpose is to be sent to somebody.
+  Documents now fit one page across (and as many pages down as they need, so a
+  long invoice is not squeezed until nobody can read it). Found by rendering
+  one and looking at it.
+
 - An invoice line's price could only be digits, so "1 x Loyalty discount @
   (N1,000)" was refused and the whole document could not be made. A discount,
   a credit note and a deposit already paid are ordinary lines, and all three
