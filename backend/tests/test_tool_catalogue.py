@@ -13,7 +13,7 @@ Two findings sit behind this file:
 
 import json
 
-from claw.agent.executor import compact_args, estimate_tokens, tool_catalogue, _strip_titles
+from claw.agent.executor import MIN_DETAILED, compact_args, estimate_tokens, tool_catalogue, _strip_titles
 from claw.tools.registry import build_registry
 
 REG = build_registry()
@@ -71,9 +71,46 @@ def test_the_catalogue_still_names_every_tool_the_plan_cannot_see():
     assert "launch_app" in text, "a tool outside the capability must still be nameable"
 
 
+#: A request of the shape the executor really passes. run_agent always sends
+#: the task text, so every measurement below uses one.
+A_REAL_REQUEST = "Make an invoice for Riverside Hotel for 2 banners at 15000 each"
+
+
 def test_the_catalogue_fits_the_window_it_has_to_fit():
     """The whole point: an 8192-token window, minus a reply reserve."""
     for cap in ("files", "data", "documents", "organiser", "desktop", "browser"):
-        cost = estimate_tokens(tool_catalogue(REG, {cap}))
+        cost = estimate_tokens(tool_catalogue(REG, {cap}, task=A_REAL_REQUEST))
         assert cost < 2000, f"{cap} catalogue is {cost} tokens"
-    assert estimate_tokens(tool_catalogue(REG, None)) < 5000, "even the full catalogue should fit"
+    # The whole registry, which the runner does send: it passes `caps or None`,
+    # so a plan naming no capability gets every tool.
+    whole = estimate_tokens(tool_catalogue(REG, None, task=A_REAL_REQUEST))
+    assert whole < 5000, f"the full catalogue is {whole} tokens"
+
+
+def test_the_full_catalogue_is_kept_in_bounds_by_trimming_not_by_luck():
+    """Why the test above passes, stated so it cannot pass for the wrong reason.
+
+    The untrimmed registry is over 5000 tokens and will keep growing - that is
+    what adding tools means. It used to be held under the limit by nobody
+    adding any, which failed the build instead of degrading. Now the least
+    relevant tools drop to names, and this asserts that is what is happening
+    rather than the registry having shrunk.
+    """
+    untrimmed = estimate_tokens(tool_catalogue(REG, None))
+    trimmed = tool_catalogue(REG, None, task=A_REAL_REQUEST)
+    assert untrimmed > estimate_tokens(trimmed), "nothing was trimmed; this test is now meaningless"
+    detailed = [l for l in trimmed.splitlines() if l.startswith("- ")]
+    assert len(detailed) >= MIN_DETAILED
+    # The tool this request needs is kept, in full, near the top. Not first:
+    # across all 115 tools "make" matches make_flyer as strongly as "invoice"
+    # matches make_document, and weighting words by rarity was measured and
+    # removed for ranking worse inside a capability, which is the common path.
+    # Rank 4 of 108 kept in full is a nudge, not a gate - and when a plan names
+    # a capability, which is the usual case, make_document is first of 13.
+    top = [l[2:].split("(")[0] for l in detailed[:5]]
+    assert "make_document" in top, top
+    # nothing vanished: what lost its arguments is still named
+    assert trimmed.splitlines()[-1].startswith("Also available")
+    named = {n.strip() for n in trimmed.splitlines()[-1].split(":", 1)[1].split(",")}
+    kept = {l[2:].split("(")[0] for l in detailed}
+    assert set(REG.names()) == kept | named

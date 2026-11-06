@@ -18,10 +18,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import re
 from pathlib import Path
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from functools import cache
 from datetime import datetime, timezone
 from typing import Any, Literal
 
@@ -832,17 +834,26 @@ def _rank_words(text: str) -> set[str]:
     return {w for w in re.findall(r"[a-z]{3,}", text.lower())} - _RANK_STOP
 
 
-def tool_relevance(task: str, spec: ToolSpec) -> float:
+def tool_relevance(task: str, spec: ToolSpec, registry: ToolRegistry | None = None) -> float:
     """How much this tool looks like what the request is asking for.
 
     A word shared with the tool's NAME counts for three, one shared with its
     description for one: "flyer" in make_flyer says far more than "save"
     appearing somewhere in a sentence about saving.
 
+    Weighting words by how few tools use them was tried and removed. The idea
+    was that "make" separates nothing while "invoice" separates everything, and
+    it does fix the full-registry case - but measured over six real requests it
+    ranked the wanted tool WORSE overall inside a capability (rank sum 13
+    against 12), because "Documents folder" then overwhelmed find_files with
+    list_folder. It is not worth its own complexity.
+
+    `registry` is accepted and unused for that reason: callers already pass it,
+    and the next person to try a corpus-wide weighting will want it there.
+
     Used for ordering, never for hiding. A small brain reads a list of twenty
     tools from the top, and the one it needs used to sit wherever the registry
-    happened to put it - make_flyer was fourteenth of twenty for "make a
-    flyer".
+    happened to put it: make_flyer was ninth of twenty for "make a flyer".
     """
     want = _rank_words(task)
     if not want:
@@ -857,6 +868,11 @@ def tool_relevance(task: str, spec: ToolSpec) -> float:
 #: its own; above it, the catalogue degrades by relevance instead of failing a
 #: test and blocking every new tool.
 CATALOGUE_BUDGET = 1800
+#: The same idea for the whole registry, which the runner really does send:
+#: it passes `caps or None`, so a plan that named no capability gets every
+#: tool. That shape has no argument notes, so it fits more tools in; the limit
+#: is the one test_tool_catalogue.py has always enforced, less a margin.
+FULL_CATALOGUE_BUDGET = 4800
 #: However tight the budget, this many tools keep their arguments. A brain shown
 #: three tools in full is worse off than one reading a slightly longer list.
 MIN_DETAILED = 10
@@ -880,7 +896,7 @@ def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
         else:
             chosen.append(spec)
 
-    if task and capabilities:
+    if task:
         # The curated list says WHICH tools fit; relevance says which fits best.
         # Both, in that order: a curated tool always comes before an uncurated
         # one, but among themselves the closest match leads. fitting_tools
@@ -889,7 +905,7 @@ def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
         pinned = set(fitting_tools(task, registry))
         order = {s.name: i for i, s in enumerate(chosen)}
         chosen.sort(key=lambda s: (s.name not in pinned,
-                                   -tool_relevance(task, s),
+                                   -tool_relevance(task, s, registry),
                                    order[s.name]))
 
     def detail(spec) -> str:
@@ -908,10 +924,10 @@ def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
     keep = len(chosen)
     # Measured on the whole catalogue, including the names line, because that is
     # what the model reads and what the window has to hold.
-    if task and capabilities:
-        pinned = len(fitting_tools(task, registry))
-        floor = max(MIN_DETAILED, pinned)
-        while keep > floor and estimate_tokens(render(keep)) > CATALOGUE_BUDGET:
+    if task:
+        budget = CATALOGUE_BUDGET if capabilities else FULL_CATALOGUE_BUDGET
+        floor = max(MIN_DETAILED, len(fitting_tools(task, registry)))
+        while keep > floor and estimate_tokens(render(keep)) > budget:
             keep -= 1
     return render(keep)
 
