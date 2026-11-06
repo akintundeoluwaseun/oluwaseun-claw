@@ -277,6 +277,72 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     (r"\b(?:memory|ram)\b.{0,40}\b(?:using|eating|consum|hog|most)|\b(?:using|eating|consuming)\b.{0,30}\b(?:memory|ram)\b", ("top_memory",)),
     (r"\bbroken\b.{0,20}\bshortcuts?\b|\bshortcuts?\b.{0,30}\b(?:broken|dead|missing)", ("find_broken_shortcuts",)),
     (r"\brename\b.{0,30}\b(?:all|every|many|hundreds|\d+)\b|\bnaming convention\b|\bbatch rename", ("rename_many",)),
+    # --- Tools added after the first version of this list -------------------
+    #
+    # These go FIRST, before the general patterns below, because several of
+    # those would otherwise swallow them: "make my photos smaller" matches
+    # \b(?:picture|photo|image)\b and lands on edit_image, which does one
+    # file; "join these invoices" matches \binvoice\b and lands on reading a
+    # PDF rather than combining several. A tool the brain is never shown is
+    # the same as a tool that does not exist, which is most of the difference
+    # between "it can do this" and "it does this".
+
+    # Opening an archive. Must come before archive_folder's pattern, which
+    # also matches the word zip.
+    # Asking what is INSIDE comes first, and leads with the tool that only
+    # looks. "What's in this zip" should not unpack two hundred files onto
+    # the desktop to answer a question.
+    (r"\b(?:what'?s? in|what is in|list|show me what'?s? in|contents of|look inside)\b"
+     r".{0,30}\b(?:zip|archive|rar|tar|7z|\.zip)\b",
+     ("look_inside_archive", "open_archive")),
+    # "unzip" and "unpack" stand on their own: "unzip the file the supplier
+    # sent" names no archive word after the verb, and that is how people ask.
+    (r"\bunzip\w*\b|\bunpack\w*\b|\.zip\b|\.tar(?:\.gz)?\b|\.tgz\b"
+     r"|\b(?:extract|open|what'?s in|what is in)\b.{0,30}\b(?:zip|archive|rar|tar|7z)\b"
+     r"|\b(?:zip|archive)\b.{0,30}\b(?:he|she|they|supplier|client|bank)\b.{0,20}\bsent\b",
+     ("open_archive", "look_inside_archive")),
+
+    # Changing a PDF, as opposed to reading one.
+    (r"\b(?:join|combine|merge|put together)\b.{0,40}\bpdfs?\b|\bpdfs?\b.{0,30}\b(?:into one|together)\b",
+     ("combine_pdfs",)),
+    (r"\bsplit\b.{0,40}\bpdf\b|\bpdf\b.{0,30}\b(?:into separate|one page each|individual)\b",
+     ("split_pdf",)),
+    (r"\b(?:pages?|just page)\b.{0,30}\b(?:out of|from)\b.{0,30}\bpdf\b"
+     r"|\bpdf\b.{0,30}\bonly pages?\b|\bextract pages?\b", ("extract_pages",)),
+    (r"\b(?:rotate|turn|sideways|upside[- ]?down|the wrong way)\b.{0,40}\b(?:pdf|pages?|scans?)\b",
+     ("rotate_pdf",)),
+    (r"\b(?:stamp|watermark|mark)\b.{0,30}\b(?:pdf|invoice|document|it)\b"
+     r"|\b(?:paid|draft|copy|confidential|void)\b.{0,20}\b(?:stamp|across|on (?:the|each) page)\b",
+     ("stamp_pdf",)),
+    (r"\b(?:shrink|compress|reduce|smaller|too big)\b.{0,40}\bpdf\b"
+     r"|\bpdf\b.{0,40}\b(?:too big|smaller|to e-?mail|for e-?mail)\b", ("shrink_pdf",)),
+
+    # A folder of photographs, as opposed to one picture.
+    (r"\b(?:photos?|pictures?|images?)\b.{0,40}\b(?:smaller|resiz\w+|compress\w*|shrink\w*|for whatsapp|to whatsapp|for e-?mail|for the website)\b"
+     r"|\b(?:resize|compress|shrink)\b.{0,30}\b(?:all|every|the)\b.{0,20}\b(?:photos?|pictures?|images?)\b",
+     ("resize_photos",)),
+    (r"\bwatermark\b.{0,40}\b(?:photos?|pictures?|images?)\b"
+     r"|\b(?:put|add)\b.{0,30}\b(?:my |our |shop'?s? |business )?name\b.{0,30}\b(?:photos?|pictures?|images?)\b",
+     ("watermark_photos",)),
+    (r"\bqr\b|\bqr[- ]?code\b", ("make_qr_code",)),
+
+    # Video jobs. Before the "make a video" pattern, which is about creating
+    # one from nothing rather than working on one that exists.
+    (r"\b(?:trim|cut|clip|shorten|first|last)\b.{0,40}\b(?:seconds?|minutes?|video|clip|recording)\b"
+     r"|\bcut\b.{0,20}\bfrom\b.{0,20}\bto\b", ("trim_video",)),
+    (r"\b(?:audio|sound|music|voice)\b.{0,30}\b(?:out of|from)\b.{0,30}\b(?:video|mp4|clip|recording)\b"
+     r"|\b(?:extract|take|get|rip)\b.{0,20}\b(?:the )?(?:audio|sound)\b|\bto mp3\b", ("extract_audio",)),
+    (r"\b(?:thumbnail|still|screen ?grab|frame|freeze frame)\b.{0,40}\b(?:video|clip|mp4)\b"
+     r"|\b(?:grab|take|save)\b.{0,20}\ba (?:frame|still)\b", ("grab_frame",)),
+    (r"\bvideo\b.{0,40}\b(?:too big|smaller|compress\w*|for whatsapp|to whatsapp|won'?t send)\b"
+     r"|\b(?:shrink|compress)\b.{0,20}\b(?:the )?video\b", ("shrink_video",)),
+
+    # One document per customer.
+    (r"\bmail[ -]?merge\b|\b(?:one|a)\b.{0,20}\b(?:letter|invoice|certificate|reminder|document)\b.{0,30}\b(?:each|every|per)\b"
+     r"|\b(?:each|every)\b.{0,20}\b(?:customer|client|student|staff|member)\b.{0,40}\b(?:letter|invoice|certificate|document)\b"
+     r"|\bpersonali[sz]ed?\b.{0,30}\b(?:letters?|invoices?|documents?)\b", ("mail_merge",)),
+    # ------------------------------------------------------------------------
+
     (r"\b(?:archive|zip|pack|compress)\b.{0,40}\b(?:folder|project|files)\b", ("archive_folder",)),
     # Files: tidying, the biggest files, duplicates by content, comparing folders.
     (r"\b(?:organi[sz]e|tidy|sort|arrange|clean up)\b.{0,60}\b(?:folder|downloads|files)\b|\bsubfolders?\b.{0,40}\btype", ("sort_into_folders",)),

@@ -1,0 +1,1 @@
+     r"|\b(?:extract|open| is) in)| is) in)\b.{0,30}\b(?:zip|archive|rar|tar|7z)\b"

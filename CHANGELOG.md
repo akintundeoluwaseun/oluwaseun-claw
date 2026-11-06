@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased — the new tools can actually be reached
+
+The sixteen tools added above were invisible. fitting_tools decides which
+tools are described in full to the brain, and none of them was in that list,
+so the brain was never shown them. Worse, the general patterns mis-routed
+around them: "make my photos smaller" matched picture|photo|image and landed
+on edit_image, which does one file at a time; "join these invoices" matched
+"invoice" and landed on reading a PDF.
+
+A tool the brain is never shown is, from the brain's side, a tool that does
+not exist - which is most of the difference between "the app can do this" and
+"the app does this".
+
+Patterns added for all sixteen, placed before the general ones, phrased the
+way a person asks rather than by tool name. Also:
+
+- Packing and opening an archive are told apart ("zip up my folder" against
+  "unzip the attachment"), and "what's in this zip" leads with the tool that
+  only looks, so asking a question does not unpack two hundred files.
+- "too big to send on whatsapp" now leads with shrinking the video rather
+  than with the WhatsApp tools.
+- Reading a PDF still beats changing one, which is checked.
+
+tests/test_tool_routing.py holds 25 real phrasings, asserts each offers the
+right tool AND offers it first, and checks that no pattern points at a tool
+that no longer exists.
+
 ## Unreleased — mail merge
 
 mail_merge: a Word or text template with {Name} style placeholders, plus a
