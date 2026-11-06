@@ -29,7 +29,9 @@ Rules:
   "documents" (reading PDFs, Word files, scans and images), "data" (CSV/Excel tables: combining, removing
   duplicates, totals, charts, break-even and forecast models), "design" (making a picture: posters, video
   thumbnails, magazine covers, collages, product shots, comparing two versions), "organiser" (the calendar,
-  reminders, today's agenda, and what Claw remembers about the person), or "reasoning" (thinking, comparing).
+  reminders, today's agenda, and what Claw remembers about the person), "code" (running a program on this
+  computer, or writing a small script and running it - only when the job genuinely cannot be done by the
+  other tools), or "reasoning" (thinking, comparing).
 - Pick the narrowest capability that fits the step. It decides which tools the agent can see.
 - Give each step a risk level:
   "read_only" for looking/reading/searching; "local_write" for creating or editing files or typing into apps;

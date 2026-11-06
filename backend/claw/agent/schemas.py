@@ -30,6 +30,11 @@ class Capability(StrEnum):
     DATA = "data"               # tables: combining, cleaning, totals, charts, models (split from files, 2 Nov)
     DESIGN = "design"           # making pictures: posters, collages, product shots, comparisons (split from documents, 4 Nov)
     ORGANISER = "organiser"     # calendar, reminders, what Claw remembers
+    #: Running a program, or writing one and running it. Its own capability on
+    #: purpose: it is the most powerful thing Claw can do and the planner must
+    #: have to ask for it by name, so it never arrives as a side effect of a
+    #: step about spreadsheets.
+    CODE = "code"
     REASONING = "reasoning"
 
 
