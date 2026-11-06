@@ -2,6 +2,7 @@
 Blender's bpy module, or Blender on PATH); otherwise only the refusal is tested."""
 
 import os
+import shutil
 import stat
 from pathlib import Path
 
@@ -12,13 +13,21 @@ from claw.tools.base import ToolError
 from tests.test_phase_a import call
 
 BPY = os.environ.get("CLAW_TEST_BPY", "")   # a Python with Blender's bpy module (pip install bpy); the real run takes minutes
-HAVE = bool(BPY) and Path(BPY).is_file()
+#: A real Blender on PATH counts too, and is the ordinary way to have one. Only
+#: looking for CLAW_TEST_BPY meant these tests skipped on a machine with
+#: Blender installed - which is how the code reached today never having been
+#: run against Blender once.
+BLENDER = shutil.which("blender")
+HAVE = (bool(BPY) and Path(BPY).is_file()) or bool(BLENDER)
 
 
 @pytest.fixture
 def blender(tmp_path, monkeypatch):
     if not HAVE:
-        pytest.skip("no Blender (bpy) in this environment")
+        pytest.skip("no Blender in this environment")
+    if BLENDER and not (BPY and Path(BPY).is_file()):
+        monkeypatch.setenv("CLAW_BLENDER", BLENDER)
+        return
     wrapper = tmp_path / "blender"
     wrapper.write_text(f'#!/bin/sh\nfor a; do last="$a"; done\nexec "{BPY}" -c "exec(open(\'$last\').read())"\n')
     wrapper.chmod(wrapper.stat().st_mode | stat.S_IEXEC)
@@ -45,3 +54,20 @@ async def test_real_blender_turntable_and_text(tool_ctx, blender):
     assert r.verified and r.data["frames"] == 24 and (r.data["width"], r.data["height"]) == (960, 540), r.summary
     r = await call(tool_ctx, "make_3d_render", kind="text", label="S-CLAW", colour="blue")
     assert r.verified and r.summary.startswith("Rendered S-CLAW text.png")
+
+
+def test_the_render_never_assumes_this_blender_has_a_denoiser():
+    """The bug the first real Blender run found, in seconds.
+
+    Cycles turns denoising on by default. A Blender built without
+    OpenImageDenoise then refuses the entire render - "Build without
+    OpenImageDenoiser" - and produces nothing at all. Ubuntu's own Blender
+    4.0.2 package is built that way, so this was not an exotic case: it was
+    the first machine the code ever met.
+    """
+    script = bl.script_for({"label": "X"})
+    assert "denoiser" in script, "the script no longer looks at what the build supports"
+    assert "use_denoising" in script
+    # it must choose from what this build reports, not name one and hope
+    assert "enum_items" in script, "the denoiser is being set without checking it exists"
+    compile(script, "scene.py", "exec")

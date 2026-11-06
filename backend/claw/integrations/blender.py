@@ -51,6 +51,25 @@ try:
     scene.render.engine = "CYCLES"
     scene.cycles.device = "CPU"
     scene.cycles.samples = d["samples"]
+    # Cycles turns denoising on by default, and a Blender built without
+    # OpenImageDenoise then refuses the whole render with "Build without
+    # OpenImageDenoiser" - nothing is produced at all. Linux distribution
+    # builds are routinely like this (Blender 4.0.2 from Ubuntu's own package
+    # is, which is where this was found the first time the code was ever run
+    # against a real Blender). So ask what this build actually has.
+    try:
+        options = {i.identifier for i in
+                   scene.cycles.bl_rna.properties["denoiser"].enum_items}
+        if "OPENIMAGEDENOISE" in options:
+            scene.cycles.denoiser = "OPENIMAGEDENOISE"
+            scene.cycles.use_denoising = True
+        elif "OPTIX" in options:
+            scene.cycles.denoiser = "OPTIX"
+            scene.cycles.use_denoising = True
+        else:
+            scene.cycles.use_denoising = False
+    except Exception:
+        scene.cycles.use_denoising = False
     scene.render.resolution_x, scene.render.resolution_y = d["width"], d["height"]
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
