@@ -148,6 +148,20 @@ def _cut(src: Path, out: Path, start: float, end: float) -> dict:
             if a_in is not None:
                 a_out = outp.add_stream("aac", rate=a_in.codec_context.sample_rate or 44100)
 
+            # Timestamps are set by hand rather than left to PyAV.
+            # Clearing pts and letting the encoder invent them looked right on
+            # one test video and collapsed on another: every frame came out
+            # with the same timestamp, so a three-second cut of an
+            # eight-second advert saved as a 0.1-second file. (The tool said
+            # so - it measures what it wrote - but it was still wrong.) The
+            # frames are counted instead, which does not depend on how the
+            # source happened to be encoded.
+            from fractions import Fraction  # noqa: PLC0415
+            if v_out is not None:
+                v_out.codec_context.time_base = Fraction(1, int(round(float(rate))) or 25)
+            v_n = a_n = 0
+            sample_rate = (a_in.codec_context.sample_rate or 44100) if a_in is not None else 44100
+
             inp.seek(max(0, int((start - 1) * 1_000_000)))      # a little before, then skip
             for frame in inp.decode(*(s for s in (v_in, a_in) if s is not None)):
                 when = float(frame.time or 0)
@@ -155,11 +169,16 @@ def _cut(src: Path, out: Path, start: float, end: float) -> dict:
                     continue
                 if when >= end:
                     break
-                frame.pts = None
                 if isinstance(frame, av.VideoFrame) and v_out is not None:
+                    frame.pts = v_n
+                    frame.time_base = v_out.codec_context.time_base
+                    v_n += 1
                     for p in v_out.encode(frame):
                         outp.mux(p)
                 elif isinstance(frame, av.AudioFrame) and a_out is not None:
+                    frame.pts = a_n
+                    frame.time_base = Fraction(1, sample_rate)
+                    a_n += frame.samples
                     for p in a_out.encode(frame):
                         outp.mux(p)
             for stream in (v_out, a_out):
@@ -198,10 +217,15 @@ async def extract_audio(args: ExtractAudioArgs, ctx: ToolContext) -> ToolResult:
         import av  # noqa: PLC0415
         with av.open(str(src)) as inp, av.open(str(out), "w") as outp:
             a_in = inp.streams.audio[0]
-            a_out = outp.add_stream(CODEC_FOR[args.format],
-                                    rate=a_in.codec_context.sample_rate or 44100)
+            sample_rate = a_in.codec_context.sample_rate or 44100
+            a_out = outp.add_stream(CODEC_FOR[args.format], rate=sample_rate)
+            # Counted, not left to the encoder: see the note in _cut.
+            from fractions import Fraction  # noqa: PLC0415
+            n = 0
             for frame in inp.decode(a_in):
-                frame.pts = None
+                frame.pts = n
+                frame.time_base = Fraction(1, sample_rate)
+                n += frame.samples
                 for p in a_out.encode(frame):
                     outp.mux(p)
             for p in a_out.encode():
@@ -306,13 +330,23 @@ async def shrink_video(args: ShrinkVideoArgs, ctx: ToolContext) -> ToolResult:
             a_out = outp.add_stream("aac", rate=a_in.codec_context.sample_rate or 44100) if a_in else None
             if a_out is not None:
                 a_out.bit_rate = audio_bits
+            from fractions import Fraction  # noqa: PLC0415
+            fps = int(round(float(v_in.average_rate or 25))) or 25
+            v_out.codec_context.time_base = Fraction(1, fps)
+            sample_rate = (a_in.codec_context.sample_rate or 44100) if a_in is not None else 44100
+            v_n = a_n = 0
             for frame in inp.decode(*(s for s in (v_in, a_in) if s is not None)):
-                frame.pts = None
                 if isinstance(frame, av.VideoFrame):
                     frame = frame.reformat(width=w, height=h, format="yuv420p")
+                    frame.pts = v_n
+                    frame.time_base = v_out.codec_context.time_base
+                    v_n += 1
                     for p in v_out.encode(frame):
                         outp.mux(p)
                 elif a_out is not None:
+                    frame.pts = a_n
+                    frame.time_base = Fraction(1, sample_rate)
+                    a_n += frame.samples
                     for p in a_out.encode(frame):
                         outp.mux(p)
             for stream in (v_out, a_out):

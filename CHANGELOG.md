@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased — benchmark v1.9, and a video bug it found
+
+Six scenarios for the everyday jobs added above: opening the supplier's zip,
+joining the month's invoices into one PDF, shrinking a folder of shop photos
+for WhatsApp, a QR code that really scans, a reminder letter per customer,
+and cutting a clip. Each check is tested both ways - the rejected answers are
+the plausible ones: the folder left unpacked, three PDFs instead of one, the
+originals overwritten instead of copied, a letter still saying {Name}, a
+blank PNG passed off as a QR code.
+
+Then every scenario was run through the real tools and scored by its own
+checks: all six pass on Linux. Writing them found two bugs.
+
+- **trim_video was wrong on a differently encoded video.** It cleared each
+  frame's timestamp and let the encoder invent them. On one test video that
+  came out right; on the benchmark's video every frame got the same
+  timestamp, so cutting three seconds out of an eight-second advert saved a
+  0.1-second file. The tool reported the mismatch, because it measures what
+  it wrote, but it was still wrong - and only a second kind of source video
+  showed it. Timestamps are counted now. shrink_video and extract_audio had
+  the same bug waiting in them and are fixed too.
+- Two of the new bench checks were themselves wrong: one looked for the
+  smaller photos only inside the source folder when the tool correctly writes
+  beside it, and excluded files by name when the copies correctly keep their
+  names.
+
+Correction: the wait_done deadline was raised from 20s to 60s earlier and
+described as the fix for an intermittent planner test. That was wrong. When
+that test fails the events are ['requested_task', 'model_call',
+'task_cancelled'] - the task is CANCELLED, so the deadline never comes into
+it. It is not reproduced in isolation and is not understood; both the test
+and the helper now say so instead of carrying a false explanation.
+
 ## Unreleased — tools that existed but nothing pointed at
 
 Auditing the fitting list against the registry found 62 of 136 tools that no

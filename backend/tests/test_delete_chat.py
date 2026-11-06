@@ -26,13 +26,21 @@ def finish(text):
     return json.dumps({"thought": "done", "action": "finish", "final_answer": text})
 
 
-#: 60, not 20. The whole suite is over a thousand tests and takes seven
-#: minutes; under that load a task that normally settles in under a second
-#: occasionally did not make the old 20, and the test failed with "task did not
-#: finish" while passing on its own. A deadline that only holds on an idle
-#: machine reports the machine, not the code. A genuinely stuck task still
-#: fails here, 40 seconds later, and the message now says where it got stuck
-#: so the next failure can be read instead of guessed at.
+#: 60, not 20: a deadline that only holds on an idle machine reports the
+#: machine rather than the code, and the suite is over a thousand tests. The
+#: message names the status it was stuck at, so a timeout can be read instead
+#: of guessed at.
+#:
+#: Honest note, because this was first changed for the wrong reason. It was
+#: raised to explain an intermittent failure in
+#: test_a_real_job_still_goes_through_the_planner, which was assumed to be a
+#: timeout. It is not. When that test fails the events are
+#: ['requested_task', 'model_call', 'task_cancelled'] - the task was
+#: CANCELLED, so wait_done returned at once and never came near any deadline.
+#: The only things that cancel a task are an explicit cancel request and the
+#: app's lifespan shutdown (claw/api/app.py cancels a busy runner on the way
+#: out). It has not been reproduced outside a full-suite run, and it is NOT
+#: fixed by this value. Left raised because it is right on its own merits.
 def wait_done(c, task_id, seconds=60):
     end = time.time() + seconds
     st = "never asked"

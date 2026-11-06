@@ -516,6 +516,169 @@ def scenarios() -> list[dict]:
                     "and 'and'.",
         checks=[("finds the two real themes", answer_has("generator", "power")),
                 ("does not report a stop word as a theme", answer_lacks("'the' appears", "the word \"the\""))])
+
+    # --- v1.9: the everyday jobs added after the first 29 ---------------------
+    #
+    # Each of these was impossible before: Claw could pack a zip and not open
+    # one, read a PDF and not change one, shrink one photo and not a folder
+    # of them. They are the ordinary errands of a small business, and the
+    # checks look at the files that came out rather than at what was said.
+
+    def zipped_setup(f):
+        import zipfile as _zip
+        box = f / "from the supplier.zip"
+        with _zip.ZipFile(box, "w") as z:
+            z.writestr("price list.csv", "item,price\nexercise book,500\nbiro,150\n")
+            z.writestr("photos/front.jpg", b"\xff\xd8 shopfront")
+            z.writestr("terms.txt", "Payment within 30 days.")
+
+    def unpacked_properly(f, d, a, r):
+        names = {q.name for q in f.rglob("*") if q.is_file()}
+        return {"price list.csv", "front.jpg", "terms.txt"} <= names
+
+    add(id="files-open-zip", category="Files and OS", folder="Supplier", setup=zipped_setup, set="v1.9",
+        instruction="Open 'from the supplier.zip' in the 'Supplier' folder inside 'S-CLAW Bench' in my "
+                    "Documents and tell me what is in it.",
+        checks=[("the files were unpacked", unpacked_properly),
+                ("says what is inside", answer_has("price list", "terms", every=False))])
+
+    def invoices_setup(f):
+        for n in (1, 2, 3):
+            put(f, f"invoice {n}.pdf", tiny_pdf([f"INVOICE INV-220{n}", f"Total due: N{n}5,000"]))
+
+    def one_pdf_of_three_pages(f, d, a, r):
+        from pypdf import PdfReader
+        joined = [q for q in f.rglob("*.pdf") if not q.name.startswith("invoice ")]
+        return any(len(PdfReader(str(q)).pages) == 3 for q in joined)
+
+    add(id="docs-join-pdfs", category="Documents", folder="January invoices", setup=invoices_setup, set="v1.9",
+        instruction="Join the three invoices in the 'January invoices' folder inside 'S-CLAW Bench' in my "
+                    "Documents into one PDF I can e-mail.",
+        checks=[("a single 3-page PDF was made", one_pdf_of_three_pages)])
+
+    def big_photos_setup(f):
+        from PIL import Image  # noqa: PLC0415
+        import random as _r
+        rng = _r.Random(11)
+        for i in range(4):
+            img = Image.new("RGB", (3200, 2400), (210, 200, 190))
+            px = img.load()
+            for y in range(0, 2400, 3):
+                for x in range(0, 3200, 3):
+                    px[x, y] = (rng.randrange(256), rng.randrange(256), rng.randrange(256))
+            img.save(f / f"IMG_{3300 + i}.jpg", "JPEG", quality=95)
+
+    def photos_are_smaller(f, d, a, r):
+        # Looks in the folder AND beside it: a tool that writes its output
+        # into a new folder next to the source is behaving correctly - it
+        # keeps re-runs from feeding on their own results - so the check must
+        # not insist the copies land inside the folder of originals.
+        # By PATH, not by name. The smaller copies keep the original file
+        # names - which is what anyone would want - so excluding by name
+        # threw away the very files being looked for.
+        from PIL import Image  # noqa: PLC0415
+        originals = {q.resolve() for q in f.glob("IMG_*.jpg")}
+        where = list(f.rglob("*")) + list(f.parent.rglob("*"))
+        made = [q for q in dict.fromkeys(where)
+                if q.is_file() and q.suffix.lower() in (".jpg", ".jpeg")
+                and q.resolve() not in originals]
+        if len(made) < 4:
+            return False
+        sizes = []
+        for q in made:
+            try:
+                with Image.open(q) as im:
+                    sizes.append(max(im.size))
+            except Exception:  # noqa: BLE001
+                return False
+        return all(s <= 2000 for s in sizes)
+
+    def originals_untouched(f, d, a, r):
+        from PIL import Image  # noqa: PLC0415
+        for q in f.glob("IMG_*.jpg"):
+            with Image.open(q) as im:
+                if max(im.size) != 3200:
+                    return False
+        return True
+
+    add(id="design-shrink-photos", category="Creative", folder="Shop photos", setup=big_photos_setup,
+        set="v1.9",
+        instruction="The photos in the 'Shop photos' folder inside 'S-CLAW Bench' in my Documents are too "
+                    "big to send on WhatsApp. Make smaller copies I can send.",
+        checks=[("smaller copies of all four were made", photos_are_smaller),
+                ("the originals were left alone", originals_untouched)])
+
+    def qr_is_readable(f, d, a, r):
+        try:
+            import zxingcpp  # noqa: PLC0415
+            from PIL import Image  # noqa: PLC0415
+        except Exception:  # noqa: BLE001
+            return False
+        for q in f.rglob("*.png"):
+            try:
+                found = zxingcpp.read_barcode(Image.open(q))
+            except Exception:  # noqa: BLE001
+                continue
+            if found and "adestationery" in (found.text or "").lower():
+                return True
+        return False
+
+    add(id="design-qr-code", category="Creative", folder="Shop signs", setup=lambda f: None, set="v1.9",
+        instruction="Make a QR code for https://adestationery.ng/catalogue and save it in the 'Shop signs' "
+                    "folder inside 'S-CLAW Bench' in my Documents, so customers can scan it.",
+        checks=[("a QR code that really scans to that address", qr_is_readable)])
+
+    def merge_setup(f):
+        put(f, "customers.csv",
+            "Name,Amount,Due date\nAde Stores,\"N15,000\",5 January\n"
+            "Bola Ventures,\"N7,500\",9 January\nChidi Ltd,\"N45,500\",11 January\n")
+        put(f, "reminder.txt",
+            "Dear {Name},\n\nYour balance of {Amount} is due on {Due date}.\n\nAde Stationery\n")
+
+    def one_letter_each(f, d, a, r):
+        made = [q for q in f.rglob("*") if q.is_file() and q.suffix.lower() in (".txt", ".docx")
+                and q.name != "reminder.txt"]
+        if len(made) < 3:
+            return False
+        bodies = []
+        for q in made:
+            try:
+                bodies.append(q.read_text(encoding="utf-8", errors="replace"))
+            except Exception:  # noqa: BLE001
+                return False
+        joined = "\n".join(bodies)
+        # Each customer named once, each amount with its own letter, and no
+        # placeholder left anywhere.
+        return (all(n in joined for n in ("Ade Stores", "Bola Ventures", "Chidi Ltd"))
+                and all(v in joined for v in ("15,000", "7,500", "45,500"))
+                and "{Name}" not in joined and "{Amount}" not in joined)
+
+    add(id="docs-mail-merge", category="Documents", folder="Reminders", setup=merge_setup, set="v1.9",
+        instruction="Using 'reminder.txt' as the template and 'customers.csv' as the list, in the "
+                    "'Reminders' folder inside 'S-CLAW Bench' in my Documents, make one reminder letter "
+                    "for each customer.",
+        checks=[("a letter for every customer, filled in", one_letter_each)])
+
+    def clip_setup(f):
+        _make_test_video(f / "advert.mp4", seconds=8)
+
+    def a_short_clip_exists(f, d, a, r):
+        made = [q for q in f.rglob("*.mp4") if q.name != "advert.mp4"]
+        for q in made:
+            try:
+                import av  # noqa: PLC0415
+                with av.open(str(q)) as c:
+                    seconds = float(c.duration / 1_000_000) if c.duration else 0.0
+            except Exception:  # noqa: BLE001
+                continue
+            if 2.0 <= seconds <= 4.5:
+                return True
+        return False
+
+    add(id="media-trim-clip", category="Media", folder="Advert", setup=clip_setup, set="v1.9",
+        instruction="Cut the first 3 seconds out of 'advert.mp4' in the 'Advert' folder inside "
+                    "'S-CLAW Bench' in my Documents.",
+        checks=[("a roughly 3-second clip was saved", a_short_clip_exists)])
     return S
 
 

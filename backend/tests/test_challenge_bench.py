@@ -244,3 +244,105 @@ def test_word_tally_check_tells_a_real_theme_from_a_stop_word(tmp_path):
     assert not all(run_checks(s, f, tmp_path, "The most common word is 'shift'."))
     assert not all(run_checks(s, f, tmp_path,
                               "Most common: 'the' appears 9 times, then generator and power."))
+
+
+# --- v1.9: the everyday jobs ------------------------------------------------
+#
+# Same discipline as above: a check that only ever says yes measures nothing.
+# Each of these is shown rejecting the wrong answer as well as accepting the
+# right one, and the wrong answers are the plausible ones - the folder left
+# unpacked, three separate PDFs instead of one, the originals overwritten
+# instead of copied, a letter still saying {Name}.
+
+async def _run(ctx, name, **kw):
+    from claw.tools.registry import build_registry
+    spec = build_registry().get(name)
+    return await spec.handler(spec.args_model(**kw), ctx)
+
+
+def test_zip_check_wants_the_files_out(tmp_path):
+    s = by_id()["files-open-zip"]
+    f = fresh(tmp_path, s)
+    assert not all(run_checks(s, f, tmp_path, "There is a price list and some photos."))
+    import zipfile
+    with zipfile.ZipFile(f / "from the supplier.zip") as z:
+        z.extractall(f / "out")
+    assert all(run_checks(s, f, tmp_path, "A price list, a photo and the terms."))
+
+
+def test_join_pdfs_check_rejects_three_separate_files(tmp_path):
+    """Copying the invoices somewhere is not joining them."""
+    from pypdf import PdfReader, PdfWriter
+    s = by_id()["docs-join-pdfs"]
+    f = fresh(tmp_path, s)
+    assert not all(run_checks(s, f, tmp_path, "Done."))
+
+    # A wrong answer: one PDF per invoice, renamed.
+    for n in (1, 2, 3):
+        w = PdfWriter()
+        w.append(PdfReader(str(f / f"invoice {n}.pdf")))
+        with open(f / f"combined {n}.pdf", "wb") as fh:
+            w.write(fh)
+    assert not all(run_checks(s, f, tmp_path, "Done.")), "three files passed as one"
+
+    w = PdfWriter()
+    for n in (1, 2, 3):
+        w.append(PdfReader(str(f / f"invoice {n}.pdf")))
+    with open(f / "all invoices.pdf", "wb") as fh:
+        w.write(fh)
+    assert all(run_checks(s, f, tmp_path, "Joined into one PDF."))
+
+
+def test_photo_check_rejects_overwriting_the_originals(tmp_path):
+    """Shrinking in place destroys the only copy. It must not count as done."""
+    from PIL import Image
+    s = by_id()["design-shrink-photos"]
+    f = fresh(tmp_path, s)
+    assert not all(run_checks(s, f, tmp_path, "Done."))
+
+    for q in list(f.glob("IMG_*.jpg")):
+        with Image.open(q) as im:
+            im.resize((1600, 1200)).save(q, "JPEG", quality=82)
+    assert not all(run_checks(s, f, tmp_path, "Done.")), "overwriting the originals passed"
+
+
+def test_mail_merge_check_rejects_a_letter_still_holding_a_placeholder(tmp_path):
+    s = by_id()["docs-mail-merge"]
+    f = fresh(tmp_path, s)
+    out = f / "letters"
+    out.mkdir()
+    # The failure that reaches the customer.
+    for name in ("Ade Stores", "Bola Ventures", "Chidi Ltd"):
+        (out / f"{name}.txt").write_text(
+            "Dear {Name},\n\nYour balance of {Amount} is due on {Due date}.\n", encoding="utf-8")
+    assert not all(run_checks(s, f, tmp_path, "Done.")), "unfilled letters passed"
+
+    for name, amount, due in (("Ade Stores", "N15,000", "5 January"),
+                              ("Bola Ventures", "N7,500", "9 January"),
+                              ("Chidi Ltd", "N45,500", "11 January")):
+        (out / f"{name}.txt").write_text(
+            f"Dear {name},\n\nYour balance of {amount} is due on {due}.\n", encoding="utf-8")
+    assert all(run_checks(s, f, tmp_path, "Made three letters."))
+
+
+def test_qr_check_needs_a_code_that_really_scans(tmp_path):
+    """A PNG in the folder is not a QR code."""
+    import pytest as _pytest
+    try:
+        import zxingcpp  # noqa: F401
+    except Exception:  # noqa: BLE001
+        _pytest.skip("no QR reader installed")
+    import segno
+    from PIL import Image
+
+    s = by_id()["design-qr-code"]
+    f = fresh(tmp_path, s)
+    Image.new("RGB", (400, 400), (255, 255, 255)).save(f / "not a qr.png")
+    assert not all(run_checks(s, f, tmp_path, "Made it.")), "a blank picture passed as a QR code"
+
+    segno.make("https://example.com/wrong", error="h").save(str(f / "wrong.png"), scale=8, border=4)
+    assert not all(run_checks(s, f, tmp_path, "Made it.")), "a code for the wrong address passed"
+
+    segno.make("https://adestationery.ng/catalogue", error="h").save(
+        str(f / "catalogue.png"), scale=8, border=4)
+    assert all(run_checks(s, f, tmp_path, "Made it."))

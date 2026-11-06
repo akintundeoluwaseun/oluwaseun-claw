@@ -155,7 +155,14 @@ def test_a_real_job_still_goes_through_the_planner(make_client, fake_server):
 
     assert fake_server.requests, "a real job skipped the brain entirely"
     kinds = [e["kind"] for e in c.get(f"/tasks/{tid}/events").json()["events"]]
-    assert "planned" in kinds, "the job did not reach the planner"
+    # Known intermittent, only in a full-suite run, roughly twice in twenty:
+    # kinds comes back ['requested_task', 'model_call', 'task_cancelled'].
+    # Something cancels the task. The only cancel paths are an explicit
+    # cancel request and the app's lifespan shutdown, which cancels a busy
+    # runner on the way out (claw/api/app.py). Not yet reproduced in
+    # isolation, and not a fault in what this test is checking - but it is
+    # NOT understood, so it is written down here rather than explained away.
+    assert "planned" in kinds, f"the job did not reach the planner: {kinds}"
     assert "chat_reply" not in kinds
 
 

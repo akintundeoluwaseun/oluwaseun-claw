@@ -211,3 +211,47 @@ async def test_shrinking_gets_under_the_limit_and_keeps_the_length(tool_ctx):
     assert out.stat().st_size < size_before, "it did not get smaller"
     assert abs(seconds_of(out) - 6) <= 1.2, "shrinking changed how long it is"
     assert (d / "big.mp4").stat().st_size == size_before, "the original was changed"
+
+
+async def test_trimming_is_right_on_a_differently_encoded_video(tool_ctx):
+    """The bug this guards: it worked on one fixture and not another.
+
+    The first version cleared each frame's timestamp and let the encoder
+    invent them. On the video this file builds that happened to come out
+    right; on the benchmark's video every frame was given the same
+    timestamp, so cutting three seconds out of an eight-second advert saved
+    a 0.1-second file. The tool reported the mismatch, because it measures
+    what it wrote - but it was still wrong, and only a second kind of source
+    video showed it. Timestamps are counted now rather than guessed.
+    """
+    import sys
+    from pathlib import Path as _Path
+    sys.path.insert(0, str(_Path(__file__).resolve().parents[2] / "scripts"))
+    import challenge_bench as cb
+
+    d = folder(tool_ctx, "Advert")
+    cb._make_test_video(d / "advert.mp4", seconds=8)
+
+    r = await call(tool_ctx, "trim_video", path=str(d / "advert.mp4"), start="0", end="3")
+    assert 2.5 <= seconds_of(Path(r.data["path"])) <= 3.5, \
+        f"asked for 3 s, got {seconds_of(Path(r.data['path']))}"
+    assert r.verified, "the tool should have measured this as correct"
+
+    # And from the middle, not only from zero.
+    r2 = await call(tool_ctx, "trim_video", path=str(d / "advert.mp4"), start="2", end="5")
+    assert 2.5 <= seconds_of(Path(r2.data["path"])) <= 3.5
+
+
+async def test_shrinking_keeps_the_length_on_that_video_too(tool_ctx):
+    """shrink_video had the same timestamp bug waiting in it."""
+    import sys
+    from pathlib import Path as _Path
+    sys.path.insert(0, str(_Path(__file__).resolve().parents[2] / "scripts"))
+    import challenge_bench as cb
+
+    d = folder(tool_ctx, "Advert2")
+    cb._make_test_video(d / "big.mp4", seconds=6)
+    size = (d / "big.mp4").stat().st_size
+    r = await call(tool_ctx, "shrink_video", path=str(d / "big.mp4"),
+                   target_mb=max(0.1, size / 2**20 / 3))
+    assert abs(seconds_of(Path(r.data["path"])) - 6) <= 1.2, "shrinking changed the length"
