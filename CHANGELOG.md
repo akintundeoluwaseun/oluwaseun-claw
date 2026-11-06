@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — every spreadsheet prints properly
+
+- The one-page-across fix now applies to every workbook Claw writes, not just
+  invoices: pivot tables, charts, break-even and forecast models, outlier
+  reports and combined tables. A break-even model's chart was being cut in
+  half down the right-hand edge. These are made to be shown to somebody - a
+  bank, a manager, a customer - and the file being right is no use when the
+  printout is wrong. Wide tables turn landscape; long ones still run to as
+  many pages down as they need.
+
 ## Unreleased — invoices can carry a discount
 
 - The printed invoice was missing every figure. The four columns come to about

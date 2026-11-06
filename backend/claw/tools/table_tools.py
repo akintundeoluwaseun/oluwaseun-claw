@@ -132,7 +132,33 @@ def write_table(path: Path, header: list[str], rows: list[list[Any]], sheet: str
     for i, h in enumerate(header, 1):
         width = max([len(str(h))] + [len(str(r[i - 1])) for r in rows[:500] if i - 1 < len(r)])
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = min(48, max(9, width + 2))
+    fit_to_page(ws, openpyxl.utils.get_column_letter(len(header)), len(rows) + 1)
     wb.save(path)
+
+
+def fit_to_page(ws: Any, last_column: str = "", last_row: int = 0) -> None:
+    """Make a sheet print one page across.
+
+    Everything here is made to be looked at by somebody other than the person
+    who asked for it - an invoice goes to a customer, a break-even model to a
+    bank, a summary to a manager - and a wide sheet silently puts its last
+    columns on a page of their own. The file is right and the printout is
+    wrong, which is the harder of the two to notice: every test reads the
+    file. An invoice was reaching the printer with no Amount column at all.
+
+    Down is left alone (fitToHeight 0): a long table should run to more pages,
+    not be scaled until nobody can read it.
+    """
+    from openpyxl.worksheet.properties import PageSetupProperties  # noqa: PLC0415
+    if last_column and last_row:
+        ws.print_area = f"A1:{last_column}{last_row}"
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
+    # A table wider than it is tall prints better on its side; below that,
+    # portrait keeps more rows on the page.
+    if last_column and len(last_column) == 1 and ord(last_column) - ord("A") >= 6:
+        ws.page_setup.orientation = "landscape"
 
 
 def _cell(v: Any) -> Any:
@@ -447,6 +473,8 @@ async def add_chart(args: ChartArgs, ctx: ToolContext) -> ToolResult:
         chart.set_categories(Reference(ws, min_col=1, min_row=2, max_row=n + 1))
         chart.width, chart.height = 18, 9
         ws.add_chart(chart, "D2")
+        for _sheet in wb.worksheets:   # print one page across, see fit_to_page
+            fit_to_page(_sheet)
         wb.save(out)
         back = openpyxl.load_workbook(out)
         charts = len(back["Chart"]._charts)
@@ -545,6 +573,8 @@ async def build_model(args: ModelArgs, ctx: ToolContext) -> ToolResult:
             ch.set_categories(Reference(ws, min_col=1, min_row=first, max_row=last))
             ws.add_chart(ch, "F2")
             ws.column_dimensions["A"].width = 24
+            for _sheet in wb.worksheets:   # print one page across, see fit_to_page
+                fit_to_page(_sheet)
             wb.save(out)
             back = openpyxl.load_workbook(out)["Break-even"]
             return out, back["B6"].value == "=B2/B5"
@@ -588,6 +618,8 @@ async def build_model(args: ModelArgs, ctx: ToolContext) -> ToolResult:
         ch.add_data(Reference(ws, min_col=2, max_col=3, min_row=1, max_row=n + args.periods + 1), titles_from_data=True)
         ch.set_categories(Reference(ws, min_col=1, min_row=2, max_row=n + args.periods + 1))
         ws.add_chart(ch, "E2")
+        for _sheet in wb.worksheets:   # print one page across, see fit_to_page
+            fit_to_page(_sheet)
         wb.save(out)
         return out
 
