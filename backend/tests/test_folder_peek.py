@@ -114,3 +114,34 @@ def test_pasting_a_folder_never_wakes_the_brain(make_client, fake_server, tmp_pa
     assert fake_server.requests == [], "the brain was woken to list a directory"
     assert "planned" not in kinds and "model_call" not in kinds, kinds
     assert "chat_reply" in kinds
+
+
+def test_the_next_message_still_knows_which_folder(make_client, fake_server, tmp_path):
+    """The point of the peek: paste a folder, then say what to do with it.
+
+    The planner must see the path in the second message without the person
+    typing it again - otherwise the fast answer has cost them the context.
+    """
+    here = tmp_path / "Pictures"
+    here.mkdir()
+    (here / "one.jpg").write_text("x")
+    (here / "two.jpg").write_text("x")
+    settings = settings_for(fake_server)
+    settings["permissions"] = {"authorized_folders": [str(here)]}
+
+    c = make_client(settings).__enter__()
+    first = c.post("/tasks/run", json={"task": str(here)}).json()["id"]
+    assert wait_done(c, first) == "completed"
+    thread = c.get(f"/tasks/{first}").json()["thread_id"]
+
+    fake_server.replies.clear()
+    fake_server.requests.clear()
+    fake_server.replies += [json.dumps({**VALID_PLAN, "title": "Flyer from the pictures"}),
+                            finish("Made it.")]
+    second = c.post("/tasks/run", json={"task": "make a flyer from the pictures in there",
+                                        "thread_id": thread}).json()["id"]
+    wait_done(c, second)
+
+    asked = json.dumps(fake_server.requests)
+    assert str(here) in asked, "the planner was not told which folder"
+    assert "one.jpg" in asked or "2 files" in asked, "what is in the folder was not carried over"
