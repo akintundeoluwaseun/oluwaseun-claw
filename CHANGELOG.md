@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased — the four video jobs that needed an editor
+
+131 to 135. All on PyAV, already inside S-CLAW, so no editor and no
+ffmpeg.exe to install.
+
+- trim_video: cut out the part that matters. Times are written the way the
+  player shows them - 30, 1:30, 00:01:30 or 2m30s. The span is re-encoded
+  rather than copied: copying can only start on a keyframe, so "from 1:30"
+  quietly becomes "from 1:27" or the clip opens on a grey smear.
+- extract_audio: the sound on its own as mp3, m4a or wav, for a podcast, a
+  voice note or a transcript. A silent video says so instead of writing an
+  empty file.
+- grab_frame: one still, for a thumbnail. The test takes two frames from
+  different moments and checks they are actually different pictures, so
+  "at 5 seconds" cannot be quietly ignored.
+- shrink_video: small enough for WhatsApp, which stops at about 16 MB. Works
+  out the bit rate from the length, drops to 720p when bigger, and measures
+  the saved file to confirm it is under the limit. A video already small
+  enough is left alone and no file is written.
+
 ## Unreleased — opening archives, folders of photos, QR codes
 
 Five more tools. 126 to 131.
