@@ -312,13 +312,47 @@ def check_sheet(args: SheetArgs, ctx: ToolContext) -> None:
     resolve_folder(ctx, args.folder)
 
 
+def _looks_numeric(text: str) -> bool:
+    """A number as written in a cell: 15000, 1,200.50, -3.5, 75%.
+
+    A currency letter in front ("N15,000") is left as text on purpose: it is
+    rarer, and checking it costs nothing.
+
+    Spaces are NOT removed. "0803 111 2233" would otherwise read as a number,
+    and an invented phone number is exactly what this check is for.
+    """
+    stripped = text.strip().strip("%").replace(",", "")
+    stripped = stripped.lstrip("₦$£€+-")
+    try:
+        float(stripped)
+    except ValueError:
+        return False
+    return True
+
+
 def provenance(rows: list[list[Cell]], corpus: str) -> tuple[int, int, list[str]]:
-    """How many text values appear in what Claw read. Short/numeric values are not counted."""
+    """How many text values appear in what Claw read. Short/numeric values are not counted.
+
+    This exists to catch a brain inventing values beyond the document it was
+    given. It only means anything when Claw HAS read something: with an empty
+    corpus every value "fails", so asking for a spreadsheet of figures the
+    person typed themselves came back saying "0 of 4 text values match what
+    Claw read" and "4 of 4 were not found... Check them." Nothing was wrong -
+    there was simply nothing to check against, and the warning sent the person
+    looking for a problem that did not exist.
+    """
     haystack = _norm(corpus)
+    if not haystack.strip():
+        return 0, 0, []
     checked, found, missing = 0, 0, []
     for row in rows:
         for v in row:
-            if not isinstance(v, str) or len(v.strip()) < 4:
+            text = v.strip() if isinstance(v, str) else ""
+            # "Short/numeric values are not counted", as the docstring has
+            # always said - but a number typed as a string ("15000") was being
+            # counted, and asking whether it appears in a document is a weak
+            # question that mostly produces false warnings.
+            if len(text) < 4 or _looks_numeric(text):
                 continue
             checked += 1
             if _norm(v) in haystack:

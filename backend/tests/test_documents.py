@@ -249,3 +249,24 @@ async def test_spreadsheet_name_decides_the_kind_of_file(tool_ctx, folder, name,
         assert out.read_text(encoding="utf-8-sig").splitlines()[0] == "A,B"
     else:
         assert out.read_bytes()[:2] == b"PK"  # a real xlsx is a zip
+
+
+def test_provenance_says_nothing_when_there_was_nothing_to_check_against():
+    """A spreadsheet of figures the person typed is not a fabrication.
+
+    provenance exists to catch a brain inventing values beyond the document it
+    was given. With an empty corpus every value "fails", so "create a
+    spreadsheet of these two rows" came back saying "0 of 4 text values match
+    what Claw read" and "4 of 4 were not found... Check them." Nothing was
+    wrong; there was nothing to check against, and the warning sent the person
+    hunting a problem that did not exist.
+    """
+    from claw.tools.document_tools import provenance
+
+    rows = [["Banner", "15000"], ["Poster brief", "1200"]]
+    assert provenance(rows, "") == (0, 0, [])
+    assert provenance(rows, "   \n  ") == (0, 0, [])
+
+    # With something read, it still does its job in both directions.
+    checked, found, missing = provenance(rows, "the Banner costs 15000")
+    assert checked == 2 and found == 1 and missing == ["Poster brief"]
