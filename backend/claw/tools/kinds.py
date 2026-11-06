@@ -26,7 +26,7 @@ MAKES_FILES = frozenset({
     # cover a tool that downloads twenty-five documents into a folder.
     "make_poster", "make_collage", "brighten_photo", "passport_photo", "product_shadow", "compare_designs",
     "pivot_table", "filter_rows", "reconcile_tables", "find_outliers", "collect_documents",
-    "make_document",
+    "make_document", "make_part",
 })
 CHANGES_FILES = frozenset({"move_file", "rename_file", "edit_text_file", "sort_into_folders", "rename_many"})
 

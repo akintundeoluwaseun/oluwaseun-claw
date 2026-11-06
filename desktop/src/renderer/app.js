@@ -38,7 +38,7 @@ const TOOL_LABEL = {
   make_flyer: 'Made a flyer', make_campaign: 'Made a campaign in several sizes', make_motion_video: 'Made a video', combine_tables: 'Combined tables', find_duplicate_files: 'Looked for duplicate files', sort_into_folders: 'Sorted files into folders', list_startup_apps: 'Listed startup programs', top_memory: 'Checked memory use', find_broken_shortcuts: 'Checked shortcuts', rename_many: 'Renamed files', archive_folder: 'Made an archive', make_presentation: 'Made a presentation', make_3d_render: 'Rendered in 3D', compare_pages: 'Compared web pages', reformat_video: 'Made a new video shape', find_black_frames: 'Looked for black frames', cut_silence: 'Cut the silences', normalize_audio: 'Levelled the sound', check_links: 'Checked links', page_changes: 'Checked a page for changes', export_pdf: 'Saved a PDF', compare_folders: 'Compared two folders', remove_duplicates: 'Removed duplicates', table_totals: 'Added up a column', add_chart: 'Added a chart', build_model: 'Built a model', edit_image: 'Edited a picture', inspect_image: 'Checked a picture',
   fill_field: 'Filled in a form field', download_file: 'Downloaded a file', copy_files: 'Copied files',
   collect_documents: 'Collected the documents', find_contacts: 'Looked up the contact details',
-  make_document: 'Made the document',
+  make_document: 'Made the document', make_part: 'Made the 3D part',
   check_file: 'Checked a file', scroll: 'Scrolled', choose_menu: 'Chose a menu item', wait_for_window: 'Waited for a window',
   /* Calendar, memory, files and the small utilities. A third of the registry
      had no entry here, so a third of everything Claw did announced itself to
@@ -78,6 +78,7 @@ const TOOL_ASK = {
   fill_field: 'Fill in a form field', download_file: 'Download a file', copy_files: 'Copy files', choose_menu: 'Choose a menu item',
   collect_documents: 'Download the documents from these pages',
   make_document: 'Make the invoice or quotation',
+  make_part: 'Make the 3D part',
   /* Only the ones that can stop and ask: a READ_ONLY tool never reaches an
      approval card, so giving it a question here would be dead text. */
   create_event: 'Add a calendar event', cancel_event: 'Cancel a calendar event',
