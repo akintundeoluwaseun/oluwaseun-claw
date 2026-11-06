@@ -26,6 +26,17 @@ from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, Tool
 from claw.tools.file_tools import resolve_folder, safe_file_name, unique_path
 
 TEXT_EXTS = {".txt", ".md", ".csv", ".json", ".html"}
+#: Everything edit_text_file will touch. Code is here because run_script now
+#: WRITES code - a .py file Claw made itself, in the person's own folder, that
+#: it then could not fix a line of. An agent that can write a program and not
+#: correct it is not much of an agent.
+#:
+#: Deliberately not here: .env and anything else whose whole purpose is to hold
+#: secrets, and binary formats, which a text replace would corrupt.
+EDITABLE = TEXT_EXTS | {
+    ".log", ".ini", ".yaml", ".yml", ".toml", ".css", ".js",
+    ".py", ".ts", ".tsx", ".jsx", ".sql", ".xml", ".svg", ".scad", ".bat", ".ps1", ".sh",
+}
 Cell = str | int | float | bool | None
 
 
@@ -447,8 +458,10 @@ def _edit_target(ctx: ToolContext, raw: str) -> Path:
         raise ToolError(str(exc)) from exc
     if not path.is_file():
         raise ToolError(f"'{path}' is not a file.")
-    if path.suffix.lower() not in TEXT_EXTS | {".log", ".ini", ".yaml", ".yml", ".toml", ".css", ".js"}:
-        raise ToolError("Claw can only edit plain text files for now.")
+    if path.suffix.lower() not in EDITABLE:
+        kinds = ", ".join(sorted(EDITABLE))
+        raise ToolError(f"Claw edits plain text files, not {path.suffix or 'files with no extension'}. "
+                        f"It can edit: {kinds}.")
     if path.stat().st_size > 5_000_000:
         raise ToolError("The file is too large to edit.")
     return path

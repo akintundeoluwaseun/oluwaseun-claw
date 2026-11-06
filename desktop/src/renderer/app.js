@@ -39,7 +39,7 @@ const TOOL_LABEL = {
   fill_field: 'Filled in a form field', download_file: 'Downloaded a file', copy_files: 'Copied files',
   collect_documents: 'Collected the documents', find_contacts: 'Looked up the contact details',
   make_document: 'Made the document', make_part: 'Made the 3D part', read_picture: 'Looked at the picture',
-  run_command: 'Ran a program', run_script: 'Wrote and ran a program',
+  run_command: 'Ran a program', run_script: 'Wrote and ran a program', search_in_folder: 'Searched the folder',
   check_file: 'Checked a file', scroll: 'Scrolled', choose_menu: 'Chose a menu item', wait_for_window: 'Waited for a window',
   /* Calendar, memory, files and the small utilities. A third of the registry
      had no entry here, so a third of everything Claw did announced itself to
@@ -82,6 +82,7 @@ const TOOL_ASK = {
   make_part: 'Make the 3D part',
   run_command: 'Run a program on this computer',
   run_script: 'Write a small program and run it',
+  search_in_folder: 'Search this folder',
   /* Only the ones that can stop and ask: a READ_ONLY tool never reaches an
      approval card, so giving it a question here would be dead text. */
   create_event: 'Add a calendar event', cancel_event: 'Cancel a calendar event',

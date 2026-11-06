@@ -831,7 +831,16 @@ _RANK_STOP = frozenset({
 
 
 def _rank_words(text: str) -> set[str]:
-    return {w for w in re.findall(r"[a-z]{3,}", text.lower())} - _RANK_STOP
+    """Words worth matching on, with a plural and its singular treated as one.
+
+    "folder" and "folders", "file" and "files" are the same word for this
+    purpose, and not matching them cost real rankings: find_files has
+    "folders" in its description and the request said "folder", so they missed
+    each other entirely. Measured over six real requests, folding the trailing
+    s improves the rank of the wanted tool overall (sum 12 against 13).
+    """
+    words = {w for w in re.findall(r"[a-z]{3,}", text.lower())} - _RANK_STOP
+    return {w[:-1] if len(w) > 3 and w.endswith("s") else w for w in words}
 
 
 def tool_relevance(task: str, spec: ToolSpec, registry: ToolRegistry | None = None) -> float:

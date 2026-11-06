@@ -89,6 +89,86 @@ async def count_text(args: CountArgs, ctx: ToolContext) -> ToolResult:
     )
 
 
+# ---------- search_in_folder ----------
+#: Searching ONE file was the only way to look inside anything. That is not how
+#: you find your way around a folder of work - you ask "where does this word
+#: appear?" and get a list of files and lines back. Without it the only way to
+#: search a folder was to read every file in turn, which on a 2B brain means
+#: filling the context window with files that had nothing in them.
+MAX_FILES_SEARCHED = 400
+MAX_FILE_BYTES = 4_000_000
+#: Looked inside. Everything else (pictures, video, archives, executables) is
+#: counted and skipped rather than decoded as mangled text.
+SEARCHABLE = {
+    ".txt", ".md", ".csv", ".tsv", ".json", ".html", ".htm", ".xml", ".svg",
+    ".log", ".ini", ".cfg", ".conf", ".yaml", ".yml", ".toml",
+    ".py", ".js", ".ts", ".tsx", ".jsx", ".css", ".scss", ".sql", ".sh", ".bat", ".ps1",
+    ".c", ".h", ".cpp", ".java", ".cs", ".go", ".rs", ".rb", ".php", ".scad",
+}
+
+
+class SearchFolderArgs(ToolArgs):
+    folder: str | None = Field(default=None, max_length=500, description="Folder to search")
+    query: str = Field(min_length=1, max_length=200, description="The word or phrase to look for")
+    pattern: str = Field(default="", max_length=60, description='Only these files, e.g. "*.py"')
+    match_case: bool = False
+    whole_words: bool = Field(default=False, description='"Claw" but not "Claws"')
+
+
+async def search_in_folder(args: SearchFolderArgs, ctx: ToolContext) -> ToolResult:
+    """Find which files in a folder contain a word, and on which lines."""
+    from fnmatch import fnmatch  # noqa: PLC0415
+
+    from claw.tools.file_tools import existing_folder  # noqa: PLC0415
+
+    folder = existing_folder(ctx, args.folder)
+    rx = re.compile(rf"\b{re.escape(args.query)}\b" if args.whole_words else re.escape(args.query),
+                    0 if args.match_case else re.IGNORECASE)
+
+    def work():
+        hits: list[dict] = []
+        looked = skipped = total = 0
+        for path in sorted(folder.rglob("*")):
+            if looked >= MAX_FILES_SEARCHED:
+                break
+            if not path.is_file():
+                continue
+            if args.pattern and not fnmatch(path.name.lower(), args.pattern.lower()):
+                continue
+            if path.suffix.lower() not in SEARCHABLE or path.stat().st_size > MAX_FILE_BYTES:
+                skipped += 1
+                continue
+            looked += 1
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                skipped += 1
+                continue
+            lines = []
+            for n, line in enumerate(text.splitlines(), 1):
+                found = len(rx.findall(line))
+                if found:
+                    total += found
+                    if len(lines) < 5:
+                        lines.append({"line": n, "text": line.strip()[:200]})
+            if lines:
+                hits.append({"file": str(path.relative_to(folder)), "lines": lines})
+        return hits, looked, skipped, total
+
+    hits, looked, skipped, total = await asyncio.to_thread(work)
+    listing = "\n".join(
+        f"{h['file']}\n" + "\n".join(f"  line {m['line']}: {m['text']}" for m in h["lines"])
+        for h in hits[:40])
+    where = f"{len(hits)} file(s)" if hits else "no files"
+    summary = (f"'{args.query}' appears {total} time(s) in {where}, out of {looked} searched"
+               + (f" ({skipped} skipped: pictures, video and the like)" if skipped else "") + ".")
+    return ToolResult(True, summary,
+                      {"folder": str(folder), "query": args.query, "occurrences": total,
+                       "files": hits[:40], "searched": looked, "skipped": skipped,
+                       "found": bool(hits)},
+                      verified=True, untrusted_text=listing or "(nothing matched)")
+
+
 # ---------- search_in_file ----------
 class SearchFileArgs(ToolArgs):
     path: str = Field(min_length=1, max_length=500)
@@ -502,6 +582,9 @@ def register_text_tools(reg: ToolRegistry) -> None:
     F, R, W = Capability.FILES, RiskLevel.READ_ONLY, RiskLevel.LOCAL_WRITE
     reg.register(ToolSpec("count_text", "Count the words, characters and lines in a file.",
                           F, R, CountArgs, count_text))
+    reg.register(ToolSpec("search_in_folder",
+                          "Find which files in a folder contain a word or phrase, and on which lines.",
+                          Capability.FILES, RiskLevel.READ_ONLY, SearchFolderArgs, search_in_folder))
     reg.register(ToolSpec("search_in_file", "Find every line of a file containing a word or phrase.",
                           F, R, SearchFileArgs, search_in_file))
     reg.register(ToolSpec("extract_emails", "List the e-mail addresses in a file, optionally saving them.",

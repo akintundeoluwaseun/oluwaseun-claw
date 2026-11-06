@@ -120,3 +120,25 @@ def test_every_capability_still_fits_the_window_it_has_to_fit():
     for cap in ("files", "data", "documents", "organiser", "desktop", "browser"):
         task = "Make a promotional flyer for my business and save it in Documents"
         assert estimate_tokens(tool_catalogue(REG, {cap}, task=task)) < 2000, cap
+
+
+def test_a_plural_and_its_singular_are_the_same_word():
+    """find_files says "folders" in its description; a request says "folder".
+
+    They missed each other entirely, so adding search_in_folder - which has
+    "folder" in its NAME - pushed find_files down the list for "find every PDF
+    in my Documents folder". Folding the trailing s improves the rank of the
+    wanted tool across six real requests (sum 12 against 13).
+    """
+    from claw.agent.executor import _rank_words
+
+    assert _rank_words("folders") == _rank_words("folder")
+    assert _rank_words("the files") == _rank_words("a file")
+    # Short words are left alone, so "css" does not become "cs".
+    assert "css" in _rank_words("the css file")
+
+
+def test_the_tool_for_finding_files_is_not_buried_by_the_one_for_searching_them():
+    task = "Find every PDF in my Documents folder and list them by date"
+    order = detailed(tool_catalogue(REG, {"files"}, task=task))
+    assert "find_files" in order[:3], order[:5]
