@@ -30,8 +30,13 @@ Rules:
   duplicates, totals, charts, break-even and forecast models), "design" (making a picture: posters, video
   thumbnails, magazine covers, collages, product shots, comparing two versions), "organiser" (the calendar,
   reminders, today's agenda, and what Claw remembers about the person), "code" (running a program on this
-  computer, or writing a small script and running it - only when the job genuinely cannot be done by the
-  other tools), or "reasoning" (thinking, comparing).
+  computer, or writing a small script and running it), or "reasoning" (thinking, comparing).
+- Prefer a purpose-built capability when one fits the whole job: "data" for a total, "design" for a poster,
+  "files" for finding or moving files. But a job with no capability shaped like it is "code", not a refusal
+  and not a worse plan built out of the wrong tools. Jobs that usually need "code": renaming or numbering
+  many files in a particular order, splitting or reshaping a table by the value in a column, working out a
+  checksum, tallying words or values across many files, converting a folder of files one by one, or
+  anything the person describes with "for each" or "and so on".
 - Pick the narrowest capability that fits the step. It decides which tools the agent can see.
 - Give each step a risk level:
   "read_only" for looking/reading/searching; "local_write" for creating or editing files or typing into apps;

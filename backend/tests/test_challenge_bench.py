@@ -115,3 +115,132 @@ def test_web_scenario_serves_its_pages(tmp_path):
         assert "FixIt Laptops" in urllib.request.urlopen(f"{base}/fixit.html", timeout=5).read().decode()
     finally:
         srv.shutdown()
+
+
+# --- v1.8: the program-writing scenarios ------------------------------------
+#
+# Same job as the checks above: prove the ruler is straight before trusting a
+# number it produces. These four scenarios have no tool of their own, so a
+# pass genuinely means S-CLAW wrote a program and ran it. That makes a
+# too-lenient check expensive: it would report a general capability the app
+# does not have, which is the one thing the benchmark exists to prevent.
+
+import hashlib
+import os
+import time
+
+
+def _utime(p, day):
+    t = time.mktime(time.strptime(day, "%Y-%m-%d"))
+    os.utime(p, (t, t))
+
+
+def test_rename_check_wants_date_order_not_just_tidy_names(tmp_path):
+    s = by_id()["code-rename-sequence"]
+    f = fresh(tmp_path, s)
+    taken = sorted(f.iterdir(), key=lambda q: q.stat().st_mtime)
+
+    # Nothing renamed yet.
+    assert not all(run_checks(s, f, tmp_path, ""))
+
+    # Correct: numbered in the order the photos were taken.
+    for i, q in enumerate(taken, 1):
+        q.rename(f / f"Wedding {i:03d}{q.suffix}")
+    assert all(run_checks(s, f, tmp_path, "Renamed 7 photos.")), "a correct rename was marked wrong"
+
+
+def test_rename_check_rejects_alphabetical_order(tmp_path):
+    """The trap: renaming by name is tidy, looks right, and is wrong."""
+    s = by_id()["code-rename-sequence"]
+    f = fresh(tmp_path, s)
+    for i, q in enumerate(sorted(f.iterdir(), key=lambda x: x.name.lower()), 1):
+        q.rename(f / f"Wedding {i:03d}{q.suffix}")
+    assert not all(run_checks(s, f, tmp_path, "Renamed 7 photos.")), \
+        "photos renamed in the wrong order passed"
+
+
+def test_rename_check_rejects_unpadded_numbers(tmp_path):
+    s = by_id()["code-rename-sequence"]
+    f = fresh(tmp_path, s)
+    for i, q in enumerate(sorted(f.iterdir(), key=lambda q: q.stat().st_mtime), 1):
+        q.rename(f / f"Wedding {i}{q.suffix}")   # 1, not 001
+    assert not all(run_checks(s, f, tmp_path, "Renamed 7 photos."))
+
+
+def _split_correctly(f, header=True, mixed=False):
+    import csv as _csv
+    rows = list(_csv.reader((f / "sales.csv").read_text().splitlines()))
+    head, body = rows[0], rows[1:]
+    city = head.index("city")
+    groups = {}
+    for r in body:
+        groups.setdefault(r[city], []).append(r)
+    names = list(groups)
+    for name, rs in groups.items():
+        if mixed and name == names[0]:
+            rs = rs + groups[names[1]][:1]      # one file holding two cities
+        out = ([head] if header else []) + rs
+        (f / f"{name}.csv").write_text("\n".join(",".join(r) for r in out) + "\n")
+
+
+def test_split_check_passes_a_correct_split(tmp_path):
+    s = by_id()["code-split-csv"]
+    f = fresh(tmp_path, s)
+    assert not all(run_checks(s, f, tmp_path, "")), "unsplit folder passed"
+    _split_correctly(f)
+    assert all(run_checks(s, f, tmp_path, "Split into 4 files.")), "a correct split was marked wrong"
+
+
+def test_split_check_rejects_a_missing_header(tmp_path):
+    s = by_id()["code-split-csv"]
+    f = fresh(tmp_path, s)
+    _split_correctly(f, header=False)
+    assert not all(run_checks(s, f, tmp_path, "Split into 4 files."))
+
+
+def test_split_check_rejects_a_file_that_mixes_cities(tmp_path):
+    s = by_id()["code-split-csv"]
+    f = fresh(tmp_path, s)
+    _split_correctly(f, mixed=True)
+    assert not all(run_checks(s, f, tmp_path, "Split into 4 files."))
+
+
+def test_checksum_check_wants_the_real_hashes(tmp_path):
+    s = by_id()["code-checksum-manifest"]
+    f = fresh(tmp_path, s)
+    assert not all(run_checks(s, f, tmp_path, "")), "no manifest passed"
+
+    names = ["contract.pdf", "logo.png", "notes.txt"]
+    real = {n: hashlib.sha256((f / n).read_bytes()).hexdigest() for n in names}
+    (f / "checksums.txt").write_text("\n".join(f"{n}  {real[n]}" for n in names) + "\n")
+    assert all(run_checks(s, f, tmp_path, "Saved checksums.txt.")), \
+        "a correct manifest was marked wrong"
+
+
+def test_checksum_check_rejects_invented_hashes(tmp_path):
+    """The failure this is really guarding: a brain that writes plausible hex."""
+    s = by_id()["code-checksum-manifest"]
+    f = fresh(tmp_path, s)
+    names = ["contract.pdf", "logo.png", "notes.txt"]
+    (f / "checksums.txt").write_text(
+        "\n".join(f"{n}  {hashlib.sha256(n.encode()).hexdigest()}" for n in names) + "\n")
+    assert not all(run_checks(s, f, tmp_path, "Saved checksums.txt.")), \
+        "made-up checksums passed"
+
+
+def test_checksum_check_rejects_a_partial_manifest(tmp_path):
+    s = by_id()["code-checksum-manifest"]
+    f = fresh(tmp_path, s)
+    q = f / "contract.pdf"
+    (f / "checksums.txt").write_text(f"contract.pdf  {hashlib.sha256(q.read_bytes()).hexdigest()}\n")
+    assert not all(run_checks(s, f, tmp_path, "Saved checksums.txt."))
+
+
+def test_word_tally_check_tells_a_real_theme_from_a_stop_word(tmp_path):
+    s = by_id()["code-count-words"]
+    f = fresh(tmp_path, s)
+    assert all(run_checks(s, f, tmp_path,
+                          "The most common words are 'generator' (4) and 'power' (4)."))
+    assert not all(run_checks(s, f, tmp_path, "The most common word is 'shift'."))
+    assert not all(run_checks(s, f, tmp_path,
+                              "Most common: 'the' appears 9 times, then generator and power."))

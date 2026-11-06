@@ -1,5 +1,45 @@
 # Changelog
 
+## Unreleased — jobs with no tool of their own
+
+The gap this closes is not a missing tool. It is that every capability so far
+had to be built in advance, so a job nobody had anticipated got a worse plan
+made of the wrong tools, or nothing.
+
+- New "code" capability: run_command runs a program on this computer and hands
+  its output back to the brain, which reads it and decides what to do next;
+  run_script writes a small Python or Node program and runs it. Both are
+  destructive-risk, so they always ask first - the permission policy refuses to
+  let destructive ever mean "allow".
+- A program must be on a known list before it runs. Programs that delete things
+  wholesale, change Windows outside a folder or need administrator rights are
+  refused outright and cannot be added. Package managers (npm, pip, cargo and
+  the rest) are not on the default list, because they fetch and execute code in
+  one step; they can be added deliberately.
+- Settings > Limits > "Other programs Claw may run" is where that list is
+  added to. Before this, the refusal told people to add a program in Settings
+  and there was no such setting anywhere - the advice was impossible to follow.
+- The planner now names the job shapes that need a program (numbering files in
+  an order, splitting a table by a column, checksums, tallying across files,
+  converting a folder one by one) instead of only warning it off. Whether the
+  brain actually reaches for it is a real-brain question: NOT YET MEASURED,
+  pending a Windows bench run.
+- Benchmark set v1.8, four scenarios with deliberately no matching tool:
+  code-rename-sequence (rename photos into the order they were taken),
+  code-split-csv (one file per city, headers intact), code-checksum-manifest
+  (real SHA-256, so invented hex fails) and code-count-words. NOT YET RUN -
+  they exist to answer "how many tasks can it really do" with a measurement
+  rather than a claim. Their checks are themselves tested both ways: each
+  passes a correct result and rejects a plausible wrong one (photos renamed
+  alphabetically, a split that drops the header, made-up checksums).
+- All four jobs were then put through run_script for real, on real files, and
+  scored by those same checks: PASS on all four (7 photos renamed into the
+  order they were taken; one CSV per city with headers and 15 rows each;
+  three correct SHA-256 sums; "generator" and "power" found as the themes).
+  That measures the tool on Linux, which is what this container can honestly
+  measure. It is NOT a Windows pass and NOT a real-brain pass: whether the
+  brain chooses to write a program for a job like this is still unmeasured.
+
 ## Unreleased — milestone 8 (design campaign, logo animation, lower third)
 
 - make_campaign: one design in several sizes at once (Instagram post, portrait, story, landscape, X header, Facebook cover, A5, A4), saved into a new folder; each file is reopened, its size checked and its headline read back with OCR. Everyday words ("instagram story", "facebook cover", "poster") map to the sizes. Photoshop is used when installed (not tested: no Photoshop here).

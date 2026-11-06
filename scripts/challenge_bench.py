@@ -357,6 +357,154 @@ def scenarios() -> list[dict]:
                     "in the 'Videos' folder inside 'S-CLAW Bench' in my Documents.",
         checks=[("a video was saved", lambda f, d, a, r: any(q.suffix.lower() in (".mov", ".mp4") for q in f.rglob("*"))),
                 ("it is see-through (has alpha)", file_like("*.mov", test=lambda p: _video_alpha(p)))])
+
+    # --- v1.8: jobs with no tool of their own -------------------------------
+    #
+    # Every scenario above has a tool built for its shape: find_files for
+    # "which is biggest", the table tools for a total, the design tools for a
+    # poster. They measure whether those tools work. None of them measures
+    # what the person actually asked for - "I want it to do hundreds of tasks,
+    # not just open Notepad" - because the answer to that is not more tools.
+    # It is whether S-CLAW can write a small program for a job nobody
+    # anticipated, run it, read what came back and carry on.
+    #
+    # So these four have deliberately NO matching tool. Each is an ordinary
+    # thing to want and an odd shape: a sequence that depends on file dates,
+    # a split by the value in a column, a hash per file, a tally across
+    # files. A fixed tool for any one of them would be a tool for exactly one
+    # job. Passing these means the general loop works; failing them tells us
+    # the catalogue is still doing the thinking.
+
+    def shots_setup(f):
+        # Scrambled names, deliberate dates. The caption inside each file
+        # records the true order, so a rename can be checked for correctness
+        # and not merely for tidiness.
+        order = [
+            ("DSC_8841.JPG", "2024-05-11", "01 arriving at the church"),
+            ("IMG-20240511-WA0007.jpg", "2024-05-12", "02 the vows"),
+            ("photo (3).jpg", "2024-05-13", "03 the rings"),
+            ("DSC_8899.JPG", "2024-05-14", "04 first dance"),
+            ("received_8123.jpeg", "2024-05-15", "05 cutting the cake"),
+            ("IMG_0002.jpg", "2024-05-16", "06 the family portrait"),
+            ("snap.jpg", "2024-05-17", "07 leaving"),
+        ]
+        for name, when, caption in order:
+            # The marker is delimited so a check cannot match it by accident:
+            # the caption sits straight after the JPEG magic bytes, with no
+            # space in front of it.
+            put(f, name, b"\xff\xd8\xff\xe0 <shot " + caption[:2].encode() + b"> "
+                + caption[3:].encode() + b" " * 400, mtime=when)
+
+    def renamed_in_date_order(f, d, a, r):
+        """Seven files named Wedding 001..007, each holding the right caption."""
+        import re as _re
+        found = {}
+        for q in f.rglob("*"):
+            if not q.is_file():
+                continue
+            m = _re.fullmatch(r"[Ww]edding[ _-]?0*(\d{1,3})", q.stem)
+            if m:
+                found[int(m.group(1))] = q
+        if sorted(found) != list(range(1, 8)):
+            return False
+        # Number 3 must be the photo that was taken third, not just any photo.
+        for n, q in found.items():
+            if f"<shot {n:02d}>".encode() not in q.read_bytes():
+                return False
+        return True
+
+    def zero_padded(f, d, a, r):
+        import re as _re
+        stems = [q.stem for q in f.rglob("*") if q.is_file() and q.stem.lower().startswith("wedding")]
+        return bool(stems) and all(_re.search(r"0\d\d$", x) for x in stems)
+
+    add(id="code-rename-sequence", category="Writing a program", folder="Wedding shots",
+        setup=shots_setup, moves_inputs=True, set="v1.8",
+        instruction="The photos in the 'Wedding shots' folder inside 'S-CLAW Bench' in my Documents came from "
+                    "different phones so the names are a mess. Rename them all to 'Wedding 001', 'Wedding 002' "
+                    "and so on, in the order the photos were taken, keeping the file type.",
+        checks=[("renamed in the order they were taken", renamed_in_date_order),
+                ("numbered 001, not 1", zero_padded)])
+
+    def sales_setup(f):
+        cities = ["Lagos", "Abuja", "Kano", "Ibadan"]
+        lines = ["date,city,item,qty,amount"]
+        for i in range(60):
+            c = cities[i % 4]
+            lines.append(f"2024-07-{(i % 28) + 1:02d},{c},item {i},{(i % 5) + 1},{1000 + i * 37}")
+        put(f, "sales.csv", "\n".join(lines) + "\n")
+
+    def one_file_per_city(f, d, a, r):
+        """Four new CSVs, each holding only its city's 15 rows, with a header."""
+        want = {"lagos": 15, "abuja": 15, "kano": 15, "ibadan": 15}
+        seen = {}
+        for q in f.rglob("*.csv"):
+            if q.name.lower() == "sales.csv":
+                continue
+            rows = rows_of(q)
+            if len(rows) < 2:
+                continue
+            head, body = rows[0], rows[1:]
+            if not any("city" in str(x).lower() for x in head):
+                return False  # the header has to come across too
+            col = [i for i, x in enumerate(head) if "city" in str(x).lower()][0]
+            cities = {str(row[col]).strip().lower() for row in body if len(row) > col}
+            if len(cities) != 1:
+                return False  # a file that mixes cities is not a split
+            seen[cities.pop()] = len(body)
+        return seen == want
+
+    add(id="code-split-csv", category="Writing a program", folder="Sales split",
+        setup=sales_setup, set="v1.8",
+        instruction="Split 'sales.csv' in the 'Sales split' folder inside 'S-CLAW Bench' in my Documents into one "
+                    "CSV per city, each with the same column headings, and save them in the same folder.",
+        checks=[("one file per city, rows and header correct", one_file_per_city)])
+
+    def manifest_setup(f):
+        put(f, "contract.pdf", b"%PDF-1.4 signed contract " + b"c" * 500)
+        put(f, "logo.png", b"\x89PNG the logo " + b"l" * 300)
+        put(f, "notes.txt", "handover notes for the new supplier")
+
+    def manifest_is_correct(f, d, a, r):
+        """A file listing each input's real SHA-256. Wrong hashes fail."""
+        import hashlib
+        truth = {}
+        for name in ("contract.pdf", "logo.png", "notes.txt"):
+            q = f / name
+            if not q.is_file():
+                return False
+            truth[name] = hashlib.sha256(q.read_bytes()).hexdigest()
+        for q in f.rglob("*"):
+            if not q.is_file() or q.name in truth:
+                continue
+            try:
+                text = q.read_text(encoding="utf-8", errors="ignore").lower()
+            except OSError:
+                continue
+            if all(h in text for h in truth.values()):
+                return True
+        return False
+
+    add(id="code-checksum-manifest", category="Writing a program", folder="Handover",
+        setup=manifest_setup, set="v1.8",
+        instruction="For every file in the 'Handover' folder inside 'S-CLAW Bench' in my Documents, work out its "
+                    "SHA-256 checksum and save a list of the file names with their checksums into a file in that "
+                    "folder, so the person receiving them can check nothing changed.",
+        checks=[("the checksums are the real ones", manifest_is_correct)])
+
+    def tally_setup(f):
+        put(f, "monday.txt", "The generator failed again. The generator needs fuel. Power is the problem.")
+        put(f, "tuesday.txt", "Power went off twice. The generator started late. Staff waited.")
+        put(f, "wednesday.txt", "Power steady today. The generator was not needed.")
+        put(f, "thursday.txt", "The generator failed. Power off from noon. We lost the afternoon.")
+
+    add(id="code-count-words", category="Writing a program", folder="Shift notes",
+        setup=tally_setup, set="v1.8",
+        instruction="Read all the notes in the 'Shift notes' folder inside 'S-CLAW Bench' in my Documents and tell "
+                    "me the words that come up most often across all of them, ignoring ordinary words like 'the' "
+                    "and 'and'.",
+        checks=[("finds the two real themes", answer_has("generator", "power")),
+                ("does not report a stop word as a theme", answer_lacks("'the' appears", "the word \"the\""))])
     return S
 
 

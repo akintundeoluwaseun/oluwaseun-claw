@@ -16,14 +16,22 @@ def finish(text):
     return json.dumps({"thought": "done", "action": "finish", "final_answer": text})
 
 
-def wait_done(c, task_id, seconds=20):
+#: 60, not 20. The whole suite is over a thousand tests and takes seven
+#: minutes; under that load a task that normally settles in under a second
+#: occasionally did not make the old 20, and the test failed with "task did not
+#: finish" while passing on its own. A deadline that only holds on an idle
+#: machine reports the machine, not the code. A genuinely stuck task still
+#: fails here, 40 seconds later, and the message now says where it got stuck
+#: so the next failure can be read instead of guessed at.
+def wait_done(c, task_id, seconds=60):
     end = time.time() + seconds
+    st = "never asked"
     while time.time() < end:
         st = c.get(f"/tasks/{task_id}/events").json()["status"]
         if st not in ("created", "planning", "running", "awaiting_approval"):
             return st
         time.sleep(0.1)
-    raise AssertionError("task did not finish")
+    raise AssertionError(f"task {task_id} did not finish in {seconds}s; stuck at {st!r}")
 
 
 def test_fallback_titles_are_short_and_not_the_request_pasted():
