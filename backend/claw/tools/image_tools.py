@@ -412,6 +412,55 @@ async def inspect_image(args: InspectArgs, ctx: ToolContext) -> ToolResult:
     return ToolResult(True, f"{p.name}: {info['width']}×{info['height']} {info['format']} ({info['bytes']:,} bytes).", {"path": str(p), **info}, verified=True)
 
 
+# ---------- read_picture ----------
+#: The brain could look at the SCREEN (describe_screen) but never at a picture
+#: the person already has. inspect_image reports a file's format and size and
+#: nothing about what is in it, so "here is a drawing of the part - read the
+#: dimensions off it" had no path at all. This is that path.
+MAX_PICTURE_BYTES = 12 * 1024 * 1024
+
+
+class ReadPictureArgs(ToolArgs):
+    path: str = Field(min_length=1, max_length=500, description="The picture to look at")
+    question: str = Field(min_length=3, max_length=300,
+                          description="What to find out, e.g. 'what are the dimensions marked on this drawing?'")
+
+
+def check_read_picture(args: ReadPictureArgs, ctx: ToolContext) -> None:
+    if ctx.vision is None:
+        raise ToolError("Looking at a picture needs a brain that can see. "
+                        "Choose one with vision in Settings > Claw's brain.")
+    _input_image(ctx, args.path)
+
+
+async def read_picture(args: ReadPictureArgs, ctx: ToolContext) -> ToolResult:
+    """Show the brain a picture the person has, and ask it something about it.
+
+    The answer is UNTRUSTED. It is a model describing an image, so it can be
+    wrong and the picture itself may carry text trying to give instructions;
+    it comes back inside untrusted markers like any page or document, and is
+    never treated as a fact Claw has established.
+    """
+    if ctx.vision is None:
+        raise ToolError("Looking at a picture needs a brain that can see. "
+                        "Choose one with vision in Settings > Claw's brain.")
+    picture = _input_image(ctx, args.path)
+    size = picture.stat().st_size
+    if size > MAX_PICTURE_BYTES:
+        raise ToolError(f"{picture.name} is {size / 1024**2:.0f} MB. "
+                        f"Claw looks at pictures up to {MAX_PICTURE_BYTES // 1024**2} MB; "
+                        "save a smaller copy and try that.")
+    data = await asyncio.to_thread(picture.read_bytes)
+    answer = (await ctx.vision(data, args.question) or "").strip()
+    if not answer:
+        return ToolResult(False, f"The brain looked at {picture.name} but said nothing about it.",
+                          {"path": str(picture)}, verified=False)
+    ctx.memory.seen_text.append(answer[:4000])
+    return ToolResult(True, f"Looked at {picture.name} and answered the question about it.",
+                      {"path": str(picture), "question": args.question},
+                      verified=False, untrusted_text=answer[:6000])
+
+
 # ---------- Milestone 8: the design jobs that do not need Photoshop ----------
 # Each of these saves a new file, reopens it and reports its real size, exactly
 # as make_flyer does. None of them claims a Photoshop path it does not have.
@@ -622,6 +671,11 @@ def register_image_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("edit_image", "Crop, rotate, resize, brighten, adjust contrast, make black-and-white or convert a picture; saves a new file.",
                           F, W, EditArgs, edit_image))
     reg.register(ToolSpec("inspect_image", "Check a picture's format and size.", F, RiskLevel.READ_ONLY, InspectArgs, inspect_image))
+    reg.register(ToolSpec("read_picture",
+                          "Look at a picture the person has and answer a question about it "
+                          "(a drawing, a plan, a screenshot, a photo of a form).",
+                          F, RiskLevel.READ_ONLY, ReadPictureArgs, read_picture,
+                          precheck=check_read_picture))
     # Milestone 8. Short descriptions on purpose: every tool in a capability is
     # carried in the prompt of any task that uses it, so each new one is paid
     # for by every image task.
