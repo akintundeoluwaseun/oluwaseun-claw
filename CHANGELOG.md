@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased — changing PDFs, not just reading them
+
+Claw could open a PDF, OCR it, search it and summarise it, and could not
+alter one. Everything a person does to a PDF between receiving it and sending
+it on meant opening something else. Six new tools, all on pypdf, which Claw
+already ships, so nothing new to install:
+
+- combine_pdfs: join the month's invoices into one file, in the order given.
+- extract_pages: "just pages 2 to 5 of this contract".
+- split_pdf: a forty-page scan into separate files, one page each or every N.
+- rotate_pdf: turn a sideways scan the right way up, whole file or named pages.
+- stamp_pdf: PAID, DRAFT, COPY, CONFIDENTIAL across the page.
+- shrink_pdf: make it small enough to e-mail, and say by how much. When it
+  cannot help it says so rather than reporting a 2% saving as a win.
+
+Every one writes a NEW file and leaves the original untouched - a scan is
+often the only copy - and every one reopens what it wrote and counts it
+before reporting. The tests check both: that the original is unchanged byte
+for byte, and that no page went missing.
+
+The stamp is drawn into the page's own content, not hung on it as an
+annotation. The first version used an annotation: it rendered as small
+left-aligned text rather than a stamp, and an annotation can be hidden, left
+out of a printout or dropped by the next program that touches the file. A
+document that only says PAID in some viewers is worse than one that does not.
+
 ## Unreleased — every spreadsheet prints properly
 
 - The one-page-across fix now applies to every workbook Claw writes, not just
