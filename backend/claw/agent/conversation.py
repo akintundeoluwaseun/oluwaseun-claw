@@ -155,6 +155,50 @@ def looks_like_typing_noise(text: str) -> bool:
                 or _DIGITS_THEN_LETTER.match(t))
 
 
+#: A path pasted on its own, with nothing else in the message.
+#:
+#: Asked for directly: paste a folder and have Claw say what is in it at once -
+#: "these are the files, what do you want done?" - instead of planning. A bare
+#: path smells like work (it IS a path), so it went to the planner with the
+#: whole tool catalogue and took the best part of a minute to decide to list a
+#: directory.
+#:
+#: Only a path ALONE. "sort the files in C:\Users\Me\Pictures" is an
+#: instruction and still goes to the planner; this is for the case where the
+#: person has pasted a location and nothing else, which is a question, not a job.
+_BARE_PATH = re.compile(
+    r"^(?:"
+    r"[A-Za-z]:[\\/][^\n<>|?*\"]{0,200}"          # C:\Users\Me\Pictures
+    r"|\\\\[^\n<>|?*\"]{2,200}"                     # \\server\share\folder
+    r"|~?/[^\n<>|?*\"]{1,200}"                       # /home/me/Pictures
+    r")$")
+
+
+def looks_like_bare_path(text: str) -> bool:
+    """True when the whole message is one path and nothing else.
+
+    A Windows folder name can contain spaces ("Job files"), so the path
+    pattern cannot simply ban them - which let "C:\\Users\\Me\\Pictures and
+    make a flyer" read as a bare path. A task verb anywhere in the message
+    means it is an instruction, and instructions go to the planner.
+    """
+    t = _first_line(text).strip().strip('"\'')
+    if not t or not _BARE_PATH.match(t):
+        return False
+    # Only the last segment. A verb earlier in the path is part of a folder
+    # name, not an instruction: "\\\\server\\share\\jobs" is a perfectly
+    # ordinary Windows location and "share" is a task verb. What distinguishes
+    # an instruction is text tacked on the END - "...\\Pictures and make a
+    # flyer" - so that is where to look.
+    tail = re.split(r"[\\/]", t)[-1]
+    return not _TASK_VERB.search(tail)
+
+
+def path_in(text: str) -> str:
+    """The pasted path, tidied of the quotes a copy from Explorer brings."""
+    return _first_line(text).strip().strip('"\'')
+
+
 _EMOJI_ONLY = re.compile(r"^[\W_]+$", re.U)
 
 # Long enough to be a brief, whatever else it looks like.
@@ -255,3 +299,58 @@ CHAT_SYSTEM = (
     "do not claim to have done anything, and do not offer a list of what you can do unless "
     "you are asked. If they seem to want work done but have not said what, ask what they want."
 )
+
+
+#: What a folder peek shows before it stops listing names.
+PEEK_NAMES = 8
+
+
+def describe_folder(path, authorized: list[str]) -> str:
+    """What is in a folder, as an instant answer to a pasted path.
+
+    No brain, no planner: the person pasted a location and wants to know what
+    is there before they say what to do with it. Reading a directory takes
+    milliseconds; planning it took the best part of a minute.
+    """
+    from collections import Counter  # noqa: PLC0415
+    from pathlib import Path  # noqa: PLC0415
+
+    folder = Path(path).expanduser()
+    allowed = [Path(a).expanduser().resolve() for a in authorized]
+    try:
+        here = folder.resolve()
+    except OSError:
+        return f"{folder} cannot be read."
+
+    if not here.exists():
+        return (f"There is nothing at {folder}. Check the path, or paste it again "
+                "from the address bar.")
+    if here.is_file():
+        return (f"{here.name} is a file, not a folder ({here.stat().st_size:,} bytes). "
+                "What would you like done with it?")
+    if allowed and not any(here == a or a in here.parents for a in allowed):
+        return (f"{here} is not a folder Claw may open yet. Add it in "
+                "Settings > Folders, then paste it again.")
+
+    try:
+        entries = sorted(here.iterdir(), key=lambda p: p.name.lower())
+    except PermissionError:
+        return f"{here} cannot be opened: Windows refused permission."
+
+    files = [e for e in entries if e.is_file()]
+    folders = [e for e in entries if e.is_dir()]
+    if not files and not folders:
+        return f"{here.name} is empty. What would you like to put in it?"
+
+    kinds = Counter((e.suffix.lower().lstrip(".") or "no extension") for e in files)
+    spread = ", ".join(f"{n} {k}" for k, n in kinds.most_common(5))
+    parts = []
+    if files:
+        parts.append(f"{len(files)} file{'s' if len(files) != 1 else ''} ({spread})")
+    if folders:
+        parts.append(f"{len(folders)} folder{'s' if len(folders) != 1 else ''}")
+    names = [e.name for e in files[:PEEK_NAMES]]
+    listing = ", ".join(names) + ("…" if len(files) > PEEK_NAMES else "")
+    return (f"{here.name} has {' and '.join(parts)}."
+            + (f" {listing}" if names else "")
+            + " What would you like done with them?")

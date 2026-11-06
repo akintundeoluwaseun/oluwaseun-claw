@@ -146,6 +146,21 @@ class TaskRunner:
             emit("task_completed", {})
             return
 
+        # A folder pasted on its own: say what is in it, at once. Reading a
+        # directory takes milliseconds; planning it took the best part of a
+        # minute, and the person has not said what they want done yet anyway.
+        if conversation.looks_like_bare_path(task_text):
+            answer = conversation.describe_folder(
+                conversation.path_in(task_text),
+                settings.permissions.authorized_folders)
+            if first_in_chat and thread_id:
+                db.set_thread_title(thread_id, fallback_title(task_text))
+            emit("chat_reply", {"kind": "folder"})
+            emit("finished", {"final_answer": answer})
+            db.update_task(task_id, status="completed", result=RunOutcome("completed", answer).summary())
+            emit("task_completed", {})
+            return
+
         if conversation.is_conversation(task_text, standalone=first_in_chat):
             # No canned line fits, but there is no work in it either: one short
             # call with no tools, rather than planning and executing nothing.
