@@ -81,7 +81,7 @@ print(c.most_common(5))
 
 
 @pytest.mark.parametrize("sid,code,needs_answer", [
-    ("code-rename-sequence", RENAME, False),
+    ("files-rename-in-order", RENAME, False),
     ("code-split-csv", SPLIT, False),
     ("code-checksum-manifest", SUMS, False),
     ("code-count-words", TALLY, True),

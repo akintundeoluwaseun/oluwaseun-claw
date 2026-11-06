@@ -163,6 +163,14 @@ class RenameManyArgs(ToolArgs):
     new_name: str = Field(min_length=1, max_length=120,
                           description="Template: {n} number, {name} old name, {date} modified date, e.g. 'Holiday {n}'")
     start: int = Field(default=1, ge=0, le=100000)
+    #: How many digits the number is padded to. 0 keeps the old behaviour:
+    #: just enough digits for the largest number, so seven files number 1-7.
+    #: That is wrong whenever the person asked for "001", which is what
+    #: cameras and phones produce and so what people ask for when they want
+    #: the files to sort properly in Explorer. Seven files cannot tell you
+    #: they wanted three digits, so the width has to be sayable.
+    digits: int = Field(default=0, ge=0, le=6,
+                        description="Pad the number to this many digits, e.g. 3 for 001. 0 = just enough")
 
 
 def _plan_renames(folder: Path, args: RenameManyArgs) -> list[tuple[Path, Path]]:
@@ -171,7 +179,7 @@ def _plan_renames(folder: Path, args: RenameManyArgs) -> list[tuple[Path, Path]]
         raise ToolError(f"No files match '{args.pattern}' in {folder}.")
     if "{n}" not in args.new_name and "{name}" not in args.new_name and len(files) > 1:
         raise ToolError("With more than one file the new name needs {n} or {name}, or every file would get the same name.")
-    width = len(str(args.start + len(files) - 1))
+    width = args.digits or len(str(args.start + len(files) - 1))
     plan, taken = [], {p.name.lower() for p in folder.iterdir()}
     for i, p in enumerate(files):
         stem = args.new_name.format(n=str(args.start + i).zfill(width), name=p.stem,

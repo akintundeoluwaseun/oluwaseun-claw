@@ -136,7 +136,7 @@ def _utime(p, day):
 
 
 def test_rename_check_wants_date_order_not_just_tidy_names(tmp_path):
-    s = by_id()["code-rename-sequence"]
+    s = by_id()["files-rename-in-order"]
     f = fresh(tmp_path, s)
     taken = sorted(f.iterdir(), key=lambda q: q.stat().st_mtime)
 
@@ -151,7 +151,7 @@ def test_rename_check_wants_date_order_not_just_tidy_names(tmp_path):
 
 def test_rename_check_rejects_alphabetical_order(tmp_path):
     """The trap: renaming by name is tidy, looks right, and is wrong."""
-    s = by_id()["code-rename-sequence"]
+    s = by_id()["files-rename-in-order"]
     f = fresh(tmp_path, s)
     for i, q in enumerate(sorted(f.iterdir(), key=lambda x: x.name.lower()), 1):
         q.rename(f / f"Wedding {i:03d}{q.suffix}")
@@ -160,7 +160,7 @@ def test_rename_check_rejects_alphabetical_order(tmp_path):
 
 
 def test_rename_check_rejects_unpadded_numbers(tmp_path):
-    s = by_id()["code-rename-sequence"]
+    s = by_id()["files-rename-in-order"]
     f = fresh(tmp_path, s)
     for i, q in enumerate(sorted(f.iterdir(), key=lambda q: q.stat().st_mtime), 1):
         q.rename(f / f"Wedding {i}{q.suffix}")   # 1, not 001

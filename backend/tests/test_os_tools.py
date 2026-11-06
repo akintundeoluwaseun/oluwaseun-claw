@@ -49,6 +49,38 @@ async def test_rename_many_numbers_in_date_order_and_never_overwrites(tool_ctx):
         await call(tool_ctx, "rename_many", folder="Holiday", new_name="same")
 
 
+async def test_rename_many_can_pad_the_number_the_way_people_ask_for(tool_ctx):
+    """"Wedding 001", not "Wedding 1".
+
+    The width used to come from how many files there were, so three files
+    could only ever be 1, 2, 3. Cameras and phones pad, and a person asking
+    for 001 wants the files to sort properly in Explorer - which 1, 2, ... 10
+    does not. The count cannot tell you the width, so it has to be sayable.
+    """
+    d = folder(tool_ctx, "Wedding")
+    for i, n in enumerate(("b.jpg", "a.jpg", "c.jpg")):
+        (d / n).write_bytes(n.encode())
+        os.utime(d / n, (1_700_000_000 + i, 1_700_000_000 + i))
+
+    r = await call(tool_ctx, "rename_many", folder="Wedding", pattern="*.jpg",
+                   new_name="Wedding {n}", digits=3)
+    assert r.verified
+    assert sorted(p.name for p in d.iterdir()) == [
+        "Wedding 001.jpg", "Wedding 002.jpg", "Wedding 003.jpg"]
+    # Padding must not disturb the order: oldest is still number one.
+    assert (d / "Wedding 001.jpg").read_bytes() == b"b.jpg"
+
+
+async def test_rename_many_still_defaults_to_just_enough_digits(tool_ctx):
+    """digits=0 is the old behaviour, so nothing that worked before changes."""
+    d = folder(tool_ctx, "Trip")
+    for i, n in enumerate(("x.jpg", "y.jpg")):
+        (d / n).write_bytes(n.encode())
+        os.utime(d / n, (1_700_000_000 + i, 1_700_000_000 + i))
+    await call(tool_ctx, "rename_many", folder="Trip", pattern="*.jpg", new_name="Trip {n}")
+    assert sorted(p.name for p in d.iterdir()) == ["Trip 1.jpg", "Trip 2.jpg"]
+
+
 async def test_archive_is_reopened_and_checked(tool_ctx):
     d = folder(tool_ctx, "Website project")
     (d / "src").mkdir()

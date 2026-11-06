@@ -24,21 +24,35 @@ made of the wrong tools, or nothing.
   converting a folder one by one) instead of only warning it off. Whether the
   brain actually reaches for it is a real-brain question: NOT YET MEASURED,
   pending a Windows bench run.
-- Benchmark set v1.8, four scenarios with deliberately no matching tool:
-  code-rename-sequence (rename photos into the order they were taken),
-  code-split-csv (one file per city, headers intact), code-checksum-manifest
-  (real SHA-256, so invented hex fails) and code-count-words. NOT YET RUN -
-  they exist to answer "how many tasks can it really do" with a measurement
-  rather than a claim. Their checks are themselves tested both ways: each
-  passes a correct result and rejects a plausible wrong one (photos renamed
-  alphabetically, a split that drops the header, made-up checksums).
-- All four jobs were then put through run_script for real, on real files, and
-  scored by those same checks: PASS on all four (7 photos renamed into the
-  order they were taken; one CSV per city with headers and 15 rows each;
-  three correct SHA-256 sums; "generator" and "power" found as the themes).
-  That measures the tool on Linux, which is what this container can honestly
-  measure. It is NOT a Windows pass and NOT a real-brain pass: whether the
-  brain chooses to write a program for a job like this is still unmeasured.
+- Benchmark set v1.8, four scenarios: code-split-csv (one file per city,
+  headers intact), code-checksum-manifest (real SHA-256, so invented hex
+  fails), code-count-words, and files-rename-in-order (photos renamed into
+  the order they were taken, as "Wedding 001"). NOT YET RUN against a real
+  brain - they exist to answer "how many tasks can it really do" with a
+  measurement rather than a claim. Their checks are themselves tested both
+  ways: each passes a correct result and rejects a plausible wrong one
+  (photos renamed alphabetically, a split that drops the header, a split
+  that mixes two cities, made-up checksums, "the" called a theme).
+- Correction: the first three have no tool that does the job directly, but the
+  fourth does, and an earlier commit message called all four tool-free. It is
+  wrong. Writing that scenario is what turned up rename_many already sorting
+  by modified time, so it was most of the way there.
+- rename_many gains "digits": pad the number to a given width. It used to take
+  the width from how many files there were, so seven files could only be 1-7
+  and a person asking for "Wedding 001" got "Wedding 1" - which also sorts
+  wrongly in Explorer once there are ten. digits=0 is the old behaviour, so
+  nothing that worked before changes.
+- All four jobs were put through run_script for real, on real files, and scored
+  by those same checks: PASS on all four (7 photos in the order they were
+  taken; one CSV per city with headers and 15 rows each; three correct SHA-256
+  sums; "generator" and "power" found as the themes). That measures the tool on
+  Linux, which is what this container can honestly measure. It is NOT a Windows
+  pass and NOT a real-brain pass: whether the brain chooses to write a program
+  for a job like this is still unmeasured.
+- A code step now gets list_folder, read_file and check_file described along
+  with the code tools (136 tokens). They were already reachable by name but
+  without their arguments, so checking a script's work meant guessing a call
+  or trusting the script's own print - which is the script's word, not a check.
 
 ## Unreleased — milestone 8 (design campaign, logo animation, lower third)
 

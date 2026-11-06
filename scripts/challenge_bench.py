@@ -368,12 +368,23 @@ def scenarios() -> list[dict]:
     # It is whether S-CLAW can write a small program for a job nobody
     # anticipated, run it, read what came back and carry on.
     #
-    # So these four have deliberately NO matching tool. Each is an ordinary
-    # thing to want and an odd shape: a sequence that depends on file dates,
-    # a split by the value in a column, a hash per file, a tally across
-    # files. A fixed tool for any one of them would be a tool for exactly one
-    # job. Passing these means the general loop works; failing them tells us
-    # the catalogue is still doing the thinking.
+    # Each is an ordinary thing to want and an odd shape: a sequence that
+    # depends on file dates, a split by the value in a column, a hash per
+    # file, a tally across files.
+    #
+    # Three of them have no tool that does the job directly: nothing splits a
+    # table by a column's value, nothing hashes a file, and nothing tallies
+    # words across files (count_text counts one file's words; it does not
+    # rank them). Passing those means the general loop works; failing them
+    # says the catalogue is still doing the thinking.
+    #
+    # The fourth, files-rename-in-order, turned out NOT to be one of those.
+    # Writing it is what uncovered that rename_many already sorts by modified
+    # time and so was most of the way there - it just could not pad a number,
+    # so a person asking for "Wedding 001" got "Wedding 1". That is fixed in
+    # rename_many itself (its digits argument), and the scenario is kept here
+    # as a files scenario, because what matters to the person is the right
+    # order and the right names, not which route produced them.
 
     def shots_setup(f):
         # Scrambled names, deliberate dates. The caption inside each file
@@ -418,7 +429,7 @@ def scenarios() -> list[dict]:
         stems = [q.stem for q in f.rglob("*") if q.is_file() and q.stem.lower().startswith("wedding")]
         return bool(stems) and all(_re.search(r"0\d\d$", x) for x in stems)
 
-    add(id="code-rename-sequence", category="Writing a program", folder="Wedding shots",
+    add(id="files-rename-in-order", category="Files and OS", folder="Wedding shots",
         setup=shots_setup, moves_inputs=True, set="v1.8",
         instruction="The photos in the 'Wedding shots' folder inside 'S-CLAW Bench' in my Documents came from "
                     "different phones so the names are a mess. Rename them all to 'Wedding 001', 'Wedding 002' "

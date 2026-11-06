@@ -1184,6 +1184,18 @@ async def run_agent(
     person_limits = constraints.read_limits(task)
     fitting = fitting_tools(task, registry)
     hint = f"\n\nTools that fit this task: {', '.join(fitting)}." if fitting else ""
+    # A code-only plan gets run_command and run_script described in full, and
+    # every other tool only as a name in the "also available" line - reachable,
+    # but with no arguments, so using one costs a guess or a failed call.
+    # These three are what checking a script's work takes, and every other
+    # capability here is expected to reopen its own work and check it; code
+    # could otherwise only take the script's own print for it, which is the
+    # script's word and not a check. They are read-only, cost about 140 tokens
+    # together, and go on the always-list rather than into the capability set,
+    # so they neither drag the rest of "files" in with them nor change which
+    # branch of the catalogue is sent.
+    code_verifiers = ([t for t in ("list_folder", "read_file", "check_file") if t not in fitting]
+                      if capabilities and "code" in capabilities else [])
     recipe = skills.pick(task, skills.load(skills.BUILTIN, Path(ctx.data_dir) / "skills") if getattr(ctx, "data_dir", None) else skills.load(skills.BUILTIN))
     if recipe:
         hint += skills.for_prompt(recipe)
@@ -1198,7 +1210,8 @@ async def run_agent(
                     # capability is sent: "find every PDF and list them by date"
                     # matched no pattern, so find_files sat seventh of twenty-one.
                     content=EXEC_PROMPT.format(tools=tool_catalogue(
-                        registry, {"__none__"} if fitting else capabilities, fitting, task=task))
+                        registry, {"__none__"} if fitting else capabilities,
+                        fitting + code_verifiers, task=task))
                     + persona.for_prompt(getattr(ctx, "data_dir", None))
                     + person_limits.for_prompt()
                     + remembered(ctx, task)),
