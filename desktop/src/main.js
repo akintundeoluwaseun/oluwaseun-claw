@@ -371,7 +371,14 @@ function fromOurWindows(event) {
 ipcMain.handle('claw:api', async (event, method, route, body) => {
   if (!senderIs(event, mainWindow)) return { ok: false, status: 403, body: { error: { message: 'Not allowed.' } } };
   const res = await backend.request(method, route, body);
-  if (res.ok && method === 'PUT' && route === '/settings') applyDesktopSettings(res.body.settings.desktop);
+  if (res.ok && method === 'PUT' && route === '/settings') {
+    applyDesktopSettings(res.body.settings.desktop);
+    // Voice may have just been turned on or off. Without this the microphone
+    // permission stays at whatever it was when the app started.
+    refreshVoiceEnabled();
+  }
+  // Installing or removing a voice model changes whether voice can work at all.
+  if (res.ok && method === 'POST' && String(route).startsWith('/speech')) refreshVoiceEnabled();
   if (res.ok && method === 'POST' && route === '/tasks/run') watcher.nudge();
   return res;
 });
@@ -545,6 +552,25 @@ ipcMain.handle('claw:confirm', async (event, title, detail, okLabel) => {
 // ---------- IPC: quick bar (narrower) ----------
 let voiceEnabled = false;
 
+/** Is voice on right now? Asks the backend and remembers the answer.
+ *
+ *  voiceEnabled used to be read once, at startup, and never again. Anyone who
+ *  turned voice on and downloaded a model WITHOUT restarting then had the
+ *  microphone refused for the rest of the session: the button said it was
+ *  ready, because the window asks /speech itself, while this process still
+ *  believed voice was off and denied the permission. That is "dictation does
+ *  not work", and restarting the app was the only cure.
+ */
+async function refreshVoiceEnabled() {
+  try {
+    const v = await backend.request('GET', '/speech');
+    voiceEnabled = !!(v.ok && v.body && v.body.enabled);
+  } catch {
+    /* backend not up: keep the last answer rather than silently revoking */
+  }
+  return voiceEnabled;
+}
+
 // Electron allows permission requests by default. Claw refuses everything except
 // the microphone, only for its own two windows, and only while voice input is on.
 // Nothing here grants camera, location, screen capture or notifications-by-request.
@@ -552,11 +578,16 @@ function lockDownPermissions() {
   const ours = (contents) =>
     (quickBar && !quickBar.isDestroyed() && contents === quickBar.webContents) ||
     (mainWindow && !mainWindow.isDestroyed() && contents === mainWindow.webContents);
-  const allow = (contents, permission) => ours(contents) && permission === 'media' && voiceEnabled;
-  session.defaultSession.setPermissionRequestHandler((contents, permission, callback) => {
-    callback(allow(contents, permission));
+  // The request handler takes a callback, so it can ask the backend first and
+  // answer with what is true NOW rather than what was true at startup.
+  session.defaultSession.setPermissionRequestHandler(async (contents, permission, callback) => {
+    if (!ours(contents) || permission !== 'media') return callback(false);
+    callback(await refreshVoiceEnabled());
   });
-  session.defaultSession.setPermissionCheckHandler((contents, permission) => allow(contents, permission));
+  // This one must answer synchronously, so it uses the remembered answer, which
+  // the request handler and every settings save keep current.
+  session.defaultSession.setPermissionCheckHandler(
+    (contents, permission) => ours(contents) && permission === 'media' && voiceEnabled);
 }
 
 // ---------- IPC: voice ----------
