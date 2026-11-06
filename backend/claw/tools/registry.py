@@ -14,6 +14,8 @@ from claw.tools.human_tools import register_human_tools
 from claw.tools.mail_tools import register_mail_tools
 from claw.tools.billing_tools import register_billing_tools
 from claw.tools.cad_tools import register_cad_tools
+from claw.tools.archive_tools import register_archive_tools
+from claw.tools.batch_image_tools import register_batch_image_tools
 from claw.tools.pdf_edit_tools import register_pdf_edit_tools
 from claw.tools.code_tools import register_code_tools
 from claw.tools.memory_tools import register_memory_tools
@@ -47,6 +49,8 @@ def build_registry() -> ToolRegistry:
     register_billing_tools(reg)
     register_cad_tools(reg)
     register_pdf_edit_tools(reg)
+    register_archive_tools(reg)
+    register_batch_image_tools(reg)
     register_code_tools(reg)
     register_document_tools(reg)
     register_pdf_tools(reg)

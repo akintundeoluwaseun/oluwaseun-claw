@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased — opening archives, folders of photos, QR codes
+
+Five more tools. 126 to 131.
+
+**Archives.** Claw could pack a .zip and could not open one, so a supplier's
+folder of photos or a bank's statements meant doing it by hand.
+- open_archive: unpack a .zip or .tar into a new folder, optionally only the
+  files matching a pattern.
+- look_inside_archive: see what is in it without unpacking anything.
+
+An archive is made somewhere else by someone else, so the names inside it are
+treated as data, not instructions. An entry that points outside the
+destination ("../../something") is refused, and refused before a single byte
+is written, so a bad archive cannot leave half its contents behind. Absolute
+paths are refused. Symlink entries are skipped rather than followed. A file
+that unpacks to far more than it claims is stopped. The tests include an
+actual zip-slip archive, an actual tar-slip archive and an actual
+decompression bomb, and check that nothing lands outside the folder.
+
+**Folders of photographs.** edit_image did one picture; the job people have is
+two hundred off a phone that will not go through WhatsApp.
+- resize_photos: a whole folder, smaller, into a new folder, by name
+  ("whatsapp", "email", "website", "thumbnail") or a pixel size. Measured on
+  real photos: 25.1 MB down to 1.7 MB, 93% smaller. A picture already smaller
+  than the target is left alone rather than blown up. One unreadable file does
+  not stop the batch.
+- watermark_photos: your name across every picture in a folder.
+
+**QR codes.** make_qr_code, for a link, a phone number or a payment page, with
+an optional label printed underneath. The code is read back off the saved
+picture and checked before it is reported - a QR code that does not scan is
+only discovered after it is printed on something. This adds one dependency,
+zxing-cpp (Apache-2.0, self-contained wheels including Windows), recorded in
+THIRD_PARTY_NOTICES.md.
+
 ## Unreleased — changing PDFs, not just reading them
 
 Claw could open a PDF, OCR it, search it and summarise it, and could not

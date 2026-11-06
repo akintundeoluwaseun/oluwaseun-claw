@@ -30,6 +30,7 @@ MAKES_FILES = frozenset({
     # Changing a PDF. Each writes a NEW file and leaves the original alone,
     # so they belong here and not in CHANGES_FILES.
     "combine_pdfs", "extract_pages", "split_pdf", "rotate_pdf", "stamp_pdf", "shrink_pdf",
+    "open_archive", "resize_photos", "watermark_photos", "make_qr_code",
 })
 CHANGES_FILES = frozenset({"move_file", "rename_file", "edit_text_file", "sort_into_folders", "rename_many"})
 
