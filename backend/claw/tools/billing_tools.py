@@ -26,6 +26,7 @@ from pydantic import Field, field_validator
 
 from claw.agent.schemas import Capability
 from claw.permissions.policy import RiskLevel
+from claw.tools.table_tools import clean_number_text
 from claw.tools.base import ToolArgs, ToolContext, ToolError, ToolRegistry, ToolResult, ToolSpec, as_str_list
 from claw.tools.table_tools import _fmt, _out, find_folder
 
@@ -45,24 +46,56 @@ KINDS: dict[str, dict[str, str]] = {
 #: $1,200 / £99. Leaving this out refused "3 x Banner @ N15,000", which is
 #: exactly how a price is written where this is used.
 _CUR = r"(?:[₦$£€¥]|N|NGN|USD|GBP|EUR)?\s*"
+#: A price may be negative: a discount, a credit note or a deposit already
+#: paid is an ordinary line on an invoice, and refusing it meant the whole
+#: document could not be made. Written "-1000", "(1,000)" or "(N1,000)",
+#: which is how the three of them appear in practice. A quantity is never
+#: negative, so only the price group allows it.
+_SIGN = r"(?:-|\u2212)?\s*"
+_PRICE = r"(?P<price>\(?\s*" + _SIGN + r"(?:[₦$£€¥]|N|NGN|USD|GBP|EUR)?\s*" + _SIGN + r"[\d.,]+\s*\)?)"
 _ITEM_PATTERNS = (
-    re.compile(r"^\s*(?P<qty>[\d.,]+)\s*[x*]\s*(?P<desc>.+?)\s*(?:@|at)\s*" + _CUR + r"(?P<price>[\d.,]+)\s*$", re.I),
-    re.compile(r"^\s*(?P<desc>.+?)\s*[x*]\s*(?P<qty>[\d.,]+)\s*(?:@|at)\s*" + _CUR + r"(?P<price>[\d.,]+)\s*$", re.I),
-    re.compile(r"^\s*(?P<desc>[^,;|]+)\s*[,;|]\s*(?P<qty>[\d.,]+)\s*[,;|]\s*(?P<price>[\d.,]+)\s*$"),
-    re.compile(r"^\s*(?P<desc>.+?)\s*(?:@|at)\s*" + _CUR + r"(?P<price>[\d.,]+)\s*$", re.I),   # qty defaults to 1
+    re.compile(r"^\s*(?P<qty>[\d.,]+)\s*[x*]\s*(?P<desc>.+?)\s*(?:@|at)\s*" + _PRICE + r"\s*$", re.I),
+    re.compile(r"^\s*(?P<desc>.+?)\s*[x*]\s*(?P<qty>[\d.,]+)\s*(?:@|at)\s*" + _PRICE + r"\s*$", re.I),
+    re.compile(r"^\s*(?P<desc>[^,;|]+)\s*[,;|]\s*(?P<qty>[\d.,]+)\s*[,;|]\s*" + _PRICE + r"\s*$"),
+    re.compile(r"^\s*(?P<desc>.+?)\s*(?:@|at)\s*" + _PRICE + r"\s*$", re.I),   # qty defaults to 1
 )
 
 
-def _number(raw: str) -> float:
-    """A quantity or price as written: 1,200 / 1200.50 / N1,200."""
-    cleaned = re.sub(r"[^\d.]", "", raw.replace(",", ""))
+def _number(raw: str, *, allow_negative: bool = False) -> float:
+    """A quantity or price as written: 1,200 / 1200.50 / N1,200 / (N1,000).
+
+    Signs come from clean_number_text, the same reader the table tools use, so
+    "(1,000)" means -1000 here exactly as it does in a ledger column. A
+    quantity that comes out negative is refused rather than quietly flipped:
+    "-2 x poster" is a mistake, not a credit note.
+    """
+    text, negative = clean_number_text(str(raw))
+    if text.startswith("-"):
+        negative, text = True, text[1:]
+    cleaned = re.sub(r"[^\d.]", "", text)
     if not cleaned or cleaned.count(".") > 1:
         raise ToolError(f"'{raw.strip()}' is not a number Claw can use.")
-    return float(cleaned)
+    value = float(cleaned)
+    if negative and not allow_negative:
+        raise ToolError(f"'{raw.strip()}' cannot be a negative number here.")
+    return -value if negative else value
+
+
+#: A quantity with a sign in front of it. Without this guard the line fell
+#: through to the last pattern, which defaults the quantity to 1 and keeps the
+#: rest as the description, so "-2 x poster @ 100" became one "2 x poster" at
+#: 100 - an invoice short by 100, with nothing on it looking wrong. A sign on
+#: a quantity is a typo, and the person is the only one who knows which.
+_SIGNED_QTY = re.compile(r"^\s*[-\u2212+]\s*[\d.,]+\s*[x*]", re.I)
 
 
 def parse_item(text: str) -> tuple[str, float, float]:
     """One line of a document: description, quantity, unit price."""
+    if _SIGNED_QTY.match(text):
+        raise ToolError(
+            f"'{text.strip()[:60]}' has a sign in front of the quantity. Write the quantity "
+            "plainly, and put the minus on the price if the line is a discount: "
+            '"1 x Loyalty discount @ -1000".')
     for pattern in _ITEM_PATTERNS:
         m = pattern.match(text)
         if m:
@@ -70,7 +103,7 @@ def parse_item(text: str) -> tuple[str, float, float]:
             desc = m.group("desc").strip(" -–—\t")
             if not desc:
                 break
-            return desc, qty, _number(m.group("price"))
+            return desc, qty, _number(m.group("price"), allow_negative=True)
     raise ToolError(
         f"Claw could not read '{text.strip()[:60]}' as a line. Write each one as "
         '"2 x A3 poster @ 1200" - how many, what it is, and the price for one.')

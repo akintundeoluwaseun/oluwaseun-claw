@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased — invoices can carry a discount
+
+- An invoice line's price could only be digits, so "1 x Loyalty discount @
+  (N1,000)" was refused and the whole document could not be made. A discount,
+  a credit note and a deposit already paid are ordinary lines, and all three
+  are a negative price. Written "-1000", "(1,000)" or "(N1,000)". The totals
+  were always a plain SUM, so the arithmetic needed no change: a discounted
+  invoice adds up, is written as real formulas, and is still checked by
+  reopening the saved file.
+- make_document reads money through the same shared cleaner as the table
+  tools, so it was the third of three parsers and is now one of one.
+- A sign in front of a QUANTITY is refused instead of guessed at. It used to
+  fall through to the pattern that defaults the quantity to 1 and keeps the
+  rest as the description, so "-2 x poster @ 100" became a single
+  "2 x poster" at 100: an invoice short by 100, with nothing on it looking
+  wrong. A hyphen inside a description ("A-2 cable x 3 @ 50") still works.
+
 ## Unreleased — two bugs in how money was read
 
 Found by probing the table tools with the kind of column a real ledger has,

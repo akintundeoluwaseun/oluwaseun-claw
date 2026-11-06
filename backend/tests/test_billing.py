@@ -16,6 +16,7 @@ from pathlib import Path
 import openpyxl
 import pytest
 
+from claw.tools.base import ToolError
 from claw.tools.billing_tools import KINDS, parse_item
 from tests.test_phase_a import call
 
@@ -140,3 +141,56 @@ def test_a_price_written_with_its_currency():
     assert parse_item("2 x Frame @ ₦1,250.50")[2] == 1250.5
     assert parse_item("Logo @ $500")[2] == 500.0
     assert parse_item("Design x 2 @ GBP 99") == ("Design", 2.0, 99.0)
+
+
+# --- discounts, credit notes and deposits -----------------------------------
+#
+# Found by probing with the lines a real invoice has rather than the tidy ones
+# above: a price could only be digits, so "1 x Loyalty discount @ (N1,000)"
+# was refused and the whole document could not be made. A discount, a credit
+# note and a deposit already paid are ordinary lines, and all three are a
+# negative price.
+
+def test_a_price_may_be_negative_in_the_three_ways_people_write_it():
+    assert parse_item("1 x Loyalty discount @ -1000")[2] == -1000.0
+    assert parse_item("1 x Loyalty discount @ (1,000)")[2] == -1000.0
+    assert parse_item("1 x Credit note @ (N1,500)")[2] == -1500.0
+    assert parse_item("Deposit paid @ −5000")[2] == -5000.0          # MINUS SIGN
+    # And the ordinary lines are untouched.
+    assert parse_item("20 x Exercise books @ N500") == ("Exercise books", 20.0, 500.0)
+    assert parse_item("Carton, 3, 1250.50") == ("Carton", 3.0, 1250.5)
+
+
+def test_a_signed_quantity_is_refused_rather_than_guessed_at():
+    """The silent one: it used to become a single "2 x poster" at 100.
+
+    The last pattern defaults the quantity to 1 and keeps everything else as
+    the description, so the line parsed, the invoice saved, and it was short
+    by 100 with nothing on it looking wrong. A sign on a quantity is a typo
+    and only the person knows which way it was meant.
+    """
+    for bad in ("-2 x poster @ 100", "+2 x poster @ 100", "−2 x poster @ 100"):
+        with pytest.raises(ToolError, match="sign in front of the quantity"):
+            parse_item(bad)
+    # A hyphen inside a description is not a signed quantity.
+    assert parse_item("A-2 cable x 3 @ 50") == ("A-2 cable", 3.0, 50.0)
+
+
+async def test_a_discount_line_adds_up_and_is_checked_on_the_sheet(tool_ctx):
+    r = await call(tool_ctx, "make_document", kind="invoice", to="Ade Stores",
+                   currency="N", tax_percent=7.5,
+                   items=["20 x Exercise books @ N500",
+                          "2 x Biro @ N150",
+                          "1 x Loyalty discount @ (N1,000)"])
+    subtotal = 20 * 500 + 2 * 150 - 1000
+    assert r.ok and r.verified
+    assert r.data["subtotal"] == subtotal == 9300
+    assert r.data["tax"] == round(subtotal * 0.075, 2) == 697.5
+    assert r.data["total"] == 9997.5
+
+    # The negative is on the sheet as a number, and the total is a real SUM of
+    # the lines, so the file is right for whoever opens it next.
+    ws = openpyxl.load_workbook(Path(r.data["path"])).active
+    prices = [c.value for row in ws.iter_rows() for c in row
+              if isinstance(c.value, (int, float)) and c.value == -1000]
+    assert prices, "the discount is not on the sheet as a negative number"
