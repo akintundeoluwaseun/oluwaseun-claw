@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased — mail merge
+
+mail_merge: a Word or text template with {Name} style placeholders, plus a
+CSV or spreadsheet whose headings match, makes one document per row in a new
+folder. Letters, reminders, invoices, certificates - the job whose manual
+version is open, change the name, save as, repeat fifty times.
+
+Built around the two ways a mail merge produces output that looks finished
+and is not:
+
+- A letter that goes out saying "Dear {Name}". If a placeholder has no column
+  to fill it, NOTHING is written and the error names the placeholder and
+  lists the columns the table does have. Half a merge is found by the
+  customer, not by us.
+- A placeholder Word has split up. Typing a line and correcting a letter in
+  the middle leaves Word storing "{Na", "m", "e}" as separate runs, and a
+  replacement done run by run misses it while working perfectly on a
+  template typed in one go. Paragraphs are joined before matching, and the
+  test builds a template with a deliberately split placeholder.
+
+Every document is reopened and checked: no placeholder left behind, and the
+row's own details actually in it, so a letter cannot come out holding the
+previous customer's figures. Two customers with the same name both get their
+own file.
+
 ## Unreleased — the four video jobs that needed an editor
 
 131 to 135. All on PyAV, already inside S-CLAW, so no editor and no
