@@ -30,6 +30,42 @@ jobs:
           f=$(ls *Setup.exe | head -1)
           [ "$f" = "S-CLAW-Windows-Setup.exe" ] || cp "$f" S-CLAW-Windows-Setup.exe
           gh release upload "${{ inputs.tag }}" S-CLAW-Windows-Setup.exe --clobber
+      # A release that is missing a platform would silently break that
+      # platform's download button, because the website links
+      # releases/latest/download/<fixed name> for all three. macOS runners
+      # stopped being allocated to this account - the job is cancelled one
+      # second in, with no steps - so build 50 had no .dmg while the release
+      # it was replacing did. Carrying the old file forward keeps the button
+      # working; saying so in the notes keeps it honest, because those users
+      # are getting an older build than everyone else.
+      - name: Carry forward any platform this build does not have
+        run: |
+          set -e
+          have=$(gh release view "${{ inputs.tag }}" --json assets --jq '.assets[].name')
+          previous=$(gh release list --limit 30 --json tagName,isLatest             --jq '[.[] | select(.isLatest)] | .[0].tagName')
+          carried=""
+          for name in S-CLAW-Mac.dmg S-CLAW-Linux.AppImage; do
+            if echo "$have" | grep -qx "$name"; then continue; fi
+            if [ -z "$previous" ] || [ "$previous" = "${{ inputs.tag }}" ]; then
+              echo "::warning title=No $name::nothing to carry it forward from"
+              continue
+            fi
+            rm -rf carry && mkdir -p carry
+            if gh release download "$previous" --pattern "$name" --dir carry 2>/dev/null; then
+              gh release upload "${{ inputs.tag }}" "carry/$name" --clobber
+              carried="$carried $name"
+              echo "::notice title=Carried forward::$name from $previous"
+            else
+              echo "::warning title=No $name::$previous does not have one either"
+            fi
+          done
+          if [ -n "$carried" ]; then
+            note=$(gh release view "${{ inputs.tag }}" --json body --jq .body)
+            printf '%s\n\n> Note:%s came from %s, not from this build. Those platforms are one build behind.\n' \
+              "$note" "$carried" "$previous" > body.md
+            gh release edit "${{ inputs.tag }}" --notes-file body.md
+          fi
+
       - name: Publish as the latest release
         run: |
           gh release edit "${{ inputs.tag }}" --prerelease=false --draft=false --latest
