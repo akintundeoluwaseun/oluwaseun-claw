@@ -1527,6 +1527,7 @@ function fillSettingsForm(s) {
   const a = s.agent || {};
   $('a-max-steps').value = a.max_steps ?? 20;
   $('a-step-timeout').value = a.step_timeout_s ?? 60;
+  $('a-extra-programs').value = (a.extra_programs || []).join(', ');
   const m = s.messages || {};
   $('m-read').value = m.whatsapp_read || 'ask';
   $('m-every').value = String(m.check_every_minutes || 0);
@@ -1623,7 +1624,13 @@ function readSettingsForm() {
       notify: $('m-notify').checked,
       show_previews: $('m-previews').checked,
     },
-    agent: { ...(prev.agent || {}), max_steps: Number($('a-max-steps').value), step_timeout_s: Number($('a-step-timeout').value) },
+    agent: {
+      ...(prev.agent || {}),
+      max_steps: Number($('a-max-steps').value),
+      step_timeout_s: Number($('a-step-timeout').value),
+      extra_programs: $('a-extra-programs').value
+        .split(',').map((x) => x.trim().toLowerCase()).filter(Boolean),
+    },
     desktop: {
       show_quick_bar: $('d-quickbar').checked,
       start_with_windows: $('d-startup').checked,

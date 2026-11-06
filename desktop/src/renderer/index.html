@@ -692,6 +692,16 @@
           <div class="field"><label for="a-max-steps">Most steps per task</label><input id="a-max-steps" type="number" min="1" max="50" step="1"></div>
           <div class="field"><label for="a-step-timeout">Seconds per step</label><input id="a-step-timeout" type="number" min="5" max="600" step="5"></div>
         </div>
+        <div class="field">
+          <label for="a-extra-programs">Other programs Claw may run</label>
+          <input id="a-extra-programs" type="text" spellcheck="false"
+                 placeholder="npm, cargo, dotnet">
+          <p class="set-note">Names separated by commas, no paths. Claw can already run Python,
+            Node, Git, FFmpeg, Blender, LibreOffice and the other programs it ships knowing about,
+            so you only need this for something of your own. Anything here still asks before it
+            runs. Programs that delete things wholesale, change Windows outside a folder or need
+            administrator rights are refused whatever you type.</p>
+        </div>
       </section>
 
       <section class="set" id="set-jobs">

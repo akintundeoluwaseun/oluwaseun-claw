@@ -293,6 +293,35 @@ class AgentSettings(BaseModel):
     step_timeout_s: float = Field(default=60, ge=5, le=600)
     approval_timeout_s: float = Field(default=600, ge=30, le=3600)
     max_consecutive_failures: int = Field(default=3, ge=1, le=10)
+    #: Extra programs run_command and run_script may use, beyond the built-in
+    #: list. Here because the refusal tells people to add one here - and for a
+    #: while it did so while there was nowhere to add it, which is worse than
+    #: refusing with no explanation at all.
+    #:
+    #: Adding a name does not override the never-list: rm, format, sudo,
+    #: powershell and the rest are refused whatever this says, and the check
+    #: that enforces that runs first.
+    extra_programs: list[str] = Field(default_factory=list, max_length=40)
+
+    @field_validator("extra_programs")
+    @classmethod
+    def _programs(cls, v: list[str]) -> list[str]:
+        from claw.tools.code_tools import NEVER  # noqa: PLC0415 - avoids a cycle at import
+
+        out: list[str] = []
+        for raw in v:
+            name = str(raw).strip().lower().removesuffix(".exe")
+            if not name:
+                continue
+            if "/" in name or "\\" in name:
+                raise ValueError(f"Give the program's name, not a path: {raw!r}")
+            if name in NEVER:
+                raise ValueError(
+                    f"{name} can never be allowed: it deletes things wholesale, changes the "
+                    "computer outside any folder, or asks for administrator rights.")
+            if name not in out:
+                out.append(name)
+        return out
 
 
 class DesktopSettings(BaseModel):

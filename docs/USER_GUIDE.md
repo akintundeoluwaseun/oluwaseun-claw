@@ -174,6 +174,7 @@ ignores it, shows a warning, and asks before every change for the rest of that t
 | "Windows is locked" | Steps in other apps need an unlocked screen. Browser steps still run. |
 | "Microsoft Edge was not found" | Settings → Browser → choose Chrome. |
 | "Step limit reached" | Raise "Most steps per task" in Settings, or split the task. |
+| "… is not a program Claw may run" | Add its name under Settings → Limits → "Other programs Claw may run". Programs that delete things wholesale, change Windows outside a folder or need administrator rights stay refused. |
 | "Agent stopped" in the title bar | Click it to restart. Claw also restarts itself after a crash. |
 
 ## 14. Keyboard shortcuts

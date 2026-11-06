@@ -31,7 +31,6 @@ import re
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 from pydantic import Field, field_validator
 
@@ -48,11 +47,31 @@ WIN = sys.platform == "win32"
 #: list - the list is here so a brain cannot reach for something nobody
 #: expected, like a package manager or a disk tool.
 DEFAULT_PROGRAMS = frozenset({
-    "python", "python3", "py", "node", "npm", "npx", "git",
+    # Interpreters and version control
+    "python", "python3", "py", "node", "git",
+    # Media and documents
     "ffmpeg", "ffprobe", "magick", "convert", "tesseract", "pandoc",
     "blender", "openscad", "soffice", "libreoffice", "inkscape", "gimp",
     "pdftoppm", "pdfinfo", "qpdf", "7z", "tar", "unzip",
+    # Checking the person's own project, all of it local
+    "pytest", "ruff", "mypy", "eslint", "prettier", "tsc", "make",
 })
+
+#: npm and npx are NOT here, and that is the point of this note.
+#:
+#: The line everywhere else in this file is "does it fetch code from the
+#: internet and run it?" - which is why curl, wget and ssh are refused outright
+#: and apt, brew, choco and winget with them. npx does exactly that, in one
+#: step, by design: `npx anything` downloads a package and executes it. npm
+#: install runs a package's own postinstall script. Allowing those while
+#: banning curl was not a considered trade-off, it was an oversight, and the
+#: approval prompt is no defence - nobody reads "npm install" as "run code
+#: somebody published an hour ago".
+#:
+#: They are a reasonable thing to want. Add them under Settings > Limits, which
+#: is a decision the person makes once, knowingly, rather than one Claw makes
+#: for them silently.
+FETCHES_AND_RUNS = frozenset({"npm", "npx", "pnpm", "yarn", "pip", "pip3", "pipx", "uv", "gem", "cargo", "go"})
 
 #: Never, whatever the settings say. Each one either destroys things wholesale,
 #: changes the machine outside any folder, or hands over administrator rights -
@@ -108,7 +127,7 @@ def check_program(name: str, ctx: ToolContext) -> str:
         allowed = ", ".join(sorted(allowed_programs(ctx))[:12])
         raise ToolError(
             f"{short} is not a program Claw may run. The ones it may: {allowed}… "
-            "Add it under Settings > Advanced if you want it.")
+            "Add it under Settings > Limits if you want it.")
     found = shutil.which(short)
     if not found:
         raise ToolError(f"{short} is not installed on this computer.")

@@ -19,6 +19,11 @@ import pytest
 from claw.agent.schemas import Capability
 from claw.permissions.policy import RiskLevel
 from claw.tools.base import ToolError
+from pydantic import ValidationError
+
+from claw import config as _config_module  # noqa: F401 - keeps the import graph honest
+from claw.config import AgentSettings
+from claw.tools import code_tools
 from claw.tools.code_tools import DEFAULT_PROGRAMS, NEVER, program_name
 from claw.tools.registry import build_registry
 from tests.test_phase_a import call
@@ -169,3 +174,94 @@ async def test_nothing_is_overwritten(tool_ctx):
     for _ in range(2):
         await call(tool_ctx, "run_script", language="python", purpose="same name", code="print(1)")
     assert len(list(saved(tool_ctx).glob("same-name*.py"))) == 2
+
+
+# ---------- the line the allowlist is drawn on ----------
+def test_nothing_that_fetches_and_runs_code_is_allowed_by_default():
+    """The rule the rest of this file already follows, written down.
+
+    curl, wget and ssh are refused outright, and apt, brew, choco and winget
+    with them, because they bring code from the internet onto the machine.
+    npx does that in one step by design - `npx anything` downloads a package
+    and runs it - and npm install runs a package's own postinstall script.
+    Both were in the default allowlist, which was an oversight rather than a
+    trade-off: the approval prompt is no defence, because nobody reads
+    "npm install" as "run code somebody published an hour ago".
+    """
+    from claw.tools.code_tools import FETCHES_AND_RUNS
+
+    assert not (DEFAULT_PROGRAMS & FETCHES_AND_RUNS), DEFAULT_PROGRAMS & FETCHES_AND_RUNS
+    for name in ("npm", "npx", "pip", "yarn", "pnpm"):
+        assert name in FETCHES_AND_RUNS, name
+
+
+async def test_a_package_manager_is_refused_but_can_be_allowed_on_purpose(tool_ctx):
+    # Refused by default...
+    with pytest.raises(ToolError) as exc:
+        await call(tool_ctx, "run_command", program="npm", arguments=["install"])
+    assert "not a program Claw may run" in str(exc.value)
+    assert "Settings" in str(exc.value), "it must say how to allow it deliberately"
+
+    # ...but a person who means it can add it, and then it works.
+    tool_ctx.settings.agent.extra_programs = ["npm"]
+    from claw.tools.code_tools import allowed_programs
+    assert "npm" in allowed_programs(tool_ctx)
+
+
+def test_the_tools_for_checking_the_persons_own_project_are_allowed():
+    # Local, and the obvious thing to want: run the tests, run the linter.
+    for name in ("pytest", "ruff", "mypy", "eslint", "prettier", "tsc", "make"):
+        assert name in DEFAULT_PROGRAMS, name
+
+
+# --- The escape hatch the refusal names has to be real -----------------------
+#
+# These exist because of a bug I shipped and then caught: run_command refused a
+# program with "Add it under Settings > ... if you want it", and there was no
+# such setting anywhere - not on AgentSettings, which forbids extra fields, and
+# not in the window. The refusal was telling people to do something impossible.
+# A wrong instruction in an error message is worse than no instruction, because
+# the person goes looking and blames themselves.
+
+_RENDERER = Path(__file__).resolve().parents[2] / "desktop" / "src" / "renderer"
+
+
+def test_the_settings_section_the_refusal_names_exists():
+    """The refusal's "Settings > X" has to match a real section heading."""
+    import re
+
+    source = Path(code_tools.__file__).read_text(encoding="utf-8")
+    named = set(re.findall(r"Settings > ([A-Z][a-z]+)", source))
+    assert named, "no refusal names a settings section - did the wording change?"
+
+    html = (_RENDERER / "index.html").read_text(encoding="utf-8")
+    headings = {h.strip() for h in re.findall(r"<h3>([^<]+)</h3>", html)}
+    missing = named - headings
+    assert not missing, (
+        f"code_tools sends people to Settings > {', '.join(sorted(missing))}, "
+        f"and no section is called that. Sections: {sorted(headings)}")
+
+
+def test_the_window_can_actually_set_extra_programs():
+    """A field on AgentSettings nothing writes to is the same bug, one step on."""
+    assert "extra_programs" in AgentSettings.model_fields
+
+    html = (_RENDERER / "index.html").read_text(encoding="utf-8")
+    app_js = (_RENDERER / "app.js").read_text(encoding="utf-8")
+    assert 'id="a-extra-programs"' in html, "no box to type the program names in"
+    assert "extra_programs" in app_js, "the window never sends the field"
+    # Saving must go through, not just render.
+    assert "$('a-extra-programs').value" in app_js
+
+
+def test_a_never_program_cannot_be_smuggled_in_through_settings():
+    """The setting widens what Claw may run. It must not widen it to rm."""
+    with pytest.raises(ValidationError):
+        AgentSettings(extra_programs=["rm"])
+    with pytest.raises(ValidationError):
+        AgentSettings(extra_programs=["POWERSHELL.EXE"])
+    with pytest.raises(ValidationError):
+        AgentSettings(extra_programs=["/usr/bin/sudo"])
+    # Ordinary names are kept, folded to one spelling, without duplicates.
+    assert AgentSettings(extra_programs=[" Cargo ", "cargo", "dotnet"]).extra_programs == [
+        "cargo", "dotnet"]
