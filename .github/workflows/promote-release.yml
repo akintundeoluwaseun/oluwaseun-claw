@@ -47,7 +47,7 @@ jobs:
           for name in S-CLAW-Mac.dmg S-CLAW-Linux.AppImage; do
             if echo "$have" | grep -qx "$name"; then continue; fi
             if [ -z "$previous" ] || [ "$previous" = "${{ inputs.tag }}" ]; then
-              echo "::warning title=No $name::nothing to carry it forward from"
+              echo "::warning title=No ${name}::nothing to carry it forward from"
               continue
             fi
             rm -rf carry && mkdir -p carry
@@ -56,7 +56,7 @@ jobs:
               carried="$carried $name"
               echo "::notice title=Carried forward::$name from $previous"
             else
-              echo "::warning title=No $name::$previous does not have one either"
+              echo "::warning title=No ${name}::${previous} does not have one either"
             fi
           done
           if [ -n "$carried" ]; then
