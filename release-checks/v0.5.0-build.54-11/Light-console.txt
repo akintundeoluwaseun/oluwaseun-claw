@@ -1,0 +1,8 @@
+[1/4] Open Notepad, type 'S-CLAW release check', save it as release-check.txt in Documents, reopen it, and verify the exact contents.
+    -> completed in 93.7s; steps: launch_app=verified, type_text=verified, write_text_file=verified, check_file=verified
+[2/4] Read invoice.pdf in my Documents folder and tell me the total amount due.
+    -> completed in 42.5s; steps: read_file=verified
+[3/4] Copy sales.csv from Documents into a new folder called Backup.
+    -> completed in 49.9s; steps: find_files=rejected
+[4/4] Which is the best claw?
+    -> completed in 0.0s; steps: 
