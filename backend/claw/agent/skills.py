@@ -68,7 +68,11 @@ def load(*dirs: Path) -> list[Skill]:
     for d in dirs:
         if not d or not d.is_dir():
             continue
-        for f in sorted(list(d.glob("*/SKILL.md")) + list(d.glob("*.md"))):
+        # PLUGIN.md as well as SKILL.md: a plugin IS a skill with a few more
+        # fields, and without this line an installed plugin was never offered
+        # to the brain - it would install, list, and do nothing at all.
+        for f in sorted(list(d.glob("*/SKILL.md")) + list(d.glob("*/PLUGIN.md"))
+                        + list(d.glob("*.md"))):
             try:
                 s = parse(f.read_text(encoding="utf-8-sig")[:20000], f)
             except OSError:

@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased — plugins: teaching Claw to drive one particular program
+
+Claw can work a window it has never seen by reading its controls. That is
+guessing, and twenty guesses at 95% each finish 36% of the time, which is
+why driving a big program like Photoshop by eye is a coin flip.
+
+A plugin replaces guessing with knowing. It is written by somebody who uses
+the program, and it says: this is the app, this is how to tell it is
+installed, this is the door into it, and here is how the jobs are done.
+
+The door is the point. A plugin's first job is not "where to click" but
+"does this program have a scripting way in" - Blender takes Python,
+Photoshop has its own script engine, Office has COM. Through the door is
+near certain and fast; by mouse is neither. The mouse is the fallback for
+programs with no door.
+
+A PLUGIN CARRIES NO CODE. It is instructions, shortcuts and the name of a
+door Claw already knows how to open. That is deliberate: if a plugin
+downloaded from a website could run a program, the website becomes a way to
+put malware on every machine that trusts it, and one bad plugin ends the
+product. Installing refuses anything executable - .exe, .py, .ps1, .jar and
+twenty more - and the refusal points at the approved route instead, since an
+author told only "no" will work around it. A zip that climbs out of its own
+folder is refused too.
+
+The format is the SKILL.md one Claw already read, with app, programs, door,
+version and author added, so all eleven existing recipes are already valid
+plugins and nothing had to be rewritten. Install from a folder or a .zip,
+list, replace, remove.
+
+drive-blender is the first one shipped in the new format, and it tells the
+brain NOT to use the mouse on Blender.
+
+Two bugs the tests caught, both the kind that look fine from outside:
+- a plugin's path was the .md file in some places and its folder in others,
+  so removing one deleted nothing and reported success;
+- the skill loader only looked for SKILL.md, so a PLUGIN.md installed, listed
+  and never reached the brain at all. Decoration.
+
 ## Unreleased — the planner's capability choice, measured against a real brain
 
 The first measurement in this project of what the BRAIN does, rather than
