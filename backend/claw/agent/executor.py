@@ -357,6 +357,18 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     (r"\bwhat(?:'s| is) the (?:time|date)\b|\btoday'?s date\b", ("current_time",)),
     # ------------------------------------------------------------------------
 
+    # The clipboard: the way out of an app whose window cannot be read.
+    (r"\bclipboard\b|\bcopied\b.{0,25}\b(?:what|it|text)\b|\bwhat (?:did|have) (?:i|you) cop(?:y|ied)\b",
+     ("read_clipboard", "put_on_clipboard")),
+    # Putting a program on the computer. Asking what is available comes
+    # first and leads with the tool that installs nothing.
+    (r"\b(?:is|can i get|do i have)\b.{0,25}\b(?:available|in the (?:store|catalogue))\b"
+     r"|\bsearch\b.{0,20}\b(?:for )?(?:a )?(?:program|app|software)\b",
+     ("find_app_to_install",)),
+    (r"\binstall\b.{0,40}\b(?:program|app|application|software|it|vlc|chrome|firefox|zoom|7-?zip|libreoffice|python|node)\b"
+     r"|\b(?:install|download and install|get me)\b\s+[A-Za-z0-9][\w.+-]{1,30}\s*$"
+     r"|\bi don'?t have\b.{0,30}\binstalled\b|\bnot installed\b.{0,30}\binstall\b",
+     ("install_app", "find_app_to_install")),
     # Getting a table OUT of a document, as opposed to reading the document.
     (r"\b(?:table|rows?|figures?|transactions?|line items?)\b.{0,30}\b(?:out of|from)\b.{0,30}\b(?:pdf|statement|invoice|document|word)\b"
      r"|\b(?:statement|invoice|price list)\b.{0,30}\b(?:into|to)\b.{0,20}\b(?:excel|spreadsheet|csv|a sheet)\b"
@@ -1106,7 +1118,9 @@ def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
         if total_names and estimate_tokens(render(keep)) > budget:
             named = total_names
             while named > MIN_NAMED and estimate_tokens(render(keep, named)) > budget:
-                named -= 5
+                # max(), so stepping by five cannot step straight past the
+                # floor and gut the line - 27 would otherwise become 22.
+                named = max(MIN_NAMED, named - 5)
             return render(keep, named)
     return render(keep)
 

@@ -83,6 +83,13 @@ ASKED = [
     ("correct the spelling in every letter", "replace_in_files"),
     ("join these three word documents into one", "merge_documents"),
     ("combine the chapters into one document", "merge_documents"),
+
+    # Getting a table out of a document, and putting a program on the machine.
+    ("get the table out of this bank statement pdf", "table_from_document"),
+    ("install VLC", "install_app"),
+    ("install the 7-zip program", "install_app"),
+    ("I do not have LibreOffice installed, install it", "install_app"),
+    ("can i get Zoom in the catalogue", "find_app_to_install"),
 ]
 
 
@@ -167,6 +174,12 @@ def test_replacing_everywhere_does_not_steal_single_file_jobs(registry):
     """The replace pattern is broad on purpose; it must not swallow these."""
     assert "replace_in_files" not in fitting_tools("rename this file", registry)
     assert "replace_in_files" not in fitting_tools("move the file to Documents", registry)
+
+
+def test_installing_does_not_steal_opening(registry):
+    """"Open Notepad" is not "install Notepad"."""
+    assert "install_app" not in fitting_tools("open notepad and type my list", registry)
+    assert fitting_tools("open notepad and type my list", registry)[0] == "launch_app"
 
 
 def test_every_tool_named_in_the_list_exists(registry):

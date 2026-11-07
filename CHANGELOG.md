@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased — Claw can install a program, and use the clipboard
+
+Two things it could not do that any person sitting at the machine can.
+143 tools.
+
+**Installing.** install_app puts a program on the computer from the official
+catalogue - winget on Windows, which ships with Windows 10 and 11, and apt
+on Linux. find_app_to_install looks one up first and installs nothing.
+
+Three rules, none of which bends:
+- Never silent. Destructive risk, so it asks every time, and the card names
+  the exact package id - not the word typed, not the brain's paraphrase. The
+  permission policy refuses to let destructive mean "allow", so no setting
+  turns this into something that happens behind the person.
+- The official catalogue only. A .exe, an .msi or a URL is refused outright:
+  "install this installer I found" is how a machine gets what nobody wanted.
+  A name with a space, a semicolon or a backtick in it is not a package name
+  and is refused rather than handed to a shell - and the package manager is
+  run directly, with no shell involved at all.
+- Checked afterwards. The package manager reporting success and the program
+  being on the machine are two different claims, so it asks the catalogue
+  again and reports what is actually there.
+
+Really installed on this machine while writing it: cowsay and sl, both
+absent beforehand, both present and running afterwards.
+
+**The clipboard.** read_clipboard and put_on_clipboard. Claw could press
+Ctrl+C and had no idea what landed. The clipboard is the way out of every
+app with no accessibility tree - a PDF viewer, a Java program, anything
+drawn rather than built from controls - and it closes a verification gap:
+"I copied the invoice number" was a claim with nothing behind it.
+
+A picture on the clipboard reads as "no text", not as an empty clipboard,
+because telling the brain nothing was copied when a screenshot is sitting
+there sends it round the same loop again. A machine with no clipboard
+program says so instead of returning an empty string that reads like an
+empty clipboard.
+
 ## Unreleased — headroom in the catalogue, and the flaky test placed
 
 - The tool catalogue had run out of room. Trimming turned detailed entries
