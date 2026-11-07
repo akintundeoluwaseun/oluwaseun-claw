@@ -1,0 +1,8 @@
+[1/4] Open Notepad, type 'S-CLAW release check', save it as release-check.txt in Documents, reopen it, and verify the exact contents.
+    -> completed in 199.8s; steps: launch_app=verified, type_text=verified, write_text_file=verified, check_file=verified
+[2/4] Read invoice.pdf in my Documents folder and tell me the total amount due.
+    -> completed in 126.7s; steps: list_folder=verified, read_document_pages=rejected, read_document_pages=verified
+[3/4] Make a promotional flyer for my software TechDesk and save it in Documents.
+    -> completed in 179.7s; steps: make_flyer=failed, make_flyer=verified
+[4/4] Make a 10 second promo video for my software TechDesk and save it in Documents.
+    -> completed in 152.5s; steps: make_motion_video=failed, make_motion_video=verified
