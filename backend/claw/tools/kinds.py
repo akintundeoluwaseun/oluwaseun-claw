@@ -33,6 +33,7 @@ MAKES_FILES = frozenset({
     "open_archive", "resize_photos", "watermark_photos", "make_qr_code",
     "trim_video", "extract_audio", "grab_frame", "shrink_video",
     "mail_merge", "replace_in_files", "merge_documents",
+    "table_from_document",
 })
 CHANGES_FILES = frozenset({"move_file", "rename_file", "edit_text_file", "sort_into_folders", "rename_many"})
 

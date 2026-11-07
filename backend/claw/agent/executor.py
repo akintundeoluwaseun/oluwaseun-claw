@@ -357,6 +357,10 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     (r"\bwhat(?:'s| is) the (?:time|date)\b|\btoday'?s date\b", ("current_time",)),
     # ------------------------------------------------------------------------
 
+    # Getting a table OUT of a document, as opposed to reading the document.
+    (r"\b(?:table|rows?|figures?|transactions?|line items?)\b.{0,30}\b(?:out of|from)\b.{0,30}\b(?:pdf|statement|invoice|document|word)\b"
+     r"|\b(?:statement|invoice|price list)\b.{0,30}\b(?:into|to)\b.{0,20}\b(?:excel|spreadsheet|csv|a sheet)\b"
+     r"|\bwithout (?:re)?typing\b", ("table_from_document",)),
     # Changing the same text in many files, and joining Word documents.
     # "in all the quotations", "across the folder", "everywhere": the thing
     # being changed is named by the person, not by a word list.

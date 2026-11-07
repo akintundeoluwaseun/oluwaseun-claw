@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased — a table out of a PDF, without retyping it
+
+table_from_document reads a bank statement, a supplier's invoice or a price
+list straight into a spreadsheet. 139 tools.
+
+There was already a way to do this and it was the wrong way: the brain reads
+the page and calls list_to_table with the rows it has typed out, which puts
+every digit through a language model. A small model transcribing a column of
+amounts gets some of them wrong, and the spreadsheet that comes out looks
+perfectly ordinary. This reads the file itself, so no number passes through
+the model.
+
+Two guards, because a wrong spreadsheet is worse than none:
+
+- Every cell written is looked for in the document's own text, and the sign
+  is part of the match. "2,500" is a substring of "(2,500)", so a plain
+  search would accept a positive 2500 for a page that shows only a debit - a
+  sign error passed silently, in the one column where it matters. Brackets
+  and minus signs are matched explicitly, both ways round.
+- A page whose lines do not agree on how many columns they have is refused
+  rather than guessed at. A letter, or a scan with no text layer, says so
+  plainly instead of producing a tidy, wrong sheet.
+
+Amounts land as numbers, so the column totals, and "(2,500)" arrives as
+-2500 the way a ledger means it.
+
 ## Unreleased — change the same text everywhere, join Word documents
 
 - replace_in_files: the business changed its phone number, or a name was
