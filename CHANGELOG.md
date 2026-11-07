@@ -1,5 +1,47 @@
 # Changelog
 
+## Unreleased — the planner's capability choice, measured against a real brain
+
+The first measurement in this project of what the BRAIN does, rather than
+what the tools can do. A real Qwen3.5-2B was run against S-CLAW's own
+planner prompt, and the capability it chose was scored.
+
+That choice is the bottleneck: it decides which tools the agent is shown, so
+the wrong one hides the right tool however well that tool works. Asked to
+"make an invoice", the brain planned to open a browser - make_document was
+invisible to it.
+
+scripts/brain_bench.py is the instrument. It needs a GGUF brain and
+llama-cpp-python, runs at temperature 0 so a difference means the change did
+something, and is not part of the test suite: it measures a model, not code.
+
+It carries two task sets. The second was written afterwards, in different
+words, and the prompt was NOT tuned against it - because a prompt tuned
+against its own test measures nothing. Scored on those held-out tasks:
+
+                        before    after
+    right capability    9/16      11/16     (56% -> 69%)
+    usable plan        13/16     15/16
+    steps per task      4.2       3.1
+
+On the tuned set it goes 12/17 to 17/17, and that number is inflated -
+some of those tasks are in the prompt as examples. The held-out figures are
+the real ones.
+
+Three changes, each kept only because it measured better:
+- The nine capabilities are listed one per line with what belongs to each,
+  plus worked examples, instead of one dense paragraph. A small model cannot
+  infer that an invoice is "data" from the word "tables".
+- No step just to find or open a file: every tool takes a name and finds it
+  itself. The brain was spending a step, and often the thread, on "locate
+  the file" before doing anything. This is most of the drop from 4.2 steps
+  to 3.1 - and each step is a model call, so it is also most of the speed.
+- Claw makes invoices, QR codes, flyers and mail merges ITSELF. The brain
+  kept planning to open Word or visit a website for jobs it has a tool for.
+
+Fewer steps matters as much as the score: on this machine each plan step is
+tens of seconds of thinking on a CPU.
+
 ## Unreleased — right-click, dragging, and jobs too long to wait for
 
 The three gaps named last time, closed. 147 tools, 1500 tests.
