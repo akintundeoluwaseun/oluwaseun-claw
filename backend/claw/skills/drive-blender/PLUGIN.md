@@ -1,4 +1,5 @@
 ---
+format: sclaw-plugin/1
 name: drive-blender
 description: Make or change a 3D scene in Blender - a model, a product render, a turntable - by writing Blender Python and running it.
 app: Blender

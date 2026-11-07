@@ -36,8 +36,12 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-#: Bumped when the format changes in a way old plugins would not survive.
+#: S-CLAW's own plugin format. A plugin declares which version it was
+#: written against, so a pack built for a later S-CLAW can say so plainly
+#: instead of half-working. Bumped only when a change would break old packs.
+FORMAT_NAME = "sclaw-plugin"
 FORMAT = 1
+FORMAT_ID = f"{FORMAT_NAME}/{FORMAT}"
 
 #: Anything that can be executed, or that drags code in. Refused on install
 #: whatever the manifest says, because the manifest is written by the same
@@ -71,6 +75,11 @@ class Plugin:
     version: str = ""
     author: str = ""
     triggers: list[str] = field(default_factory=list)
+    #: Which S-CLAW plugin format it was written against. Blank means a
+    #: plugin from before the format was named - still valid, since the
+    #: shape has not changed, and it would be rude to break the eleven
+    #: recipes that already shipped.
+    format: str = ""
 
     def installed_here(self) -> bool:
         """Is the program this plugin drives actually on this computer?
@@ -114,11 +123,30 @@ def parse(text: str, path: Path) -> Plugin:
                             "to decide whether the plugin fits what was asked.")
     if not body:
         raise PluginRefused(f"{path.name} has settings but no instructions under them.")
+
+    declared = _one(front, "format")
+    if declared:
+        name_part, _, number = declared.partition("/")
+        if name_part.strip().lower() != FORMAT_NAME:
+            raise PluginRefused(
+                f"{path.name} says it is a '{declared}' plugin. This is S-CLAW, which reads "
+                f"{FORMAT_ID} plugins.")
+        try:
+            wanted = int(number)
+        except ValueError:
+            raise PluginRefused(f"{path.name} does not say which version of the format it uses "
+                                f"(expected something like {FORMAT_ID}).") from None
+        if wanted > FORMAT:
+            raise PluginRefused(
+                f"{path.name} was written for {FORMAT_NAME} format {wanted}, and this S-CLAW "
+                f"reads up to {FORMAT}. Update S-CLAW to use this plugin.")
+
     return Plugin(
         name=name[:60], description=description[:300], body=body, path=path,
         app=_one(front, "app")[:60], programs=_many(front, "programs"),
         door=_one(front, "door")[:30].lower(), version=_one(front, "version")[:20],
-        author=_one(front, "author")[:60], triggers=_many(front, "triggers"))
+        author=_one(front, "author")[:60], triggers=_many(front, "triggers"),
+        format=declared)
 
 
 def check_contents(folder: Path) -> list[Path]:

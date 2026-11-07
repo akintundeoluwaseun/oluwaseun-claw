@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased — the format is S-CLAW's own, and a plugin provably works
+
+- The plugin format is named and versioned: `sclaw-plugin/1`. A plugin says
+  which version it was written for, one from a newer S-CLAW is refused with
+  a message that says to update rather than half-working, and another
+  product's format is refused outright. A plugin with no format line still
+  loads, because the eleven recipes that shipped before the name existed are
+  valid plugins and breaking them would be rude.
+- docs/PLUGINS.md is the spec a developer follows: the door table, the
+  settings block field by field, what a plugin may and may not contain, and
+  how to test one. A test asserts the spec matches the code, because a spec
+  that drifts sends developers down a dead end.
+
+**And the question the whole idea rests on is answered.** Same real brain
+(Qwen3.5-2B), same task, same prompt, the only difference being whether the
+Blender plugin was in front of it:
+
+    without the plugin   5 steps, step 1 "Open Blender"            (the GUI)
+    with the plugin      3 steps, step 1 "Write a Blender Python
+                         script", run in background mode
+
+That is the door principle working on a small local model: it stopped
+planning to click around in Blender and started planning to script it.
+Fewer steps as well, which on a CPU is the difference people feel.
+
 ## Unreleased — plugins: teaching Claw to drive one particular program
 
 Claw can work a window it has never seen by reading its controls. That is

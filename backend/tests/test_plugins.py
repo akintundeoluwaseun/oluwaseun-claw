@@ -215,3 +215,48 @@ def test_the_blender_plugin_is_picked_for_a_blender_job():
     found = skills.load(Path(__file__).resolve().parents[1] / "claw" / "skills")
     chosen = skills.pick("render a turntable of this model in blender", found)
     assert chosen is not None and chosen.name == "drive-blender"
+
+
+# ---------- the format is ours, and versioned ----------
+def test_a_plugin_may_declare_the_format_it_was_written_for(tmp_path):
+    from claw.plugins.pack import FORMAT_ID
+    p = read_folder(make(tmp_path / "v", GOOD.replace("---\nname:", f"---\nformat: {FORMAT_ID}\nname:", 1)))
+    assert p.format == FORMAT_ID
+
+
+def test_a_plugin_from_the_future_says_so_instead_of_half_working(tmp_path):
+    folder = make(tmp_path / "future",
+                  GOOD.replace("---\nname:", "---\nformat: sclaw-plugin/99\nname:", 1))
+    with pytest.raises(PluginRefused, match="Update S-CLAW"):
+        read_folder(folder)
+
+
+def test_somebody_elses_plugin_format_is_refused(tmp_path):
+    folder = make(tmp_path / "other",
+                  GOOD.replace("---\nname:", "---\nformat: someone-else/1\nname:", 1))
+    with pytest.raises(PluginRefused, match="This is S-CLAW"):
+        read_folder(folder)
+
+
+def test_a_plugin_with_no_format_line_still_works(tmp_path):
+    """The eleven recipes that shipped before the format was named."""
+    p = read_folder(make(tmp_path / "old"))
+    assert p.format == "" and p.name == "drive-example"
+
+
+def test_the_shipped_blender_plugin_declares_the_format():
+    from claw.plugins.pack import FORMAT_ID
+    p = read_folder(Path(__file__).resolve().parents[1] / "claw" / "skills" / "drive-blender")
+    assert p.format == FORMAT_ID
+
+
+def test_the_written_spec_matches_the_code():
+    """A spec that drifts from the code sends developers down a dead end."""
+    from claw.plugins.pack import EXECUTABLE, FORMAT_ID
+    spec = (Path(__file__).resolve().parents[2] / "docs" / "PLUGINS.md").read_text()
+    assert FORMAT_ID in spec
+    for field in ("name", "description", "app", "programs", "door", "triggers"):
+        assert f"`{field}`" in spec, f"the spec does not document {field}"
+    for suffix in (".exe", ".py", ".ps1"):
+        assert suffix in spec, f"the spec does not warn about {suffix}"
+        assert suffix in EXECUTABLE
