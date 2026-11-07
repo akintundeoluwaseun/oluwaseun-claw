@@ -1032,6 +1032,9 @@ FULL_CATALOGUE_BUDGET = 4800
 #: However tight the budget, this many tools keep their arguments. A brain shown
 #: three tools in full is worse off than one reading a slightly longer list.
 MIN_DETAILED = 10
+#: However tight the budget, this many tools are still named. Below this the
+#: line stops being a catalogue and starts being a hint.
+MIN_NAMED = 25
 
 
 def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
@@ -1070,11 +1073,18 @@ def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
         # fit a small brain's window. A tool used with wrong arguments gets its full shape back anyway.
         return f"- {d['name']}({compact_args(_strip_titles(d['args']), notes=capabilities is not None)}) [{d['risk']}]: {d['description']}"
 
-    def render(keep: int) -> str:
+    def render(keep: int, named: int | None = None) -> str:
         out = [detail(s) for s in chosen[:keep]]
         rest = [s.name for s in chosen[keep:]] + others
         if rest:
-            out.append("Also available (ask for details by using them): " + ", ".join(rest))
+            shown = rest if named is None else rest[:named]
+            line = "Also available (ask for details by using them): " + ", ".join(shown)
+            if len(shown) < len(rest):
+                # Said out loud. A tool the brain is not told about is a tool
+                # that does not exist from where it is sitting, so the count
+                # goes in: it can still ask for any of them by name.
+                line += f", and {len(rest) - len(shown)} more (ask for any tool by name)"
+            out.append(line)
         return "\n".join(out)
 
     keep = len(chosen)
@@ -1085,6 +1095,19 @@ def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
         floor = max(MIN_DETAILED, len(fitting_tools(task, registry)))
         while keep > floor and estimate_tokens(render(keep)) > budget:
             keep -= 1
+        # Trimming details bottoms out at the floor, and the line of bare
+        # names never shrank at all - so a catalogue could sit over budget
+        # with nothing left to do about it. With 139 tools the full
+        # catalogue was at 4780 of 4800 and a files step at 1789 of 1800:
+        # the next tool anyone added would have failed the build. The names
+        # are ordered by how well they match the request, so what goes first
+        # is what the request is least likely to want.
+        total_names = len(chosen) - keep + len(others)
+        if total_names and estimate_tokens(render(keep)) > budget:
+            named = total_names
+            while named > MIN_NAMED and estimate_tokens(render(keep, named)) > budget:
+                named -= 5
+            return render(keep, named)
     return render(keep)
 
 

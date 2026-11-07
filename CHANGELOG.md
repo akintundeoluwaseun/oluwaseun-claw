@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased — headroom in the catalogue, and the flaky test placed
+
+- The tool catalogue had run out of room. Trimming turned detailed entries
+  into bare names and stopped there; the line of names itself never shrank.
+  With 139 tools the full catalogue sat at 4780 tokens of 4800 and a files
+  step at 1789 of 1800, so the next tool anyone added would have gone over
+  with nothing left to trim. The names line now trims too, least relevant
+  first, and says how many were left out so the brain knows they exist and
+  can still ask for them by name. It does not fire today - nothing about the
+  current output changes - it is headroom.
+- The intermittent planner test is explained. It failed with
+  'task_cancelled' roughly twice in twenty full-suite runs and never alone.
+  A bare TestClient ends its lifespan whenever it is garbage collected, and
+  the app cancels a busy runner on the way out, so a task still running at
+  that moment is cancelled mid-flight. The test now holds the client open,
+  which is what the tests that never flaked already did.
+
 ## Unreleased — a table out of a PDF, without retyping it
 
 table_from_document reads a bank statement, a supplier's invoice or a price

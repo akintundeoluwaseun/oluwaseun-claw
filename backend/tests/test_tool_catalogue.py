@@ -114,3 +114,67 @@ def test_the_full_catalogue_is_kept_in_bounds_by_trimming_not_by_luck():
     named = {n.strip() for n in trimmed.splitlines()[-1].split(":", 1)[1].split(",")}
     kept = {l[2:].split("(")[0] for l in detailed}
     assert set(REG.names()) == kept | named
+
+
+# --- the names line has a floor too ----------------------------------------
+#
+# Trimming turned detailed entries into bare names and stopped there: the
+# line of names itself never shrank. With 139 tools the full catalogue sat at
+# 4780 of 4800 tokens and a files step at 1789 of 1800, so the next tool
+# anyone added would have gone over with nothing left to trim, and the build
+# would have failed on a budget test with no way to satisfy it.
+
+def test_todays_catalogue_still_names_every_tool():
+    """The valve must not be firing now - this is headroom, not a change."""
+    from claw.agent.executor import tool_catalogue
+    from claw.tools.registry import build_registry
+
+    registry = build_registry()
+    for caps in ({"files"}, {"documents"}, {"design"}, None):
+        cat = tool_catalogue(registry, caps, [], task="make a flyer from the pictures")
+        assert "more (ask for any tool by name)" not in cat, (
+            f"names are being trimmed for {caps} when there is still room")
+
+
+def test_when_there_is_no_room_the_names_are_trimmed_and_counted():
+    """And the brain is TOLD, so a missing name is not a missing tool."""
+    import claw.agent.executor as ex
+    from claw.tools.registry import build_registry
+
+    registry = build_registry()
+    was = ex.CATALOGUE_BUDGET
+    try:
+        ex.CATALOGUE_BUDGET = 320          # far too small on purpose
+        cat = ex.tool_catalogue(registry, {"files"}, [], task="tidy up the downloads folder")
+    finally:
+        ex.CATALOGUE_BUDGET = was
+
+    assert "more (ask for any tool by name)" in cat, "nothing was trimmed under a tiny budget"
+
+    # It does not reach 320: MIN_DETAILED entries and MIN_NAMED names are
+    # kept on purpose, and that floor is the point of those constants. What
+    # matters is that it is much smaller than the untrimmed catalogue, so a
+    # budget that is merely tight can now be met.
+    full = ex.tool_catalogue(registry, {"files"}, [], task="")
+    assert ex.estimate_tokens(cat) < ex.estimate_tokens(full) * 0.6, (
+        f"trimmed {ex.estimate_tokens(cat)} against untrimmed {ex.estimate_tokens(full)}")
+    # It never trims away the whole list.
+    line = [l for l in cat.splitlines() if l.startswith("Also available")][0]
+    named = line.split(":", 1)[1].split(", and ")[0]
+    assert len(named.split(",")) >= ex.MIN_NAMED - 1, "the names line was gutted"
+
+
+def test_the_tools_that_fit_are_never_the_ones_dropped():
+    """Relevance ordering decides what goes, so the request's own tools stay."""
+    import claw.agent.executor as ex
+    from claw.tools.registry import build_registry
+
+    registry = build_registry()
+    was = ex.CATALOGUE_BUDGET
+    try:
+        ex.CATALOGUE_BUDGET = 320
+        cat = ex.tool_catalogue(registry, {"files"}, ["sort_into_folders"],
+                                task="tidy up the downloads folder into subfolders by type")
+    finally:
+        ex.CATALOGUE_BUDGET = was
+    assert "sort_into_folders" in cat, "the tool that fits the request was trimmed away"

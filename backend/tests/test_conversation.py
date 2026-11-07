@@ -140,8 +140,21 @@ def test_a_greeting_finishes_without_asking_the_brain(make_client, fake_server):
 
 
 def test_a_real_job_still_goes_through_the_planner(make_client, fake_server):
-    """The other side of the guard: work must not be short-circuited."""
-    c = make_client()
+    """The other side of the guard: work must not be short-circuited.
+
+    The client is held open for the whole test. A bare TestClient ends its
+    lifespan whenever it is collected, and the app cancels a busy runner on
+    the way out (claw/api/app.py), so a task still running when that happens
+    comes back as 'task_cancelled' - which is what this test used to fail
+    with, roughly twice in twenty full-suite runs and never on its own.
+    Entering the context makes the teardown happen after the assertions
+    instead of somewhere in the middle of them.
+    """
+    with make_client() as c:
+        _real_job(c, fake_server)
+
+
+def _real_job(c, fake_server):
     c.put("/settings", json=settings_for(fake_server))
     # Clear rather than append: a reply left in the queue by an earlier test
     # would be served to the planner instead of the plan, and this test would
@@ -155,13 +168,10 @@ def test_a_real_job_still_goes_through_the_planner(make_client, fake_server):
 
     assert fake_server.requests, "a real job skipped the brain entirely"
     kinds = [e["kind"] for e in c.get(f"/tasks/{tid}/events").json()["events"]]
-    # Known intermittent, only in a full-suite run, roughly twice in twenty:
-    # kinds comes back ['requested_task', 'model_call', 'task_cancelled'].
-    # Something cancels the task. The only cancel paths are an explicit
-    # cancel request and the app's lifespan shutdown, which cancels a busy
-    # runner on the way out (claw/api/app.py). Not yet reproduced in
-    # isolation, and not a fault in what this test is checking - but it is
-    # NOT understood, so it is written down here rather than explained away.
+    # If this ever comes back as ['requested_task', 'model_call',
+    # 'task_cancelled'] again, the lifespan is ending mid-test: see the
+    # docstring. The events are in the message so the next failure can be
+    # read rather than guessed at, which is how this one was finally placed.
     assert "planned" in kinds, f"the job did not reach the planner: {kinds}"
     assert "chat_reply" not in kinds
 
