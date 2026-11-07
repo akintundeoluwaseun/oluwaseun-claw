@@ -76,6 +76,13 @@ ASKED = [
     ("put these photos into one collage", "make_collage"),
     ("design a bracket 60 by 40 mm", "make_part"),
     ("what is taking up my disk space", "disk_space"),
+
+    # Changing the same text everywhere, and joining Word files.
+    ("the phone number changed, replace it in all the quotations", "replace_in_files"),
+    ("find and replace Stationary with Stationery across the folder", "replace_in_files"),
+    ("correct the spelling in every letter", "replace_in_files"),
+    ("join these three word documents into one", "merge_documents"),
+    ("combine the chapters into one document", "merge_documents"),
 ]
 
 
@@ -148,6 +155,18 @@ def test_searching_inside_files_is_not_searching_for_files(registry):
     by_content = fitting_tools("which files mention the word refund", registry)
     assert "find_files" in by_name
     assert by_content[0] == "search_in_folder", by_content
+
+
+def test_joining_word_files_is_not_joining_pdfs(registry):
+    """Both are "join these ... into one"."""
+    assert fitting_tools("join these three word documents into one", registry)[0] == "merge_documents"
+    assert fitting_tools("join these invoices into one pdf", registry)[0] == "combine_pdfs"
+
+
+def test_replacing_everywhere_does_not_steal_single_file_jobs(registry):
+    """The replace pattern is broad on purpose; it must not swallow these."""
+    assert "replace_in_files" not in fitting_tools("rename this file", registry)
+    assert "replace_in_files" not in fitting_tools("move the file to Documents", registry)
 
 
 def test_every_tool_named_in_the_list_exists(registry):

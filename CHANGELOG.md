@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — change the same text everywhere, join Word documents
+
+- replace_in_files: the business changed its phone number, or a name was
+  spelled wrong in forty quotations. Works on text files and Word documents,
+  including a phrase Word has split across runs. It writes corrected COPIES
+  into a new folder and never edits in place - a find-and-replace across a
+  folder is the easiest way there is to lose an afternoon's work, and there
+  is no undo. A preview mode reports what would change without writing
+  anything, and when the text appears nowhere it refuses, rather than copying
+  the folder and reporting success while the person believes it was changed.
+- merge_documents: several Word files into one, in order, with page breaks.
+  Checked by reopening the result and looking for the LAST document's text,
+  because the way this fails is that the append quietly does nothing.
+
+138 tools.
+
 ## Unreleased — benchmark v1.9, and a video bug it found
 
 Six scenarios for the everyday jobs added above: opening the supplier's zip,

@@ -357,6 +357,15 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     (r"\bwhat(?:'s| is) the (?:time|date)\b|\btoday'?s date\b", ("current_time",)),
     # ------------------------------------------------------------------------
 
+    # Changing the same text in many files, and joining Word documents.
+    # "in all the quotations", "across the folder", "everywhere": the thing
+    # being changed is named by the person, not by a word list.
+    (r"\b(?:replace|change|correct|update|fix)\b.{0,40}\b(?:in|across)\s+(?:all|every|the|each)\b"
+     r"|\b(?:replace|change|correct|update|fix)\b.{0,30}\beverywhere\b"
+     r"|\bfind and replace\b|\b(?:replace|change)\b.{0,30}\bwith\b.{0,30}\b(?:in|across)\b.{0,25}\b(?:files?|folder|documents?)\b"
+     r"|\b(?:old|new) (?:phone )?number\b.{0,30}\b(?:all|every|files?)\b", ("replace_in_files",)),
+    (r"\b(?:join|combine|merge|put together)\b.{0,40}\b(?:word|docx?|documents?)\b"
+     r"|\b(?:documents?|chapters?|sections?)\b.{0,25}\binto one\b", ("merge_documents",)),
     # Asking what is INSIDE comes first, and leads with the tool that only
     # looks. "What's in this zip" should not unpack two hundred files onto
     # the desktop to answer a question.
