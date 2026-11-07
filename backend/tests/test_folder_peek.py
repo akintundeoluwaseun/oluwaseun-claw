@@ -83,8 +83,18 @@ def test_a_path_that_does_not_exist_says_so_plainly(folder):
     assert "There is nothing at" in said and "paste it again" in said
 
 
-def test_a_folder_claw_may_not_open_is_refused_with_the_remedy(folder):
-    said = describe_folder("/etc", [str(folder)])
+def test_a_folder_claw_may_not_open_is_refused_with_the_remedy(folder, tmp_path):
+    """A folder that EXISTS but was never authorized.
+
+    This used to pass "/etc", which exists on Linux and does not on Windows -
+    there it becomes \\etc on the current drive, so the honest answer is
+    "there is nothing at", a different message, and the test failed on the
+    one platform the app actually ships to. The folder has to be real on
+    whatever is running the test, so it is made here.
+    """
+    outside = tmp_path / "somewhere else"
+    outside.mkdir()
+    said = describe_folder(str(outside), [str(folder)])
     assert "not a folder Claw may open" in said and "Settings > Folders" in said
 
 
@@ -142,6 +152,28 @@ def test_the_next_message_still_knows_which_folder(make_client, fake_server, tmp
                                         "thread_id": thread}).json()["id"]
     wait_done(c, second)
 
-    asked = json.dumps(fake_server.requests)
+    # NOT json.dumps: it escapes every backslash, so a Windows path
+    # (C:\Users\...) can never be found in the dump by its own str(). The
+    # test passed on Linux for that reason alone and failed on Windows while
+    # the app was behaving correctly.
+    asked = _all_text(fake_server.requests)
     assert str(here) in asked, "the planner was not told which folder"
     assert "one.jpg" in asked or "2 files" in asked, "what is in the folder was not carried over"
+
+
+def _all_text(requests) -> str:
+    """Every string anywhere in what was sent, joined, with no escaping."""
+    out: list[str] = []
+
+    def walk(node):
+        if isinstance(node, str):
+            out.append(node)
+        elif isinstance(node, dict):
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                walk(v)
+
+    walk(requests)
+    return "\n".join(out)
