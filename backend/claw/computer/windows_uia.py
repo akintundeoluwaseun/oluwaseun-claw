@@ -285,6 +285,29 @@ class WindowsUIADriver(DesktopDriver):
 
         mouse.click(button="left", coords=(int(x), int(y)))
 
+    def click_button_at(self, x: int, y: int, button: str = "left", double: bool = False) -> None:
+        self._check()
+        from pywinauto import mouse  # noqa: PLC0415
+
+        where = (int(x), int(y))
+        if double:
+            mouse.double_click(button=button, coords=where)
+        else:
+            mouse.click(button=button, coords=where)
+
+    def drag(self, from_x: int, from_y: int, to_x: int, to_y: int) -> None:
+        self._check()
+        from pywinauto import mouse  # noqa: PLC0415
+
+        start, end = (int(from_x), int(from_y)), (int(to_x), int(to_y))
+        mouse.press(button="left", coords=start)
+        # A step in the middle: a press and release at two points with
+        # nothing between them is not a drag to most applications, which
+        # start the operation on the first move event.
+        mouse.move(coords=((start[0] + end[0]) // 2, (start[1] + end[1]) // 2))
+        mouse.move(coords=end)
+        mouse.release(button="left", coords=end)
+
     def scroll(self, handle: int, down: bool, clicks: int) -> None:
         self._check()
         from pywinauto import mouse  # noqa: PLC0415

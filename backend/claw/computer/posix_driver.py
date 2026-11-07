@@ -150,6 +150,25 @@ class LinuxX11Driver(_NoControls, DesktopDriver):
     def click_at(self, x: int, y: int) -> None:
         _run(["xdotool", "mousemove", str(x), str(y), "click", "1"])
 
+    #: X11 button numbers: 1 left, 2 middle, 3 right.
+    BUTTONS = {"left": "1", "middle": "2", "right": "3"}
+
+    def click_button_at(self, x: int, y: int, button: str = "left", double: bool = False) -> None:
+        which = self.BUTTONS.get(button)
+        if which is None:
+            raise DesktopUnavailable(f"There is no {button} mouse button.")
+        command = ["xdotool", "mousemove", str(x), str(y), "click"]
+        if double:
+            command += ["--repeat", "2", "--delay", "80"]
+        _run([*command, which])
+
+    def drag(self, from_x: int, from_y: int, to_x: int, to_y: int) -> None:
+        _run(["xdotool", "mousemove", str(from_x), str(from_y), "mousedown", "1"])
+        # Through a midpoint, so the application sees movement and starts the
+        # drag rather than treating it as a click somewhere else.
+        _run(["xdotool", "mousemove", str((from_x + to_x) // 2), str((from_y + to_y) // 2)])
+        _run(["xdotool", "mousemove", str(to_x), str(to_y), "mouseup", "1"])
+
     def screen_size(self) -> tuple[int, int]:
         w, h = _run(["xdotool", "getdisplaygeometry"]).split()
         return int(w), int(h)

@@ -33,6 +33,8 @@ class FakeDesktop(DesktopDriver):
         self.saved: dict[str, str] = {}
         self.launched: list[str] = []
         self.clicks_at: list[tuple[int, int]] = []
+        self.button_clicks: list[dict] = []
+        self.drags: list[tuple[int, int, int, int]] = []
         self._index: list[tuple[int, int]] = []
 
     # helpers
@@ -309,6 +311,13 @@ class FakeDesktop(DesktopDriver):
 
     def click_at(self, x, y):
         self.clicks_at.append((x, y))
+
+    def click_button_at(self, x, y, button="left", double=False):
+        self.clicks_at.append((x, y))
+        self.button_clicks.append({"x": x, "y": y, "button": button, "double": double})
+
+    def drag(self, from_x, from_y, to_x, to_y):
+        self.drags.append((from_x, from_y, to_x, to_y))
 
     def screen_size(self):
         return (1920, 1080)

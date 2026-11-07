@@ -14,6 +14,8 @@ from difflib import SequenceMatcher
 import time
 from pathlib import Path
 
+from typing import Literal
+
 from pydantic import Field, field_validator
 
 from claw.agent.schemas import Capability
@@ -555,6 +557,9 @@ class ClickAtArgs(ToolArgs):
     x: int = Field(ge=0, le=20000)
     y: int = Field(ge=0, le=20000)
     reason: str = Field(min_length=3, max_length=200, description="What is at this point")
+    button: Literal["left", "right", "middle"] = Field(
+        default="left", description="right opens the context menu")
+    double: bool = Field(default=False, description="Double-click, e.g. to open a file")
 
 
 def check_click_at(args: ClickAtArgs, ctx: ToolContext) -> None:
@@ -568,14 +573,63 @@ async def click_at(args: ClickAtArgs, ctx: ToolContext) -> ToolResult:
         raise ToolError(f"({args.x}, {args.y}) is outside the screen ({w}×{h}).")
     handle = ctx.desktop.last_window
     before = await _d(ctx, "snapshot", handle)
-    await _d(ctx, "click_at", args.x, args.y)
-    await asyncio.sleep(SETTLE_S)
+    await _d(ctx, "click_button_at", args.x, args.y, args.button, args.double)
+    # A right-click has to put a menu up, and a double-click often opens a
+    # window; both take longer than a plain click to appear.
+    await asyncio.sleep(SETTLE_S * 2 if (args.double or args.button != "left") else SETTLE_S)
     after = await _d(ctx, "snapshot", handle)
     notes = _changed(before, after)
     if notes:
         ctx.desktop.last_controls = []
-    return ToolResult(True, f"Clicked at ({args.x}, {args.y}) — {args.reason}." + (" " + ". ".join(notes) + "." if notes else " Nothing visible changed."),
-                      {"changes": notes}, verified=bool(notes))
+    did = ("Double-clicked" if args.double else
+           f"{args.button.capitalize()}-clicked" if args.button != "left" else "Clicked")
+    return ToolResult(True, f"{did} at ({args.x}, {args.y}) — {args.reason}." + (" " + ". ".join(notes) + "." if notes else " Nothing visible changed."),
+                      {"changes": notes, "button": args.button, "double": args.double},
+                      verified=bool(notes))
+
+
+# ---------- drag ----------
+class DragArgs(ToolArgs):
+    from_x: int = Field(ge=0, le=20000)
+    from_y: int = Field(ge=0, le=20000)
+    to_x: int = Field(ge=0, le=20000)
+    to_y: int = Field(ge=0, le=20000)
+    reason: str = Field(min_length=3, max_length=200,
+                        description="What is being dragged, and where to")
+
+
+def check_drag(args: DragArgs, ctx: ToolContext) -> None:
+    if ctx.desktop is None or not ctx.desktop.screenshot_taken:
+        raise ToolError("Take a screenshot or describe the screen before dragging anything.")
+
+
+async def drag(args: DragArgs, ctx: ToolContext) -> ToolResult:
+    """Press at one point, move, release at another.
+
+    Dragging is how a person moves a file into a folder, reorders a list,
+    draws a selection, or moves a window - all of it impossible through
+    clicks alone, and none of it reachable through the accessibility tree.
+    """
+    w, h = await _d(ctx, "screen_size")
+    for x, y, which in ((args.from_x, args.from_y, "start"), (args.to_x, args.to_y, "end")):
+        if x >= w or y >= h:
+            raise ToolError(f"The {which} point ({x}, {y}) is outside the screen ({w}×{h}).")
+    if (args.from_x, args.from_y) == (args.to_x, args.to_y):
+        raise ToolError("The start and the end are the same point, so nothing would move.")
+
+    handle = ctx.desktop.last_window
+    before = await _d(ctx, "snapshot", handle)
+    await _d(ctx, "drag", args.from_x, args.from_y, args.to_x, args.to_y)
+    await asyncio.sleep(SETTLE_S * 2)
+    after = await _d(ctx, "snapshot", handle)
+    notes = _changed(before, after)
+    if notes:
+        ctx.desktop.last_controls = []
+    return ToolResult(
+        True,
+        f"Dragged from ({args.from_x}, {args.from_y}) to ({args.to_x}, {args.to_y}) — "
+        f"{args.reason}." + (" " + ". ".join(notes) + "." if notes else " Nothing visible changed."),
+        {"changes": notes}, verified=bool(notes))
 
 
 # ---------- scroll ----------
@@ -676,5 +730,9 @@ def register_desktop_tools(reg: ToolRegistry) -> None:
     reg.register(ToolSpec("wait_for_window", "Wait until a window or dialog with this title appears.", D, R, WaitArgs, wait_for_window))
     reg.register(ToolSpec("take_screenshot", "Save a screenshot of the screen or one window.", D, R, ShotArgs, take_screenshot))
     reg.register(ToolSpec("describe_screen", "Look at the screen and answer a question about it.", D, R, DescribeArgs, describe_screen))
-    reg.register(ToolSpec("click_at", "Click at screen coordinates (only when look_at_window can't find the control).",
+    reg.register(ToolSpec("click_at", "Click at screen coordinates, with the left, right or middle "
+                                      "button, once or twice (only when look_at_window can't find the control).",
                           D, W, ClickAtArgs, click_at, precheck=check_click_at))
+    reg.register(ToolSpec("drag", "Drag from one point to another: move a file into a folder, "
+                                  "reorder a list, draw a selection.",
+                          D, W, DragArgs, drag, precheck=check_drag))

@@ -279,3 +279,108 @@ async def test_typing_is_read_back_and_a_garble_is_caught(desk_ctx):
     drv.focused_text = lambda: None                              # a window that cannot be read
     r = await call(desk_ctx, "type_text", text="x")
     assert r.ok and not r.verified and "cannot be read back" in r.summary
+
+
+# --- right-click, double-click and dragging -------------------------------
+#
+# A left click alone cannot open a context menu, open a file from an icon, or
+# move anything. Those are ordinary things a person does with a mouse all
+# day, and the accessibility tree does not reach any of them: a context menu
+# does not exist until you ask for it, and a drag has no control to invoke.
+
+async def test_a_right_click_really_uses_the_right_button(desk_ctx):
+    await call(desk_ctx, "take_screenshot")
+    await call(desk_ctx, "click_at", x=40, y=60, reason="the file, to open its menu",
+               button="right")
+    done = desk_ctx.desktop.driver.button_clicks[-1]
+    assert done["button"] == "right" and done["double"] is False
+    assert (done["x"], done["y"]) == (40, 60)
+
+
+async def test_a_double_click_is_two_clicks_not_two_calls(desk_ctx):
+    """Two separate single clicks are not a double click to Windows."""
+    await call(desk_ctx, "take_screenshot")
+    r = await call(desk_ctx, "click_at", x=12, y=34, reason="the document, to open it",
+                   double=True)
+    done = desk_ctx.desktop.driver.button_clicks[-1]
+    assert done["double"] is True and done["button"] == "left"
+    assert "Double-clicked" in r.summary
+
+
+async def test_an_ordinary_click_is_unchanged(desk_ctx):
+    """The defaults must not have moved under the existing callers."""
+    await call(desk_ctx, "take_screenshot")
+    r = await call(desk_ctx, "click_at", x=7, y=8, reason="the OK button")
+    done = desk_ctx.desktop.driver.button_clicks[-1]
+    assert done["button"] == "left" and done["double"] is False
+    assert r.summary.startswith("Clicked at (7, 8)")
+
+
+async def test_dragging_moves_from_one_point_to_the_other(desk_ctx):
+    await call(desk_ctx, "take_screenshot")
+    r = await call(desk_ctx, "drag", from_x=10, from_y=20, to_x=300, to_y=400,
+                   reason="the invoice into the Paid folder")
+    assert desk_ctx.desktop.driver.drags[-1] == (10, 20, 300, 400)
+    assert "Dragged from (10, 20) to (300, 400)" in r.summary
+
+
+async def test_dragging_needs_a_look_first(desk_ctx):
+    """Same rule as clicking blind: look before you move things about."""
+    with pytest.raises(ToolError, match="screenshot"):
+        await call(desk_ctx, "drag", from_x=1, from_y=2, to_x=3, to_y=4, reason="a file")
+
+
+async def test_a_drag_that_goes_nowhere_is_refused(desk_ctx):
+    await call(desk_ctx, "take_screenshot")
+    with pytest.raises(ToolError, match="same point"):
+        await call(desk_ctx, "drag", from_x=50, from_y=50, to_x=50, to_y=50, reason="nothing")
+
+
+async def test_a_drag_off_the_screen_is_refused_at_both_ends(desk_ctx):
+    await call(desk_ctx, "take_screenshot")
+    with pytest.raises(ToolError, match="end point"):
+        await call(desk_ctx, "drag", from_x=10, from_y=10, to_x=9000, to_y=10, reason="out")
+    with pytest.raises(ToolError, match="start point"):
+        await call(desk_ctx, "drag", from_x=9000, from_y=10, to_x=10, to_y=10, reason="out")
+
+
+def test_a_driver_that_cannot_do_it_says_so_rather_than_left_clicking():
+    """The fallback must not quietly turn a right-click into a left-click.
+
+    A right-click that silently becomes a left-click is worse than an
+    error: it opens the file instead of its menu, and the brain is told it
+    succeeded.
+    """
+    from claw.computer.driver import DesktopDriver, DesktopUnavailable
+
+    class Basic(DesktopDriver):
+        """A driver that only implements the one required method."""
+        def __init__(self):
+            self.clicked = []
+
+        def list_windows(self): return []
+        def snapshot(self, handle): return None
+        def screenshot(self, handle): return b""
+        def screen_size(self): return (800, 600)
+        def click_at(self, x, y): self.clicked.append((x, y))
+        def active_window(self): return None
+        def available(self): return True, ""
+        def controls(self, handle): return []
+        def focus_window(self, handle): return None
+        def invoke(self, handle, number): return None
+        def launch(self, name): return None
+        def read(self, handle, number): return ""
+        def send_keys(self, keys): return None
+        def set_text(self, handle, number, text): return None
+        def type_keys(self, text): return None
+
+    basic = Basic()
+    basic.click_button_at(1, 2)                      # left, single: fine
+    assert basic.clicked == [(1, 2)]
+    with pytest.raises(DesktopUnavailable, match="Right-clicking"):
+        basic.click_button_at(1, 2, "right")
+    with pytest.raises(DesktopUnavailable, match="Double-clicking"):
+        basic.click_button_at(1, 2, "left", True)
+    with pytest.raises(DesktopUnavailable, match="Dragging"):
+        basic.drag(1, 2, 3, 4)
+    assert basic.clicked == [(1, 2)], "a refused action still moved the mouse"

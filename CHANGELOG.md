@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased — right-click, dragging, and jobs too long to wait for
+
+The three gaps named last time, closed. 147 tools, 1500 tests.
+
+**Right-click and double-click.** click_at takes a button and a double now.
+A left click cannot open a context menu or open a file from its icon, and
+the accessibility tree reaches neither: a context menu does not exist until
+it is asked for. A driver that cannot do it raises rather than quietly
+left-clicking instead - a right-click that silently becomes a left-click
+opens the file instead of its menu and reports success.
+
+**Dragging.** drag presses at one point, moves through a midpoint and
+releases at another. The midpoint matters: a press and release with nothing
+between them is not a drag to most applications, which begin the operation
+on the first move. Moving a file into a folder, reordering a list, drawing
+a selection - none of it reachable by clicking.
+
+**Long jobs.** start_program, check_program and stop_program. run_command
+waits and gives up after five minutes, which is right for most things and
+wrong for the ones that matter most - a Blender render, an hour of footage
+converted, a build. Being killed at five minutes throws the work away and
+says nothing useful.
+
+Running in the background is not a way round any gate: the same allowlist,
+the same refusal of shell punctuation, the same authorised folder, the same
+approval before anything starts, and tests for each. Output streams to a
+file rather than memory, so a program that prints for twenty minutes cannot
+fill the machine and what it said survives being stopped. A program that
+dies immediately is reported immediately, not in ten minutes when somebody
+thinks to look. On Linux each job gets its own process group, so stopping
+it stops what it started.
+
 ## Unreleased — Claw can install a program, and use the clipboard
 
 Two things it could not do that any person sitting at the machine can.

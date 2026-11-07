@@ -90,6 +90,14 @@ ASKED = [
     ("install the 7-zip program", "install_app"),
     ("I do not have LibreOffice installed, install it", "install_app"),
     ("can i get Zoom in the catalogue", "find_app_to_install"),
+
+    # Mouse work, the clipboard, and a job too long to wait for.
+    ("right-click the file and choose rename", "click_at"),
+    ("double-click the document to open it", "click_at"),
+    ("drag the invoice into the Paid folder", "drag"),
+    ("what is on the clipboard", "read_clipboard"),
+    ("is it finished yet", "check_program"),
+    ("render the whole animation", "start_program"),
 ]
 
 

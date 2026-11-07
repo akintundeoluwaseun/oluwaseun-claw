@@ -357,6 +357,16 @@ _FITTING: list[tuple[str, tuple[str, ...]]] = [
     (r"\bwhat(?:'s| is) the (?:time|date)\b|\btoday'?s date\b", ("current_time",)),
     # ------------------------------------------------------------------------
 
+    # A job too long to wait for.
+    (r"\b(?:in the background|while (?:i|you|we) )\b|\b(?:long|big|whole|entire)\b.{0,20}\b(?:render|export|conversion|build)\b"
+     r"|\brender\b.{0,25}\b(?:video|scene|animation|blender)\b|\bkeep (?:it )?running\b",
+     ("start_program", "check_program")),
+    (r"\b(?:is it|has it)\b.{0,20}\b(?:done|finished|ready)\b|\bhow (?:is|far)\b.{0,25}\b(?:getting on|along|going)\b"
+     r"|\bstill running\b", ("check_program",)),
+    # Mouse work the accessibility tree cannot reach: a context menu does
+    # not exist until it is asked for, and a drag has no control to invoke.
+    (r"\bright[- ]click\b|\bcontext menu\b|\bdouble[- ]click\b", ("click_at", "take_screenshot")),
+    (r"\bdrag\b|\bdrop\b.{0,20}\b(?:onto|into|on to)\b|\breorder\b", ("drag", "take_screenshot")),
     # The clipboard: the way out of an app whose window cannot be read.
     (r"\bclipboard\b|\bcopied\b.{0,25}\b(?:what|it|text)\b|\bwhat (?:did|have) (?:i|you) cop(?:y|ied)\b",
      ("read_clipboard", "put_on_clipboard")),

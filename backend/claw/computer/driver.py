@@ -122,6 +122,24 @@ class DesktopDriver(ABC):
     @abstractmethod
     def click_at(self, x: int, y: int) -> None: ...
 
+    def click_button_at(self, x: int, y: int, button: str = "left", double: bool = False) -> None:
+        """Click with a chosen button, or twice.
+
+        Separate from click_at rather than extra arguments on it, so a driver
+        that only knows how to left-click keeps working unchanged and says
+        so plainly when asked for more. The default implementation handles
+        the one case every driver can do.
+        """
+        if button == "left" and not double:
+            self.click_at(x, y)
+            return
+        raise DesktopUnavailable(
+            f"{'Double-clicking' if double else button.capitalize() + '-clicking'} is not supported here.")
+
+    def drag(self, from_x: int, from_y: int, to_x: int, to_y: int) -> None:
+        """Press at one point, move, release at another."""
+        raise DesktopUnavailable("Dragging is not supported here.")
+
     @abstractmethod
     def screen_size(self) -> tuple[int, int]: ...
 

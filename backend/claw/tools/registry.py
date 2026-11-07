@@ -19,6 +19,7 @@ from claw.tools.batch_image_tools import register_batch_image_tools
 from claw.tools.clip_tools import register_clip_tools
 from claw.tools.merge_tools import register_merge_tools
 from claw.tools.rewrite_tools import register_rewrite_tools
+from claw.tools.background_tools import register_background_tools
 from claw.tools.clipboard_tools import register_clipboard_tools
 from claw.tools.install_tools import register_install_tools
 from claw.tools.table_extract_tools import register_table_extract_tools
@@ -63,6 +64,7 @@ def build_registry() -> ToolRegistry:
     register_table_extract_tools(reg)
     register_install_tools(reg)
     register_clipboard_tools(reg)
+    register_background_tools(reg)
     register_code_tools(reg)
     register_document_tools(reg)
     register_pdf_tools(reg)
