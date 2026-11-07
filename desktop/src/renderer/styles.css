@@ -1338,3 +1338,129 @@ body[data-view="task"] .stage { padding-bottom: var(--s4); }
 .made-by-icon svg { width: 15px; height: 15px; }
 .made-by-text strong { color: #fff; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .made-by { transition: none; } .made-by:hover { transform: none; } }
+
+/* ===========================================================================
+   Premium pass
+   ---------------------------------------------------------------------------
+   The bones were right - good type, a considered palette, real tokens - but
+   rendered dark it read flat: every surface the same grey, no elevation, and
+   the one accent colour almost unused. Three things carry most of the
+   difference between "clean" and "expensive", and none of them is decoration:
+
+     depth      a surface has to sit ON something, not be a different shade
+                of it. A soft backdrop gradient plus a lit top edge.
+     a focal    exactly one thing should be unmistakably the thing to press.
+     restraint  everything else stays quiet, so that one thing reads.
+
+   All of it is token-based, so light mode follows automatically and nothing
+   here hard-codes a colour.
+   =========================================================================== */
+
+/* A backdrop rather than a flat fill. The eye reads the centre as nearer,
+   which is where the work is. Fixed, so it does not slide while scrolling. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(1100px 620px at 50% -8%,
+      color-mix(in srgb, var(--brass) 11%, transparent) 0%, transparent 62%),
+    radial-gradient(760px 520px at 108% 104%,
+      color-mix(in srgb, var(--brass) 7%, transparent) 0%, transparent 60%);
+}
+
+/* The thing to press. It was taking the ink colour, which in dark mode is a
+   white slab - clean, but it says nothing about whose software this is. The
+   accent says it in one glance, and the glow only appears on hover so the
+   resting state stays quiet. */
+.btn-primary {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--brass) 92%, #fff) 0%,
+    var(--brass) 58%,
+    color-mix(in srgb, var(--brass) 88%, #000) 100%);
+  border-color: color-mix(in srgb, var(--brass) 70%, #000);
+  color: var(--brass-ink);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, #000 28%, transparent),
+    0 6px 18px -6px color-mix(in srgb, var(--brass) 55%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 32%, transparent);
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--brass) 86%, #fff) 0%,
+    color-mix(in srgb, var(--brass) 96%, #fff) 60%,
+    var(--brass) 100%);
+  border-color: color-mix(in srgb, var(--brass) 60%, #000);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, #000 30%, transparent),
+    0 10px 26px -6px color-mix(in srgb, var(--brass) 70%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent);
+  transform: translateY(-1px);
+}
+
+/* Suggestions were flat rectangles of the same grey as everything behind
+   them. A surface needs a lit top edge and something under it. */
+.suggestion, .suggest, .tile, .starter, .example-card {
+  position: relative;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--raised) 96%, var(--ink)) 0%,
+    var(--raised) 100%);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, #000 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--ink-3) 22%, transparent);
+  transition:
+    transform var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+}
+.suggestion:hover, .suggest:hover, .tile:hover, .starter:hover, .example-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--brass) 38%, var(--line-2));
+  box-shadow:
+    0 10px 24px -10px color-mix(in srgb, #000 60%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--brass) 16%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--ink-3) 30%, transparent);
+}
+
+/* The little icon tile on each suggestion: give it the accent properly
+   rather than a barely-there wash. */
+.suggestion .icon, .suggest .icon, .tile .icon,
+.suggestion svg, .suggest svg {
+  color: var(--brass);
+}
+
+/* The composer is where the person actually types, so it should be the
+   brightest surface in the window, not the same as the cards. */
+.composer {
+  box-shadow:
+    0 24px 60px -28px color-mix(in srgb, #000 75%, transparent),
+    0 2px 6px color-mix(in srgb, #000 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--ink-3) 26%, transparent);
+}
+.composer:focus-within {
+  box-shadow:
+    0 26px 64px -26px color-mix(in srgb, #000 78%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--brass) 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--ink-3) 30%, transparent);
+}
+
+/* Status pills read as unfinished when they are bare text on a hairline.
+   A filled, slightly recessed pill looks deliberate. */
+.status-chip {
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink-3) 16%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+/* The rail: mark the place you are, rather than leaving every item equal. */
+.rail a[aria-current="page"], .rail .active, .nav-item.active {
+  position: relative;
+  color: var(--ink);
+}
+.rail a[aria-current="page"]::before, .rail .active::before, .nav-item.active::before {
+  content: "";
+  position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 20px; border-radius: 2px; background: var(--brass);
+}
