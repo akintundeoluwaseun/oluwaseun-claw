@@ -1059,15 +1059,43 @@ MIN_DETAILED = 10
 MIN_NAMED = 25
 
 
+def catalogue_budget(window_tokens: int, by_capability: bool) -> int:
+    """How many tokens the tool catalogue may take out of the window in force.
+
+    The two budgets above were set against DEFAULT_CONTEXT_TOKENS, which the
+    built-in engine asks llama-server for. It is not always what comes back:
+    llama.cpp clamps -c DOWN to the model's trained context, so a brain trained
+    at 2048 gives a 2048-token window however the engine was started, and
+    claw.models.openai_compat asks /props rather than assuming. Spending a flat
+    1800 tokens of a 2048-token window on the catalogue leaves almost nothing
+    for the task, and fit_context keeps the system message whichever way - so
+    every run would come back `forced` and over the line. A share of the real
+    window shrinks with it.
+
+    At DEFAULT_CONTEXT_TOKENS this returns the constants exactly, so a brain
+    serving the window it was asked for sees the catalogue it saw before.
+    """
+    full = CATALOGUE_BUDGET if by_capability else FULL_CATALOGUE_BUDGET
+    return round(window_tokens * full / DEFAULT_CONTEXT_TOKENS)
+
+
 def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
-                   always: list[str] | None = None, task: str = "") -> str:
+                   always: list[str] | None = None, task: str = "",
+                   window_tokens: int = DEFAULT_CONTEXT_TOKENS) -> str:
     """Full details for tools the plan needs; names only for the rest (keeps prompts small for small models).
 
     With `task`, the chosen capability's tools are ordered by how well they
     match the request, with the curated matches from fitting_tools first.
-    Nothing is removed by ordering. If the result is over CATALOGUE_BUDGET the
+    Nothing is removed by ordering. If the result is over the budget the
     least relevant tools drop to names only - never a fitting tool, and never
     below MIN_DETAILED.
+
+    `window_tokens` is what the model server said it will actually serve, so
+    the budget is a share of the real window rather than a share of an assumed
+    one. CATALOGUE_BUDGET and FULL_CATALOGUE_BUDGET are the figures for
+    DEFAULT_CONTEXT_TOKENS, and at that window the output is unchanged; below
+    it the catalogue shrinks with everything else instead of claiming the same
+    absolute number of tokens out of a smaller window.
     """
     always_set = set(always or [])
     chosen, others = [], []
@@ -1113,7 +1141,7 @@ def tool_catalogue(registry: ToolRegistry, capabilities: set[str] | None = None,
     # Measured on the whole catalogue, including the names line, because that is
     # what the model reads and what the window has to hold.
     if task:
-        budget = CATALOGUE_BUDGET if capabilities else FULL_CATALOGUE_BUDGET
+        budget = catalogue_budget(window_tokens, capabilities is not None)
         floor = max(MIN_DETAILED, len(fitting_tools(task, registry)))
         while keep > floor and estimate_tokens(render(keep)) > budget:
             keep -= 1
@@ -1405,7 +1433,8 @@ async def run_agent(
                     # matched no pattern, so find_files sat seventh of twenty-one.
                     content=EXEC_PROMPT.format(tools=tool_catalogue(
                         registry, {"__none__"} if fitting else capabilities,
-                        fitting + code_verifiers, task=task))
+                        fitting + code_verifiers, task=task,
+                        window_tokens=window_tokens))
                     + persona.for_prompt(getattr(ctx, "data_dir", None))
                     + person_limits.for_prompt()
                     + remembered(ctx, task)),
