@@ -740,7 +740,15 @@ function collectSteps(events) {
     const d = e.data || {};
     if (e.kind === 'planned') notes.push({ at: e.id, text: `Made a plan: ${d.steps} ${d.steps === 1 ? 'step' : 'steps'}` });
     if (e.kind === 'model_reply_rejected') notes.push({ at: e.id, text: "Claw's reply wasn't usable, so it tried again" });
-    if (e.kind === 'skill_used') notes.push({ at: e.id, text: `Following the recipe "${String(d.name || '').replace(/-/g, ' ')}"` });
+    if (e.kind === 'skill_used') {
+      // An installed plugin is somebody else's recipe. The timeline says so,
+      // because "Following the recipe X" reads as S-CLAW's own either way and
+      // the person is about to be asked to approve every change it drives.
+      const recipe = String(d.name || '').replace(/-/g, ' ');
+      notes.push({ at: e.id, text: d.builtin === false
+        ? `Following the installed plugin "${recipe}" — Claw will check each change with you`
+        : `Following the recipe "${recipe}"` });
+    }
     if (e.kind === 'started_for_brain') notes.push({ at: e.id, text: 'The brain would not start, so Claw took the first look itself' });
     if (e.kind === 'pushed_back') notes.push({ at: e.id, text: 'Claw stopped too early, so it was told to carry on' });
     if (e.kind === 'replanned') notes.push({ at: e.id, text: `Changed approach: ${d.diagnosis}` });

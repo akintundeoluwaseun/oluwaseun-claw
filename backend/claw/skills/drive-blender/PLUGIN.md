@@ -8,6 +8,11 @@ door: python
 version: 1
 author: S-CLAW
 triggers: blender, 3d, render, model, scene, turntable, product shot
+categories: design, 3d
+prompts:
+  - Make a 3D model of a coffee mug and render it as a PNG
+  - Set up a turntable animation of this model, 60 frames
+  - Render a product shot of the object on a white background
 ---
 Blender has a scripting door, so do NOT drive it with the mouse. Clicking
 through Blender's interface is slow and wrong most of the time; the same job

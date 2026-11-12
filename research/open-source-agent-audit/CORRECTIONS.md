@@ -177,16 +177,34 @@ This is the one finding that survived contact with S-CLAW's source, and it came 
 The external findings are sound — each was verified in source and is marked READ / DECL / NAME.
 What changed is the **gap list**, because S-CLAW is further along than the audit assumed.
 
+**Done since.** Items 1 and 2 below are now built:
+
+- **`categories` and `prompts`** in S-CLAW's own plugin format (`plugins/pack.py`,
+  `agent/skills.py`, `docs/PLUGINS.md`). `prompts` is a list of *lines*, not a comma-split
+  field, because a prompt is a sentence. It serves both jobs OpenClaw's `recommendedPrompts`
+  serves — a plugin list can show them, and they feed recipe matching, so a plugin is found by
+  the words its author knows people type. A test holds the case that motivated it: a plugin
+  described as "make 3D models" was not found by "sculpt a low-poly bust"; one `prompts` line
+  fixes it.
+- **Authority for installed plugins** (`agent/skills.py`, `tools/base.py`, `agent/executor.py`).
+  Not the `Principal` enum the audit proposed — that was the wrong shape, because a plugin
+  carries no code and cannot call a tool. The real hole was that a *downloaded* plugin's text
+  entered the prompt with the same standing as the user's own words. Now a `Skill` records
+  whether it shipped inside Claw; a non-shipped one is framed in the prompt as somebody else's
+  advice; and while a task follows one, changes go back to ASK whatever Settings say. Reading
+  is untouched. A plugin shadowing a built-in's name does not inherit its standing.
+
+**Two fields deliberately NOT added**, against the audit's own recommendation:
+`configSchema`/`configGroups` (plugins carry no code and have no settings surface — a
+JSON-Schema config system with a renderer would be a subsystem with no consumer) and
+`activation` (the matching design already loads at most one recipe's body per task, so
+activation is solved).
+
 Genuinely still missing, in honest order:
 
-1. **Plugin manifest fields** — `categories`, `activation`, `configSchema`, `configGroups`,
-   `recommendedPrompts`. Serves the stated product direction and nothing in S-CLAW covers it.
-   (`AGENT_ARCHITECTURE.md` §5, `SOURCE_CODE_MAP.md` §G1)
-2. **A permission principal** (user / brain / plugin / system) — needed *before* third-party
-   plugins ship, so a plugin cannot inherit the user's standing approval. The taint machinery
-   it would compose with already exists. (`SOURCE_CODE_MAP.md` §F2)
-3. **Plugin `api/` channel** — the missing piece for a plugin that owns a settings or status
-   panel. (`AGENT_ARCHITECTURE.md` §5)
+1. **Plugin `api/` channel** — the missing piece for a plugin that owns a settings or status
+   panel. (`AGENT_ARCHITECTURE.md` §5). Note `plugins/pack.py` still has no API or tool
+   consumer at all: install/remove exist and are tested, but nothing calls them yet.
 4. **Windows-install E2E with a mock brain** — unchanged in value, and the mock brain is also
    the fixture every other test wants. (`SOURCE_CODE_MAP.md` §H1)
 5. **Ollama `num_ctx`** — a real gap for Ollama users specifically.

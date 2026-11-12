@@ -98,6 +98,12 @@ class TaskMemory:
     outputs: list[dict[str, Any]] = field(default_factory=list)
     read_untrusted: bool = False  # anything from the web, a file or an app has been read
     injection_seen: bool = False  # that content tried to give Claw instructions
+    #: The name of an installed (not shipped) plugin whose recipe was put in
+    #: front of the brain for this task, or "". A plugin carries no code, but
+    #: its text reaches the brain before the first move and can steer every
+    #: step after it - so a task being driven by one somebody downloaded does
+    #: not get to skip the approval the person would otherwise be asked for.
+    third_party_recipe: str = ""
     app_state: dict[str, Any] = field(default_factory=dict)  # per-app working state a tool sets up and a later tool completes
 
     def corpus(self) -> str:

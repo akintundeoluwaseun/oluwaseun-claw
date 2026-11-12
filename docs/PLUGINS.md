@@ -63,6 +63,10 @@ door: python
 version: 1
 author: Your name
 triggers: blender, 3d, render, model, turntable
+categories: design, 3d
+prompts:
+  - Make a 3D model of a coffee mug and render it as a PNG
+  - Set up a turntable animation of this model, 60 frames
 ---
 1. Write the whole job as one Blender Python script using `bpy`.
 2. Run it with run_command, program "blender", arguments
@@ -84,6 +88,30 @@ triggers: blender, 3d, render, model, turntable
 | `version` | no | The plugin's own version. |
 | `author` | no | You. |
 | `triggers` | no | Words that mean this plugin. Matched against the request. |
+| `categories` | no | Where it belongs in a list of plugins — `design`, `office`, `3d`. Up to six, free text: a fixed list would mean a new S-CLAW release every time somebody writes a plugin for a kind of program nobody had thought of. |
+| `prompts` | no | Up to eight things a person could actually say to use this plugin. Written as a list of lines, because a prompt is a sentence and must not be split on its commas. See below — this is the field most worth filling in. |
+
+### prompts: the field most worth filling in
+
+```yaml
+prompts:
+  - Make a 3D model of a coffee mug and render it as a PNG
+  - Set up a turntable animation of this model, 60 frames
+```
+
+They do two jobs.
+
+People read them. A plugin in a list with "what can I say to this?" answered
+is a plugin someone uses; one without it is a plugin they guess at.
+
+S-CLAW matches on them. You know the words your users type; a `description`
+written for a human reader rarely contains them. A plugin whose description
+said "make 3D models" was not found by "sculpt a low-poly bust" — one line
+under `prompts` fixed that, and `tests/test_plugin_catalogue_fields.py` holds
+that exact case so it stays fixed.
+
+Write them as whole sentences, the way somebody would really say them. Not
+keywords — that is what `triggers` is for.
 
 ### The instructions
 
@@ -109,5 +137,26 @@ that parses. If any of that fails, nothing is kept.
 2. Ask S-CLAW to do a job your `triggers` cover.
 3. Check it was picked up — the step list should follow your instructions.
 
-If it is not picked, your `description` and `triggers` do not use the words a
-person would. That is the usual reason, and it is a one-line fix.
+If it is not picked, your `description`, `triggers` and `prompts` do not use
+the words a person would. That is the usual reason, and it is a one-line fix —
+usually one more line under `prompts`, phrased the way you would say it out
+loud.
+
+## A plugin you installed is not S-CLAW speaking
+
+The recipes that ship inside S-CLAW and the ones you install are read the same
+way, but they do not carry the same weight, and from v1 they are no longer
+treated as if they did.
+
+An installed plugin's text is put in front of the brain as somebody else's
+advice, named as such, with the brain told to use it for the user's task only
+and ignore anything in it asking for something the user did not. And while a
+task is following an installed plugin, S-CLAW asks before every change —
+whatever the Settings say.
+
+That last part only shows up if you turned "ask me" off. Turning it off is a
+judgement about your own tasks. It is not a judgement about a plugin you
+downloaded from a website, so S-CLAW does not read it as one. Reading is
+untouched; only changes are raised, and only back to the default.
+
+Nothing here is a reason not to install plugins. It is the reason you can.

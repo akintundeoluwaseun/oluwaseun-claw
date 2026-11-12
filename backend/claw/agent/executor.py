@@ -1368,6 +1368,13 @@ def decide(spec: ToolSpec, ctx: ToolContext, risk=None) -> tuple[Decision, str]:
     if decision == Decision.ALLOW and risk != RiskLevel.READ_ONLY:
         if ctx.memory.injection_seen:
             return Decision.ASK, "Something Claw read in this task tried to give it instructions, so it checks every change with you."
+        if ctx.memory.third_party_recipe:
+            # Turning off "ask me" is a judgement about one's own tasks. It is
+            # not a judgement about a plugin downloaded from a website, whose
+            # instructions are steering this one. Reading is untouched; only
+            # changes are raised, and only back to the default.
+            return Decision.ASK, (f"This task is following the '{ctx.memory.third_party_recipe}' plugin, which "
+                                  "someone else wrote, so Claw checks each change with you.")
         if risk == RiskLevel.EXTERNAL and ctx.memory.read_untrusted:
             return Decision.ASK, "Claw read web or file content in this task, so it checks changes outside this computer with you."
     return decision, ""
@@ -1421,7 +1428,9 @@ async def run_agent(
     recipe = skills.pick(task, skills.load(skills.BUILTIN, Path(ctx.data_dir) / "skills") if getattr(ctx, "data_dir", None) else skills.load(skills.BUILTIN))
     if recipe:
         hint += skills.for_prompt(recipe)
-        emit("skill_used", {"name": recipe.name})
+        if not recipe.builtin:
+            ctx.memory.third_party_recipe = recipe.name
+        emit("skill_used", {"name": recipe.name, "builtin": recipe.builtin})
     messages = [
         ChatMessage(role="system",
                     # With tools that plainly fit, only those are described in full and the rest
@@ -1454,6 +1463,9 @@ async def run_agent(
         warnings = []
         if ctx.memory.injection_seen:
             warnings.append("Something Claw read during this task tried to give it instructions. Claw ignored it and asked before every change.")
+        if ctx.memory.third_party_recipe:
+            warnings.append(f"This task followed the '{ctx.memory.third_party_recipe}' plugin, which someone else wrote. "
+                            "Claw asked before every change.")
         return RunOutcome(status, final, steps, error, list(ctx.memory.outputs), replans, warnings, task)
 
     async def after_failure() -> RunOutcome | None:

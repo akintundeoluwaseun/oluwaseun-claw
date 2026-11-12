@@ -57,6 +57,11 @@ ALLOWED = {".md", ".txt", ".json", ".yaml", ".yml", ".png", ".jpg", ".jpeg", ".s
 
 MAX_FILES = 60
 MAX_BYTES = 8 * 1024 * 1024
+#: Enough to place a plugin in a list, not enough to claim every shelf in it.
+MAX_CATEGORIES = 6
+#: Example things to say. A handful helps; a page of them is a plugin trying
+#: to be the whole menu, and they are shown to people.
+MAX_PROMPTS = 8
 
 
 class PluginRefused(Exception):
@@ -75,6 +80,17 @@ class Plugin:
     version: str = ""
     author: str = ""
     triggers: list[str] = field(default_factory=list)
+    #: Where this belongs in a list of plugins - "design", "office", "3d".
+    #: Free text on purpose: a fixed vocabulary would mean a new S-CLAW
+    #: release every time somebody writes a plugin for a kind of program
+    #: nobody thought of, which is the opposite of what plugins are for.
+    categories: list[str] = field(default_factory=list)
+    #: Things a person could actually say to use this plugin, written by
+    #: whoever wrote it. Two jobs: the list of plugins can show them, so
+    #: "what do I type?" has an answer that is not guesswork; and they go
+    #: into the matching, so the recipe is found by the words people really
+    #: use rather than only the ones in its description.
+    prompts: list[str] = field(default_factory=list)
     #: Which S-CLAW plugin format it was written against. Blank means a
     #: plugin from before the format was named - still valid, since the
     #: shape has not changed, and it would be rude to break the eleven
@@ -106,6 +122,27 @@ def _one(front: str, key: str) -> str:
 def _many(front: str, key: str) -> list[str]:
     raw = _one(front, key)
     return [x.strip() for x in re.split(r"[,;]", raw.strip("[]")) if x.strip()] if raw else []
+
+
+def read_lines(front: str, key: str) -> list[str]:
+    """A list whose items are sentences, so they cannot be split on commas.
+
+    Written the way a list is normally written:
+
+        prompts:
+          - Make a 3D model of a cup
+          - Render it to a PNG, then open it
+
+    An inline `prompts: [one, two]` is read too, for whoever writes it that
+    way, accepting that a comma inside an inline item ends it.
+    """
+    block = re.search(rf"^{key}:[ \t]*\n((?:[ \t]*-[ \t]*.+\n?)+)", front, re.M)
+    if block:
+        return [m.group(1).strip().strip("\"'")
+                for m in re.finditer(r"^[ \t]*-[ \t]*(.+)$", block.group(1), re.M)
+                if m.group(1).strip()]
+    inline = re.search(rf"^{key}:[ \t]*(\S.*)$", front, re.M)
+    return _many(inline.group(0), key) if inline else []
 
 
 def parse(text: str, path: Path) -> Plugin:
@@ -146,6 +183,8 @@ def parse(text: str, path: Path) -> Plugin:
         app=_one(front, "app")[:60], programs=_many(front, "programs"),
         door=_one(front, "door")[:30].lower(), version=_one(front, "version")[:20],
         author=_one(front, "author")[:60], triggers=_many(front, "triggers"),
+        categories=[c.lower()[:30] for c in _many(front, "categories")[:MAX_CATEGORIES]],
+        prompts=[p[:120] for p in read_lines(front, "prompts")[:MAX_PROMPTS]],
         format=declared)
 
 
