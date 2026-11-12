@@ -1,5 +1,11 @@
 # SCLAW_RECOMMENDED_ARCHITECTURE.md
 
+> **⚠ See `CORRECTIONS.md` first.** Of the twelve additions proposed here, items 1 (turn
+> taint), 5 (CPU gate), 7 (unhandled tool calls) and 8 (Ollama — the llama-server half) are
+> withdrawn: S-CLAW already does them, or the requirement cannot be established honestly from
+> this sandbox. Item 2 (catalogue budget) is **done**, in commit `df2ee58`. Items 9–12 and the
+> "what NOT to do" table in §3 stand unchanged.
+
 The user's constraint, verbatim:
 
 > *"I do not want six different AI frameworks running together. I want one coherent application

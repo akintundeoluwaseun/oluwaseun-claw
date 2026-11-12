@@ -13,11 +13,23 @@ declarations. Every claim in `SOURCE_CODE_MAP.md` is marked **READ** (file opene
 **DECL** (declarations verified by grep) or **NAME** (existence/size only). No code was built,
 run or benchmarked, so there are no performance numbers anywhere in these documents.
 
+> ## ⚠ Read `CORRECTIONS.md` first
+>
+> When I went to implement these recommendations I found that **seven of them were already
+> done in S-CLAW**, several better than in the project I took them from — turn taint,
+> unhandled tool calls, the `/props` window probe, localhost proxy exclusion, JSON repair,
+> the root `THIRD_PARTY_NOTICES.md` (pinned to OpenClaw commit `b8b054c1`), and
+> hardware-based brain gating. One real defect survived and is fixed in `df2ee58`.
+>
+> The external findings below are sound and verified. The **gap list** was wrong, because I
+> read six other codebases closely before reading this one. `CORRECTIONS.md` is authoritative.
+
 ## Read in this order
 
 | Document | What it answers |
 |---|---|
-| **`SCLAW_RECOMMENDED_ARCHITECTURE.md`** | **Start here.** What to add to S-CLAW, what not to do, and why. |
+| **`CORRECTIONS.md`** | **Start here.** Seven withdrawn recommendations, the one real fix, and what is genuinely still missing. |
+| `SCLAW_RECOMMENDED_ARCHITECTURE.md` | What to add and what not to do — read through `CORRECTIONS.md`. |
 | **`IMPLEMENTATION_ROADMAP.md`** | Twelve milestones, each with its tests; plus six open questions needing your decision. |
 | `PROJECT_COMPARISON.md` | The capability matrix across all six, and an honest coverage table. |
 | `MODEL_INTEGRATION.md` | Local and cloud models — the area you said matters most. |
@@ -43,10 +55,9 @@ run or benchmarked, so there are no performance numbers anywhere in these docume
    `FULL_CATALOGUE_BUDGET = 4800` (`backend/claw/agent/executor.py:1048`/`:1053`) are absolute
    constants, while `fit_context` correctly budgets from the *probed* window. On a server that
    serves 2048 tokens they overcommit. `MODEL_INTEGRATION.md` §2.
-4. **The highest-value addition is a safety one.** Turn taint (~65 lines, from OpenClaw's
-   `turn-taint.ts`): once a turn has read untrusted content, an EXTERNAL or DESTRUCTIVE action
-   needs fresh confirmation regardless of standing approval. S-CLAW's rules already say to
-   treat web pages as untrusted; there is currently no mechanism that *knows* a turn read one.
+4. ~~**The highest-value addition is a safety one** — turn taint.~~ **WITHDRAWN.** S-CLAW
+   already has this, with two escalation levels and an injection detector OpenClaw lacks.
+   See `CORRECTIONS.md` §1.
 5. **All six are MIT or Apache-2.0.** None is copyleft; none would force S-CLAW open. The real
    risks are dependencies, not licences — in particular `camel-ai[eigent]==0.2.91a7`, an alpha
    pin that Eigent's apparent tool breadth actually lives in.

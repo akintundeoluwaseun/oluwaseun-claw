@@ -1,5 +1,10 @@
 # IMPLEMENTATION_ROADMAP.md
 
+> **⚠ Superseded in part by `CORRECTIONS.md`.** Milestone 0 is done. Milestone 2 is
+> **complete** (commit `df2ee58`, 1551 tests passing). Milestones 1, 5 and 7 are **cancelled**
+> — S-CLAW already implements them. Milestones 3 and 6 are reduced in value because the planner
+> uses schema-constrained JSON. Milestones 8–12 stand.
+
 **Nothing in this roadmap has been implemented.** No S-CLAW production file was modified
 during this audit. This is a proposal awaiting the user's approval, as his brief requires:
 *"At the end, present your findings and wait for my approval before implementing anything."*

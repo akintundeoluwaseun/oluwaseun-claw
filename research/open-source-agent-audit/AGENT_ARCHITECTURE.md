@@ -1,5 +1,10 @@
 # AGENT_ARCHITECTURE.md
 
+> **⚠ See `CORRECTIONS.md` before acting on §2a or §7.** Turn taint (§2a) and unhandled
+> tool calls (§7 item 3) are **already implemented in S-CLAW**, the taint more thoroughly
+> than in the OpenClaw source this document praises. The external analysis stands; the
+> recommendations in §7 do not.
+
 How the six projects structure the agent loop, tools, skills, permissions and sub-agents —
 and which of those structures S-CLAW should borrow.
 
