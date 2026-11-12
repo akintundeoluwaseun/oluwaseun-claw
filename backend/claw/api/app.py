@@ -55,6 +55,7 @@ from claw.speech.base import SpeechUnavailable
 from claw.speech.service import SpeechService, default_store
 from claw.runtime.store import ModelStore
 from claw.permissions.policy import PermissionPolicy
+from claw.plugins import pack
 from claw.storage.db import Database
 from claw.tools.base import ToolError, ToolRegistry
 from claw.tools.registry import build_registry
@@ -981,6 +982,61 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             return error_response(409, "busy", "S-CLAW is already doing something.")
         await asyncio.to_thread(state.db.record_job_run, job_id, "started", "you ran it", task_id)
         return {"task_id": task_id}
+
+    # ---------- plugins ----------
+    #
+    # claw/plugins/pack.py had no caller at all: it could unpack and check a
+    # plugin and nothing ever asked it to, so the format was unreachable and a
+    # plugin could only be installed by copying a folder by hand. These are the
+    # door. Nothing here runs anything - pack.install refuses any file that can
+    # execute, whatever the manifest says.
+    def _plugins_dir() -> Path:
+        return Path(state.data_dir) / "skills"
+
+    def _plugin_json(p: pack.Plugin) -> dict:
+        return {
+            "name": p.name, "description": p.description, "app": p.app,
+            "door": p.door, "version": p.version, "author": p.author,
+            "categories": p.categories, "prompts": p.prompts,
+            "triggers": p.triggers, "format": p.format,
+            # Whether the program it drives is on this computer. A plugin for
+            # software the person does not own is listed, greyed, not hidden:
+            # they may be about to install the program.
+            "program_present": p.installed_here(),
+        }
+
+    @app.get("/plugins")
+    async def plugins_list():
+        plugins = await asyncio.to_thread(pack.installed, _plugins_dir())
+        return {"plugins": [_plugin_json(p) for p in plugins], "format": pack.FORMAT_ID}
+
+    @app.post("/plugins/install")
+    async def plugins_install(request: Request):
+        """Main-process only (path comes from the file dialog); not in the UI route allowlist."""
+        body = await _body(request)
+        raw = str(body.get("path") or "")
+        if not raw:
+            return error_response(422, "plugin", "No plugin file or folder was given.")
+        try:
+            plugin = await asyncio.to_thread(pack.install, Path(raw), _plugins_dir())
+        except pack.PluginRefused as exc:
+            # PluginRefused always says what to do about it, so it is the message.
+            return error_response(422, "plugin", str(exc))
+        except OSError as exc:
+            return error_response(422, "plugin", f"That plugin could not be read: {exc}")
+        log_event(log, "plugin installed", name=plugin.name, door=plugin.door or "none")
+        return {"installed": _plugin_json(plugin)}
+
+    @app.post("/plugins/remove")
+    async def plugins_remove(body: dict | None = None):
+        name = str((body or {}).get("name") or "")
+        if not name:
+            return error_response(422, "plugin", "No plugin name was given.")
+        gone = await asyncio.to_thread(pack.remove, _plugins_dir(), name)
+        if not gone:
+            return error_response(404, "not_found", f"There is no plugin called '{name}'.")
+        log_event(log, "plugin removed", name=name)
+        return {"removed": name}
 
     # ---------- memory ----------
     # Everything S-CLAW remembers is visible here, removable one at a time or

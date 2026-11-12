@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('claw', {
   transcribe: (wav) => ipcRenderer.invoke('voice:transcribe', wav),
   showDocument: (docId) => ipcRenderer.invoke('claw:show-file', docId),
   importBrain: () => ipcRenderer.invoke('claw:import-brain'),
+  installPlugin: () => ipcRenderer.invoke('claw:install-plugin'),
   confirm: (title, detail, okLabel) => ipcRenderer.invoke('claw:confirm', title, detail, okLabel),
   // The creator's details, and the only two things the About panel can do with
   // them: open the one allowed link, and put the username on the clipboard.

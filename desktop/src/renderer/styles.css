@@ -483,6 +483,18 @@ a.btn-primary { color: var(--surface); }
 .btn-danger { color: var(--red); border-color: var(--red-line); }
 .btn-danger:hover { background: var(--red-soft); }
 
+/* ---------- Plugins ---------- */
+/* Reuses .mem-list / .mem-row: a plugin row is the same shape as a memory
+   row, so it gets the same grid rather than a second one that drifts. */
+.mem-fact small.set-note { display: block; margin: 2px 0 0; font-size: 12px; }
+/* The author's own example phrasings. Quiet, because the description is the
+   line that matters first; indented, because they are examples of it. */
+.plugin-prompts {
+  list-style: none; margin: var(--s1) 0 0; padding: 0 0 0 var(--s2);
+  display: grid; gap: 1px; border-left: 2px solid var(--line);
+}
+.plugin-prompts li { color: var(--ink-2); font-size: 12px; line-height: 1.45; }
+
 #d-brief { width: 9.5em; font-variant-numeric: tabular-nums; }
 
 .approval-context {

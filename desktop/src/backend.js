@@ -52,12 +52,15 @@ const ALLOWED_ROUTES = [
   ['GET', new RegExp(`^/documents/${ID}(\\?pages=1)?$`)],
   ['GET', new RegExp(`^/documents/${ID}/search\\?q=[\\w%.+~*'()!-]{1,600}$`)],
   ['POST', new RegExp(`^/documents/${ID}/cancel$`)],
+  ['GET', /^\/plugins$/],
+  ['POST', /^\/plugins\/remove$/],
 ];
 
 // These take a file path, so only the main process may call them, with a path the
 // user picked in a Windows file dialog. The page can never send its own path.
 const MAIN_ONLY_ROUTES = [
   ['POST', /^\/brain\/import$/],
+  ['POST', /^\/plugins\/install$/],
   ['POST', /^\/documents\/open$/],
   ['POST', new RegExp(`^/documents/${ID}/searchable$`)],
 ];

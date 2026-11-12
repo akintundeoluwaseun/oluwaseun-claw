@@ -533,6 +533,22 @@ ipcMain.handle('claw:import-brain', async (event) => {
   return backend.request('POST', '/brain/import', { path: model, mmproj: mmproj || null }, { internal: true });
 });
 
+ipcMain.handle('claw:install-plugin', async (event) => {
+  // A plugin is written instructions, never a program: the backend refuses any
+  // file that can execute, whatever the plugin's own manifest claims. The path
+  // comes from this dialog and never from the page, which is why
+  // /plugins/install is a main-only route.
+  if (!senderIs(event, mainWindow)) return { ok: false };
+  const files = await pickFiles('INSTALL_PLUGIN', {
+    title: 'Choose a plugin (a .zip, or the plugin folder)',
+    properties: ['openFile'],
+    filters: [{ name: 'Plugin', extensions: ['zip'] }],
+  });
+  const [file] = files;
+  if (!file) return { ok: false, cancelled: true };
+  return backend.request('POST', '/plugins/install', { path: file }, { internal: true });
+});
+
 ipcMain.handle('claw:confirm', async (event, title, detail, okLabel) => {
   if (!senderIs(event, mainWindow)) return false;
   if (process.env.CLAW_E2E) return process.env.CLAW_E2E_CONFIRM !== 'no';

@@ -2143,6 +2143,68 @@ async function loadMemories() {
     : 'Nothing is remembered yet.';
 }
 
+function pluginRow(p) {
+  const remove = el('button', { className: 'btn btn-quiet btn-danger mem-forget', type: 'button', text: 'Remove' });
+  remove.addEventListener('click', async () => {
+    const sure = await api.confirm(`Remove "${p.name}"?`,
+      `Claw will stop using the ${p.name} recipe. The program itself is not touched.`, 'Remove');
+    if (!sure) return;
+    remove.disabled = true;
+    const res = await api.api('POST', '/plugins/remove', { name: p.name });
+    if (res.ok) loadPlugins();
+    else { remove.disabled = false; setPluginNote(res.body?.error?.message || 'That plugin could not be removed.', 'bad'); }
+  });
+  const facts = [p.app && `drives ${p.app}`, p.door && `through its ${p.door} door`,
+    p.author && `by ${p.author}`].filter(Boolean).join(' · ');
+  const bits = [
+    el('span', { className: 'mem-kind', text: (p.categories && p.categories[0]) || 'plugin' }),
+    el('span', { className: 'mem-fact' }, [
+      el('strong', { text: `${p.name.replace(/-/g, ' ')}: ` }),
+      document.createTextNode(p.description),
+      ...(facts ? [el('small', { className: 'set-note', text: facts })] : []),
+      // The plugin author's own example phrasings. Without these, "what do I
+      // type to use this?" has no answer but guesswork.
+      ...((p.prompts || []).length
+        ? [el('ul', { className: 'plugin-prompts' },
+            p.prompts.map((s) => el('li', { text: `“${s}”` })))]
+        : []),
+      ...(p.program_present === false
+        ? [el('small', { className: 'set-note', text: `${p.app || 'That program'} is not on this computer yet, so Claw will not offer this.` })]
+        : []),
+    ]),
+    el('span', { className: 'mem-when' }, [remove]),
+  ];
+  return el('li', { className: 'mem-row' }, bits);
+}
+
+function setPluginNote(text, tone) {
+  const note = $('plugin-note');
+  if (!note) return;
+  note.dataset.tone = tone || '';
+  note.textContent = text || '';
+}
+
+async function loadPlugins() {
+  const res = await api.api('GET', '/plugins');
+  const rows = (res.ok && res.body.plugins) || [];
+  $('plugin-list').replaceChildren(...rows.map(pluginRow));
+  $('plugin-empty').hidden = rows.length > 0;
+}
+
+async function installPlugin() {
+  setPluginNote('');
+  const res = await api.installPlugin();
+  if (!res || res.cancelled) return;
+  if (!res.ok) {
+    // pack.PluginRefused always says what to do about it, so it is shown as-is.
+    setPluginNote(res.body?.error?.message || 'That plugin could not be installed.', 'bad');
+    return;
+  }
+  const name = res.body?.installed?.name || 'The plugin';
+  setPluginNote(`${name.replace(/-/g, ' ')} is installed. Claw will use it when a task fits, and will check each change with you while it does.`, 'ok');
+  loadPlugins();
+}
+
 async function exportMemories() {
   const res = await api.api('GET', '/memory/export');
   if (!res.ok) {
@@ -2225,6 +2287,7 @@ async function openSettings() {
   showSettingsPanel('set-brain');
   fillAbout();
   loadMemories();
+  loadPlugins();
   loadJobs();
   loadStanding();
   loadPhone();
@@ -2457,6 +2520,7 @@ function wire() {
     });
   }
   $('brain-import').addEventListener('click', importBrain);
+  $('plugin-install').addEventListener('click', installPlugin);
   $('brain-restart').addEventListener('click', async () => {
     $('brain-restart').disabled = true;
     $('brain-note').dataset.tone = '';

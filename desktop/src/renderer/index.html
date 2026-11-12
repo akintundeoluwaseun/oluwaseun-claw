@@ -409,6 +409,7 @@
       <button class="set-tab" type="button" role="tab" data-panel="set-background" aria-selected="false">Background</button>
       <button class="set-tab" type="button" role="tab" data-panel="set-limits" aria-selected="false">Limits</button>
       <button class="set-tab" type="button" role="tab" data-panel="set-jobs" aria-selected="false">Automations</button>
+      <button class="set-tab" type="button" role="tab" data-panel="set-plugins" aria-selected="false">Plugins</button>
       <button class="set-tab" type="button" role="tab" data-panel="set-memory" aria-selected="false">Memory</button>
       <button class="set-tab" type="button" role="tab" data-panel="set-about" aria-selected="false">About</button>
     </nav>
@@ -741,6 +742,23 @@
           <button class="btn btn-quiet" id="job-add" type="button">Add this job</button>
           <p class="set-note" id="job-error" role="alert"></p>
         </div>
+      </section>
+
+      <section class="set" id="set-plugins">
+        <h3>Plugins</h3>
+        <p class="set-note">A plugin teaches Claw to drive one particular program &mdash; Blender,
+          Photoshop, Inkscape &mdash; written by somebody who actually uses it. It is written
+          instructions, never a program: anything that can run is refused when you install it,
+          whatever the plugin claims about itself.</p>
+        <p class="set-note">While a task follows a plugin you installed, Claw checks each change
+          with you, even if you have turned that off. The plugin was written by someone else,
+          so your setting for your own tasks is not read as approval for theirs.</p>
+        <div class="mem-head">
+          <button class="btn btn-quiet" id="plugin-install" type="button">Install a plugin&hellip;</button>
+        </div>
+        <ul class="mem-list" id="plugin-list"></ul>
+        <p class="set-note" id="plugin-empty" hidden>No plugins installed yet.</p>
+        <p class="set-note" id="plugin-note" role="alert"></p>
       </section>
 
       <section class="set" id="set-memory">

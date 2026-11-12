@@ -134,3 +134,18 @@ test('a display narrower than the bar still leaves its left edge reachable', () 
   const b = clampBounds({ x: 900, y: 900 }, BAR, tiny);
   assert.equal(b.x, 0, 'the left edge must stay on screen so it can be grabbed');
 });
+
+test('plugin routes: listing and removing are the page\'s, installing is not', () => {
+  // A plugin is installed from a path the user picks in a file dialog, so the
+  // page must not be able to send one. Listing and removing take no path.
+  assert.ok(isAllowedRoute('GET', '/plugins'));
+  assert.ok(isAllowedRoute('POST', '/plugins/remove'));
+  assert.ok(!isAllowedRoute('POST', '/plugins/install'));
+  assert.ok(isAllowedRoute('POST', '/plugins/install', true));
+
+  assert.ok(!isAllowedRoute('POST', '/plugins'));
+  assert.ok(!isAllowedRoute('DELETE', '/plugins'));
+  assert.ok(!isAllowedRoute('GET', '/plugins/remove'));
+  assert.ok(!isAllowedRoute('GET', '/plugins/../settings'));
+  assert.ok(!isAllowedRoute('GET', '/pluginsx'));
+});
