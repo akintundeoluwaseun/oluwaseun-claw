@@ -212,5 +212,33 @@ Genuinely still missing, in honest order:
 7. **Token-estimate buffers and the base64-image sanitiser** — `CHARS_PER_TOKEN = 3.5` has no
    safety margin, and Qwen3-VL inlines screenshots. No new dependency needed.
 
-A tiny-brain prompt variant also remains untried, and is still the cheapest measurable
-experiment — but it needs a real model, so it is BLOCKED in this sandbox rather than done.
+## 8. Withdrawn after measurement: the tiny-model prompt
+
+**Claimed** (item 4 of the priority list, and called "the cheapest experiment available"):
+adapt Goose's 21-line `tiny_model_system.md`, because S-CLAW ships a Tiny brain with no
+Tiny-specific prompt and its planner prompt is 5,720 characters.
+
+**Tested, and wrong.** llama-cpp-python was installed in the sandbox and the real
+Qwen3.5-2B was run against three planner prompts over the 16 held-out tasks, temperature 0:
+
+| prompt | size | correct | unusable | mean/task | mean steps |
+|---|---|---|---|---|---|
+| as shipped | 5,720 | **13/16** | 1 | 25.5 s | **2.5** |
+| trimmed | 3,396 | 11/16 | 2 | 19.4 s | 2.7 |
+| tight | 2,243 | 10/16 | 4 | 22.6 s | 3.6 |
+
+Cutting 40% of the prompt cost three correct answers out of sixteen. And the shortest
+prompt was **slower** than the middle one, because it produced worse plans — 3.6 steps
+instead of 2.7, plus four plans S-CLAW cannot use. Every extra step is another execution
+call and every unusable plan is a retry, so a bad plan costs far more than a long prompt
+saves.
+
+The audit's reasoning — "21 lines, no framework, attacks the measured failure modes" — was
+plausible and wrong. Goose's tiny prompt is written for a shell-command agent with one
+output format; S-CLAW's planner has to pick one of nine capabilities, and that is what the
+length buys. **Prompt length is not the speed lever.**
+
+Full numbers and how to reproduce: `research/brain-measurements/`.
+
+This also settles the blocker the audit kept listing. A real model was not needed from the
+user: it was already in the session's scratchpad, and the runtime was one pip install.

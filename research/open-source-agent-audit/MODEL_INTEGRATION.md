@@ -604,7 +604,7 @@ the tool-definition-echo exclusion.
 | 6 | Gate local inference on CPU features before load, naming each missing one | goose `llamacpp/mod.rs:316` | **GAP** — `models/hardware.py` reads RAM/cores/GPU, no CPU flags |
 | 7 | Decide native-vs-emulated tool calling per model, from its own template | goose `llamacpp/mod.rs:114` | not checked |
 | 8 | Offer a three-state override (Auto / ForceNative / ForceEmulated) | goose, same file | not checked |
-| 9 | Ship a dedicated short system prompt for tiny models | goose `prompts/tiny_model_system.md` | **GAP** — Tiny brain is in `runtime/catalog.py`, no Tiny-specific prompt |
+| ~~9~~ | ~~Ship a dedicated short system prompt for tiny models~~ | goose `prompts/tiny_model_system.md` | **WITHDRAWN** — measured: a shorter planner prompt scored worse *and* ran slower (`CORRECTIONS.md` §8) |
 | 10 | Let a tiny model *ask* what tools exist instead of prompting the catalogue | goose `tool_emulation.rs` | not checked |
 | 11 | Repair malformed tool calls across JSON / XML / bracketed / ReAct shapes | openclaw `tool-call-repair` | partly — JSON only (`jsonfix.py`) |
 | 12 | Allowlist repaired tool names; protect user-visible text ranges | openclaw `contracts.ts` | not checked |
