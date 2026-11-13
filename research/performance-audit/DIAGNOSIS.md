@@ -228,3 +228,75 @@ regression.
   should hold.
 - The executor still passes its schema on every call. The same question applies
   there and is **not yet measured**.
+
+---
+
+# Phase 4b: the executor
+
+The same question, asked of the other model call — and the answer here is
+worse than the planner's.
+
+## What `ACTION_SCHEMA` actually constrains
+
+```
+action        enum ["tool","finish"]   <- the only useful constraint
+tool          free string, maxLength 64   <- NOT limited to real tool names
+args          additionalProperties: true  <- any object at all
+thought       maxLength 1000
+final_answer  maxLength 4000
+required      ["action"]
+```
+
+`tool` and `args` are the two things that must be right, and the grammar
+constrains neither. Meanwhile **only `action` is required**, so the cheapest
+string satisfying the whole grammar is `{"action":"finish"}` — the model
+finishing without doing anything. `executor.py` already carries three separate
+guards against exactly that false completion.
+
+## And the grammar does not even build
+
+`maxLength` becomes that many repetitions in GBNF. `final_answer`'s 4000
+produced a **42,081-byte** grammar, and llama.cpp's own parser refuses it:
+
+```
+parse: error parsing grammar: number of rules that are going to be repeated
+multiplied by the new repetition exceeds sane defaults
+```
+
+Run in isolated processes, model loaded, same call:
+
+| schema sent | result |
+|---|---|
+| `ACTION_SCHEMA` as shipped (42,081 B) | **segmentation fault, exit 139** |
+| limits stripped (1,470 B) | exit 0, returned `{"action":"tool","tool":"take_screenshot","args":{}}` |
+
+**Caveat, and it matters:** this is `llama-cpp-python`, not `llama-server`,
+which is what S-CLAW ships. The two have separate schema→GBNF converters. But
+the error comes from llama.cpp's **GBNF parser**, which both share, and it is
+specifically about repetition counts — which is what `maxLength: 4000`
+produces either way. So this is a real risk on the shipped stack, **not a
+verified one.** Verifying it needs `llama-server` on Windows.
+
+## The change
+
+`backend/claw/agent/executor.py`:
+
+- `without_length_limits(schema)` — strips every `maxLength`, at any depth,
+  without mutating the original.
+- `ACTION_SCHEMA_FOR_MODEL` — what the model is sent. **42,081 B → 1,470 B.**
+- `_next_action` sends it only when `attempt > 1`, the same as the planner.
+
+`backend/claw/agent/planner.py` uses the same helper for its retry schema.
+
+The limits are not lost. `ACTION_SCHEMA` keeps them and pydantic still rejects
+a 4001-character `final_answer` — a length cap is a check on what came back,
+not something a grammar should spend thousands of rules on. There is a test
+for that.
+
+## Why this one is lower risk than it sounds
+
+The executor's grammar was never doing the job it looked like it was doing:
+it could not constrain `tool` or `args`, and its one real constraint — the
+`action` enum — is still there in the retry. What changes is that the first
+attempt is free, which is what produced better plans in the planner, and that
+what the retry sends can actually be parsed.

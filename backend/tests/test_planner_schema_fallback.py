@@ -81,8 +81,16 @@ async def test_the_budget_is_one_free_attempt_and_one_constrained_retry(policy):
 
 
 @pytest.mark.asyncio
-async def test_the_schema_passed_is_the_plan_schema(policy):
-    """A retry constrained by the wrong schema would be worse than none."""
+async def test_the_retry_sends_the_plan_schema_without_its_length_limits(policy):
+    """The right schema, and in the form a grammar can actually be built from.
+
+    maxLength becomes that many GBNF repetitions, and ModelAction's 4000
+    produced a grammar llama.cpp's parser refuses outright - see
+    test_executor_schema_fallback.py. The limits stay on the schema the reply
+    is VALIDATED against; they are stripped from the one the model is sent.
+    """
+    from claw.agent.executor import without_length_limits
+
     seen = {}
 
     class Capture(Recorder):
@@ -93,7 +101,18 @@ async def test_the_schema_passed_is_the_plan_schema(policy):
 
     a = Capture(["bad", GOOD])
     await make_plan("Join the three invoices into one PDF", a, policy)
-    assert seen["schema"] == ModelPlan.model_json_schema()
+    assert seen["schema"] == without_length_limits(ModelPlan.model_json_schema())
+
+    def max_lengths(o):
+        if isinstance(o, dict):
+            return (["x"] if "maxLength" in o else []) + [y for v in o.values() for y in max_lengths(v)]
+        if isinstance(o, list):
+            return [y for v in o for y in max_lengths(v)]
+        return []
+
+    assert max_lengths(seen["schema"]) == []
+    # and the real schema still carries them, because that is what validates
+    assert max_lengths(ModelPlan.model_json_schema()) != []
 
 
 @pytest.mark.asyncio

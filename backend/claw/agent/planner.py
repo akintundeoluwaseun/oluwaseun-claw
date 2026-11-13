@@ -8,7 +8,7 @@ import logging
 from pydantic import ValidationError
 
 from claw.agent import jsonfix
-from claw.agent.executor import REPLY_TOKENS, estimate_tokens
+from claw.agent.executor import REPLY_TOKENS, estimate_tokens, without_length_limits
 from claw.agent.schemas import ModelPlan, Plan, PlanStep
 from claw.config import describe_validation_error
 from claw.logging_setup import log_event
@@ -127,6 +127,11 @@ def _prompt_tokens(messages: list[ChatMessage], schema: dict) -> int:
 
 async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy) -> Plan:
     schema = ModelPlan.model_json_schema()
+    # What a retry sends. The maxLength limits stay on `schema`, because that
+    # is what the reply is validated against; they are dropped from what the
+    # model sees, because a server turns each one into that many grammar
+    # repetitions. See executor.without_length_limits for the measurement.
+    schema_for_model = without_length_limits(schema)
     messages = [
         ChatMessage(role="system", content=SYSTEM_PROMPT),
         ChatMessage(role="user", content=f"User request:\n<<<\n{task}\n>>>"),
@@ -170,7 +175,7 @@ async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy) 
             # retry below is for - and the retry IS constrained, so a second
             # attempt cannot come back malformed. Quality first, grammar as
             # the net under it.
-            raw = await adapter.chat(messages, json_schema=schema if attempt > 1 else None)
+            raw = await adapter.chat(messages, json_schema=schema_for_model if attempt > 1 else None)
         except ModelResponseError as exc:
             last_problems = [exc.message]
             log_event(log, "plan reply unusable", attempt=attempt, problem=exc.message)

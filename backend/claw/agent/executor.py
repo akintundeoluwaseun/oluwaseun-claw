@@ -132,6 +132,37 @@ class ModelAction(BaseModel):
 
 ACTION_SCHEMA = ModelAction.model_json_schema()
 
+
+def without_length_limits(schema: dict[str, Any]) -> dict[str, Any]:
+    """The same schema with every maxLength dropped, for sending to a model.
+
+    A model server turns the schema into a GBNF grammar, and a maxLength
+    becomes that many repetitions of a character rule. ModelAction's
+    final_answer is 4000, which produced a 42,081-byte grammar that llama.cpp's
+    own parser REFUSES:
+
+        parse: error parsing grammar: number of rules that are going to be
+        repeated multiplied by the new repetition exceeds sane defaults
+
+    Measured here: with the shipped schema the process died with a
+    segmentation fault (llama-cpp-python, exit 139); with the limits dropped
+    the same call returned {"action":"finish","final_answer":"done"} and the
+    grammar is 1,470 bytes instead of 42,081.
+
+    The limits are not lost - they are what pydantic validates the reply
+    against, which is where they belong. A length cap is a check on what came
+    back, not something a grammar should be spending thousands of rules on.
+    """
+    if isinstance(schema, dict):
+        return {k: without_length_limits(v) for k, v in schema.items() if k != "maxLength"}
+    if isinstance(schema, list):
+        return [without_length_limits(v) for v in schema]
+    return schema
+
+
+#: What is sent to the model. ACTION_SCHEMA stays as it is for validation.
+ACTION_SCHEMA_FOR_MODEL = without_length_limits(ACTION_SCHEMA)
+
 ApprovalFn = Callable[[dict[str, Any]], Awaitable[bool | None]]
 EmitFn = Callable[[str, dict[str, Any]], None]
 
@@ -1718,7 +1749,14 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
                                   "window_tokens": window_tokens})
     for attempt in (1, 2):
         try:
-            raw = await adapter.chat(sent, json_schema=ACTION_SCHEMA)
+            # Same reasoning as make_plan: the schema constrains a RETRY, not
+            # the first attempt. Constraining every call makes the model write
+            # the cheapest structure the grammar allows, and here the cheapest
+            # valid reply is {"action":"finish"} - the model finishing without
+            # doing anything, which is the false completion this file already
+            # has three guards against. Ask freely first, repair with jsonfix,
+            # and constrain only after a reply that could not be used.
+            raw = await adapter.chat(sent, json_schema=ACTION_SCHEMA_FOR_MODEL if attempt > 1 else None)
         except ModelResponseError as exc:
             emit("model_reply_rejected", {"step": step_no, "problem": exc.message})
             continue
