@@ -152,3 +152,79 @@ step cost, model selection across the catalogue.
 Change 1 is the one to test first, and the test is the held-out 16 with
 accuracy **and** time, because a change that saves 27% and loses two correct
 answers is not an improvement.
+
+---
+
+# Phase 4–6: implementation and results
+
+## The root cause I had missed: the schema is a grammar
+
+S-CLAW passes `json_schema` on **every** planner call. `llama-server` turns
+that into a GBNF grammar and constrains every token. That is not free — it
+changes what the model writes.
+
+Measured on the real brain, 16 held-out tasks, same seed, same prompt:
+
+| | correct | unusable | s/task | tok/task | steps |
+|---|---|---|---|---|---|
+| grammar on every call (**as shipped**) | **9/16** | 0 | 15.3 | 69 | **1.0** |
+| free JSON, repaired by `jsonfix` | **13/16** | 1 | 23.1 | 222 | **2.5** |
+
+A grammar-constrained 2B writes the *cheapest structure that satisfies the
+grammar*, not the best plan: it collapsed real multi-step work into a single
+step, every time. That is four correct answers out of sixteen, lost to a
+constraint meant to improve reliability.
+
+**This also corrects an earlier number of mine.** The 13/16 baseline I reported
+earlier was measured with no grammar — a configuration the app does not use.
+The shipped planner was really running at 9/16.
+
+## The change
+
+`backend/claw/agent/planner.py`, one line: the schema is passed on a **retry**,
+never the first attempt. The retry loop already existed; `MAX_ATTEMPTS` is 2,
+so the budget is one free attempt and one constrained one. Free output gives
+the better plan; the grammar guarantees the retry cannot come back malformed.
+
+Measured through the **real `make_plan`** (real retry, real `jsonfix`, real
+validation):
+
+| | correct | planning failures | s/task | model calls | steps |
+|---|---|---|---|---|---|
+| as shipped | 9/16 | 0 | 15.3 | 16 | 1.0 |
+| **new** | **13/16** | **0** | 20.6 | **16** | 2.6 |
+
+**+4 correct (+25 points), no reliability regression, and the safety net was
+never needed** — 16 calls for 16 tasks, so no retry fired. The cost is 5.3 s
+per planning call.
+
+That is the trade the brief asks for: intelligence first, reliability kept,
+speed given up only where it buys correctness.
+
+## Things I tested that did NOT work, and did not ship
+
+Recorded because a negative result is worth as much as a positive one here.
+
+| idea | result | shipped? |
+|---|---|---|
+| Remove `expected_result` (27% of plan output, read by nothing) | +4 correct but **4.7× the tokens and 2.9× slower**; plans ballooned from 1.0 to 9.8 steps | **No** |
+| Reorder the prompt's JSON example to match grammar field order | 10/16 vs 9/16 — within noise on n=16 | No |
+| Make `title` required so the grammar matches the prompt | 8/16 — worse | No |
+| Shrink the GBNF grammar by dropping `maxLength` (29× smaller) | 5.24 vs 5.11 tok/s — no effect | No |
+
+`expected_result` is the interesting one: it reads like dead weight, and it is
+load-bearing. Forcing the model to state a result per step makes it commit to
+few, meaningful steps. Deleting it would have been a large, invisible
+regression.
+
+## Honest limits
+
+- One model (Qwen3.5-2B Q4), 4 cores, **n = 16 tasks**. A 1-task difference is
+  noise; the 4-task difference is reported as real.
+- Measured with `llama-cpp-python`, not `llama-server`, which is what S-CLAW
+  ships. Both use llama.cpp's grammar engine, but the schema→GBNF converters
+  are separate implementations, so **the exact numbers on Windows may differ.**
+  The direction — a grammar makes a small model write minimal structures —
+  should hold.
+- The executor still passes its schema on every call. The same question applies
+  there and is **not yet measured**.

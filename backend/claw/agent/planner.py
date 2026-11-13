@@ -156,7 +156,21 @@ async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy) 
             while len(messages) > 2 and _prompt_tokens(messages, schema) > window:
                 del messages[2:4]
         try:
-            raw = await adapter.chat(messages, json_schema=schema)
+            # The schema is a safety net, not the opening move.
+            #
+            # Passing it makes llama-server turn it into a GBNF grammar, and a
+            # grammar-constrained 2B writes the cheapest structure that
+            # satisfies the grammar rather than the best plan. Measured on the
+            # 16 held-out tasks (research/performance-audit/): constrained is
+            # 9/16 correct with 1.0 steps per plan; letting the model write
+            # JSON freely and repairing it with jsonfix is 13/16 with 2.5
+            # steps. The grammar was collapsing real work into a single step.
+            #
+            # Free costs one unusable reply in sixteen, which is what the
+            # retry below is for - and the retry IS constrained, so a second
+            # attempt cannot come back malformed. Quality first, grammar as
+            # the net under it.
+            raw = await adapter.chat(messages, json_schema=schema if attempt > 1 else None)
         except ModelResponseError as exc:
             last_problems = [exc.message]
             log_event(log, "plan reply unusable", attempt=attempt, problem=exc.message)
