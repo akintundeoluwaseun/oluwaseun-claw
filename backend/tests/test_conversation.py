@@ -351,3 +351,69 @@ def test_a_sentence_is_never_treated_as_noise():
     from claw.agent.conversation import looks_like_typing_noise
     for text in ("sdddsss please", "open sdddsss.txt", "find jjjj in my files"):
         assert not looks_like_typing_noise(text), text
+
+
+# ---------- a general question is not a job ----------
+# "Those ones know how to give a direct answer. Those ones are not thinking
+# when they're not supposed to think."
+#
+# "how long|many|much|big" and "what's|is|was the|in|it" used to live in
+# _TASK_VERB, so EVERY question using them went to the planner: "what is the
+# capital of France" woke the brain, sent it the whole tool catalogue, and had
+# it work out that France needs no tools. On a laptop brain that is most of a
+# minute to say one sentence.
+#
+# They were there for a real reason, and these tests hold both halves of it.
+
+GENERAL_QUESTIONS = [
+    "what is the capital of France",
+    "how many days in a year",
+    "what is the weather like in Lagos",
+    "how much is a litre of petrol",
+]
+
+# Deliberately NOT in the list above: "what is a GGUF file". The word "file"
+# trips _TASK_NOUN, so it goes to the planner. That is the module's one-sided
+# bias working as intended - loosening "file" to catch this would also lose
+# "how many files are in this folder", which is a real job. A definition
+# question that happens to name a computer word costs a slow answer; the other
+# way round costs a job silently not done.
+
+STILL_JOBS = [
+    "how many files are in this folder",
+    "what's in this folder",
+    "what is in Documents",
+    "how big is this file",
+    "how many pages in the pdf",
+    "what is the total in invoices.xlsx",
+]
+
+FOLLOW_UPS = [
+    "how long was it",
+    "what was the answer",
+    "how many did you find",
+    "what is the total",            # "the total" with nothing named: about work just done
+]
+
+
+@pytest.mark.parametrize("text", GENERAL_QUESTIONS)
+def test_a_general_question_does_not_go_to_the_planner(text):
+    assert not smells_like_work(text), f"{text!r} would wake the brain and send it the catalogue"
+
+
+@pytest.mark.parametrize("text", STILL_JOBS)
+def test_a_question_about_something_here_is_still_a_job(text):
+    assert smells_like_work(text), f"{text!r} asks about this computer and must be planned"
+
+
+@pytest.mark.parametrize("text", FOLLOW_UPS)
+def test_a_question_pointing_back_at_work_is_still_a_job(text):
+    """Answering these from a chat prompt, with no access to the work, is how
+    a model invents an answer."""
+    assert smells_like_work(text), f"{text!r} is about work already done"
+
+
+def test_the_bias_is_still_one_sided():
+    """Anything with a verb stays a job even when it also reads as a question."""
+    for text in ["how many files should I delete", "what is the total, save it to a file"]:
+        assert smells_like_work(text), text

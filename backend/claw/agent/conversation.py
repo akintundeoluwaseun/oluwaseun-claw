@@ -42,7 +42,7 @@ _TASK_VERB = re.compile(
     r"edit|change|update|fix|convert|resize|crop|trim|cut|merge|combine|split|"
     r"add|put|set|schedule|remind|book|cancel|plan\s+my|"
     r"type|click|press|fill|select|scroll|record|play|print|"
-    r"tell\s+me|give\s+me|how\s+(?:long|many|much|big)|what(?:'s| is| was)\s+(?:the|in|it)|"
+    r"tell\s+me|give\s+me|"
     r"remember|forget|calculate|work\s+out|total|sum)\b", re.I)
 
 # Nouns that mean a computer, a file or an app is involved.
@@ -54,6 +54,34 @@ _TASK_NOUN = re.compile(
     r"notepad|word|excel|powerpoint|photoshop|blender|calculator|explorer|app|application|program|"
     r"screenshot|screen|window|desktop|downloads?|documents\s+folder|"
     r"video|audio|image|picture|photo|song|track)\b", re.I)
+
+# Openers that ask ABOUT something rather than ask FOR something.
+#
+# These used to sit in _TASK_VERB, and they caught every general question that
+# used them: "what is the capital of France" and "how much does this cost" both
+# went to the planner, which woke the brain, sent it the whole tool catalogue
+# and had it work out that a question about France needs no tools. On a laptop
+# brain that is most of a minute to answer something that could have been said
+# at once - the exact cost this module exists to avoid.
+#
+# They were there for a real reason: "how many files are in this folder" and
+# "what's in Documents" ARE jobs. The difference is not the opener, it is
+# whether the question points at something on this computer. So they count as
+# work only alongside a thing or a path, and on their own they are a question
+# to be answered.
+_ASKS_ABOUT = re.compile(
+    r"\b(?:how\s+(?:long|many|much|big)|what(?:'s| is| was)\s+(?:the|in|it))\b", re.I)
+
+# ...but only when the question stands on its own. "how long was it" and "what
+# was the answer" use the same openers and are asking about work Claw just did;
+# answering those from a chat prompt, with no access to that work, is how a
+# model invents an answer. A pointer back - it, this, that, them - or a past
+# tense means the question is about something already in play, so it goes to
+# the planner as before. The bias stays one-sided: in doubt, plan.
+_POINTS_BACK = re.compile(
+    r"\b(?:it|its|it's|this|that|these|those|them|they|their|there|"
+    r"answer|result|again|earlier|before|last\s+one|"
+    r"was|were|did|had|have|has)\b", re.I)
 
 # A path, an extension, a drive letter, or a quoted name: all mean a real thing on disk.
 _LOOKS_LIKE_PATH = re.compile(r"[A-Za-z]:\\|[\\/][\w .-]+[\\/]|\.\w{2,4}\b|“[^”]+”|\"[^\"]+\"")
@@ -216,7 +244,15 @@ def smells_like_work(text: str) -> bool:
     here applies and the request goes to the planner exactly as before.
     """
     t = _first_line(text)
-    return bool(_TASK_VERB.search(t) or _TASK_NOUN.search(t) or _LOOKS_LIKE_PATH.search(t))
+    points_at_something = bool(_TASK_NOUN.search(t) or _LOOKS_LIKE_PATH.search(t))
+    if _TASK_VERB.search(t) or points_at_something:
+        return True
+    if _ASKS_ABOUT.search(t):
+        # The opener alone, naming nothing on this computer. It is work only if
+        # it points back at something already in play - "how long WAS IT" is
+        # about a job just done, "how many days in a year" is a question.
+        return bool(_POINTS_BACK.search(t))
+    return False
 
 
 def quick_reply(text: str, name: str = "S-CLAW", standalone: bool = True) -> str | None:
