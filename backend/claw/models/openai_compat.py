@@ -53,7 +53,29 @@ class OpenAICompatAdapter(ModelAdapter):
     provider = "openai_compatible"
     api_key: str = ""  # Claw's own engine uses a random key per launch
     vision: bool = False
-    max_tokens: int = 1536  # bounds every answer so a confused model can't run forever
+    #: Bounds every answer so a confused model cannot run forever - but the
+    #: bound only works if it is reachable BEFORE request_timeout_s.
+    #:
+    #: It was 1536, and it was not reachable. A brain generating at the ~10
+    #: tokens a second a 2B manages on four CPU cores needs 154 seconds to
+    #: produce 1536 tokens, against a 120-second default timeout. So the
+    #: runaway guard could never fire: the HTTP timeout always arrived first
+    #: and threw the whole reply away, where hitting the cap would have left a
+    #: truncated reply that jsonfix can often repair and the retry can correct.
+    #:
+    #: Measured on the held-out tasks (research/performance-audit/): planner
+    #: replies were 96 to 208 tokens with one degenerate reply that ran to the
+    #: cap; executor replies were 41 to 72. 1024 is ~102 s at that speed, so it
+    #: fits inside the default timeout with room to spare, and the only reply
+    #: it truncates is the degenerate one that should be truncated.
+    #:
+    #: Keep SLOW_TOKENS_PER_SECOND * request_timeout_s above this number.
+    #: test_token_budget_fits_the_timeout holds the two together.
+    max_tokens: int = 1024
+
+    #: What a small brain manages on a plain CPU, measured rather than hoped:
+    #: a 2B Q4 on four cores. Used only to check the two budgets agree.
+    SLOW_TOKENS_PER_SECOND: float = 10.0
 
     def missing_model_hint(self) -> str:
         return "Start the server with that model loaded, or pick a model the server lists."

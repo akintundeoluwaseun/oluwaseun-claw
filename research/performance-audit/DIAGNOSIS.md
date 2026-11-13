@@ -300,3 +300,72 @@ it could not constrain `tool` or `args`, and its one real constraint — the
 `action` enum — is still there in the retry. What changes is that the first
 attempt is free, which is what produced better plans in the planner, and that
 what the retry sends can actually be parsed.
+
+---
+
+# Phase 4c: limits, timeouts and the budgets that disagreed
+
+## What already exists (the brief assumed these were missing)
+
+| limit | value | behaviour on hitting it |
+|---|---|---|
+| `max_steps` | 20 | returns **`incomplete`** with what was done — not a fake success |
+| `step_timeout_s` | 60 | step fails, marked transient, one retry |
+| `approval_timeout_s` | 600 | treated as a denial |
+| `max_consecutive_failures` | 3 | triggers a replan |
+| `request_timeout_s` | 120 | model call fails with a named reason |
+| `MAX_ATTEMPTS` / `MAX_REPEATS` / `MAX_REPLANS` / `MAX_PUSHBACKS` | 2 / 3 / 2 / 2 | all enforced |
+
+S-CLAW's limit coverage is good, and `incomplete` is the honest outcome the
+brief asks for. The problem is not a missing limit. It is **two limits that
+contradict each other.**
+
+## The runaway guard could never fire
+
+`max_tokens` was **1536**. Measured generation on this machine is **~10
+tokens/second** (2B Q4, four CPU cores). 1536 tokens therefore needs **154
+seconds** — against a **120-second** `request_timeout_s`.
+
+So the guard meant to stop a model that will not stop was unreachable. The
+HTTP timeout always arrived first, and a timeout **throws the whole reply
+away**, where hitting the cap leaves a truncated reply that `jsonfix` can
+often repair and the retry can correct.
+
+This is not hypothetical. Measured over the 16 held-out tasks plus 6 executor
+calls, with the cap raised so the real need could be seen:
+
+| | min | median | max | ran to the 1536 cap |
+|---|---|---|---|---|
+| planner replies | 96 | 208 | **1536** | **1 of 16** |
+| executor replies | 41 | 59 | 72 | 0 of 6 |
+
+One plan in sixteen was degenerate and generated until something stopped it.
+In the shipped configuration the thing that stopped it was the 120 s timeout,
+with nothing to show for the 120 s. That is the brief's "model sometimes gets
+stuck thinking without producing a useful response", and it is arithmetic.
+
+## The change
+
+`max_tokens` 1536 → **1024** (~102 s at 10 tok/s, inside the 120 s timeout
+with headroom), and `SLOW_TOKENS_PER_SECOND = 10.0` recorded next to it so the
+relationship is explicit rather than two independent numbers that drifted
+apart.
+
+`tests/test_token_time_budgets.py` holds them together: the cap must be
+reachable before the default timeout, with 10% headroom, and must still clear
+4× the largest real reply measured (208 tokens). If anyone raises the cap or
+lowers the timeout past the point where the guard stops working, a test fails
+and says why.
+
+1024 truncates exactly one of the 22 replies measured — the degenerate one,
+which is the reply that should be truncated.
+
+## Still open
+
+- **No overall task deadline.** Each limit is sane; their product is not.
+  20 steps × (120 s model + 60 s tool) is up to an hour with every individual
+  limit respected. Not changed here: a deadline needs a decision about what
+  a half-finished task should report, and `incomplete` already exists as the
+  honest shape for it.
+- Tier B (a light path for one simple action).
+- `/tasks/plan` bypassing the router.
