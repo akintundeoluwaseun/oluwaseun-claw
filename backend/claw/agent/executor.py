@@ -20,6 +20,7 @@ import json
 import logging
 import math
 import re
+import time
 from pathlib import Path
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -1445,6 +1446,7 @@ async def run_agent(
     capabilities: set[str] | None = None,
     window_tokens: int = DEFAULT_CONTEXT_TOKENS,
     deadline: Deadline | None = None,
+    timings: Timings | None = None,
 ) -> RunOutcome:
     limits = ctx.settings.agent
     person_limits = constraints.read_limits(task)
@@ -1538,8 +1540,21 @@ async def run_agent(
                        f"What was finished has been kept." if done else
                        f"Stopped before any step finished, while starting step {step_no}."),
                 error=deadline.why_stopped())
-        action = await _next_action(adapter, messages, emit, step_no, window_tokens, deadline)
+        action = await _next_action(adapter, messages, emit, step_no, window_tokens, deadline, timings)
         if action is None:
+            # Two very different reasons to have no action, and they must not
+            # be reported as the same thing. Running out of time is not the
+            # model failing to answer: it was still answering when the clock
+            # stopped it, and saying "did not give a usable next action" would
+            # blame the brain for a limit Claw imposed.
+            if deadline is not None and deadline.expired:
+                done = sum(1 for s in steps if s.get("outcome") == "ok")
+                return outcome(
+                    "incomplete",
+                    final=(f"Stopped after {done} completed step(s), while thinking about step {step_no}. "
+                           f"What was finished has been kept." if done else
+                           f"Stopped while thinking about step {step_no}, before any step finished."),
+                    error=deadline.why_stopped())
             return outcome("failed", error="The model did not give a usable next action.")
         messages.append(ChatMessage(role="assistant", content=action.model_dump_json()))
 
@@ -1710,7 +1725,11 @@ async def run_agent(
                 return outcome("stopped", error=f"You did not approve '{spec.name}', so the task stopped.")
             emit("approved", {"step": step_no, "tool": spec.name})
 
-        result, error = await _attempt(spec, args, ctx, limits.step_timeout_s, emit, step_no)
+        if timings is not None:
+            with timings.measure("tools"):
+                result, error = await _attempt(spec, args, ctx, limits.step_timeout_s, emit, step_no)
+        else:
+            result, error = await _attempt(spec, args, ctx, limits.step_timeout_s, emit, step_no)
         warning = ""
         if error is None and result is not None:
             record.update(
@@ -1756,7 +1775,8 @@ async def _replan(adapter: ModelAdapter, messages: list[ChatMessage], emit: Emit
 
 async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit: EmitFn, step_no: int,
                        window_tokens: int = DEFAULT_CONTEXT_TOKENS,
-                       deadline: Deadline | None = None) -> ModelAction | None:
+                       deadline: Deadline | None = None,
+                       timings: Timings | None = None) -> ModelAction | None:
     fitted = fit_context(messages, window_tokens)
     sent, dropped, over = fitted.messages, fitted.dropped, fitted.over_tokens
     if dropped:
@@ -1791,7 +1811,20 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
                 # written - so the model never gets more time than the task
                 # has left. A tool is a different matter; see the loop above.
                 call = asyncio.wait_for(call, timeout=deadline.timeout_for(_MODEL_CALL_CEILING_S))
-            raw = await call
+            began = time.monotonic()
+            try:
+                raw = await call
+            finally:
+                if timings is not None:
+                    spent = time.monotonic() - began
+                    timings.add("generation", spent)
+                    # A second attempt only exists because the first was
+                    # unusable, so its time is retry time as well as
+                    # generation time. Counted in both on purpose: one answers
+                    # "how long was the model thinking", the other answers
+                    # "how much of that was wasted".
+                    if attempt > 1:
+                        timings.add("retry", spent)
         except asyncio.TimeoutError:
             # The task ran out of time while the model was still writing.
             emit("deadline_reached", {"step": step_no, "during": "thinking",

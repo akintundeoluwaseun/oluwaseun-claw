@@ -306,9 +306,16 @@ class AgentSettings(BaseModel):
     #: absurd for the first. The band is chosen from the plan's step count once
     #: planning is done, and it can only ever be LOWERED from the starting
     #: budget - see claw.agent.deadline.
-    conversation_deadline_s: float = Field(default=120, ge=10, le=600)
-    simple_deadline_s: float = Field(default=180, ge=10, le=1800)
-    moderate_deadline_s: float = Field(default=360, ge=10, le=3600)
+    #: Talk is one short model call. Measured end to end against a real
+    #: Qwen3.5-2B on four CPU cores: 2.6 s to 5.6 s, and the canned replies
+    #: cost nothing at all. 15 s is roughly three times the slowest measured
+    #: reply, which is enough headroom for a slower machine without leaving
+    #: somebody watching a spinner for two minutes over "what is Python?".
+    conversation_deadline_s: float = Field(default=15, ge=5, le=600)
+    #: One action: a model call to choose it, then the action. The call is the
+    #: slow half at ~10 tokens a second.
+    simple_deadline_s: float = Field(default=30, ge=5, le=1800)
+    moderate_deadline_s: float = Field(default=180, ge=10, le=3600)
     complex_deadline_s: float = Field(default=600, ge=10, le=7200)
     #: For a task the person has explicitly said may take longer. Never chosen
     #: by Claw: it is asked for per task.

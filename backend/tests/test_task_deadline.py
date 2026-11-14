@@ -165,7 +165,7 @@ async def test_no_deadline_means_no_change_in_behaviour():
     assert out.status == "completed"
 
 
-async def _run_with(ex, deadline):
+async def _run_with(ex, deadline, adapter=None):
     """Drive run_agent with a model that finishes at once."""
     from claw.agent.executor import ModelAction
 
@@ -195,10 +195,60 @@ async def _run_with(ex, deadline):
         browser=BrowserSession(data, lambda: settings.browser),
         task_id="t1",
     )
-    return await ex.run_agent("do a thing", "1. do it", Adapter(), ToolRegistry(), ctx,
+    return await ex.run_agent("do a thing", "1. do it", adapter or Adapter(), ToolRegistry(), ctx,
                               lambda *a, **k: None, _approve, None,
                               window_tokens=8192, deadline=deadline)
 
 
 async def _approve(payload):
     return True
+
+
+# ---------- the budgets are the ones that were asked for ----------
+
+def test_the_budgets_are_the_agreed_values():
+    a = AgentSettings()
+    assert a.conversation_deadline_s == 15
+    assert a.simple_deadline_s == 30
+    assert a.moderate_deadline_s == 180        # 3 minutes
+    assert a.complex_deadline_s == 600         # 10 minutes
+    assert a.extended_deadline_s == 1800       # 30 minutes
+
+
+def test_the_conversation_budget_clears_a_real_measured_reply():
+    """Measured chat replies on a 2B/4-core were 2.6s to 5.6s. A budget that
+    cut those off would be a regression dressed as a speed-up."""
+    slowest_measured = 5.6
+    assert AgentSettings().conversation_deadline_s >= 2 * slowest_measured
+
+
+def test_every_budget_stays_configurable():
+    a = AgentSettings(conversation_deadline_s=45, simple_deadline_s=90,
+                      moderate_deadline_s=300, complex_deadline_s=900,
+                      extended_deadline_s=3600)
+    assert (a.conversation_deadline_s, a.simple_deadline_s, a.complex_deadline_s) == (45, 90, 900)
+
+
+@pytest.mark.asyncio
+async def test_running_out_of_time_is_not_reported_as_the_model_failing():
+    """Two different reasons to have no action. Saying "the model did not
+    give a usable next action" when the clock stopped it blames the brain for
+    a limit Claw imposed - and hides the real cause from anyone reading it."""
+    from claw.agent import executor as ex
+
+    class SlowAdapter:
+        provider = model = "t"
+
+        async def chat(self, messages, json_schema=None):
+            import asyncio
+            await asyncio.sleep(0.2)          # still answering when time runs out
+            return '{"action":"finish","final_answer":"done"}'
+
+        async def context_window(self):
+            return 8192
+
+    d = Deadline(budget_s=0.05, band="simple")
+    out = await _run_with(ex, deadline=d, adapter=SlowAdapter())
+    assert out.status == "incomplete", f"got {out.status}: {out.error}"
+    assert "time limit" in (out.error or "")
+    assert "usable next action" not in (out.error or "")

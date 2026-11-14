@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from claw.agent import constraints, conversation, persona
-from claw.agent.executor import RunOutcome, run_agent
+from claw.agent.executor import RunOutcome, fitting_tools, run_agent
 from claw.agent.deadline import Deadline, band_for
+from claw.agent.simple_action import one_step_plan, single_action, tools_note
+from claw.agent.timings import Timings
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.agent.titles import clean_model_title, fallback_title
 from claw.logging_setup import log_event
@@ -122,6 +125,9 @@ class TaskRunner:
         # a retry or a replan does not buy more time: what is being bounded is
         # how long the person waits, not how long any one operation takes.
         limits = settings.agent
+        # Where the time went, phase by phase. A task finishing inside its
+        # deadline proves nothing about whether it was efficient.
+        timings = Timings()
         deadline = Deadline(
             budget_s=limits.extended_deadline_s if self.extended else limits.complex_deadline_s,
             band="extended" if self.extended else "complex",
@@ -144,6 +150,7 @@ class TaskRunner:
                 self.approvals.pop(approval_id, None)
                 db.update_task(task_id, status="running")
 
+        router_began = time.monotonic()
         own = persona.self_answer(task_text, state.data_dir)
         if own:
             # "Who are you?", "Which is the best claw?": S-CLAW answers for itself, from its
@@ -212,6 +219,9 @@ class TaskRunner:
                 return
             # the brain had nothing to say: fall through and treat it as work
 
+        # Every gate above has been tried and none of them answered, so this
+        # is where routing ends and work begins.
+        timings.add("router", time.monotonic() - router_began)
         ask = constraints.conflict_question(constraints.read_limits(task_text))
         if ask:
             # A request that contradicts itself is asked about before anything runs (challenge 17.06).
@@ -227,7 +237,8 @@ class TaskRunner:
         state.browser.reset_task_state()
         state.desktop.reset_task_state()
         try:
-            adapter = await state.think_adapter()
+            with timings.measure("selection"):
+                adapter = await state.think_adapter()
             ctx = ToolContext(
                 settings=settings, policy=state.policy().unattended() if self.unattended else state.policy(), data_dir=state.data_dir, browser=state.browser, task_id=task_id,
                 desktop=state.desktop, vision=state.vision_fn(adapter), llm=adapter, docs=state.docs.pipeline,
@@ -237,7 +248,24 @@ class TaskRunner:
             emit("model_call", {"provider": adapter.provider, "model": adapter.model, "purpose": "plan"})
             # Earlier messages of this chat are given as context, so "now save it as a PDF" works.
             request = f"{task_text}\n\n{context}" if context else task_text
-            plan = await make_plan(request, adapter, state.policy())
+            # One obvious action does not need a planning call. Measured on a
+            # real 2B: "Open Notepad" spent 19.6s planning a one-step plan it
+            # could not learn anything from. The executor still chooses the
+            # tool and its arguments, and decide() still asks the person - the
+            # plan was only ever advice. See claw/agent/simple_action.py for
+            # why the test for "one obvious action" is deliberately strict.
+            tool = single_action(task_text, state.registry, fitting_tools) if not context else None
+            if tool is not None:
+                with timings.measure("planning"):
+                    plan = one_step_plan(task_text, state.registry.get(tool), state.policy())
+                emit("simple_action", {"tool": tool, "planning_skipped": True})
+            else:
+                with timings.measure("planning"):
+                    # Name the tools that already fit. Measured: it fixes the
+                    # open-ended enumeration and costs nothing. See tools_note.
+                    plan = await make_plan(
+                        request + tools_note(task_text, state.registry, fitting_tools),
+                        adapter, state.policy())
             # Now the size is known, so the budget narrows to the band this
             # plan belongs in. tighten_to only ever LOWERS, and the start time
             # is untouched, so the time planning just took still counts.
@@ -278,7 +306,9 @@ class TaskRunner:
                               task_id=task_id, asked=asked, actual=reported)
             outcome = await run_agent(request, plan_text, adapter, state.registry, ctx, emit,
                                       request_approval, caps or None, window_tokens=window,
-                                      deadline=deadline)
+                                      deadline=deadline, timings=timings)
+            emit("timings", timings.as_dict())
+            log_event(log, "task timings", task_id=task_id, **{"detail": timings.summary_line()})
             db.update_task(task_id, status=outcome.status, error=outcome.error, result=outcome.summary())
             emit("task_" + outcome.status, {"error": outcome.error} if outcome.error else {})
             log_event(log, "task ended", task_id=task_id, status=outcome.status, steps=len(outcome.steps))

@@ -28,6 +28,8 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from claw import __version__
+from claw.agent import conversation, persona, simple_action
+from claw.agent.executor import fitting_tools
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.agent.runner import TaskBusy, TaskRunner
 from claw.agent.titles import clean_model_title, fallback_title
@@ -839,6 +841,33 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             state.db.set_thread_title(task_id, fallback_title(req.task))
         state.db.add_event(task_id, "requested", {"task": req.task})
         state.db.update_task(task_id, status=TaskStatus.PLANNING)
+        # "Plan only" went straight to make_plan, so none of the six gates in
+        # TaskRunner._run ran: a greeting typed here woke the brain and sent
+        # it the whole tool catalogue to be told that hello needs no tools.
+        # The same two cheap gates are applied here. Anything they answer is
+        # answered without a model, and the rest plans exactly as before.
+        canned = conversation.quick_reply(
+            req.task, persona.identity(state.data_dir).get("name", "S-CLAW"))
+        if canned:
+            # This endpoint only ever produces a plan - it has no "completed".
+            # So a greeting is refused here rather than answered, and the
+            # refusal carries the answer it would have given. Either way the
+            # brain is not woken to be told that hello needs no tools.
+            state.db.add_event(task_id, "chat_reply", {"kind": "canned"})
+            state.db.update_task(task_id, status=TaskStatus.FAILED,
+                                 error="There is nothing to plan here.")
+            return _task_error(task_id, 422, "nothing_to_plan",
+                               "There is nothing to plan here.", canned)
+        tool = simple_action.single_action(req.task, state.registry, fitting_tools)
+        if tool is not None:
+            # One obvious action: the plan is built from Claw's own matcher
+            # rather than bought with a model call.
+            plan = simple_action.one_step_plan(req.task, state.registry.get(tool), state.policy())
+            state.db.add_event(task_id, "simple_action", {"tool": tool, "planning_skipped": True})
+            plan_json = plan.model_dump(mode="json")
+            state.db.add_event(task_id, "planned", {"steps": len(plan.steps)})
+            state.db.update_task(task_id, status=TaskStatus.PLANNED, plan=plan_json)
+            return state.db.get_task(task_id)
         try:
             adapter = await state.think_adapter()
             state.db.add_event(task_id, "model_call", {"provider": adapter.provider, "model": adapter.model})

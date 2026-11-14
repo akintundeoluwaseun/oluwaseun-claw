@@ -440,3 +440,94 @@ against it.
 
 `tests/test_task_deadline.py` (20 tests) holds all of it, including that a run
 with no deadline behaves exactly as before.
+
+---
+
+# Phase 5: tier B, the plan route, diagnostics, and the enumeration fix
+
+## C. Diagnostics first, because they measure everything after
+
+`backend/claw/agent/timings.py`. Seven phases, each timed separately and all
+reported — including the cheap ones, because a number that only appears when
+it is bad cannot show that anything is good. `unmeasured_s` names whatever the
+phases did not account for, rather than leaving a silent gap.
+
+The first real run paid for itself immediately:
+
+```
+[simple action] Open Notepad        30.2s -> failed
+    router 0.00s | selection 0.00s | planning 19.58s | generation 10.39s | tools 0.00s
+```
+
+Three things at once:
+
+1. **Routing and model selection cost nothing** — 0.00 s each. They were never
+   the problem.
+2. **"Open Notepad" spent 19.6 s planning a one-step plan**, which is the whole
+   case for tier B, measured rather than argued.
+3. **A bug I had just introduced:** the run was reported as `failed` with "The
+   model did not give a usable next action" when it had actually run out of
+   time. Blaming the brain for a limit Claw imposed. Fixed — deadline expiry
+   now returns `incomplete` with the real reason, and a test forbids the two
+   from being confused again.
+
+## A. The open-ended enumeration
+
+Root cause found by grepping the planner's prompt for tool names: **there are
+none.** The planner knows capabilities, not tools. So "Tidy up my Downloads"
+was planned in the abstract and became one step per year, counting downwards —
+while `fitting_tools()` already maps that exact request to `sort_into_folders`.
+
+Benchmarked on the held-out 16, three ways:
+
+| | correct | unusable | tok/task | s/task | steps |
+|---|---|---|---|---|---|
+| as shipped, no note | 13/16 | **1** (the runaway) | 242 | 23.8 | 2.5 |
+| **note naming the tools** | **13/16** | **0** | **178** | **19.3** | 2.3 |
+| note + "prefer one step over many" | 12/16 | 0 | 151 | 16.8 | 1.8 |
+
+Naming the tools fixes the runaway, costs no accuracy and saves 26% of the
+output tokens. **Telling the model what to conclude from them costs a correct
+answer** — it pushed "Which branch sold the most in sales.xlsx" onto
+`create_spreadsheet`, a creation tool for an analysis question. So the note
+states the fact and stops, and a test forbids instruction words in it.
+
+## 1. Tier B
+
+`backend/claw/agent/simple_action.py`. One obvious action skips the planning
+call entirely — no model, plan synthesised from Claw's own matcher.
+
+It is **not** a keyword list: it rests on `fitting_tools`, and adds only the
+checks that matcher cannot make. A request is one obvious action when it is
+one line, at most 8 words, carries no conjunction joining a second job, and
+matches 1–4 tools **that agree on capability and risk**. That last clause is
+what lets "Open Notepad" through (three tools, all `desktop`/`local_write`)
+while refusing anything whose matched tools disagree — because then the
+permission shown to the person would be a guess.
+
+The bias is one-sided, like `conversation.py`: treating a multi-step job as one
+action is a confident wrong answer; treating a simple action as complex costs
+only the planning call it costs today. 12 of 12 hand-checked cases correct,
+including the ones that matter: "…and email it", "Research five companies and
+put them in a spreadsheet" and "Delete everything in Downloads" all refused.
+
+**Nothing about approval changes.** The executor still chooses the tool and its
+arguments, `decide()` still asks, and the DESTRUCTIVE floor still holds. The
+plan was only ever advice.
+
+## 2. `/tasks/plan` no longer bypasses the router
+
+It now runs the two cheap gates. A greeting is **refused without a model call**
+— this endpoint only ever produces a plan, so it has no "completed" to return,
+and the refusal carries the answer it would have given. One obvious action is
+planned from the matcher, also without a model.
+
+## B. Deadlines
+
+conversation **15 s**, simple **30 s**, moderate **3 min**, complex **10 min**,
+extended **30 min**, all configurable.
+
+**One honest caveat on the 30-second simple budget:** before tier B, "Open
+Notepad" needed 19.6 s of planning plus 10.4 s of action and hit exactly that
+limit. Tier B removes the planning call, which is what makes 30 s the right
+number rather than a cut too tight. The two changes belong together.
