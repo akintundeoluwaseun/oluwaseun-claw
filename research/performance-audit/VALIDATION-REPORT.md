@@ -232,3 +232,37 @@ grammar as the net under it, never the opening move.
   what tier B can save.
 - **One-step action cost varies more than a floor can absorb**: 9.6s of
   generation one run, 24.9s the next, for the same task.
+
+---
+
+## 8. Tests
+
+    1791 passed, 15 skipped, 0 failed    (8m57s, full suite)
+
+The 1,726 that had to be preserved are preserved; 65 net new tests were
+added. The ones worth naming:
+
+- `test_every_lane_stops_thinking.py` — walks the package's AST and checks
+  **every** `.chat(...)` call. Structural because the bug is silent: a new
+  lane added without the flag does not raise, it quietly answers nothing
+  after eighty seconds. It has already hidden from five phases.
+- `test_windows_engine_launch.py` — drives `LlamaServer._start` with
+  `sys.platform` reporting `win32` and asserts on the real command line.
+  The one that matters pins `--jinja` on **both** platforms: `llama-server`
+  can only honour `chat_template_kwargs` by passing it to the model's own
+  Jinja template, so dropping that flag would not look like a flag change —
+  it would look like the conversation lane silently going back to answering
+  nothing.
+- `test_action_schema_shape.py` — the replies that used to get through
+  (`{"action":"tool"}` with no tool, a finish with nothing to say) no longer
+  fit the schema the model is shown. Checked by hand rather than with a JSON
+  Schema library, so it adds no dependency for one assertion.
+- `test_router_phases.py` — every lane reports its timings, the phases never
+  double-count, and a failed chat reply leaves the task its full budget. The
+  last of those was confirmed to fail with the bug reintroduced.
+- `test_the_floor_binds_once_planning_is_slow_and_the_cost_is_known` — states
+  the §7 arithmetic so the trade cannot drift silently.
+
+Five test files needed their model-adapter doubles updated to accept the
+`thinking` keyword. They failed with `TypeError`, which is the correct
+failure: the interface genuinely changed and the doubles had not.
