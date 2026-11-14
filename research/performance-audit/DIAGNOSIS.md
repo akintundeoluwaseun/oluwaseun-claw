@@ -576,3 +576,86 @@ It rescues, it does not inflate:
 And the outer bound still holds: the floor never raises the budget above what
 the task started with. Planning for 1000 s against a 600 s start still ends at
 600 s. Tested.
+
+---
+
+# Phase 6: model selection, failure modes — and a correction
+
+## A correction to something I reported earlier
+
+I said `max_tokens = 1536` made the runaway guard **unreachable**, because
+1536 tokens at ~10 tok/s is 154 s against a 120 s timeout. **That was wrong
+about the path most people run.**
+
+`claw/api/app.py` passes the builtin brain
+`max(request_timeout_s, LOCAL_REPLY_TIMEOUT_S)`, and `LOCAL_REPLY_TIMEOUT_S`
+is **600**. So:
+
+| brain | timeout that applies | was 1536 reachable? |
+|---|---|---|
+| **builtin (the default)** | **≥ 600 s** | **yes — the guard worked** |
+| cloud / custom | `request_timeout_s`, default 120 s | no — the mismatch was real |
+
+So the change from 1536 to 1024 is two different things depending on where the
+brain is: a genuine fix for cloud and custom, where the budgets disagreed, and
+merely a smaller worst case for builtin, where a runaway now costs ~102 s
+instead of ~154 s. The comment in `openai_compat.py` and the tests have been
+corrected to say so, and a test now pins `LOCAL_REPLY_TIMEOUT_S` specifically
+so this cannot be got wrong again.
+
+## 3. Model selection
+
+Three questions from the brief. Two have measured answers; one cannot be
+answered on this machine and says so.
+
+**Does selection cost time?** No. Phase timings on the real app:
+`selection 0.00 s`.
+
+**Does loading?** No. A 1.2 GB GGUF loads in **1–2 s**, and dropping the page
+cache made no difference — llama.cpp **mmaps** the file, so "loading" never
+reads 1.2 GB; pages fault in during inference instead. Against a ~20 s
+planning call this is noise. (Caveat: on Windows with an 8 B model on a slow
+disk, those page faults land on the first inference. Not measurable here.)
+
+**Is the choice sensible?** Yes, across eight machine profiles, and it does not
+decide on size alone — Pro fits 16 GB of RAM on paper and is still refused
+without a GPU, because each reply takes minutes on a laptop processor. Unknown
+RAM gets Standard rather than the largest. Tiny is never recommended. One
+deliberate edge is now pinned by a test: a 2 GB machine is given Light even
+though it does not fit, because the alternative is handing someone the worst
+brain in the catalogue and calling it the best their computer can manage —
+and `fits()` still reports the truth so a caller can warn.
+
+**What I cannot answer:** whether different models should serve conversation,
+classification, planning and tool-calling. That needs several models measured
+against each other and **only one model exists on this machine**
+(Qwen3.5-2B Q4). Any ranking I produced would be invention. The honest status
+is NOT TESTED, and it stays that way until a second model is available.
+
+What the evidence so far does suggest, without proving it: the costs that
+matter are output tokens and round trips, not which model is loaded, and
+S-CLAW already routes the cheapest work (greetings, one obvious action) away
+from the model entirely. A second model would have to beat that by more than
+the complexity it adds.
+
+## 4. Failure-mode tests
+
+`tests/test_failure_modes.py`, 18 tests, covering what the brief listed:
+
+| failure | what is asserted |
+|---|---|
+| reply is not JSON | retried once, then reported — never silently accepted |
+| reply is nearly JSON | repaired by `jsonfix` rather than thrown away |
+| plan with 0 steps | **rejected** — accepting it reports success for a task where nothing ran |
+| unknown capability | rejected |
+| model server error | retried, then surfaced with a real reason |
+| transient error | recovers on the retry |
+| deadline expiry | positive timeout, and the reason does not blame the model |
+| context overflow | trimmed, and being over the line is **reported, not hidden** |
+| trimming | the system message and the task always survive |
+| malformed JSON of every shape a small brain writes | handled, including Windows paths |
+| unparseable input | **raises** rather than inventing a plausible result |
+| retry schema | cannot build the grammar that segfaulted the process |
+
+The rule they all encode is the project's own: never hide an error behind a
+fake success, and never blame the brain for a limit Claw imposed.

@@ -54,14 +54,23 @@ class OpenAICompatAdapter(ModelAdapter):
     api_key: str = ""  # Claw's own engine uses a random key per launch
     vision: bool = False
     #: Bounds every answer so a confused model cannot run forever - but the
-    #: bound only works if it is reachable BEFORE request_timeout_s.
+    #: bound only works if it is reachable BEFORE the request is cut off, and
+    #: which timeout applies depends on where the brain is:
     #:
-    #: It was 1536, and it was not reachable. A brain generating at the ~10
-    #: tokens a second a 2B manages on four CPU cores needs 154 seconds to
-    #: produce 1536 tokens, against a 120-second default timeout. So the
-    #: runaway guard could never fire: the HTTP timeout always arrived first
-    #: and threw the whole reply away, where hitting the cap would have left a
-    #: truncated reply that jsonfix can often repair and the retry can correct.
+    #:   builtin        max(request_timeout_s, LOCAL_REPLY_TIMEOUT_S) = >=600s
+    #:   cloud/custom   request_timeout_s, default 120s
+    #:
+    #: It was 1536. At the ~10 tokens a second a 2B manages on four CPU cores
+    #: that is 154 seconds - comfortably inside the builtin brain's 600s, so
+    #: the guard did work there, and an earlier note in this file claiming it
+    #: could never fire was wrong about the path most people run. Against the
+    #: 120s default for a cloud or custom server it was genuinely unreachable:
+    #: the HTTP timeout arrived first and threw the whole reply away, where
+    #: hitting the cap leaves a truncated reply jsonfix can often repair.
+    #:
+    #: So 1024 is two things at once: a real fix for cloud and custom, where
+    #: the budgets disagreed, and a smaller worst case for builtin, where a
+    #: runaway now costs ~102s instead of ~154s.
     #:
     #: Measured on the held-out tasks (research/performance-audit/): planner
     #: replies were 96 to 208 tokens with one degenerate reply that ran to the

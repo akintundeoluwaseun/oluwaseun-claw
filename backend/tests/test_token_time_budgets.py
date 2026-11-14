@@ -3,11 +3,20 @@
 max_tokens is the guard against a model that will not stop. It only guards
 anything if it can be REACHED before request_timeout_s cuts the request off.
 
-It could not. max_tokens was 1536; a 2B Q4 on four CPU cores generates about
-10 tokens a second, so 1536 tokens is ~154 seconds against a 120-second
-default timeout. The guard never fired. The timeout fired instead, and a
-timeout throws the whole reply away - where hitting the cap leaves a
-truncated reply that jsonfix can often repair and the retry can correct.
+Which timeout applies depends on where the brain is, and an earlier version of
+this file got that wrong:
+
+    builtin        max(request_timeout_s, LOCAL_REPLY_TIMEOUT_S) = at least 600s
+    cloud/custom   request_timeout_s, default 120s
+
+max_tokens was 1536. At about 10 tokens a second that is ~154 seconds: well
+inside the builtin brain's 600s, so the guard DID work on the path most people
+run. Against the 120s default for a cloud or custom server it was unreachable,
+and there the timeout fired instead - throwing the whole reply away, where
+hitting the cap leaves a truncated reply jsonfix can often repair.
+
+So the cap must fit the TIGHTEST timeout that can apply, which is the
+cloud/custom default. These tests hold it to that.
 
 Measured on the held-out tasks (research/performance-audit/):
 
@@ -43,6 +52,16 @@ def test_the_cap_still_clears_a_real_reply():
     for an action. A cap that truncates ordinary work would be worse than no
     cap at all."""
     assert OpenAICompatAdapter.max_tokens >= 4 * 208
+
+
+def test_the_builtin_brain_has_a_much_longer_timeout():
+    """Recorded because getting this wrong is what produced the overclaim:
+    the local path is not bound by request_timeout_s at all."""
+    from claw.api.app import LOCAL_REPLY_TIMEOUT_S
+
+    assert LOCAL_REPLY_TIMEOUT_S >= 600
+    reachable_locally = OpenAICompatAdapter.max_tokens / OpenAICompatAdapter.SLOW_TOKENS_PER_SECOND
+    assert reachable_locally < LOCAL_REPLY_TIMEOUT_S
 
 
 def test_the_lowest_allowed_timeout_is_not_silently_broken():
