@@ -51,6 +51,17 @@ class ModelNotFound(ModelError):
     pass
 
 
+class ModelBadRequest(ModelError):
+    """The server rejected the REQUEST (400), not the credential or the model.
+
+    Separated from the generic error because one specific 400 is recoverable:
+    asking a server not to think uses a field that only some servers know, and
+    the ones that do not know it answer 400. Being able to tell that apart from
+    a server that is down is what lets the adapter drop the field and ask
+    again, instead of failing a reply that would have worked.
+    """
+
+
 class ModelAuthFailed(ModelError):
     """The provider answered and refused the credential (401/403).
 
@@ -71,6 +82,22 @@ class ModelResponseError(ModelError):
 class ModelAdapter(ABC):
     provider: str
 
+    #: Whether this server understands being asked not to think.
+    #:
+    #: Thinking models are the single worst performance and correctness problem
+    #: Claw has measured. On a real llama-server with Qwen3-2B, "What is the
+    #: capital of France?" through the chat prompt NEVER produced an answer:
+    #: at 512, 1024, 1536 and 2048 tokens the reply finished on "length" with
+    #: the entire budget spent in `reasoning_content` and `content` empty.
+    #: Asking the chat template not to think answered it in 1.4 seconds.
+    #:
+    #: But the field that does the asking is an extension, not part of the
+    #: OpenAI protocol, so a cloud provider answers 400 and names it. It is
+    #: therefore DISCOVERED rather than assumed: the first rejection sets this
+    #: False and the request is sent again without it, so a server that cannot
+    #: be asked costs one extra round trip once, not a lost reply.
+    quiet_thinking_ok: bool = True
+
     def __init__(self, base_url: str, model: str, timeout_s: float, temperature: float):
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -82,8 +109,14 @@ class ModelAdapter(ABC):
         """Return the models the local server can serve."""
 
     @abstractmethod
-    async def chat(self, messages: list[ChatMessage], json_schema: dict[str, Any] | None = None) -> str:
-        """Return the assistant's reply text. When a schema is given, request JSON output."""
+    async def chat(self, messages: list[ChatMessage], json_schema: dict[str, Any] | None = None,
+                   *, thinking: bool = True) -> str:
+        """Return the assistant's reply text. When a schema is given, request JSON output.
+
+        `thinking=False` asks a thinking model to answer directly. It is a
+        request, not a guarantee: a server that does not support it is detected
+        and the reply is fetched anyway. See `quiet_thinking_ok`.
+        """
 
     async def status(self) -> ModelStatus:
         base = dict(provider=self.provider, base_url=self.base_url, model=self.model)

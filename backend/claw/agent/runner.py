@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from claw.agent import constraints, conversation, persona
 from claw.agent.executor import RunOutcome, fitting_tools, run_agent
-from claw.agent.deadline import Deadline, band_for
+from claw.agent.deadline import Deadline, DeadlineReached, band_for
 from claw.agent.simple_action import one_step_plan, single_action, tools_note
 from claw.agent.timings import Timings
 from claw.agent.planner import PlanningFailed, make_plan
@@ -151,15 +151,51 @@ class TaskRunner:
                 db.update_task(task_id, status="running")
 
         router_began = time.monotonic()
+        router_closed = False
+
+        def close_router() -> None:
+            """Stop the router's clock, once.
+
+            The phases are deliberately not nested, so a model call must not be
+            inside the router's figure as well as its own - the sum is meant to
+            be comparable with the wall clock. Routing ends at the first thing
+            that is not a routing decision, which is either an answer or the
+            first model call.
+            """
+            nonlocal router_closed
+            if not router_closed:
+                router_closed = True
+                timings.add("router", time.monotonic() - router_began)
+
+        def answered(answer: str, *, title: str | None = None,
+                     event: tuple[str, dict[str, Any]] | None = None,
+                     result: dict[str, Any] | None = None) -> None:
+            """One ending for every lane that answers without doing work.
+
+            Five gates ended with the same four or five statements, and the
+            copies had drifted: the chat lane returned before `emit("timings")`
+            ran, so the lanes this audit made fast were the only ones that
+            reported nothing about where their time went. Finishing in one
+            place means every lane reports its own cost, which is the whole
+            point of measuring conversation separately from work.
+            """
+            close_router()
+            if title is not None and first_in_chat and thread_id:
+                db.set_thread_title(thread_id, title)
+            if event:
+                emit(*event)
+            emit("finished", {"final_answer": answer})
+            db.update_task(task_id, status="completed",
+                           result=result if result is not None else RunOutcome("completed", answer).summary())
+            emit("timings", timings.as_dict())
+            log_event(log, "task timings", task_id=task_id, detail=timings.summary_line())
+            emit("task_completed", {})
+
         own = persona.self_answer(task_text, state.data_dir)
         if own:
             # "Who are you?", "Which is the best claw?": S-CLAW answers for itself, from its
             # own IDENTITY.md, instead of a small brain saying it is Qwen.
-            if first_in_chat and thread_id:
-                db.set_thread_title(thread_id, "About S-CLAW")
-            emit("finished", {"final_answer": own})
-            db.update_task(task_id, status="completed", result=RunOutcome("completed", own).summary())
-            emit("task_completed", {})
+            answered(own, title="About S-CLAW")
             return
         # ---- talk, not work -------------------------------------------------
         # Before the brain is woken at all. Everything below this point costs a
@@ -168,12 +204,7 @@ class TaskRunner:
         canned = conversation.quick_reply(task_text, persona.identity(state.data_dir).get("name", "S-CLAW"),
                                           standalone=first_in_chat)
         if canned:
-            if first_in_chat and thread_id:
-                db.set_thread_title(thread_id, fallback_title(task_text))
-            emit("chat_reply", {"kind": "canned"})
-            emit("finished", {"final_answer": canned})
-            db.update_task(task_id, status="completed", result=RunOutcome("completed", canned).summary())
-            emit("task_completed", {})
+            answered(canned, title=fallback_title(task_text), event=("chat_reply", {"kind": "canned"}))
             return
 
         # A folder pasted on its own: say what is in it, at once. Reading a
@@ -183,56 +214,62 @@ class TaskRunner:
             answer = conversation.describe_folder(
                 conversation.path_in(task_text),
                 settings.permissions.authorized_folders)
-            if first_in_chat and thread_id:
-                db.set_thread_title(thread_id, fallback_title(task_text))
-            emit("chat_reply", {"kind": "folder"})
-            emit("finished", {"final_answer": answer})
-            db.update_task(task_id, status="completed", result=RunOutcome("completed", answer).summary())
-            emit("task_completed", {})
+            answered(answer, title=fallback_title(task_text), event=("chat_reply", {"kind": "folder"}))
             return
 
         if conversation.is_conversation(task_text, standalone=first_in_chat):
             # No canned line fits, but there is no work in it either: one short
             # call with no tools, rather than planning and executing nothing.
+            close_router()
             try:
-                adapter = await state.think_adapter()
-                # Talk is one short call. It does not get a complex task's ten
-                # minutes, and the clock is the same one - already running.
-                deadline.tighten_to(limits.conversation_deadline_s, "conversation")
+                with timings.measure("selection"):
+                    adapter = await state.think_adapter()
+                # Talk is one short call, so it is bounded at the conversation
+                # budget - but the bound is put on the CALL, not on the task's
+                # clock. Tightening the task clock here was a real bug: when
+                # the chat reply failed, the task fell through to planning
+                # carrying a 15 second budget, and planning alone takes about
+                # 20, so it expired the moment it began and told the person it
+                # had run out of time. Bounding the call gives the same 15
+                # second ceiling on talk without poisoning the work that
+                # follows a failure.
+                adapter.timeout_s = min(adapter.timeout_s, limits.conversation_deadline_s)
                 emit("model_call", {"provider": adapter.provider, "model": adapter.model, "purpose": "chat"})
                 name = persona.identity(state.data_dir).get("name", "S-CLAW")
-                reply = (await adapter.chat([
-                    ChatMessage(role="system", content=conversation.CHAT_SYSTEM.format(name=name)),
-                    *([ChatMessage(role="user", content=context)] if context else []),
-                    ChatMessage(role="user", content=task_text),
-                ])).strip()
+                # Thinking is switched OFF for talk, and this is the single
+                # largest measured win in the audit. On a real llama-server
+                # with Qwen3-2B, "What is the capital of France?" with thinking
+                # on NEVER answered: 512, 1024, 1536 and 2048 tokens all ran to
+                # the length limit with `content` empty and the whole budget in
+                # `reasoning_content`. With it off the same question answered
+                # correctly in 1.4 seconds. There is nothing to think about in
+                # "hello" or "what are you", and the failure was not a slow
+                # answer - it was no answer at all, which then fell through to
+                # planning and held the single-task runner for 90 seconds.
+                with timings.measure("generation"):
+                    reply = (await adapter.chat([
+                        ChatMessage(role="system", content=conversation.CHAT_SYSTEM.format(name=name)),
+                        *([ChatMessage(role="user", content=context)] if context else []),
+                        ChatMessage(role="user", content=task_text),
+                    ], thinking=False)).strip()
             except Exception as exc:  # noqa: BLE001 - a chat reply must never fail the task
                 log_event(log, "chat reply failed", error=str(exc))
                 reply = ""
             if reply:
-                if first_in_chat and thread_id:
-                    db.set_thread_title(thread_id, fallback_title(task_text))
-                emit("chat_reply", {"kind": "model"})
-                emit("finished", {"final_answer": reply})
-                db.update_task(task_id, status="completed", result=RunOutcome("completed", reply).summary())
-                emit("task_completed", {})
+                answered(reply, title=fallback_title(task_text), event=("chat_reply", {"kind": "model"}))
                 return
             # the brain had nothing to say: fall through and treat it as work
 
         # Every gate above has been tried and none of them answered, so this
         # is where routing ends and work begins.
-        timings.add("router", time.monotonic() - router_began)
+        close_router()
         ask = constraints.conflict_question(constraints.read_limits(task_text))
         if ask:
             # A request that contradicts itself is asked about before anything runs (challenge 17.06).
-            if first_in_chat and thread_id:
-                db.set_thread_title(thread_id, fallback_title(task_text))
-            emit("needs_you", {"question": ask})
-            emit("finished", {"final_answer": ask})
             res = RunOutcome("completed", ask).summary()
             res["report"]["blocked"].append("Waiting for you: the request asks for two things that cannot both be done.")
-            db.update_task(task_id, status="completed", result=res)
-            emit("task_completed", {})
+            answered(ask, title=fallback_title(task_text),
+                     event=("needs_you", {"question": ask}), result=res)
             return
         state.browser.reset_task_state()
         state.desktop.reset_task_state()
@@ -265,7 +302,7 @@ class TaskRunner:
                     # open-ended enumeration and costs nothing. See tools_note.
                     plan = await make_plan(
                         request + tools_note(task_text, state.registry, fitting_tools),
-                        adapter, state.policy())
+                        adapter, state.policy(), deadline=deadline)
             # Now the size is known, so the budget narrows to the band this
             # plan belongs in. tighten_to only ever LOWERS, and the start time
             # is untouched, so the time planning just took still counts.
@@ -316,6 +353,18 @@ class TaskRunner:
             db.update_task(task_id, status="cancelled", error="Stopped by you.")
             emit("task_cancelled", {})
             raise
+        except DeadlineReached as exc:
+            # The clock ran out before there was a plan. Nothing ran, so there
+            # is nothing to report as done - but this is "incomplete", not
+            # "failed": the task was stopped, it did not go wrong. Reporting it
+            # as a failure sent people looking for a broken brain.
+            emit("deadline_reached", {"budget_s": int(exc.deadline.budget_s),
+                                      "band": exc.deadline.band, "during": "planning"})
+            res = RunOutcome("incomplete", "Claw ran out of time while working out how to do this, "
+                                           "so nothing was started.", error=exc.message).summary()
+            db.update_task(task_id, status="incomplete", error=exc.message, result=res)
+            emit("timings", timings.as_dict())
+            emit("task_incomplete", {"error": exc.message})
         except PlanningFailed as exc:
             db.update_task(task_id, status="failed", error=exc.message)
             emit("failed", {"message": exc.message, "details": exc.details})

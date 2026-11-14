@@ -13,6 +13,7 @@ import time
 import pytest
 
 from claw.agent.deadline import Deadline, band_for
+from claw.permissions.policy import PermissionPolicy
 from claw.config import AgentSettings
 
 
@@ -310,3 +311,85 @@ def test_tightening_still_only_lowers_without_a_floor():
     d = Deadline(budget_s=100, band="complex")
     d.tighten_to(600, "extended")
     assert d.budget_s == 100
+
+
+# ---------------------------------------------------------------------------
+# Planning is inside the budget, and must be BOUNDED by it
+#
+# Found reviewing the audit commits together: the executor wrapped every model
+# call in the time it had left, but make_plan did not. Planning was therefore
+# inside the budget only arithmetically - one planning call could run for the
+# adapter's own timeout (600 s on the built-in brain) and spend a whole ten
+# minute task, after which the clock was checked for the first time and the
+# task reported having run out of time without starting anything.
+
+import asyncio
+
+import pytest
+
+from claw.agent.deadline import DeadlineReached
+from claw.agent.planner import make_plan
+from claw.models.base import ChatMessage, ModelAdapter
+
+
+class SlowBrain(ModelAdapter):
+    """A brain that takes longer than the task has left."""
+
+    provider = "slow"
+
+    def __init__(self, delay: float = 30.0):
+        super().__init__("http://localhost", "slow", timeout_s=600, temperature=0.0)
+        self.delay = delay
+        self.calls = 0
+
+    async def list_models(self):
+        return []
+
+    async def chat(self, messages, json_schema=None, *, thinking=True):
+        self.calls += 1
+        await asyncio.sleep(self.delay)
+        return "{}"
+
+
+@pytest.mark.asyncio
+async def test_a_planning_call_is_cut_off_by_the_task_deadline():
+    brain = SlowBrain(delay=30.0)
+    d = Deadline(budget_s=0.3, band="simple")
+    began = time.monotonic()
+    with pytest.raises(DeadlineReached):
+        await make_plan("do a thing", brain, PermissionPolicy({}, []), deadline=d)
+    took = time.monotonic() - began
+    assert took < 5, f"the planning call was not bounded by the deadline: {took:.1f}s"
+    assert brain.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_an_expired_deadline_does_not_start_a_planning_call_at_all():
+    brain = SlowBrain()
+    d = Deadline(budget_s=0.0, band="simple")
+    with pytest.raises(DeadlineReached):
+        await make_plan("do a thing", brain, PermissionPolicy({}, []), deadline=d)
+    assert brain.calls == 0, "an expired budget must not launch a new operation"
+
+
+@pytest.mark.asyncio
+async def test_running_out_of_time_is_not_reported_as_a_bad_plan():
+    """The wording matters: "the model did not produce a usable plan" sends
+    people looking for a broken brain, when the call was simply never allowed
+    to finish."""
+    d = Deadline(budget_s=0.2, band="simple")
+    with pytest.raises(DeadlineReached) as caught:
+        await make_plan("do a thing", SlowBrain(), PermissionPolicy({}, []), deadline=d)
+    said = str(caught.value).lower()
+    assert "time limit" in said
+    assert "usable plan" not in said and "model" not in said
+
+
+@pytest.mark.asyncio
+async def test_without_a_deadline_planning_is_left_exactly_as_it_was():
+    """Every other caller passes no deadline and must be unaffected."""
+    brain = SlowBrain(delay=0.0)
+    with pytest.raises(Exception) as caught:
+        await make_plan("do a thing", brain, PermissionPolicy({}, []))
+    assert not isinstance(caught.value, DeadlineReached)
+    assert brain.calls == 2, "both attempts should still run when nothing is timing them"

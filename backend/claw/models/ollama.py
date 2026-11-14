@@ -9,6 +9,7 @@ import httpx
 from claw.models.base import (
     ChatMessage,
     ModelAdapter,
+    ModelBadRequest,
     ModelError,
     ModelInfo,
     ModelNotFound,
@@ -39,7 +40,8 @@ class OllamaAdapter(ModelAdapter):
                 )
         return result
 
-    async def chat(self, messages: list[ChatMessage], json_schema: dict[str, Any] | None = None) -> str:
+    async def chat(self, messages: list[ChatMessage], json_schema: dict[str, Any] | None = None,
+                   *, thinking: bool = True) -> str:
         self.require_model()
         body: dict[str, Any] = {
             "model": self.model,
@@ -53,7 +55,19 @@ class OllamaAdapter(ModelAdapter):
             body["keep_alive"] = self.keep_alive
         if json_schema is not None:
             body["format"] = json_schema
-        data = await self._request("POST", "/api/chat", json=body, timeout=self.timeout_s)
+        # Ollama's own spelling of the same switch. It refuses it on a model
+        # that cannot think, which is exactly the 400 the fallback is for.
+        quiet = not thinking and self.quiet_thinking_ok
+        if quiet:
+            body["think"] = False
+        try:
+            data = await self._request("POST", "/api/chat", json=body, timeout=self.timeout_s)
+        except ModelBadRequest:
+            if not quiet:
+                raise
+            self.quiet_thinking_ok = False
+            body.pop("think", None)
+            data = await self._request("POST", "/api/chat", json=body, timeout=self.timeout_s)
         message = data.get("message")
         if not isinstance(message, dict) or not isinstance(message.get("content"), str):
             raise ModelResponseError("The Ollama server returned a reply without any message content.")
@@ -131,6 +145,10 @@ class OllamaAdapter(ModelAdapter):
 
         if resp.status_code == 404:
             raise ModelNotFound(f"Ollama does not have the model '{self.model}'.", self.missing_model_hint())
+        if resp.status_code == 400:
+            # The request itself was refused. Kept apart from the rest because
+            # `chat` can recover from one particular 400 - see there.
+            raise ModelBadRequest(f"Ollama rejected the request: {_error_text(resp)}")
         if resp.status_code >= 400:
             detail = _error_text(resp)
             raise ModelError(f"Ollama returned an error ({resp.status_code}): {detail}")

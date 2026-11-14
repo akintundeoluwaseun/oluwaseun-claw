@@ -28,6 +28,11 @@ class FakeModelServer:
         self.pull_steps = 4
         self.pull_delay = 0.0
         self.pulls: list[str] = []
+        # Imitates a provider that has never heard of `chat_template_kwargs`
+        # (or Ollama's `think`): it answers 400 and names the field, exactly as
+        # OpenAI does for an unrecognised request argument. Used to prove the
+        # adapter notices, stops sending it, and still returns the reply.
+        self.rejects_thinking_switch = False
         self.unloads: list[str] = []
         server = self
 
@@ -96,6 +101,10 @@ class FakeModelServer:
                     self._send(200, {"model": body.get("model"), "done": True, "done_reason": "unload"})
                     return
                 server.requests.append({"path": self.path, "body": body})
+                if server.rejects_thinking_switch and ("chat_template_kwargs" in body or "think" in body):
+                    field = "chat_template_kwargs" if "chat_template_kwargs" in body else "think"
+                    self._send(400, {"error": {"message": f"Unrecognized request argument supplied: {field}"}})
+                    return
                 if server.status_override:
                     self._send(server.status_override, {"error": "scripted failure"})
                     return

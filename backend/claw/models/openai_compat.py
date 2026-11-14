@@ -13,6 +13,7 @@ import httpx
 
 from claw.models.base import (
     ChatMessage,
+    ModelBadRequest,
     ModelAdapter,
     ModelAuthFailed,
     ModelError,
@@ -120,7 +121,8 @@ class OpenAICompatAdapter(ModelAdapter):
                 return value
         return None
 
-    async def chat(self, messages: list[ChatMessage], json_schema: dict[str, Any] | None = None) -> str:
+    async def chat(self, messages: list[ChatMessage], json_schema: dict[str, Any] | None = None,
+                   *, thinking: bool = True) -> str:
         self.require_model()
         body: dict[str, Any] = {
             "model": self.model,
@@ -132,14 +134,36 @@ class OpenAICompatAdapter(ModelAdapter):
         if json_schema is not None:
             # llama-server: schema-constrained JSON via response_format.json_object.schema
             body["response_format"] = {"type": "json_object", "schema": json_schema}
-        data = await self._request("POST", route(self.base_url, "chat/completions"),
-                                   json=body, timeout=self.timeout_s)
+        # `chat_template_kwargs` is passed to the model's own chat template, and
+        # the template is what decides whether the model opens a <think> block.
+        # It is how llama.cpp exposes the switch; `reasoning_format` is NOT a
+        # substitute - measured, it leaves the thinking on and merely inlines
+        # the <think> block into `content`, so the person reads the monologue.
+        quiet = not thinking and self.quiet_thinking_ok
+        if quiet:
+            body["chat_template_kwargs"] = {"enable_thinking": False}
         try:
-            content = data["choices"][0]["message"]["content"]
+            data = await self._request("POST", route(self.base_url, "chat/completions"),
+                                       json=body, timeout=self.timeout_s)
+        except ModelBadRequest:
+            if not quiet:
+                raise
+            # This server has never heard of the field. Remember that, so the
+            # cost is one wasted round trip per server rather than per call,
+            # and get the reply the ordinary way.
+            self.quiet_thinking_ok = False
+            body.pop("chat_template_kwargs", None)
+            data = await self._request("POST", route(self.base_url, "chat/completions"),
+                                       json=body, timeout=self.timeout_s)
+        try:
+            choice = data["choices"][0]
+            content = choice["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise ModelResponseError("The model server returned a reply without message content.") from exc
         if not isinstance(content, str):
             raise ModelResponseError("The model server returned non-text content.")
+        if not content.strip():
+            raise ModelResponseError(_why_it_said_nothing(choice))
         return content
 
     async def see(self, png: bytes, question: str) -> str:
@@ -198,6 +222,10 @@ class OpenAICompatAdapter(ModelAdapter):
                 "The AI service is rate limiting this key.",
                 "Wait a moment and try again, or check your plan's limits.",
             )
+        if resp.status_code == 400:
+            # The request itself was refused. Distinguished from the rest
+            # because `chat` can recover from one particular 400 - see there.
+            raise ModelBadRequest(f"The model server rejected the request: {resp.text[:500]}")
         if resp.status_code >= 400:
             raise ModelError(f"The model server returned an error ({resp.status_code}): {resp.text[:500]}")
         try:
@@ -207,3 +235,36 @@ class OpenAICompatAdapter(ModelAdapter):
         if not isinstance(data, dict):
             raise ModelResponseError("The model server returned an unexpected reply.")
         return data
+
+
+def _why_it_said_nothing(choice: dict[str, Any]) -> str:
+    """An empty reply, explained - because the usual cause is specific.
+
+    llama-server parses a thinking model's chain of thought out of the answer
+    and returns it separately as `reasoning_content`. So a brain that spends
+    its whole token budget thinking comes back HTTP 200 with `content` empty
+    and all of the work in a field nothing reads. Verified against a real
+    llama-server with Qwen3-2B: at max_tokens 120 the reply was
+    finish_reason "length", content 0 characters, reasoning_content 485.
+    llama-cpp-python's server does not split the two, which is why this never
+    showed up until the real engine was used.
+
+    Said plainly it is actionable - the budget was too small for this task.
+    Reported as "the reply could not be used" it is a mystery, and it is
+    exactly the "gets stuck thinking without producing a useful response"
+    this project keeps hearing about.
+
+    Only ever reached when the reply really is empty, so nothing that would
+    have worked is turned into an error.
+    """
+    thinking = (choice.get("message") or {}).get("reasoning_content") or ""
+    cut_off = choice.get("finish_reason") == "length"
+    if cut_off and thinking.strip():
+        return ("The brain used its whole reply budget thinking and never got to an answer. "
+                "Give it a larger budget, or a smaller task.")
+    if thinking.strip():
+        return ("The brain returned only its own reasoning and no answer. "
+                "A model that follows instructions more closely would help.")
+    if cut_off:
+        return "The brain's reply was cut off at its length limit before it said anything."
+    return "The model server returned an empty reply."

@@ -659,3 +659,129 @@ the complexity it adds.
 
 The rule they all encode is the project's own: never hide an error behind a
 fake success, and never blame the brain for a limit Claw imposed.
+
+---
+
+# Phase 7 — validation against the real engine
+
+Everything below was measured against a real `llama-server` built from source
+(version 1.0.0-dev, build 1, commit a956a85) serving Qwen3.5-2B Q4 on four CPU
+cores, **on Linux**. That matters and is not glossed over: see "What is still
+not validated" at the end. Nothing here is a Windows result.
+
+Earlier phases used `llama-cpp-python`. Several of the findings below could
+only be found on the real server, because the two behave differently in ways
+that turn out to matter.
+
+## 7.1 The thinking model never answered. Not slowly — never.
+
+The chat lane was failing on the real engine for every question tried. The
+cause is not a slow answer, it is no answer:
+
+| `max_tokens` | time | `finish_reason` | `content` | `reasoning_content` |
+|---|---|---|---|---|
+| 512  |  38.2s | length | **0 ch** | 1977 ch |
+| 1024 |  82.7s | length | **0 ch** | 4006 ch |
+| 1536 | 127.1s | length | **0 ch** | 5995 ch |
+| 2048 | 160.7s | length | **0 ch** | 7859 ch |
+
+"What is the capital of France?" through `CHAT_SYSTEM`, temperature 0. The
+reasoning grows to fill whatever budget it is given and the answer is never
+reached. **This disproves two things at once:** the failure is not caused by
+the 1536 → 1024 token reduction made in phase 4 (it fails identically at
+2048), and it cannot be fixed by raising the limit.
+
+`llama-server` splits a thinking model's chain of thought into a separate
+`reasoning_content` field, so all of this arrived as HTTP 200 with an empty
+`content`. `llama-cpp-python` does not split them, which is exactly why five
+phases of work never saw it.
+
+Three ways out were measured:
+
+| request | time | finish | `content` |
+|---|---|---|---|
+| as it was | 75.7s | length | **0 ch — no answer at all** |
+| `chat_template_kwargs: {"enable_thinking": false}` | **1.4s** | stop | **71 ch, correct** |
+| `reasoning_format: "none"` | 81.5s | length | 4014 ch of raw `<think>` |
+
+So `enable_thinking: false` is a **54× speed-up that also turns a total
+failure into a correct answer**, and `reasoning_format: none` is actively
+harmful — it leaves the thinking switched on and merely inlines the monologue
+into the reply the person reads. It is now tested against.
+
+**This is the "gets stuck thinking without producing a useful response"
+problem this project kept hearing about, reproduced deterministically and
+fixed at the cause.** Its knock-on effect was the worse half: the chat lane
+raised, fell through to planning, and held the single-task runner for 90
+seconds, after which every other task was refused as busy.
+
+### Shipped
+`thinking=False` on the chat lane only. The field is a llama.cpp extension, so
+support is **discovered, not assumed**: a server that answers 400 and names it
+(as a cloud provider does) sets `quiet_thinking_ok = False` and the request is
+sent again without it. Cost is one wasted round trip per server, once —
+`test_the_refusal_is_learned_once_not_every_call` pins that. Ollama's spelling
+of the same switch (`think: false`) is handled the same way.
+
+Planning and tool choice are **left alone** until measured — see 7.2.
+
+## 7.2 Does planning want thinking off too?
+
+Measured through `make_plan` against the real engine on the held-out 16
+(the set the planner prompt was *not* written against), temperature 0:
+
+    thinking OFF    usable 16/16   right 13/16   avg 2.8 steps   total 247s   median 16.2s
+    thinking ON     (running — not yet reported)
+
+Thinking off holds the 13/16 accuracy established in phase 3 while producing a
+usable plan every single time. The ON figure is being measured on the same
+engine and the same tasks before anything is changed on the planning path.
+
+## 7.3 Four defects found reviewing the eight commits as one change
+
+Reading the audit's commits together rather than one at a time turned up four
+problems, none of which any single commit had introduced on its own.
+
+1. **The planner's model call was never bounded by the task deadline.** The
+   executor wraps each of its calls in `deadline.timeout_for(...)`; `make_plan`
+   did not. Planning was therefore inside the budget only *arithmetically* —
+   one call could run for the adapter's own timeout (600s on the built-in
+   brain) and spend a whole ten-minute task, after which the clock was checked
+   for the first time and the task reported running out of time having started
+   nothing. Fixed: planning is bounded by the same clock, and expiry during
+   planning now raises `DeadlineReached` and is reported as **incomplete**,
+   not as "the model did not produce a usable plan" — which sent people
+   looking for a broken brain.
+
+2. **The conversation lane tightened the task's clock, not its own call.** A
+   chat reply is allowed to fail and fall through to real work; when it did,
+   that work inherited the 15-second conversation budget. Planning alone takes
+   about 20 seconds on a 2B, so the task expired the instant planning ended.
+   The bound now goes on the call. `test_a_failed_chat_reply_leaves_the_task_
+   its_full_budget` was confirmed to fail with the bug reintroduced and pass
+   with the fix.
+
+3. **The fast lanes reported no timings at all.** Five gates each carried their
+   own copy of the same four or five closing statements, and the copies had
+   drifted: every lane that answers *without* working returned before
+   `emit("timings")` ran. Conversation — one of the three things this phase was
+   asked to measure separately — was the one path measuring nothing. The five
+   copies are now one `answered()` helper, so every lane reports its own cost,
+   and the router's clock is closed by `close_router()` before any model call
+   so the phases stay additive (`test_the_phases_never_double_count`).
+
+4. **`/tasks/plan` never received the enumeration fix.** The runner sends
+   `tools_note(...)`; the plan endpoint still called `make_plan(req.task, ...)`
+   bare, so it kept the runaway the runner no longer had. Fixed.
+
+Checked and found **not** to be defects: `busy` is derived from the asyncio
+task's own state, so it self-clears even when `_run` crashes — the cascade of
+rejected tasks measured in 7.1 was genuine single-task serialisation behind the
+90-second stall, not a leaked flag.
+
+## What is still NOT validated
+
+- **Windows.** Every number above is Linux. No claim of Windows production
+  readiness is made or implied.
+- **Model specialisation.** NOT TESTED. A second model is needed and no
+  conclusion is invented in its absence.

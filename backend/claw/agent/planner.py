@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
 from pydantic import ValidationError
 
 from claw.agent import jsonfix
+from claw.agent.deadline import Deadline, DeadlineReached
 from claw.agent.executor import REPLY_TOKENS, estimate_tokens, without_length_limits
 from claw.agent.schemas import ModelPlan, Plan, PlanStep
 from claw.config import describe_validation_error
@@ -18,6 +20,13 @@ from claw.permissions.policy import PermissionPolicy
 log = logging.getLogger("claw.planner")
 
 MAX_ATTEMPTS = 2
+
+#: What a retry sends. The maxLength limits stay on the real schema, because
+#: that is what the reply is validated against; they are dropped from what the
+#: model sees, because a server turns each one into that many grammar
+#: repetitions - see executor.without_length_limits for the measurement.
+#: Built once here rather than rebuilt on every call: it never varies.
+PLAN_SCHEMA_FOR_MODEL = without_length_limits(ModelPlan.model_json_schema())
 
 SYSTEM_PROMPT = """You are the planning component of S-CLAW, an assistant that operates a Windows 10 computer for its user.
 Break the user's request into a short sequence of concrete steps the computer agent will carry out.
@@ -125,13 +134,15 @@ def _prompt_tokens(messages: list[ChatMessage], schema: dict) -> int:
     return body + estimate_tokens(json.dumps(schema)) + REPLY_TOKENS
 
 
-async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy) -> Plan:
+#: The longest one planning call may run when a task deadline is in force.
+#: The same ceiling the executor uses for its own calls, and for the same
+#: reason: it is a cap on a single operation, not the budget itself.
+_MODEL_CALL_CEILING_S = 600.0
+
+
+async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy,
+                    deadline: Deadline | None = None) -> Plan:
     schema = ModelPlan.model_json_schema()
-    # What a retry sends. The maxLength limits stay on `schema`, because that
-    # is what the reply is validated against; they are dropped from what the
-    # model sees, because a server turns each one into that many grammar
-    # repetitions. See executor.without_length_limits for the measurement.
-    schema_for_model = without_length_limits(schema)
     messages = [
         ChatMessage(role="system", content=SYSTEM_PROMPT),
         ChatMessage(role="user", content=f"User request:\n<<<\n{task}\n>>>"),
@@ -153,6 +164,17 @@ async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy) 
             )
     last_problems: list[str] = []
     for attempt in range(1, MAX_ATTEMPTS + 1):
+        # Planning is INSIDE the task's budget, and until this was added it was
+        # only inside it arithmetically: the executor bounded each of its model
+        # calls by the time left, but make_plan did not, so one planning call
+        # could run for the adapter's own timeout - 600 s on the built-in
+        # brain - and spend a ten minute task entirely on planning. The clock
+        # was then checked for the first time after the money had been spent,
+        # and the task reported that it had run out of time having done
+        # nothing. An HTTP request is the one thing the deadline module says is
+        # safe to cut off, so it is cut off here.
+        if deadline is not None and deadline.expired:
+            raise DeadlineReached(deadline)
         # Each rejected reply adds the reply and a correction, so the prompt
         # grows with every retry. Against a small window that turns one
         # recoverable bad answer into a hard failure, so older corrections go
@@ -175,7 +197,15 @@ async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy) 
             # retry below is for - and the retry IS constrained, so a second
             # attempt cannot come back malformed. Quality first, grammar as
             # the net under it.
-            raw = await adapter.chat(messages, json_schema=schema_for_model if attempt > 1 else None)
+            call = adapter.chat(messages, json_schema=PLAN_SCHEMA_FOR_MODEL if attempt > 1 else None)
+            if deadline is not None:
+                call = asyncio.wait_for(call, timeout=deadline.timeout_for(_MODEL_CALL_CEILING_S))
+            raw = await call
+        except TimeoutError:
+            # The budget, not the server, ended this. Said as such: "the model
+            # did not produce a usable plan" would be a lie about a call that
+            # was never allowed to finish.
+            raise DeadlineReached(deadline) from None
         except ModelResponseError as exc:
             last_problems = [exc.message]
             log_event(log, "plan reply unusable", attempt=attempt, problem=exc.message)

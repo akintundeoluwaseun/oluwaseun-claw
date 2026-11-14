@@ -871,7 +871,15 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         try:
             adapter = await state.think_adapter()
             state.db.add_event(task_id, "model_call", {"provider": adapter.provider, "model": adapter.model})
-            plan = await make_plan(req.task, adapter, state.policy())
+            # The same tools note the runner sends. Without it this endpoint
+            # kept the bug the runner no longer has: the planner is told about
+            # capabilities but never about tools, so "Tidy up my Downloads"
+            # enumerated one step per year until the token cap stopped it.
+            # Measured on the held-out 16: the note takes unusable plans from
+            # 1 in 16 to 0 and costs nothing (242 -> 178 tokens).
+            plan = await make_plan(
+                req.task + simple_action.tools_note(req.task, state.registry, fitting_tools),
+                adapter, state.policy())
         except ModelError as exc:
             state.db.add_event(task_id, "failed", {"message": exc.message, "hint": exc.hint})
             state.db.update_task(task_id, status=TaskStatus.FAILED, error=exc.message)

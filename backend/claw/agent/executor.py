@@ -169,6 +169,20 @@ def without_length_limits(schema: dict[str, Any]) -> dict[str, Any]:
 #: What is sent to the model. ACTION_SCHEMA stays as it is for validation.
 ACTION_SCHEMA_FOR_MODEL = without_length_limits(ACTION_SCHEMA)
 
+def _stopped_summary(steps: list[dict[str, Any]], step_no: int, doing: str) -> str:
+    """What a run that ran out of time tells the person.
+
+    One builder rather than one per place that stops, because the wording is
+    a promise - what finished is kept, nothing was rolled back - and two
+    copies of a promise drift apart.
+    """
+    done = sum(1 for s in steps if s.get("outcome") == "ok")
+    if done:
+        return (f"Stopped after {done} completed step(s), while {doing} step {step_no}. "
+                f"What was finished has been kept.")
+    return f"Stopped while {doing} step {step_no}, before any step finished."
+
+
 ApprovalFn = Callable[[dict[str, Any]], Awaitable[bool | None]]
 EmitFn = Callable[[str, dict[str, Any]], None]
 
@@ -1530,16 +1544,11 @@ async def run_agent(
         if deadline is not None and deadline.expired:
             emit("deadline_reached", {"step": step_no, "budget_s": int(deadline.budget_s),
                                       "band": deadline.band, "completed_steps": len(steps)})
-            done = sum(1 for s in steps if s.get("outcome") == "ok")
             # What is reported is what really happened: the steps that
             # finished DID finish, and their files are still there. Nothing
             # was rolled back, so nothing says it was.
-            return outcome(
-                "incomplete",
-                final=(f"Stopped after {done} completed step(s), while starting step {step_no}. "
-                       f"What was finished has been kept." if done else
-                       f"Stopped before any step finished, while starting step {step_no}."),
-                error=deadline.why_stopped())
+            return outcome("incomplete", final=_stopped_summary(steps, step_no, "starting"),
+                           error=deadline.why_stopped())
         action = await _next_action(adapter, messages, emit, step_no, window_tokens, deadline, timings)
         if action is None:
             # Two very different reasons to have no action, and they must not
@@ -1548,13 +1557,9 @@ async def run_agent(
             # stopped it, and saying "did not give a usable next action" would
             # blame the brain for a limit Claw imposed.
             if deadline is not None and deadline.expired:
-                done = sum(1 for s in steps if s.get("outcome") == "ok")
-                return outcome(
-                    "incomplete",
-                    final=(f"Stopped after {done} completed step(s), while thinking about step {step_no}. "
-                           f"What was finished has been kept." if done else
-                           f"Stopped while thinking about step {step_no}, before any step finished."),
-                    error=deadline.why_stopped())
+                return outcome("incomplete",
+                               final=_stopped_summary(steps, step_no, "thinking about"),
+                               error=deadline.why_stopped())
             return outcome("failed", error="The model did not give a usable next action.")
         messages.append(ChatMessage(role="assistant", content=action.model_dump_json()))
 

@@ -30,6 +30,24 @@ import time
 from dataclasses import dataclass, field
 
 
+class DeadlineReached(Exception):
+    """The task's clock ran out before this operation could be started.
+
+    Raised rather than returned so it cannot be ignored by a caller that only
+    checks the happy path. It carries the deadline, so whoever catches it can
+    report the real budget and band instead of inventing a reason.
+
+    It is NOT a failure: nothing went wrong and nothing is broken. The caller
+    is expected to report `incomplete` with whatever had been finished, which
+    is what the person actually needs to know.
+    """
+
+    def __init__(self, deadline: "Deadline"):
+        super().__init__(deadline.why_stopped())
+        self.deadline = deadline
+        self.message = deadline.why_stopped()
+
+
 @dataclass
 class Deadline:
     """A budget for one task, measured from when the task started.
