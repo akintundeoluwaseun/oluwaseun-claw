@@ -320,6 +320,25 @@ class AgentSettings(BaseModel):
     #: For a task the person has explicitly said may take longer. Never chosen
     #: by Claw: it is asked for per task.
     extended_deadline_s: float = Field(default=1800, ge=60, le=21600)
+    #: The least time a task keeps for actual work once planning is done.
+    #:
+    #: The bands are applied retroactively - planning is inside the budget -
+    #: so a slow plan can eat a small band before a single step runs. Measured
+    #: on a real 2B, planning a one-step plan took 19.6s of the 30s simple
+    #: band, leaving 10.4s; at 35s the task expired the moment planning ended
+    #: and failed having done nothing, after somebody had waited 35 seconds.
+    #:
+    #: It only has to cover choosing the next action and STARTING a tool: a
+    #: running tool is never interrupted by the deadline, so it finishes under
+    #: its own step_timeout_s. The measured action call was 10.4s, and 15
+    #: leaves headroom on a slower machine.
+    #:
+    #: Deliberately small, so it rescues the pathological case without
+    #: routinely inflating a tight band: with planning at 5s the 30s simple
+    #: band already leaves 25s, which is above this floor and so is left
+    #: exactly as it was. It is a floor on what remains, never an extension -
+    #: the ceiling is still the budget the task started with.
+    min_work_after_planning_s: float = Field(default=15, ge=5, le=600)
     #: Extra programs run_command and run_script may use, beyond the built-in
     #: list. Here because the refusal tells people to add one here - and for a
     #: while it did so while there was nowhere to add it, which is worse than

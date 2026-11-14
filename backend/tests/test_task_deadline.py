@@ -252,3 +252,61 @@ async def test_running_out_of_time_is_not_reported_as_the_model_failing():
     assert out.status == "incomplete", f"got {out.status}: {out.error}"
     assert "time limit" in (out.error or "")
     assert "usable next action" not in (out.error or "")
+
+
+# ---------- the band is applied retroactively, so it needs a floor ----------
+#
+# Planning is inside the budget. A slow plan therefore eats a small band
+# before a single step runs. Measured on a real 2B: planning a ONE-STEP plan
+# took 19.6s of the 30s simple band, leaving 10.4s; at 35s the task expired
+# the instant planning ended and failed having done nothing - after somebody
+# had waited 35 seconds. That is worse than having no deadline at all.
+
+def test_a_slow_plan_cannot_expire_a_task_the_moment_it_finishes():
+    a = AgentSettings()
+    d = Deadline(budget_s=a.complex_deadline_s, band="complex")
+    d.started -= 35                                   # planning took 35s
+    d.tighten_to(*band_for(1, a), a.min_work_after_planning_s)
+    assert not d.expired, "a task must never die having done nothing"
+    # approx: a few microseconds elapse between setting the floor and reading it
+    assert d.remaining_s == pytest.approx(a.min_work_after_planning_s, abs=0.1)
+
+
+def test_the_floor_does_not_inflate_a_band_that_was_already_fine():
+    """It rescues the pathological case; it does not routinely hand out time.
+    With planning at 5s the 30s simple band still leaves 25s, which is above
+    the floor, so nothing changes."""
+    a = AgentSettings()
+    d = Deadline(budget_s=a.complex_deadline_s, band="complex")
+    d.started -= 5
+    d.tighten_to(*band_for(1, a), a.min_work_after_planning_s)
+    assert d.budget_s == a.simple_deadline_s
+
+
+def test_the_floor_never_raises_the_budget_above_what_the_task_started_with():
+    """The outer bound a deadline exists to provide still holds."""
+    d = Deadline(budget_s=600, band="complex")
+    d.started -= 1000                                 # absurdly slow planning
+    d.tighten_to(30, "simple", 45)
+    assert d.budget_s <= 600
+
+
+def test_the_floor_is_configurable():
+    assert AgentSettings(min_work_after_planning_s=90).min_work_after_planning_s == 90
+
+
+def test_the_floor_only_has_to_cover_starting_a_tool():
+    """A running tool is never interrupted by the deadline - it finishes under
+    its own step_timeout_s - so the floor covers choosing the action and
+    starting the tool, not running it. The measured action call was 10.4s."""
+    a = AgentSettings()
+    assert a.min_work_after_planning_s >= 10.4
+    assert a.min_work_after_planning_s < a.step_timeout_s, (
+        "a floor as large as a whole tool run would inflate every tight band")
+
+
+def test_tightening_still_only_lowers_without_a_floor():
+    """The original guarantee is unchanged when no floor is passed."""
+    d = Deadline(budget_s=100, band="complex")
+    d.tighten_to(600, "extended")
+    assert d.budget_s == 100

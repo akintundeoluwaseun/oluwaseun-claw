@@ -531,3 +531,48 @@ extended **30 min**, all configurable.
 Notepad" needed 19.6 s of planning plus 10.4 s of action and hit exactly that
 limit. Tier B removes the planning call, which is what makes 30 s the right
 number rather than a cut too tight. The two changes belong together.
+
+
+---
+
+# Phase 5b: the fragility I flagged was a real defect
+
+I ended the last phase noting that the 30-second simple budget "only works
+because of tier B". That was not just a coupling note - it was a bug, and the
+numbers make it plain.
+
+The bands are applied **retroactively**: planning is inside the budget, so a
+slow plan eats a small band before a single step runs.
+
+| planning took | simple band leaves | outcome |
+|---|---|---|
+| 5.0 s | 25.0 s | fine |
+| 19.6 s (measured) | 10.4 s | barely enough for the 10.4 s action call |
+| 25.0 s | 5.0 s | dies mid-thought |
+| 35.0 s | **0 s** | **expires the instant planning ends, fails having done nothing** |
+
+Somebody waited 35 seconds for nothing. That is worse than having no deadline
+at all, and it is exactly the `failed` run the diagnostics caught earlier.
+
+**Fix:** `tighten_to` takes a floor, `min_work_after_planning_s`, default
+**15 s** and configurable. Tightening never leaves less than that.
+
+It is sized for what it actually has to cover: choosing the next action and
+*starting* a tool. A running tool is never interrupted by the deadline - it
+finishes under its own `step_timeout_s` - so the floor does not need to cover
+the tool running. The measured action call was 10.4 s; 15 leaves headroom on a
+slower machine, and a test asserts it stays below `step_timeout_s` so it can
+never grow into something that inflates every band.
+
+It rescues, it does not inflate:
+
+| planning took | result |
+|---|---|
+| 5.0 s | **unchanged** - 30 s band, 25 s left, already above the floor |
+| 15.0 s | **unchanged** - 30 s band, 15 s left |
+| 19.6 s | rescued - total 34.6 s |
+| 35.0 s | rescued - total 50.0 s |
+
+And the outer bound still holds: the floor never raises the budget above what
+the task started with. Planning for 1000 s against a 600 s start still ends at
+600 s. Tested.

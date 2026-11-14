@@ -57,7 +57,7 @@ class Deadline:
     def expired(self) -> bool:
         return self.remaining_s <= 0
 
-    def tighten_to(self, budget_s: float, band: str) -> None:
+    def tighten_to(self, budget_s: float, band: str, min_work_s: float = 0.0) -> None:
         """Lower the budget once the task's size is known.
 
         Only ever lowers. A plan that turns out to be one step should not get
@@ -65,9 +65,24 @@ class Deadline:
         time than it started with - that would be the reset this class exists
         to prevent. Called after planning, when the step count is known; the
         start time is untouched, so the time planning took still counts.
+
+        `min_work_s` is the floor, and it exists because the band is applied
+        RETROACTIVELY. Planning is inside the budget, so a slow plan eats the
+        band before any work starts. Measured on a real 2B: planning a
+        one-step plan took 19.6 s of a 30 s simple band, leaving 10.4 s; at
+        25 s it leaves 5; at 35 s the task expires the instant planning ends
+        and fails having done nothing. Somebody waited 35 seconds for that,
+        which is worse than having no deadline at all.
+
+        So tightening never leaves less than `min_work_s`. It is a floor on
+        what remains, not an extension: the ceiling is still the budget the
+        task started with, which is never raised here, so the outer bound a
+        deadline exists to provide still holds.
         """
-        if budget_s < self.budget_s:
-            self.budget_s = budget_s
+        floor = self.elapsed_s + max(0.0, min_work_s)
+        wanted = max(budget_s, floor)
+        if wanted < self.budget_s:
+            self.budget_s = wanted
             self.band = band
 
     def timeout_for(self, wanted_s: float) -> float:

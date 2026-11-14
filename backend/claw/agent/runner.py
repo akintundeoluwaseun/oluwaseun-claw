@@ -271,7 +271,7 @@ class TaskRunner:
             # is untouched, so the time planning just took still counts.
             if not self.extended:
                 budget, band = band_for(len(plan.steps), limits)
-                deadline.tighten_to(budget, band)
+                deadline.tighten_to(budget, band, limits.min_work_after_planning_s)
                 emit("deadline_set", {"budget_s": int(deadline.budget_s), "band": deadline.band,
                                       "steps": len(plan.steps)})
             if first_in_chat and thread_id and (title := clean_model_title(plan.title)):
