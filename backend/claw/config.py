@@ -293,6 +293,26 @@ class AgentSettings(BaseModel):
     step_timeout_s: float = Field(default=60, ge=5, le=600)
     approval_timeout_s: float = Field(default=600, ge=30, le=3600)
     max_consecutive_failures: int = Field(default=3, ge=1, le=10)
+
+    #: How long a WHOLE task may take, start to finish - planning, every model
+    #: call, every tool, every retry and every replan on one clock. The limits
+    #: above each bound one operation; nothing bounded their product, so twenty
+    #: steps of (120s thinking + 60s doing) was an hour with every limit
+    #: respected and nothing reporting a problem.
+    #:
+    #: Four budgets because the shapes differ. Answering a question is one
+    #: model call; opening an app is a call and an action; researching five
+    #: companies is neither. One number would be far too short for the last or
+    #: absurd for the first. The band is chosen from the plan's step count once
+    #: planning is done, and it can only ever be LOWERED from the starting
+    #: budget - see claw.agent.deadline.
+    conversation_deadline_s: float = Field(default=120, ge=10, le=600)
+    simple_deadline_s: float = Field(default=180, ge=10, le=1800)
+    moderate_deadline_s: float = Field(default=360, ge=10, le=3600)
+    complex_deadline_s: float = Field(default=600, ge=10, le=7200)
+    #: For a task the person has explicitly said may take longer. Never chosen
+    #: by Claw: it is asked for per task.
+    extended_deadline_s: float = Field(default=1800, ge=60, le=21600)
     #: Extra programs run_command and run_script may use, beyond the built-in
     #: list. Here because the refusal tells people to add one here - and for a
     #: while it did so while there was nowhere to add it, which is worse than

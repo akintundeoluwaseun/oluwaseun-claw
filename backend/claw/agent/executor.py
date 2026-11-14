@@ -39,6 +39,11 @@ from claw.tools.base import ToolContext, ToolError, ToolRegistry, ToolResult, To
 log = logging.getLogger("claw.executor")
 
 MAX_OBSERVATION_CHARS = 6000
+#: The longest a single model call may run when a task deadline is in force.
+#: The adapter has its own request_timeout_s; this is only the ceiling the
+#: deadline's remaining time is measured against, so a task with plenty of
+#: time left still gets the adapter's own limit rather than an unbounded wait.
+_MODEL_CALL_CEILING_S = 600.0
 #: The built-in engine runs llama-server with -c 8192 (claw/runtime/engine.py),
 #: and nothing counted tokens against it. A twenty-step run can build ~38k
 #: tokens of context, so a long task would hit the end of the window and either
@@ -1439,6 +1444,7 @@ async def run_agent(
     request_approval: ApprovalFn,
     capabilities: set[str] | None = None,
     window_tokens: int = DEFAULT_CONTEXT_TOKENS,
+    deadline: Deadline | None = None,
 ) -> RunOutcome:
     limits = ctx.settings.agent
     person_limits = constraints.read_limits(task)
@@ -1515,7 +1521,24 @@ async def run_agent(
         return None
 
     for step_no in range(1, limits.max_steps + 1):
-        action = await _next_action(adapter, messages, emit, step_no, window_tokens)
+        # Checked BEFORE the step starts, never in the middle of one. A model
+        # call can be cut off safely; a tool may be halfway through writing a
+        # file, so the deadline stops the next operation rather than killing
+        # the running one. What finished stays finished and is reported.
+        if deadline is not None and deadline.expired:
+            emit("deadline_reached", {"step": step_no, "budget_s": int(deadline.budget_s),
+                                      "band": deadline.band, "completed_steps": len(steps)})
+            done = sum(1 for s in steps if s.get("outcome") == "ok")
+            # What is reported is what really happened: the steps that
+            # finished DID finish, and their files are still there. Nothing
+            # was rolled back, so nothing says it was.
+            return outcome(
+                "incomplete",
+                final=(f"Stopped after {done} completed step(s), while starting step {step_no}. "
+                       f"What was finished has been kept." if done else
+                       f"Stopped before any step finished, while starting step {step_no}."),
+                error=deadline.why_stopped())
+        action = await _next_action(adapter, messages, emit, step_no, window_tokens, deadline)
         if action is None:
             return outcome("failed", error="The model did not give a usable next action.")
         messages.append(ChatMessage(role="assistant", content=action.model_dump_json()))
@@ -1732,7 +1755,8 @@ async def _replan(adapter: ModelAdapter, messages: list[ChatMessage], emit: Emit
 
 
 async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit: EmitFn, step_no: int,
-                       window_tokens: int = DEFAULT_CONTEXT_TOKENS) -> ModelAction | None:
+                       window_tokens: int = DEFAULT_CONTEXT_TOKENS,
+                       deadline: Deadline | None = None) -> ModelAction | None:
     fitted = fit_context(messages, window_tokens)
     sent, dropped, over = fitted.messages, fitted.dropped, fitted.over_tokens
     if dropped:
@@ -1748,6 +1772,11 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
                                   "kept_history": fitted.kept_history,
                                   "window_tokens": window_tokens})
     for attempt in (1, 2):
+        if deadline is not None and deadline.expired:
+            # Out of time between attempts: do not start another one.
+            emit("deadline_reached", {"step": step_no, "budget_s": int(deadline.budget_s),
+                                      "band": deadline.band, "during": "thinking"})
+            return None
         try:
             # Same reasoning as make_plan: the schema constrains a RETRY, not
             # the first attempt. Constraining every call makes the model write
@@ -1756,7 +1785,18 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
             # doing anything, which is the false completion this file already
             # has three guards against. Ask freely first, repair with jsonfix,
             # and constrain only after a reply that could not be used.
-            raw = await adapter.chat(sent, json_schema=ACTION_SCHEMA_FOR_MODEL if attempt > 1 else None)
+            call = adapter.chat(sent, json_schema=ACTION_SCHEMA_FOR_MODEL if attempt > 1 else None)
+            if deadline is not None:
+                # An HTTP request is safe to abandon - no file is half
+                # written - so the model never gets more time than the task
+                # has left. A tool is a different matter; see the loop above.
+                call = asyncio.wait_for(call, timeout=deadline.timeout_for(_MODEL_CALL_CEILING_S))
+            raw = await call
+        except asyncio.TimeoutError:
+            # The task ran out of time while the model was still writing.
+            emit("deadline_reached", {"step": step_no, "during": "thinking",
+                                      "budget_s": int(deadline.budget_s) if deadline else None})
+            return None
         except ModelResponseError as exc:
             emit("model_reply_rejected", {"step": step_no, "problem": exc.message})
             continue

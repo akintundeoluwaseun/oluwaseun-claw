@@ -100,3 +100,7 @@ class PlanRequest(BaseModel):
     task: str = Field(min_length=1, max_length=4000)
     # Continue an existing chat (a retry or a follow-up) instead of starting a new one.
     thread_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
+    # The person has said THIS task may take longer than the usual budget, so
+    # it gets extended_deadline_s. Asked for per task and never inferred: how
+    # long someone is willing to wait is their decision, not Claw's.
+    extended: bool = False

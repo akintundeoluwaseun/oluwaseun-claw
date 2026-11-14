@@ -369,3 +369,74 @@ which is the reply that should be truncated.
   honest shape for it.
 - Tier B (a light path for one simple action).
 - `/tasks/plan` bypassing the router.
+
+---
+
+# Phase 4d: one clock for the whole task
+
+## Why the runaway reply happened — it was not rambling
+
+The one planner reply that ran to the 1536-token cap was
+**"Tidy up my Downloads, it is a mess"**, and the output is specific:
+
+```
+{"description": "Move files from the root Downloads folder into a '2006' subfolder", ...},
+{"description": "Move files from the root Downloads folder into a '2005' subfolder", ...},
+{"description": "Move files from the root Downloads folder into a '2004' subfolder", ...},
+```
+
+140 lines, 54 distinct; 24 `{`, 23 `"capability": "files"`. The model chose to
+**enumerate one step per year, counting downwards**, and would have carried on
+to 2003, 2002, 1999. It is not degenerate repetition in the
+`repetition_guard` sense — every step is slightly different, so a repeat
+detector would never catch it.
+
+Two things let it happen:
+
+1. **An open-ended request with no bound.** "Tidy up" has no stopping
+   criterion, so the model invented one and it was unbounded.
+2. **Nothing enforced the step limit during generation.** The prompt says
+   "maximum 15" and `ModelPlan` sets `maxItems: 15`, and the model sailed past
+   both to 24+. Only the grammar enforces `maxItems` mid-generation — and
+   after commit 8fb5be3 the first attempt is deliberately unconstrained.
+
+So the token cap is a backstop, not the fix, exactly as the brief says. The
+real fix is a plan-shape one: when a single tool handles a whole folder
+(`sort_into_folders` exists), the plan should be one step, not one per group.
+**Not yet done, and not yet measured** — it belongs with the planner-prompt
+work, where every change has to be measured on the held-out set.
+
+What the already-shipped change does do: the grammar-constrained **retry**
+enforces `maxItems: 15`, so the second attempt cannot produce a 24-step plan.
+
+## The deadline
+
+`backend/claw/agent/deadline.py`. One clock, started in `TaskRunner._run`
+**before the router**, so planning is inside it, and never reset.
+
+| requirement | how |
+|---|---|
+| covers the whole lifecycle | started before the router gates; passed through `make_plan` → `run_agent` → `_next_action` |
+| never resets | `tighten_to()` only ever **lowers**, and `started` is never touched. Tested. |
+| stops new work | checked before each step and before each model attempt |
+| cancels safely | a model call is an HTTP request, so it gets `min(its own limit, time left)` and is cut off. A **tool is not cancelled**: it may be halfway through writing a file, so a running tool keeps its own `step_timeout_s` and the deadline stops the *next* one. Overshoot is bounded by one step. |
+| honest result | `incomplete` (the status that already existed), naming completed steps and the step it stopped on |
+| preserves work | the message says what finished is kept; nothing claims a rollback, and a test forbids the words "rolled back" and "undone" |
+| extended tasks | `extended: true` on the request selects `extended_deadline_s`. Never inferred — how long someone will wait is their decision. |
+
+### Four budgets, because the shapes differ
+
+| band | default | chosen when |
+|---|---|---|
+| conversation | 120 s | the chat lane |
+| simple | 180 s | plan of 1 step |
+| moderate | 360 s | plan of 2–4 steps |
+| complex | **600 s** | plan of 5+ steps |
+| extended | 1800 s | the person asked for it |
+
+The band is picked from the plan's step count *after* planning, and only ever
+narrows the budget the task started with — the time planning took still counts
+against it.
+
+`tests/test_task_deadline.py` (20 tests) holds all of it, including that a run
+with no deadline behaves exactly as before.

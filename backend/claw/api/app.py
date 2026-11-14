@@ -870,7 +870,7 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         if state.settings_error:
             return error_response(409, "settings_invalid", state.settings_error.message, "Fix them in Settings.", state.settings_error.problems)
         try:
-            task_id = state.runner.start(req.task, thread_id=req.thread_id)
+            task_id = state.runner.start(req.task, thread_id=req.thread_id, extended=req.extended)
         except TaskBusy:
             return error_response(409, "busy", "Another task is still running.", "Wait for it to finish or stop it first.")
         row = state.db.get_task(task_id) or {}

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 
 from claw.agent import constraints, conversation, persona
 from claw.agent.executor import RunOutcome, run_agent
+from claw.agent.deadline import Deadline, band_for
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.agent.titles import clean_model_title, fallback_title
 from claw.logging_setup import log_event
@@ -45,21 +46,32 @@ class TaskRunner:
         self.approvals: dict[str, PendingApproval] = {}
         #: True while a scheduled job is running, so nothing waits for a person.
         self.unattended = False
+        #: True when the person has said THIS task may take longer than the
+        #: usual budget. Never set by Claw: it is asked for per task, because
+        #: a longer deadline is a decision about how long someone is willing
+        #: to wait, not something to infer from the request.
+        self.extended = False
 
     @property
     def busy(self) -> bool:
         return self._task is not None and not self._task.done()
 
-    def start(self, task_text: str, unattended: bool = False, thread_id: str | None = None) -> str:
+    def start(self, task_text: str, unattended: bool = False, thread_id: str | None = None,
+              extended: bool = False) -> str:
         """Run a task. `unattended` means nobody is watching — a scheduled job.
 
         It is not a convenience flag: it changes the permission policy, because
         an approval cannot be given by an empty room.
+
+        `extended` means the person has said this one may take longer, and it
+        selects `extended_deadline_s` instead of the usual band. Nothing infers
+        it from the request: how long someone will wait is their call.
         """
         if self.busy:
             raise TaskBusy()
         db = self.state.db
         self.unattended = unattended
+        self.extended = extended
         if thread_id and not db.thread_exists(thread_id):
             thread_id = None  # a chat that was deleted: start a new one rather than fail
         earlier = db.thread_tasks(thread_id) if thread_id else []
@@ -67,7 +79,8 @@ class TaskRunner:
         thread = thread_id or task_id
         if not earlier:
             db.set_thread_title(thread, fallback_title(task_text))  # replaced by the model's title once it has planned
-        db.add_event(task_id, "requested_task", {"task": task_text, "unattended": unattended, "thread_id": thread})
+        db.add_event(task_id, "requested_task", {"task": task_text, "unattended": unattended,
+                                                 "extended": extended, "thread_id": thread})
         self.current_id = task_id
         self._task = asyncio.create_task(self._run(task_id, task_text, thread, conversation_context(earlier), not earlier),
                                          name=f"claw-task-{task_id}")
@@ -103,6 +116,16 @@ class TaskRunner:
                    first_in_chat: bool = True) -> None:
         state, db = self.state, self.state.db
         settings = state.settings
+
+        # One clock for the whole task, started HERE - before the router, so
+        # planning is inside it too - and never reset afterwards. A new step,
+        # a retry or a replan does not buy more time: what is being bounded is
+        # how long the person waits, not how long any one operation takes.
+        limits = settings.agent
+        deadline = Deadline(
+            budget_s=limits.extended_deadline_s if self.extended else limits.complex_deadline_s,
+            band="extended" if self.extended else "complex",
+        )
 
         def emit(kind: str, data: dict[str, Any]) -> None:
             db.add_event(task_id, kind, data)
@@ -166,6 +189,9 @@ class TaskRunner:
             # call with no tools, rather than planning and executing nothing.
             try:
                 adapter = await state.think_adapter()
+                # Talk is one short call. It does not get a complex task's ten
+                # minutes, and the clock is the same one - already running.
+                deadline.tighten_to(limits.conversation_deadline_s, "conversation")
                 emit("model_call", {"provider": adapter.provider, "model": adapter.model, "purpose": "chat"})
                 name = persona.identity(state.data_dir).get("name", "S-CLAW")
                 reply = (await adapter.chat([
@@ -212,6 +238,14 @@ class TaskRunner:
             # Earlier messages of this chat are given as context, so "now save it as a PDF" works.
             request = f"{task_text}\n\n{context}" if context else task_text
             plan = await make_plan(request, adapter, state.policy())
+            # Now the size is known, so the budget narrows to the band this
+            # plan belongs in. tighten_to only ever LOWERS, and the start time
+            # is untouched, so the time planning just took still counts.
+            if not self.extended:
+                budget, band = band_for(len(plan.steps), limits)
+                deadline.tighten_to(budget, band)
+                emit("deadline_set", {"budget_s": int(deadline.budget_s), "band": deadline.band,
+                                      "steps": len(plan.steps)})
             if first_in_chat and thread_id and (title := clean_model_title(plan.title)):
                 db.set_thread_title(thread_id, title)
             plan_json = plan.model_dump(mode="json")
@@ -243,7 +277,8 @@ class TaskRunner:
                     log_event(log, "model window differs from the one requested",
                               task_id=task_id, asked=asked, actual=reported)
             outcome = await run_agent(request, plan_text, adapter, state.registry, ctx, emit,
-                                      request_approval, caps or None, window_tokens=window)
+                                      request_approval, caps or None, window_tokens=window,
+                                      deadline=deadline)
             db.update_task(task_id, status=outcome.status, error=outcome.error, result=outcome.summary())
             emit("task_" + outcome.status, {"error": outcome.error} if outcome.error else {})
             log_event(log, "task ended", task_id=task_id, status=outcome.status, steps=len(outcome.steps))
