@@ -100,3 +100,26 @@ def test_a_failed_chat_reply_leaves_the_task_its_full_budget(make_client, fake_s
         "work inherited the conversation band: a 15 second budget for a task "
         "whose planning alone takes about 20")
     assert set_to["budget_s"] >= 30, set_to
+
+
+# ------------------- the invariant the conversation bound depends on
+
+def test_each_think_adapter_is_a_fresh_one(make_client, fake_server):
+    """The conversation lane shortens its adapter's timeout to the 15 second
+    conversation budget. That is only safe because every call to
+    `think_adapter()` builds a new adapter: if one were ever cached or shared,
+    the shortened timeout would leak into the planner, and planning - which
+    takes about 20 seconds on a 2B - would be cut off at 15 for the rest of
+    the run. Pinned here because the bug would be silent and intermittent.
+    """
+    import asyncio
+
+    c = make_client()
+    c.put("/settings", json=settings_for(fake_server))
+    state = c.app.state.claw
+    first = asyncio.get_event_loop_policy().new_event_loop().run_until_complete(state.think_adapter())
+    second = asyncio.get_event_loop_policy().new_event_loop().run_until_complete(state.think_adapter())
+    assert first is not second, "think_adapter() is shared; shortening its timeout would leak"
+
+    first.timeout_s = 15.0
+    assert second.timeout_s != 15.0, "adapters share state; the conversation bound would leak"

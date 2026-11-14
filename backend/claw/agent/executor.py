@@ -169,6 +169,7 @@ def without_length_limits(schema: dict[str, Any]) -> dict[str, Any]:
 #: What is sent to the model. ACTION_SCHEMA stays as it is for validation.
 ACTION_SCHEMA_FOR_MODEL = without_length_limits(ACTION_SCHEMA)
 
+
 def _stopped_summary(steps: list[dict[str, Any]], step_no: int, doing: str) -> str:
     """What a run that ran out of time tells the person.
 

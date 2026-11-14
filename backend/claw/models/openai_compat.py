@@ -6,11 +6,13 @@ requires one: the default and tested path is a server on this computer.
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
 import httpx
 
+from claw.logging_setup import log_event
 from claw.models.base import (
     ChatMessage,
     ModelBadRequest,
@@ -37,6 +39,8 @@ from claw.models.base import (
 # So the version is derived from the address instead of assumed: if the address
 # already ends in a version segment, the routes hang directly off it.
 _VERSIONED = re.compile(r"/(v\d+[a-z0-9]*|openai)/?$", re.IGNORECASE)
+
+log = logging.getLogger("claw.models")
 
 
 def api_root(base_url: str) -> str:
@@ -151,7 +155,18 @@ class OpenAICompatAdapter(ModelAdapter):
             # This server has never heard of the field. Remember that, so the
             # cost is one wasted round trip per server rather than per call,
             # and get the reply the ordinary way.
+            #
+            # Logged rather than swallowed, because it PREDICTS the next
+            # failure: a server that cannot be asked to stop thinking is a
+            # server where a thinking model will spend its whole budget
+            # reasoning and answer nothing. On Windows the engine is whatever
+            # llama.cpp build setup.ps1 fetched at install time, so an old
+            # install lands here and the log is the only thing that says why
+            # replies started coming back empty.
             self.quiet_thinking_ok = False
+            log_event(log, "this server will not be asked to stop thinking",
+                      base_url=self.base_url,
+                      why="it rejected chat_template_kwargs; a thinking model may now answer nothing")
             body.pop("chat_template_kwargs", None)
             data = await self._request("POST", route(self.base_url, "chat/completions"),
                                        json=body, timeout=self.timeout_s)

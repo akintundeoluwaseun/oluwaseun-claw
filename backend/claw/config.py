@@ -306,11 +306,19 @@ class AgentSettings(BaseModel):
     #: absurd for the first. The band is chosen from the plan's step count once
     #: planning is done, and it can only ever be LOWERED from the starting
     #: budget - see claw.agent.deadline.
-    #: Talk is one short model call. Measured end to end against a real
-    #: Qwen3.5-2B on four CPU cores: 2.6 s to 5.6 s, and the canned replies
-    #: cost nothing at all. 15 s is roughly three times the slowest measured
-    #: reply, which is enough headroom for a slower machine without leaving
-    #: somebody watching a spinner for two minutes over "what is Python?".
+    #: Talk is one short model call. Measured against a real llama-server
+    #: running Qwen3.5-2B on four CPU cores, under Claw's own production
+    #: flags, with thinking switched off as the chat lane now does: 1.4 s for
+    #: "what is the capital of France?" and 3.1 s for "what is Python?". The
+    #: canned replies cost nothing at all. 15 s is nearly five times the
+    #: slowest measured reply - headroom for a slower machine, without
+    #: leaving somebody watching a spinner for two minutes.
+    #:
+    #: It bounds the CALL, not the task's clock (claw/agent/runner.py says
+    #: why), and that gives a second, useful property: on an engine too old
+    #: to be asked to stop thinking, the same call would run 72 s and return
+    #: nothing, so this cuts it off at 15 and the task falls through to real
+    #: work with its full budget intact instead of burning a minute first.
     conversation_deadline_s: float = Field(default=15, ge=5, le=600)
     #: One action: a model call to choose it, then the action. The call is the
     #: slow half at ~10 tokens a second.
