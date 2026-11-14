@@ -73,15 +73,13 @@ import pytest
 
 
 def test_a_wedged_plan_request_gives_up_and_says_why(make_client, fake_server, monkeypatch):
-    from claw.agent import planner
+
 
     async def never_answers(self, messages, json_schema=None, *, thinking=True):
         await asyncio.sleep(600)
         return "{}"
 
     monkeypatch.setattr("claw.models.openai_compat.OpenAICompatAdapter.chat", never_answers)
-    # A budget small enough that the test does not take three minutes.
-    monkeypatch.setattr(planner, "_MODEL_CALL_CEILING_S", 600.0)
 
     c = make_client({"model": {"mode": "custom", "provider": "openai_compatible",
                                "base_url": fake_server.base_url, "model": "qwen2.5:7b"},

@@ -37,7 +37,7 @@ class Recorder:
         self.replies = list(replies)
         self.schemas = []
 
-    async def chat(self, messages, json_schema=None):
+    async def chat(self, messages, json_schema=None, *, thinking=True):
         self.schemas.append(json_schema is not None)
         return self.replies.pop(0)
 
@@ -94,7 +94,7 @@ async def test_the_retry_sends_the_plan_schema_without_its_length_limits(policy)
     seen = {}
 
     class Capture(Recorder):
-        async def chat(self, messages, json_schema=None):
+        async def chat(self, messages, json_schema=None, *, thinking=True):
             if json_schema is not None:
                 seen["schema"] = json_schema
             return await super().chat(messages, json_schema=json_schema)

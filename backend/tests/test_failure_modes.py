@@ -35,7 +35,7 @@ class Replies:
         self.replies = list(replies)
         self.schemas = []
 
-    async def chat(self, messages, json_schema=None):
+    async def chat(self, messages, json_schema=None, *, thinking=True):
         self.schemas.append(json_schema is not None)
         r = self.replies.pop(0)
         if isinstance(r, Exception):

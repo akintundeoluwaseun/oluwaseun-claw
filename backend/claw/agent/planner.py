@@ -10,7 +10,15 @@ from pydantic import ValidationError
 
 from claw.agent import jsonfix
 from claw.agent.deadline import Deadline, DeadlineReached
-from claw.agent.executor import REPLY_TOKENS, estimate_tokens, without_length_limits
+from claw.agent.executor import (
+    # The same ceiling on a single model call, imported rather than repeated:
+    # it is one cap for one reason - a bound on one operation, not the task's
+    # budget - and two copies of a number like that drift.
+    MODEL_CALL_CEILING_S,
+    REPLY_TOKENS,
+    estimate_tokens,
+    without_length_limits,
+)
 from claw.agent.schemas import ModelPlan, Plan, PlanStep
 from claw.config import describe_validation_error
 from claw.logging_setup import log_event
@@ -134,12 +142,6 @@ def _prompt_tokens(messages: list[ChatMessage], schema: dict) -> int:
     return body + estimate_tokens(json.dumps(schema)) + REPLY_TOKENS
 
 
-#: The longest one planning call may run when a task deadline is in force.
-#: The same ceiling the executor uses for its own calls, and for the same
-#: reason: it is a cap on a single operation, not the budget itself.
-_MODEL_CALL_CEILING_S = 600.0
-
-
 async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy,
                     deadline: Deadline | None = None) -> Plan:
     schema = ModelPlan.model_json_schema()
@@ -213,7 +215,7 @@ async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy,
             call = adapter.chat(messages, json_schema=PLAN_SCHEMA_FOR_MODEL if attempt > 1 else None,
                                 thinking=False)
             if deadline is not None:
-                call = asyncio.wait_for(call, timeout=deadline.timeout_for(_MODEL_CALL_CEILING_S))
+                call = asyncio.wait_for(call, timeout=deadline.timeout_for(MODEL_CALL_CEILING_S))
             raw = await call
         except TimeoutError:
             # The budget, not the server, ended this. Said as such: "the model

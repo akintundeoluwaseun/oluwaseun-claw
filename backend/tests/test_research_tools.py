@@ -15,7 +15,7 @@ class FakeBrain:
     def __init__(self):
         self.prompts = []
 
-    async def chat(self, messages, json_schema=None):
+    async def chat(self, messages, json_schema=None, *, thinking=True):
         self.prompts.append(messages[-1].content)
         return json.dumps({"licence": "free for commercial use", "price": "$49 per month"})
 

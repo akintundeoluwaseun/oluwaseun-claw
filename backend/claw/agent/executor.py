@@ -44,7 +44,7 @@ MAX_OBSERVATION_CHARS = 6000
 #: The adapter has its own request_timeout_s; this is only the ceiling the
 #: deadline's remaining time is measured against, so a task with plenty of
 #: time left still gets the adapter's own limit rather than an unbounded wait.
-_MODEL_CALL_CEILING_S = 600.0
+MODEL_CALL_CEILING_S = 600.0
 #: The built-in engine runs llama-server with -c 8192 (claw/runtime/engine.py),
 #: and nothing counted tokens against it. A twenty-step run can build ~38k
 #: tokens of context, so a long task would hit the end of the window and either
@@ -1902,7 +1902,7 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
                 # An HTTP request is safe to abandon - no file is half
                 # written - so the model never gets more time than the task
                 # has left. A tool is a different matter; see the loop above.
-                call = asyncio.wait_for(call, timeout=deadline.timeout_for(_MODEL_CALL_CEILING_S))
+                call = asyncio.wait_for(call, timeout=deadline.timeout_for(MODEL_CALL_CEILING_S))
             began = time.monotonic()
             try:
                 raw = await call

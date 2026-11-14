@@ -63,11 +63,23 @@ def test_the_limits_are_still_enforced_on_a_real_reply():
     assert ok.action == "finish"
 
 
-def test_nothing_else_about_the_schema_changed():
-    """Only maxLength goes. The action enum is the part worth constraining."""
-    assert ACTION_SCHEMA_FOR_MODEL["properties"]["action"]["enum"] == ["tool", "finish"]
-    assert ACTION_SCHEMA_FOR_MODEL["required"] == ACTION_SCHEMA["required"]
-    assert set(ACTION_SCHEMA_FOR_MODEL["properties"]) == set(ACTION_SCHEMA["properties"])
+def test_the_model_is_offered_the_same_two_actions_and_the_same_fields():
+    """This replaces an assertion that the model-facing schema was the flat one
+    minus maxLength. It is not any more, deliberately: a flat schema cannot say
+    that a "tool" action needs a tool NAME, because `ModelAction.tool` has to be
+    optional for "finish" to exist - and that hole was where the executor
+    actually failed. See tests/test_action_schema_shape.py for the measurement.
+
+    What must still hold is that nothing was quietly added or taken away: the
+    same two actions, and no field the real schema does not have.
+    """
+    branches = {b["properties"]["action"]["const"]: b for b in ACTION_SCHEMA_FOR_MODEL["oneOf"]}
+    assert set(branches) == {"tool", "finish"}
+    offered = {name for b in branches.values() for name in b["properties"]}
+    assert offered <= set(ACTION_SCHEMA["properties"]), (
+        f"the model is offered fields the real schema has no place for: "
+        f"{offered - set(ACTION_SCHEMA['properties'])}")
+    assert "action" in branches["tool"]["required"] and "action" in branches["finish"]["required"]
 
 
 def test_it_strips_at_every_depth():
@@ -104,7 +116,7 @@ async def test_the_first_action_call_is_unconstrained():
     class Adapter:
         provider = model = "t"
 
-        async def chat(self, messages, json_schema=None):
+        async def chat(self, messages, json_schema=None, *, thinking=True):
             seen.append(json_schema)
             return '{"action":"tool","tool":"take_screenshot","args":{}}'
 
@@ -125,7 +137,7 @@ async def test_a_rejected_action_is_retried_with_the_stripped_schema():
     class Adapter:
         provider = model = "t"
 
-        async def chat(self, messages, json_schema=None):
+        async def chat(self, messages, json_schema=None, *, thinking=True):
             seen.append(json_schema)
             return replies.pop(0)
 
