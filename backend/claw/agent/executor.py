@@ -1878,9 +1878,25 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
             # action", the executor's own worst failure, after 80 seconds of
             # waiting. The failure mode is TOTAL, so there is no trade to
             # make between speed and care.
-            import os as _os  # EXPERIMENT ONLY - removed once measured
-            _always = _os.environ.get("CLAW_EXPERIMENT_CONSTRAIN_FIRST") == "1"
-            call = adapter.chat(sent, json_schema=ACTION_SCHEMA_FOR_MODEL if (_always or attempt > 1) else None,
+            # Free first, constrained on retry - and this was MEASURED rather
+            # than inherited. Eight read-only tasks over a CSV on a real
+            # llama-server with Qwen3.5-2B, each run both ways:
+            #
+            #   free first (this)    5/8 completed   209.4s generating   21 calls
+            #   constrained first    4/8 completed   341.1s generating   28 calls
+            #
+            # Constraining the first attempt does take rejections from 9 to 1
+            # - and still loses, by 63% more generation time and a worse
+            # completion rate. The reason is visible in its failures: the
+            # model satisfies the grammar with a valid but WRONG action and
+            # then repeats it, so one run burned nine calls and 98 seconds
+            # into "3 steps failed in a row". A reply that is well-formed and
+            # useless costs more than one that is rejected and retried.
+            #
+            # A narrower run of four tasks pointed the other way (3/4 against
+            # 2/4). It was noise, and widening the sample before shipping is
+            # the only reason this line still reads as it does.
+            call = adapter.chat(sent, json_schema=ACTION_SCHEMA_FOR_MODEL if attempt > 1 else None,
                                 thinking=False)
             if deadline is not None:
                 # An HTTP request is safe to abandon - no file is half

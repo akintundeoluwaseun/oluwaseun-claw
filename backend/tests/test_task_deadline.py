@@ -173,7 +173,11 @@ async def _run_with(ex, deadline, adapter=None):
     class Adapter:
         provider = model = "t"
 
-        async def chat(self, messages, json_schema=None):
+        async def chat(self, messages, json_schema=None, *, thinking=True):
+            # `thinking` is accepted because every lane now switches it off:
+            # a thinking model on a real engine spends its whole budget in
+            # reasoning_content and returns content empty. See
+            # tests/test_every_lane_stops_thinking.py.
             return ModelAction(action="finish", final_answer="done").model_dump_json()
 
         async def context_window(self):
@@ -240,7 +244,7 @@ async def test_running_out_of_time_is_not_reported_as_the_model_failing():
     class SlowAdapter:
         provider = model = "t"
 
-        async def chat(self, messages, json_schema=None):
+        async def chat(self, messages, json_schema=None, *, thinking=True):
             import asyncio
             await asyncio.sleep(0.2)          # still answering when time runs out
             return '{"action":"finish","final_answer":"done"}'
@@ -275,13 +279,41 @@ def test_a_slow_plan_cannot_expire_a_task_the_moment_it_finishes():
 
 def test_the_floor_does_not_inflate_a_band_that_was_already_fine():
     """It rescues the pathological case; it does not routinely hand out time.
-    With planning at 5s the 30s simple band still leaves 25s, which is above
-    the floor, so nothing changes."""
+
+    Fast planning leaves the band exactly as it was. The example has to be
+    chosen with the floor in mind: the floor binds once planning takes longer
+    than (band - floor), which with a 30s simple band and a 25s floor is 5s.
+    So 2s of planning is comfortably inside it, and asserted with a tolerance
+    rather than exactly, because `elapsed_s` is a live monotonic reading and
+    the earlier exact comparison failed on 30.0000022 != 30.
+    """
     a = AgentSettings()
     d = Deadline(budget_s=a.complex_deadline_s, band="complex")
-    d.started -= 5
+    d.started -= 2
     d.tighten_to(*band_for(1, a), a.min_work_after_planning_s)
-    assert d.budget_s == a.simple_deadline_s
+    assert d.budget_s == pytest.approx(a.simple_deadline_s, abs=0.1)
+    assert d.band == "simple"
+
+
+def test_the_floor_binds_once_planning_is_slow_and_the_cost_is_known():
+    """The honest consequence of the floor, pinned so it cannot drift silently.
+
+    Planning a one-step plan on a 2B measured 9-14s, which is past the point
+    where the floor binds, so a slowly-planned simple action really does run
+    past its nominal 30s band. Measured end to end: with the floor at 15 both
+    "Make a file hello.txt" and "List every file and count" failed at 30s
+    having done nothing; at 25 the second completed in 29.8s. This test states
+    the arithmetic so the trade stays visible to whoever changes the number.
+    """
+    a = AgentSettings()
+    d = Deadline(budget_s=a.complex_deadline_s, band="complex")
+    d.started -= 12                                   # a realistic 2B plan
+    d.tighten_to(*band_for(1, a), a.min_work_after_planning_s)
+    total = d.budget_s
+    assert total > a.simple_deadline_s, "the floor did not bind"
+    assert total == pytest.approx(12 + a.min_work_after_planning_s, abs=0.1)
+    assert total <= 40, ("a simple action should not quietly become a minute; "
+                         "if this fails, the floor has grown too far past the band")
 
 
 def test_the_floor_never_raises_the_budget_above_what_the_task_started_with():

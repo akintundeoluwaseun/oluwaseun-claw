@@ -886,3 +886,71 @@ constrained), so the two lanes are not assumed to want the same thing.
   "List the files in X", which is why that task pays full planning. Not a bug
   in the matcher - it was never a general one - but it bounds what tier B can
   save, and the 30s band above assumes savings it does not always get.
+
+## 7.8 Constraining the executor's first attempt: measured, and rejected
+
+The four-task run in 7.6 suggested constraining the executor's FIRST attempt
+(3/4 against 2/4). Widening it to eight reversed that:
+
+| | completed | median wall | generation | calls | rejections |
+|---|---|---|---|---|---|
+| free first (today) | **5/8** | 35.5s | **209.4s** | **21** | 9 |
+| constrained first | 4/8 | 31.3s | 341.1s | 28 | 1 |
+
+Constraining does take rejections from 9 to 1 — and still loses, by 63% more
+generation and a worse completion rate. Its failures say why: the model
+satisfies the grammar with a **valid but wrong** action and then repeats it.
+One run spent nine calls and 98 seconds reaching "3 steps failed in a row".
+A reply that is well-formed and useless costs more than one that is rejected
+and retried.
+
+So the executor's first attempt is unchanged, and the four-task result is
+recorded here as the noise it was. **The only reason the wrong change was not
+shipped is that the sample was widened before shipping it**, and an
+experiment toggle that briefly existed in the executor to run this comparison
+has been removed.
+
+Worth noting the two lanes disagree and both are now measured: the planner is
+better free (13/16 against 9/16), and so is the executor. The grammar is a net
+under a free attempt in both, never the opening move.
+
+## 7.9 The simple band, measured and left to the user
+
+Raising `min_work_after_planning_s` from 15 to 25 took the eight tasks from
+5/8 to 6/8 and generation from 209s to 189s. "List every file and count it"
+went from failing at 30s having done nothing to completing in 29.8s.
+
+It was **not** raised further. "Make a file hello.txt" still fails: it wanted
+24.9s of generation that run against 16.4s the run before, so a one-step
+action's cost varies by more than a floor can absorb. Covering it needs a
+floor of 30, and with a 30s band a 30s floor binds for *any* planning at all
+— which quietly redefines "a 30-second simple action" as "30 seconds after
+planning". That is a different promise, and not one to make unasked.
+
+So the trade is stated rather than resolved: a one-step task whose plan took
+9–14s now runs to about 34–39s instead of failing at 30 with nothing done. If
+that is still too tight for the brain in use, the band itself
+(`simple_deadline_s`) is the thing to raise, because how long someone will
+wait is their decision. `test_the_floor_binds_once_planning_is_slow_and_the_
+cost_is_known` pins the arithmetic so the trade cannot drift silently.
+
+## 7.10 Reliability
+
+Real uvicorn backend, real engine, after all of the above.
+
+| check | result |
+|---|---|
+| ten repeated conversations | all ten completed; RSS 65 → 71.6MB; median 1.5s, last three 1.3/1.3/1.5s |
+| six different tasks in a row | none refused as busy, none hung |
+| interrupt, then carry on | cancel accepted, task reached `cancelled`, next task completed in 1.3s, no row left mid-flight |
+| brain dies, then comes back | failed in **0.3s** rather than hanging; recovered in 1.3s |
+
+**The `TaskBusy` cascade is gone.** Before the thinking fix, one stuck
+conversation held the single-task runner for 90 seconds and every following
+task was refused; six consecutive tasks now run without a single refusal. No
+memory leak over ~20 tasks, no drift in repeated latency, and nothing left in
+a `planning`/`running` state to show as a spinner that never clears.
+
+Not hidden by that pass: **two of the six sequential tasks came back
+`incomplete` at about 32s** — the 7.9 simple-band limitation, not a
+reliability defect, but it is what a person would actually notice.

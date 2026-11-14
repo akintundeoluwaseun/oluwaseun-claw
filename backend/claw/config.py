@@ -338,15 +338,46 @@ class AgentSettings(BaseModel):
     #:
     #: It only has to cover choosing the next action and STARTING a tool: a
     #: running tool is never interrupted by the deadline, so it finishes under
-    #: its own step_timeout_s. The measured action call was 10.4s, and 15
-    #: leaves headroom on a slower machine.
+    #: its own step_timeout_s.
     #:
-    #: Deliberately small, so it rescues the pathological case without
-    #: routinely inflating a tight band: with planning at 5s the 30s simple
-    #: band already leaves 25s, which is above this floor and so is left
-    #: exactly as it was. It is a floor on what remains, never an extension -
-    #: the ceiling is still the budget the task started with.
-    min_work_after_planning_s: float = Field(default=15, ge=5, le=600)
+    #: 15 was too small, and end-to-end measurement is what showed it. Eight
+    #: read-only tasks through the real app against a real llama-server with
+    #: Qwen3.5-2B, simple band at 30s:
+    #:
+    #:   "Copy notes.txt to notes-backup.txt"   completed  16.7s   tier B, no planning
+    #:   "Make a file hello.txt ..."            TIMED OUT  30.1s   planned, 16.4s generating
+    #:   "List every file in ... and count"     TIMED OUT  30.1s   planned, 21.0s generating
+    #:
+    #: The pattern is exact: a task tier B catches skips planning and fits 30s
+    #: with room to spare, while a one-step task that PLANS spends nine to
+    #: fourteen seconds on the plan and is then left too little for the single
+    #: action it planned. The worst observed one-step action cost 21.0s of
+    #: generation, so 25 covers it plus a few seconds to start a tool.
+    #:
+    #: Re-running the eight with 25: 6 of 8 completed rather than 5, total
+    #: generation 189s rather than 209s, and "List every file" finished in
+    #: 29.8s. "Make a file hello.txt" still did not - it wanted 24.9s of
+    #: generation that time, against 16.4s the run before, so a one-step
+    #: action's cost varies by more than this floor can absorb.
+    #:
+    #: It was NOT raised again to cover that. With a 30s band, a floor of 30
+    #: binds for any planning at all, which quietly redefines "a 30 second
+    #: simple action" as "30 seconds AFTER planning" - a different promise,
+    #: and not one to make on Claw's own initiative. 25 is the most that can
+    #: be justified as rescuing a pathological case rather than rewriting the
+    #: band.
+    #:
+    #: Still a floor on what REMAINS, never an extension: the ceiling is the
+    #: budget the task started with, which is never raised. The honest
+    #: consequence is that a one-step task whose plan took 9-14s now runs to
+    #: about 34-39s instead of failing at 30 having done nothing. If even that
+    #: is too tight for the brain in use, the band itself is the thing to
+    #: raise - simple_deadline_s - which is a decision about how long someone
+    #: is willing to wait, and so belongs to them.
+    #:
+    #: Measured on four CPU cores with a 2B at ~13 tokens a second. On faster
+    #: hardware planning is quick and this floor never binds at all.
+    min_work_after_planning_s: float = Field(default=25, ge=5, le=600)
     #: Extra programs run_command and run_script may use, beyond the built-in
     #: list. Here because the refusal tells people to add one here - and for a
     #: while it did so while there was nowhere to add it, which is worse than
