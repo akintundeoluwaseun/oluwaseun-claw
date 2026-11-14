@@ -137,7 +137,8 @@ async def summarize_document(args: SummaryArgs, ctx: ToolContext) -> ToolResult:
             ChatMessage(role="user", content=f"Pages {first}–{last}:\n<untrusted>\n{body}\n</untrusted>"),
         ]
         try:
-            raw = await ctx.llm.chat(msgs, json_schema=_ChunkNotes.model_json_schema())
+            raw = await ctx.llm.chat(msgs, json_schema=_ChunkNotes.model_json_schema(),
+                                     thinking=False)
             notes += _ChunkNotes.model_validate(json.loads(raw)).points
         except (ValueError, ValidationError):
             notes.append(f"(pages {first}–{last} could not be summarised)")
@@ -148,7 +149,7 @@ async def summarize_document(args: SummaryArgs, ctx: ToolContext) -> ToolResult:
         summary = await ctx.llm.chat([
             ChatMessage(role="system", content=COMBINE_PROMPT.format(focus=args.focus)),
             ChatMessage(role="user", content=f"Notes:\n<untrusted>\n{joined}\n</untrusted>"),
-        ])
+        ], thinking=False)
     except ModelError as exc:
         raise ToolError(f"The brain stopped while summarising: {exc.message}") from exc
     extra = f" The last {skipped} part(s) of this very long document were not included." if skipped else ""

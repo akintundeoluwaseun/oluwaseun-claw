@@ -785,3 +785,104 @@ rejected tasks measured in 7.1 was genuine single-task serialisation behind the
   readiness is made or implied.
 - **Model specialisation.** NOT TESTED. A second model is needed and no
   conclusion is invented in its absence.
+
+## 7.4 Planning wants thinking off too, decisively
+
+The ON/OFF comparison through `make_plan`, held-out 16, real llama-server
+under Claw's production flags, Qwen3.5-2B, temperature 0:
+
+| mode | usable plan | right capability | total | median |
+|---|---|---|---|---|
+| thinking **ON** (as shipped) | **2/16** | **2/16** | 2330s | 162.0s |
+| thinking **OFF** | **16/16** | **14/16** | 226s | 15.7s |
+
+Seven times faster and seven times more accurate at once. That combination is
+only possible because the failure with thinking on is **total rather than
+slow**: fourteen of the sixteen ran their whole 1024-token budget twice over
+and put every token in `reasoning_content`, leaving `content` empty. The
+arithmetic confirms it independently — 2 × 1024 ÷ 13.0 tok/s = 158s against a
+measured 150–170s, i.e. both attempts generated to the length limit every
+time. A plan that is never written cannot be a better plan.
+
+**This also explains why five phases of this audit measured the planner as
+working.** `llama-cpp-python` inlines the chain of thought into `content`,
+where `jsonfix` digs the JSON out from after it. The real engine files it
+under `reasoning_content`, where nothing reads it.
+
+### Shipped
+`thinking=False` on every model call Claw makes — planner, executor, replan,
+the two tool lanes, and the brain self-test. Applied everywhere rather than
+lane by lane because the failure mode is total: there is no speed-versus-care
+trade to make with an answer that is never produced. The self-test matters
+for its own reason — asked with thinking on, it would report a brain as broken
+that works fine for Claw, which is testing something the app never does.
+
+`test_every_lane_stops_thinking.py` walks the package's AST and checks every
+`.chat(...)` call. Structural on purpose: the bug is silent, it has already
+hidden from five phases, and a new lane added without the flag would not
+raise — it would quietly answer nothing after eighty seconds.
+
+## 7.5 End-to-end, through the real app
+
+A real uvicorn backend (not TestClient, which starves the runner and produced
+a phantom 600s hang earlier in this audit), real engine, per-phase numbers
+from each task's own `timings` event.
+
+**Conversation — fixed, and now the fast path it was meant to be:**
+
+    7 of 7 completed, median 1.8s, slowest 4.1s
+    canned replies 0.0s; model replies 1.6-3.9s of generation
+    router 0.00s, selection 0.00s, planning 0.0s
+
+Against "never answered at all, then 90s of planning, then every following
+task refused as busy" before the fix.
+
+## 7.6 The hole in the executor's safety net
+
+The executor was failing on ordinary read-only CSV tasks. The cause was not
+the model being weak, and not thinking: `ModelAction.tool` must be optional,
+because a "finish" action has no tool, so the flat schema generated from it
+**permits `{"action": "tool"}` with nothing to call**. `run_agent` rejected
+that by hand — and because the schema allowed it, the constrained RETRY, the
+safety net under the free first attempt, could serve the same invalid reply
+again. "action 'tool' needs a tool name" was the commonest rejection in both
+the unconstrained and the constrained runs.
+
+The schema the model is SHOWN now describes the two actions as what they are:
+alternatives, each with its own required fields — a tool action must name a
+tool, and a finish must say something (a finish with nothing to say is the
+false completion this file already guards against three other ways, and the
+cheapest reply a grammar can emit must not be the one that abandons the task).
+`ModelAction` is untouched and remains what a reply is validated against.
+Verified on the real engine: 401 bytes, HTTP 200, and it produces a tool call
+with a tool name and a finish with an answer.
+
+Four read-only CSV tasks, before and after, same engine and flags:
+
+| | completed | median wall | generation | rejections |
+|---|---|---|---|---|
+| before the fix, free first | 0/4 | — | — | 6 |
+| before the fix, constrained first | 0/4 | — | — | 7 |
+| after the fix, free first | 2/4 | 45.8s | 136.5s | 7 |
+| after the fix, constrained first | **3/4** | **30.3s** | **83.7s** | **0** |
+
+A wider run is in progress before anything is concluded about constraining the
+executor's FIRST attempt; the schema fix itself stands on the 0/4 → 2/4
+improvement with the free first attempt left exactly as it was. Note that the
+planner measured the opposite way round on constraint (13/16 free vs 9/16
+constrained), so the two lanes are not assumed to want the same thing.
+
+## 7.7 Open, measured, not yet fixed
+
+- **The simple band is knife-edge on a 2B.** "List the files in <folder>"
+  plans in 14s and then has 16s of a 30s budget for an action call that costs
+  15–21s, so it reports "reached its time limit of 30 seconds". 30s is the
+  value asked for, and it is right for a tier-B action that skips planning;
+  it is too tight for a one-step plan that does not.
+- **Tier B is narrower than it looks.** It rests on `fitting_tools`, whose
+  `_FITTING` list is a deliberately narrow set of patterns for surfacing
+  SPECIALIST tools the planner would otherwise miss ("9:16 version", "black
+  frames", "broken links"). So tier B fires for "Open Notepad" but not for
+  "List the files in X", which is why that task pays full planning. Not a bug
+  in the matcher - it was never a general one - but it bounds what tier B can
+  save, and the 30s band above assumes savings it does not always get.

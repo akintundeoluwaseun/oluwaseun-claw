@@ -802,7 +802,12 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
         try:
             adapter = build_adapter(candidate) if candidate and candidate.mode != "builtin" \
                 else await state.think_adapter()
-            reply = await adapter.chat([ChatMessage(role="user", content=SELFTEST_PROMPT)])
+            # Asked the same way Claw asks in earnest. A self-test that left
+            # thinking on would report a brain as broken that works fine for
+            # Claw, or pass one that then answers nothing - either way it
+            # would be testing something the app never does.
+            reply = await adapter.chat([ChatMessage(role="user", content=SELFTEST_PROMPT)],
+                                       thinking=False)
         except ModelAuthFailed as exc:
             return {**base, "ok": False, "reason": "auth_failed", "message": f"{exc.message} {exc.hint}".strip()}
         except ModelRateLimited as exc:

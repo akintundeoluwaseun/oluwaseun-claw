@@ -166,8 +166,66 @@ def without_length_limits(schema: dict[str, Any]) -> dict[str, Any]:
     return schema
 
 
+def _action_schema_for_model() -> dict[str, Any]:
+    """What the model is SHOWN, as opposed to what its reply is checked against.
+
+    Two differences from ACTION_SCHEMA, both measured:
+
+    1. No maxLength - see without_length_limits.
+
+    2. The one rule a flat schema cannot state: a "tool" action needs a tool
+       NAME. `ModelAction.tool` has to be optional, because a "finish" action
+       has no tool, so the flat schema permits `{"action": "tool"}` with
+       nothing to call - and `run_agent` then rejects it by hand.
+
+       That hole was where the executor actually failed. Measured end to end
+       against a real llama-server with Qwen3.5-2B, four read-only tasks over
+       a CSV, temperature 0: the single commonest rejection in BOTH
+       unconstrained and constrained runs was "action 'tool' needs a tool
+       name", and because the schema allowed it, the constrained RETRY -
+       the safety net under the free first attempt - could serve the same
+       invalid reply again. The net had a hole exactly where the model kept
+       falling through.
+
+       So the two actions are described as what they are: alternatives, each
+       with its own required fields. The model can still say either, and
+       neither can be said incompletely.
+
+    ModelAction itself is untouched: it is what the reply is VALIDATED
+    against, and its own check on action/tool stays as the last word.
+    """
+    flat = without_length_limits(ACTION_SCHEMA)["properties"]
+    return {
+        "oneOf": [
+            {
+                "type": "object",
+                "properties": {
+                    "thought": {"type": "string"},
+                    "action": {"const": "tool"},
+                    "tool": {"type": "string", "minLength": 1},
+                    "args": {"type": "object"},
+                },
+                "required": ["action", "tool"],
+            },
+            {
+                "type": "object",
+                "properties": {
+                    "thought": {"type": "string"},
+                    "action": {"const": "finish"},
+                    # Required, deliberately: a finish with nothing to say is
+                    # the false completion this file already guards against in
+                    # three other places, and the cheapest reply a grammar can
+                    # emit should not be the one that abandons the task.
+                    "final_answer": {"type": "string", "minLength": 1},
+                },
+                "required": ["action", "final_answer"],
+            },
+        ],
+    }
+
+
 #: What is sent to the model. ACTION_SCHEMA stays as it is for validation.
-ACTION_SCHEMA_FOR_MODEL = without_length_limits(ACTION_SCHEMA)
+ACTION_SCHEMA_FOR_MODEL = _action_schema_for_model()
 
 
 def _stopped_summary(steps: list[dict[str, Any]], step_no: int, doing: str) -> str:
@@ -1768,7 +1826,8 @@ async def run_agent(
 async def _replan(adapter: ModelAdapter, messages: list[ChatMessage], emit: EmitFn) -> Replan | None:
     ask = messages + [ChatMessage(role="user", content=REPLAN_PROMPT)]
     try:
-        raw = await adapter.chat(ask, json_schema=Replan.model_json_schema())
+        # Thinking off, for the reason set out at _next_action's own call.
+        raw = await adapter.chat(ask, json_schema=Replan.model_json_schema(), thinking=False)
         plan = Replan.model_validate(jsonfix.loads(raw))
     except ModelError:
         raise
@@ -1811,7 +1870,18 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
             # doing anything, which is the false completion this file already
             # has three guards against. Ask freely first, repair with jsonfix,
             # and constrain only after a reply that could not be used.
-            call = adapter.chat(sent, json_schema=ACTION_SCHEMA_FOR_MODEL if attempt > 1 else None)
+            # Thinking off, as on every other lane. The measurement is in
+            # claw/agent/planner.py: a thinking model on this engine spends
+            # its entire budget in `reasoning_content` and returns `content`
+            # empty, which here does not read as "a slower, better-considered
+            # action" - it reads as "The model did not give a usable next
+            # action", the executor's own worst failure, after 80 seconds of
+            # waiting. The failure mode is TOTAL, so there is no trade to
+            # make between speed and care.
+            import os as _os  # EXPERIMENT ONLY - removed once measured
+            _always = _os.environ.get("CLAW_EXPERIMENT_CONSTRAIN_FIRST") == "1"
+            call = adapter.chat(sent, json_schema=ACTION_SCHEMA_FOR_MODEL if (_always or attempt > 1) else None,
+                                thinking=False)
             if deadline is not None:
                 # An HTTP request is safe to abandon - no file is half
                 # written - so the model never gets more time than the task

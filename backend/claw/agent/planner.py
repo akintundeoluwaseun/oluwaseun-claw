@@ -197,7 +197,21 @@ async def make_plan(task: str, adapter: ModelAdapter, policy: PermissionPolicy,
             # retry below is for - and the retry IS constrained, so a second
             # attempt cannot come back malformed. Quality first, grammar as
             # the net under it.
-            call = adapter.chat(messages, json_schema=PLAN_SCHEMA_FOR_MODEL if attempt > 1 else None)
+            # Thinking OFF, measured rather than assumed. The held-out 16
+            # through this function, against a real llama-server running
+            # Qwen3.5-2B under Claw's production flags, temperature 0:
+            #
+            #   thinking ON    usable  2/16   right  2/16   median 162.0s
+            #   thinking OFF   usable 16/16   right 14/16   median  15.7s
+            #
+            # Seven times faster AND seven times more accurate, because the
+            # failure with thinking on is total rather than slow: fourteen of
+            # the sixteen generated their whole 1024-token budget twice over
+            # (2 x 1024 / 13 tok/s = 158s, against a measured 150-170s) and
+            # put every token in `reasoning_content`, leaving `content` empty.
+            # A plan that is never written cannot be a better plan.
+            call = adapter.chat(messages, json_schema=PLAN_SCHEMA_FOR_MODEL if attempt > 1 else None,
+                                thinking=False)
             if deadline is not None:
                 call = asyncio.wait_for(call, timeout=deadline.timeout_for(_MODEL_CALL_CEILING_S))
             raw = await call
