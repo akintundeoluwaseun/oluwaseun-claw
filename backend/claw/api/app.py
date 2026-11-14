@@ -29,6 +29,7 @@ from pydantic import ValidationError
 
 from claw import __version__
 from claw.agent import conversation, persona, simple_action
+from claw.agent.deadline import Deadline, DeadlineReached
 from claw.agent.executor import fitting_tools
 from claw.agent.planner import PlanningFailed, make_plan
 from claw.agent.runner import TaskBusy, TaskRunner
@@ -877,13 +878,31 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             # enumerated one step per year until the token cap stopped it.
             # Measured on the held-out 16: the note takes unusable plans from
             # 1 in 16 to 0 and costs nothing (242 -> 178 tokens).
+            # Bounded, because nothing bounded it. The desktop allows this
+            # route fifteen minutes (desktop/src/backend.js), and a planning
+            # call that wedges held the person at a spinner for all of them.
+            # The moderate band is used rather than a new setting: this
+            # endpoint does exactly one multi-step plan, and the slowest real
+            # plan measured on a 2B was about 25 s, so 180 leaves generous
+            # headroom while replacing a quarter of an hour of silence with a
+            # sentence that says what happened.
             plan = await make_plan(
                 req.task + simple_action.tools_note(req.task, state.registry, fitting_tools),
-                adapter, state.policy())
+                adapter, state.policy(),
+                deadline=Deadline(budget_s=state.settings.agent.moderate_deadline_s, band="moderate"))
         except ModelError as exc:
             state.db.add_event(task_id, "failed", {"message": exc.message, "hint": exc.hint})
             state.db.update_task(task_id, status=TaskStatus.FAILED, error=exc.message)
             return _task_error(task_id, 502, "model_error", exc.message, exc.hint)
+        except DeadlineReached as exc:
+            # Out of time, not a bad plan. Said as such, because "the model did
+            # not produce a usable plan" would send someone looking for a
+            # broken brain over a limit Claw imposed.
+            state.db.add_event(task_id, "deadline_reached", {"during": "planning",
+                                                             "budget_s": int(exc.deadline.budget_s)})
+            state.db.update_task(task_id, status=TaskStatus.FAILED, error=exc.message)
+            return _task_error(task_id, 504, "planning_timed_out", exc.message,
+                               "Try a shorter request, or a faster brain in Settings.")
         except PlanningFailed as exc:
             state.db.add_event(task_id, "failed", {"message": exc.message, "details": exc.details})
             state.db.update_task(task_id, status=TaskStatus.FAILED, error=exc.message)
