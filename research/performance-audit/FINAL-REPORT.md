@@ -399,9 +399,16 @@ Until all seven are done and recorded, **Windows remains PARTIAL**.
 
 ## 7. Tests
 
-    1791 passed, 15 skipped, 0 failed    (full suite)
+    1804 passed, 15 skipped, 0 failed   Linux            (10m06s)
+    1792 passed, 27 skipped, 0 failed   windows-latest   (10m39s, CI run 103)
 
-The 1,726 that had to be preserved are preserved, with 65 net new tests. Five
+Both collect 1819; Windows skips twelve more, which is the platform-gated set
+(X11 screenshots and the like) rather than anything missing.
+
+The 1,726 that had to be preserved are preserved, with 78 net new tests, and the
+same suite is green on **real Windows** as well as Linux - CI run 103 on
+`c0b2c43`, which is the run that matters, because Windows is where the deadline
+boundary bug surfaced and runs 98-101 were red on exactly that test. Five
 test files had their model-adapter doubles updated to accept the `thinking`
 keyword; they failed with `TypeError`, which is the correct failure — the
 interface genuinely changed and the doubles had not.

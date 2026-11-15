@@ -116,7 +116,9 @@ in about a third of the budget.
 
 Reports: `research/performance-audit/FINAL-REPORT.md` (architecture, evidence,
 limits, and the seven checks to move Windows from PARTIAL to VALIDATED) and
-`docs/PERFORMANCE.md`. Tests: 1802 passing. **Windows stays PARTIAL** — all of
+`docs/PERFORMANCE.md`. Tests: **1804 passing on Linux, 1792 on real
+`windows-latest`** (1819 collected either way; Windows skips twelve
+platform-gated ones), nothing failing on either. **Windows stays PARTIAL** — all of
 this is Linux, and `llama-server.exe` was never started. Model specialisation
 remains **NOT TESTED**: only one brain was ever available.
 
