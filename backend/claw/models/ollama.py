@@ -15,6 +15,7 @@ from claw.models.base import (
     ModelNotFound,
     ModelResponseError,
     ModelServerUnavailable,
+    why_a_reply_was_empty,
 )
 
 
@@ -71,6 +72,16 @@ class OllamaAdapter(ModelAdapter):
         message = data.get("message")
         if not isinstance(message, dict) or not isinstance(message.get("content"), str):
             raise ModelResponseError("The Ollama server returned a reply without any message content.")
+        if not message["content"].strip():
+            # An empty string is a str, so it used to be returned as if it were
+            # an answer, and the caller failed later on something that looked
+            # like bad JSON. Ollama files a thinking model's monologue under
+            # `thinking`, so this is the same failure llama-server produces
+            # under `reasoning_content` - one explanation serves both.
+            raise ModelResponseError(why_a_reply_was_empty(
+                thinking=message.get("thinking") or "",
+                cut_off=data.get("done_reason") == "length",
+            ))
         return message["content"]
 
     async def see(self, png: bytes, question: str) -> str:

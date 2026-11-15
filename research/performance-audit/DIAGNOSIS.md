@@ -954,3 +954,26 @@ a `planning`/`running` state to show as a spinner that never clears.
 Not hidden by that pass: **two of the six sequential tasks came back
 `incomplete` at about 32s** — the 7.9 simple-band limitation, not a
 reliability defect, but it is what a person would actually notice.
+
+## 7.11 Correction to 7.9: the floor goes back to 15
+
+7.9 recorded raising `min_work_after_planning_s` from 15 to 25, which took the
+eight read-only tasks from 5/8 to 6/8 completed. **That is reverted.**
+
+At 25 the floor binds at ordinary planning times - a one-step plan measures
+9-14s, so 25 pushes the total to 34-39s - which quietly redefines "a 30 second
+simple action" as "30 seconds AFTER planning". That is a different promise
+from the one the band makes, and not one to make on Claw's own initiative. The
+floor exists to rescue a plan that overran the whole band (19.6s was measured
+once), not to fund an ordinary one.
+
+So the simple band is a 30 second band again, and the measured cost is stated
+rather than engineered around: a one-step task that must PLAN can time out
+with nothing done. The tier-B case that skips planning finishes the same shape
+of work in 9.8-16.7s, which is where the saving properly belongs.
+
+`test_a_simple_action_keeps_its_thirty_second_band` now asserts the band comes
+out unchanged across the whole measured planning range (1-15s), so the floor
+cannot drift back by accident, and
+`test_the_floor_still_rescues_a_plan_that_overran_the_whole_band` keeps the
+one case it is for.

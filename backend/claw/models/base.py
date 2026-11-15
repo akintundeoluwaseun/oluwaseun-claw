@@ -79,6 +79,39 @@ class ModelResponseError(ModelError):
     pass
 
 
+def why_a_reply_was_empty(thinking: str, cut_off: bool) -> str:
+    """An empty reply, explained - because the usual cause is specific.
+
+    Lives here rather than in one adapter because BOTH of them can hit it and
+    both must say the same thing. A server that separates a thinking model's
+    chain of thought returns HTTP 200 with the answer field empty and all of
+    the work in a field nothing reads - `reasoning_content` on llama-server,
+    `thinking` on Ollama. See the module docstring of
+    claw/models/openai_compat.py for the measurements; the short version is
+    that a 2B asked the chat prompt with thinking on produced ZERO characters
+    of answer at 512, 1024, 1536 and 2048 tokens.
+
+    Said plainly it is actionable - the budget was too small for this task.
+    Reported as "the reply could not be used" it is a mystery, and it is
+    exactly the "gets stuck thinking without producing a useful response"
+    this project kept hearing about.
+
+    `thinking` is whatever the server filed the monologue under; `cut_off` is
+    whether it stopped at the length limit rather than finishing. Only ever
+    reached when the reply really is empty, so nothing that would have worked
+    is turned into an error.
+    """
+    if cut_off and thinking.strip():
+        return ("The brain used its whole reply budget thinking and never got to an answer. "
+                "Give it a larger budget, or a smaller task.")
+    if thinking.strip():
+        return ("The brain returned only its own reasoning and no answer. "
+                "A model that follows instructions more closely would help.")
+    if cut_off:
+        return "The brain's reply was cut off at its length limit before it said anything."
+    return "The model server returned an empty reply."
+
+
 class ModelAdapter(ABC):
     provider: str
 
@@ -96,6 +129,21 @@ class ModelAdapter(ABC):
     #: therefore DISCOVERED rather than assumed: the first rejection sets this
     #: False and the request is sent again without it, so a server that cannot
     #: be asked costs one extra round trip once, not a lost reply.
+    #:
+    #: SCOPE, deliberately: this is remembered on the ADAPTER, and Claw builds
+    #: one adapter per task (claw/api/app.py think_adapter, used for both
+    #: make_plan and run_agent). So the worst case on an engine that rejects
+    #: the field is one wasted round trip per task - a 400 with no generation
+    #: behind it - rather than one per call. It is not cached globally on
+    #: purpose: the address and the model can both change between tasks when
+    #: somebody edits Settings, and a stale "this engine cannot be asked"
+    #: would silently leave thinking on, which is the whole failure this
+    #: machinery exists to prevent. A cheap repeated check is the safer error.
+    #:
+    #: On Windows this path is reachable in normal use: scripts/setup.ps1
+    #: fetches whichever llama.cpp build was newest at install time, so an
+    #: older installation may not know the field. The rejection is logged
+    #: (claw/models/openai_compat.py) because it PREDICTS the next failure.
     quiet_thinking_ok: bool = True
 
     def __init__(self, base_url: str, model: str, timeout_s: float, temperature: float):

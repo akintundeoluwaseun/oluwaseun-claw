@@ -295,25 +295,44 @@ def test_the_floor_does_not_inflate_a_band_that_was_already_fine():
     assert d.band == "simple"
 
 
-def test_the_floor_binds_once_planning_is_slow_and_the_cost_is_known():
-    """The honest consequence of the floor, pinned so it cannot drift silently.
+def test_a_simple_action_keeps_its_thirty_second_band():
+    """The simple band is 30 seconds and must STAY 30 seconds.
 
-    Planning a one-step plan on a 2B measured 9-14s, which is past the point
-    where the floor binds, so a slowly-planned simple action really does run
-    past its nominal 30s band. Measured end to end: with the floor at 15 both
-    "Make a file hello.txt" and "List every file and count" failed at 30s
-    having done nothing; at 25 the second completed in 29.8s. This test states
-    the arithmetic so the trade stays visible to whoever changes the number.
+    The floor is a rescue for a pathological plan, not an allowance for an
+    ordinary one. Measured planning for a one-step plan on a real 2B is 9-14s,
+    so across that whole range the band must come out unchanged - otherwise
+    "a 30 second simple action" has quietly become "30 seconds AFTER
+    planning", which is a different promise.
+
+    A floor of 25 was tried and reverted for exactly this reason: it binds at
+    ordinary planning times and pushed a one-step task to 34-39s. This test is
+    what stops that happening again by accident.
+    """
+    a = AgentSettings()
+    for planned_for in (1, 5, 9, 12, 14, 15):
+        d = Deadline(budget_s=a.complex_deadline_s, band="complex")
+        d.started -= planned_for
+        d.tighten_to(*band_for(1, a), a.min_work_after_planning_s)
+        assert d.budget_s == pytest.approx(a.simple_deadline_s, abs=0.1), (
+            f"planning for {planned_for}s pushed the simple band out to "
+            f"{d.budget_s:.1f}s; it must stay {a.simple_deadline_s}s")
+        assert d.band == "simple"
+
+
+def test_the_floor_still_rescues_a_plan_that_overran_the_whole_band():
+    """The one case the floor is for.
+
+    When planning overruns the floor itself - 19.6s was measured once against
+    a 15s floor - the task would otherwise expire the instant planning ended
+    and fail having done nothing, after the person had already waited. That is
+    worse than having no deadline at all, so it still gets its one step.
     """
     a = AgentSettings()
     d = Deadline(budget_s=a.complex_deadline_s, band="complex")
-    d.started -= 12                                   # a realistic 2B plan
+    d.started -= 25                       # slower than any ordinary measured plan
     d.tighten_to(*band_for(1, a), a.min_work_after_planning_s)
-    total = d.budget_s
-    assert total > a.simple_deadline_s, "the floor did not bind"
-    assert total == pytest.approx(12 + a.min_work_after_planning_s, abs=0.1)
-    assert total <= 40, ("a simple action should not quietly become a minute; "
-                         "if this fails, the floor has grown too far past the band")
+    assert d.remaining_s == pytest.approx(a.min_work_after_planning_s, abs=0.1)
+    assert d.budget_s > a.simple_deadline_s, "the rescue did not fire"
 
 
 def test_the_floor_never_raises_the_budget_above_what_the_task_started_with():

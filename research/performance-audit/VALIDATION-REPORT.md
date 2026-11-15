@@ -1,5 +1,13 @@
 # S-CLAW — validation and product-quality report
 
+> **SUPERSEDED by FINAL-REPORT.md**, which adds the architecture section and
+> the Windows validation requirements, and carries the final decision on the
+> simple-action band. This document is kept because its measurements are the
+> record they were taken as; where the two differ, the final report is right.
+> One claim here was overtaken: §7's "`min_work_after_planning_s` went 15 →
+> 25" was **reverted to 15** so the simple band stays a 30 second band. See
+> FINAL-REPORT.md §5.1.
+
 What was asked for, what was measured, and what is still unknown.
 
 Every measurement below was taken against a **real `llama-server`** (built
@@ -215,15 +223,16 @@ grammar as the net under it, never the opening move.
 
 ## 7. Known limitations, measured and left open
 
-- **The simple band is knife-edge on a 2B.** `min_work_after_planning_s` went
-  15 → 25, taking the eight tasks from 5/8 to 6/8. It was deliberately not
-  raised to 30: with a 30s band, a 30s floor binds for *any* planning at all,
-  which quietly redefines "a 30-second simple action" as "30 seconds **after**
-  planning". That is a different promise and not one to make unasked. The
-  honest consequence is that a one-step task whose plan took 9–14s now runs
-  to ~34–39s instead of failing at 30 with nothing done. **If that is still
-  too tight, `simple_deadline_s` is the thing to raise — how long someone will
-  wait is their call.**
+- **The simple band is knife-edge on a 2B, and is kept at 30 seconds.**
+  `min_work_after_planning_s` was tried at 25, taking the eight tasks from
+  5/8 to 6/8, and then **reverted to 15**: at 25 the floor binds at ordinary
+  planning times and quietly turns "a 30 second simple action" into "30
+  seconds *after* planning", which is a different promise. The floor is a
+  rescue for a pathological plan (19.6s measured once), not an allowance for
+  an ordinary one. The measured cost of the honest 30s is that a one-step task
+  which must plan can time out with nothing done. The right fixes are to stop
+  paying for planning the task does not need, or to raise `simple_deadline_s`
+  deliberately — a decision about how long someone will wait, and so theirs.
 - **Tier B is narrower than it looks.** It rests on `fitting_tools`, whose
   `_FITTING` list is a deliberately narrow set of patterns for surfacing
   *specialist* tools ("9:16 version", "black frames", "broken links"). So it

@@ -2,6 +2,75 @@
 
 The same interface can later point at a cloud provider, but this app never
 requires one: the default and tested path is a server on this computer.
+
+
+`content` VERSUS `reasoning_content` - READ THIS BEFORE CHANGING `chat`
+======================================================================
+
+This is the single most expensive thing this project has got wrong, so it is
+written down here rather than left to be rediscovered.
+
+A thinking model emits its chain of thought and then its answer. What happens
+to the chain of thought depends on the SERVER, not the model:
+
+  * `llama-server` parses it out and returns it in a SEPARATE field,
+    `reasoning_content`, leaving `content` holding only the answer. If the
+    model never finishes thinking, `content` is an EMPTY STRING and the reply
+    still arrives as HTTP 200 with `finish_reason: "length"`.
+
+  * `llama-cpp-python` does NOT split them. The whole monologue arrives inside
+    `content`, where `claw.agent.jsonfix` happily digs the JSON out from after
+    it, and everything appears to work.
+
+Claw ships `llama-server` (claw/runtime/engine.py). Five phases of performance
+work were measured against `llama-cpp-python`, which hides the problem, and so
+measured a planner that in production produced a usable plan 2 times in 16.
+
+Measured on a real llama-server with Qwen3.5-2B on four CPU cores, under
+Claw's own production flags, temperature 0, "What is the capital of France?"
+through the chat prompt:
+
+    max_tokens   time    finish   content   reasoning_content
+       512      38.2s   length     0 ch         1977 ch
+      1024      82.7s   length     0 ch         4006 ch
+      1536     127.1s   length     0 ch         5995 ch
+      2048     160.7s   length     0 ch         7859 ch
+
+The model NEVER answered - not slowly, never, at any budget, because the
+reasoning grows to fill whatever it is given. Two consequences follow, and
+both have bitten:
+
+  1. Raising `max_tokens` cannot fix it and lowering it did not cause it. An
+     earlier phase of this audit wrongly blamed the token cap.
+
+  2. An empty `content` is not a broken server, a bad key or a dead network.
+     It is a thinking model that ran out of budget, and it must be REPORTED
+     as that - see `_why_it_said_nothing`.
+
+THREE RULES, each of which exists because breaking it was tried and measured:
+
+  * Ask the template not to think, via `chat_template_kwargs`. With thinking
+    off the same question answered correctly in 1.4s - a 54x speed-up that is
+    really the difference between an answer and no answer. Every lane Claw
+    has does this; `tests/test_every_lane_stops_thinking.py` walks the AST and
+    checks every `.chat(...)` call, because the failure is silent.
+
+  * NEVER use `reasoning_format: "none"` as a substitute. Measured: 81.5s,
+    `finish_reason: "length"`, and 4014 characters of raw `<think>` inlined
+    into `content`. It does not stop the thinking; it just puts the monologue
+    in front of the person. `tests/test_thinking_switch.py` forbids it.
+
+  * NEVER read `reasoning_content` into a reply. It is the model's private
+    working, it is not addressed to the person, and on the planning and
+    executor lanes it is not valid JSON either. It is read in exactly one
+    place, to explain an empty answer, and never returned.
+
+`--jinja` IS LOAD-BEARING. `llama-server` can only honour
+`chat_template_kwargs` by passing it to the model's own Jinja chat template,
+which it only does under that flag. claw/runtime/engine.py always passes it
+and `tests/test_windows_engine_launch.py` pins it on both platforms: removing
+it would not look like a flag change, it would look like Claw silently going
+back to answering nothing.
 """
 
 from __future__ import annotations
@@ -16,6 +85,7 @@ from claw.logging_setup import log_event
 from claw.models.base import (
     ChatMessage,
     ModelBadRequest,
+    why_a_reply_was_empty,
     ModelAdapter,
     ModelAuthFailed,
     ModelError,
@@ -182,7 +252,24 @@ class OpenAICompatAdapter(ModelAdapter):
         return content
 
     async def see(self, png: bytes, question: str) -> str:
-        """Ask about a screenshot (needs a model loaded with its vision file)."""
+        """Ask about a screenshot (needs a model loaded with its vision file).
+
+        KNOWN GAP, recorded rather than fixed blind. This path does NOT send
+        the thinking switch and does NOT reject an empty reply, so a THINKING
+        vision model that spent its whole budget reasoning would return an
+        empty description here instead of an error - the same family of
+        failure as the one documented at the top of this module, in the one
+        lane that was not changed.
+
+        It was left alone deliberately: no vision model was available to
+        measure, and an unverified change to a path that cannot be exercised
+        is worse than a documented gap. The fix, for whoever has one, is the
+        two things `chat` already does - pass
+        `chat_template_kwargs: {"enable_thinking": False}` through the same
+        `quiet_thinking_ok` fallback, and raise `_why_it_said_nothing(choice)`
+        when `content` comes back blank - and then to measure it, because
+        vision models are not all thinking models and this may be moot.
+        """
         import base64
 
         if not self.vision:
@@ -272,14 +359,7 @@ def _why_it_said_nothing(choice: dict[str, Any]) -> str:
     Only ever reached when the reply really is empty, so nothing that would
     have worked is turned into an error.
     """
-    thinking = (choice.get("message") or {}).get("reasoning_content") or ""
-    cut_off = choice.get("finish_reason") == "length"
-    if cut_off and thinking.strip():
-        return ("The brain used its whole reply budget thinking and never got to an answer. "
-                "Give it a larger budget, or a smaller task.")
-    if thinking.strip():
-        return ("The brain returned only its own reasoning and no answer. "
-                "A model that follows instructions more closely would help.")
-    if cut_off:
-        return "The brain's reply was cut off at its length limit before it said anything."
-    return "The model server returned an empty reply."
+    return why_a_reply_was_empty(
+        thinking=(choice.get("message") or {}).get("reasoning_content") or "",
+        cut_off=choice.get("finish_reason") == "length",
+    )
