@@ -444,3 +444,81 @@ async def test_without_a_deadline_planning_is_left_exactly_as_it_was():
         await make_plan("do a thing", brain, PermissionPolicy({}, []))
     assert not isinstance(caught.value, DeadlineReached)
     assert brain.calls == 2, "both attempts should still run when nothing is timing them"
+
+
+# ---------------------------------------------------------------------------
+# The boundary race that only Windows CI caught
+#
+# `_next_action` used to return None for two different reasons - "the clock
+# stopped me" and "the model gave me nothing usable" - and run_agent told them
+# apart by RE-READING the clock. That is a race exactly at the boundary,
+# because the call is cut off with the time remaining as its timeout, so the
+# clock can read a hair short of expired on the very next line.
+#
+# Linux overshoots enough to hide it. Windows' coarser timers do not: CI
+# reported "The model did not give a usable next action" for a task its own
+# deadline had stopped - the blame-the-brain confusion these tests exist to
+# prevent, reappearing through the back door.
+#
+# This reproduces it with no reliance on timing at all: a deadline that hands
+# out a tiny timeout while still insisting it has not expired. Before the fix
+# this returned `failed`; it must now return `incomplete`.
+
+
+class _NeverQuiteExpired(Deadline):
+    """Hands out a tiny per-call timeout but never admits to being expired.
+
+    Not a contrived shape - it is what a real deadline looks like for the few
+    microseconds after `wait_for` fires at the boundary.
+    """
+
+    @property
+    def expired(self) -> bool:
+        return False
+
+    def timeout_for(self, wanted_s: float) -> float:
+        return 0.01
+
+
+@pytest.mark.asyncio
+async def test_a_call_cut_off_for_time_is_incomplete_even_if_the_clock_disagrees():
+    from claw.agent import executor as ex
+
+    class SlowAdapter:
+        provider = model = "t"
+
+        async def chat(self, messages, json_schema=None, *, thinking=True):
+            await asyncio.sleep(5)            # far longer than the timeout handed out
+            return '{"action":"finish","final_answer":"done"}'
+
+        async def context_window(self):
+            return 8192
+
+    out = await _run_with(ex, deadline=_NeverQuiteExpired(budget_s=30, band="simple"),
+                          adapter=SlowAdapter())
+
+    assert out.status == "incomplete", f"got {out.status}: {out.error}"
+    assert "usable next action" not in (out.error or ""), (
+        "a task its own deadline stopped must not be reported as the brain failing")
+    assert "time limit" in (out.error or "")
+
+
+@pytest.mark.asyncio
+async def test_an_unusable_reply_is_still_the_model_failing():
+    """The other side of it: when the clock is NOT the reason, the honest
+    answer is still that the model gave nothing usable. The fix must not turn
+    every empty-handed step into "out of time"."""
+    from claw.agent import executor as ex
+
+    class NonsenseAdapter:
+        provider = model = "t"
+
+        async def chat(self, messages, json_schema=None, *, thinking=True):
+            return "not json at all"
+
+        async def context_window(self):
+            return 8192
+
+    out = await _run_with(ex, deadline=None, adapter=NonsenseAdapter())
+    assert out.status == "failed"
+    assert "usable next action" in (out.error or "")

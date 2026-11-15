@@ -69,7 +69,7 @@ a laptop this is battery.
 
 | | |
 |---|---|
-| `build_registry()` (66 tools) | 0.0–0.1 ms |
+| `build_registry()` (147 tools) | 0.06 ms (re-measured 15 Nov; 66 tools then, 147 now) |
 | `create_app()` | ~11 ms |
 | `GET /health`, `/settings`, `/edition`, `/tasks`, `/models/status` | ~6 ms each |
 
@@ -106,12 +106,113 @@ reporting it as a 424 ms saving would have been false.
 
 - **Windows.** Every figure here is Linux. Defender, the frozen executable and
   the unpack step are not represented.
-- **Inference latency.** No model has ever answered, in either edition, so
-  tokens per second is unknown. It will dominate every number on this page.
+- ~~**Inference latency.** No model has ever answered...~~ **Measured on 15
+  November 2026 — see "The brain, measured" below.** It does dominate every
+  number on this page: ~13 tokens a second on this machine, and output tokens
+  are the only cost that matters. Everything above is noise beside it.
 - **The interface.** Render time, first paint and input latency need Electron,
   which cannot run here: the binary comes from GitHub releases, which this
   container's egress policy refuses.
 - **Large documents.** PDFs and OCR were not benchmarked; OCR is likely the
   slowest thing Claw does and deserves its own pass.
-- **Memory over hours.** Idle was sampled for 10 seconds, which says nothing
-  about a leak over a working day.
+- **Memory over hours.** Idle was sampled for 10 seconds. Twenty real tasks
+  were since measured (65 → 71.6 MB resident, below), which is better evidence
+  but still says nothing about a working day.
+
+
+---
+
+# The brain, measured — 15 November 2026
+
+Everything above this line is the application without a model. This section is
+the part that actually decides what using Claw feels like, and until now it had
+never been measured because no model had ever answered.
+
+Full detail, including every negative result, is in
+`research/performance-audit/FINAL-REPORT.md`.
+
+## The machine and the engine
+
+| | |
+|---|---|
+| Engine | llama.cpp `llama-server` 1.0.0-dev, build 1, commit a956a85 |
+| Flags | Claw's own production argv: `--api-key`, `-c 8192`, `-t 4`, `--jinja`, `--no-webui`, `--parallel 1` |
+| Brain | Qwen3.5-2B Q4, 4 CPU cores |
+| Throughput | **~13 tokens/second generating**, prefill ~165 tok/s (paid once, prefix reuse) |
+| Driven through | a real uvicorn backend, not a test client |
+
+**Still Linux.** No Windows figure on this page is a Windows figure.
+
+## The one number that matters: output tokens
+
+At ~13 tok/s, **a reply's length is its cost**, and nothing else on this page
+is within an order of magnitude. Routing and model selection measured 0.00s.
+Prompt size barely matters — prefill is twelve times faster than generation and
+is reused. So the way to make Claw faster is to make it say less, or not wake
+the brain at all.
+
+That is what the router is for:
+
+| lane | cost |
+|---|---|
+| canned reply ("hi", "thanks") | **0.0s** — no model |
+| a pasted folder path | milliseconds — no model |
+| tier B, one obvious action | no planning call at all |
+| ordinary conversation | one short call |
+| real work | planning + a call per step |
+
+## End to end, by task shape
+
+| category | n | completed | median wall | router | planning | generation |
+|---|---|---|---|---|---|---|
+| conversation | 7 | **7** | **1.8s** (max 4.1s) | 0.00s | 0.0s | 1.6–3.9s |
+| simple action (1-step plan) | 8 | 5 | 33.9s | 0.00s | 9–14s | 9.6–24.9s |
+| complex task (4 steps) | 1 | 1, correct | 99.9s | 0.00s | 14.5s | 85.4s |
+
+Per-phase figures come from each task's own `timings` event, so any of this can
+be reproduced or contradicted from the app itself rather than taken on trust.
+
+## The thinking-model trap, which dominated everything
+
+Before this was found, a conversation **never answered at all**. The cause was
+not speed:
+
+| `max_tokens` | time | finish | answer |
+|---|---|---|---|
+| 512 | 38.2s | length | **0 characters** |
+| 1024 | 82.7s | length | **0 characters** |
+| 1536 | 127.1s | length | **0 characters** |
+| 2048 | 160.7s | length | **0 characters** |
+
+A thinking brain filled whatever budget it was given with reasoning and never
+reached an answer. Asking the chat template not to think answered the same
+question in **1.4s**. On the planner, over sixteen held-out tasks:
+
+| | usable plan | right capability | median |
+|---|---|---|---|
+| thinking on | **2/16** | **2/16** | 162.0s |
+| thinking off | **16/16** | **14/16** | **15.7s** |
+
+Seven times faster and seven times more accurate at once — possible only
+because the failure was total rather than slow. Claw now asks every lane not to
+think; see `claw/models/openai_compat.py` for the contract and why it must not
+be undone.
+
+## Reliability
+
+| check | result |
+|---|---|
+| ten repeated conversations | all completed; **65 → 71.6 MB** resident; median 1.5s, no drift |
+| six different tasks in a row | none refused, none hung |
+| interrupt, then carry on | next task ran in 1.3s; nothing left mid-flight |
+| brain dies, then returns | **failed in 0.3s** instead of hanging; recovered in 1.3s |
+
+## Honest limits of this section
+
+- **A 2B is the floor, not the target.** 14/16 capability selection is this
+  brain's accuracy, not the architecture's ceiling.
+- **A one-step task that must plan can time out.** Planning costs 9–14s of a
+  30-second simple-action budget. The budget is deliberately left at 30s; see
+  `FINAL-REPORT.md` §5.1.
+- **Model specialisation is NOT TESTED** — only one brain was available.
+- **Windows is PARTIAL.** See `docs/WINDOWS_ACCEPTANCE.md`.

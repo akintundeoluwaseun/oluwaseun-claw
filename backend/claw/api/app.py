@@ -820,7 +820,25 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             return {**base, "ok": False, "reason": "unreachable", "message": f"{exc.message} {exc.hint}".strip()}
         took = round((time.perf_counter() - started) * 1000)
         text = (reply or "").strip()
-        log_event(log, "model self-test", mode=ms.mode, ok=bool(text), ms=took)
+        # Did this server accept being asked not to think? The adapter discovers
+        # that on its first try and remembers it. A server that refuses is the
+        # one place the worst failure Claw has measured can still happen: a
+        # thinking brain spends its whole budget reasoning and returns nothing.
+        #
+        # It is a WARNING, not a failure. The brain in front of us answered, and
+        # a model that does not think works perfectly well on such a server -
+        # so "ok" stays as it is. But this is the only moment Claw can say so
+        # while somebody is looking at the screen, because the self-test is the
+        # one place a brain is loaded and a person is waiting for a verdict.
+        can_ask = getattr(adapter, "quiet_thinking_ok", True)
+        warning = None if can_ask else (
+            "This engine would not be asked to stop thinking, so a brain that "
+            "thinks may use its whole reply budget reasoning and answer nothing. "
+            "Update the AI engine (a newer llama.cpp build), or choose a brain "
+            "that does not think."
+        )
+        log_event(log, "model self-test", mode=ms.mode, ok=bool(text), ms=took,
+                  thinking_switch=can_ask)
         return {
             **base, "ok": bool(text), "reason": "ok" if text else "error", "ms": took,
             # The model's own words, kept short. They are shown as a quotation, never
@@ -828,6 +846,8 @@ def create_app(data_dir: Path, token: str) -> FastAPI:
             "reply": text[:300],
             "message": f"The model replied in {took / 1000:.1f}s." if text
                        else "The model was reached but returned nothing.",
+            "thinking_switch": can_ask,
+            **({"warning": warning} if warning else {}),
         }
 
     @app.post("/tasks/plan")

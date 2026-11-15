@@ -21,6 +21,18 @@ official **llama.cpp** Windows build into `backend\runtime\llama`, and installs 
 (UB Mannheim build) with winget. Options: `-Gpu vulkan` or `-Gpu cuda` for a GPU build of
 llama.cpp, `-SkipEngine`, `-SkipOcr`, `-Chromium`.
 
+The llama.cpp build is **whichever was newest when you ran setup**, so the
+engine version is not reproducible between machines — the release tag is
+recorded in `backend\runtime\llama\VERSION.txt`. Setup checks the build it
+downloaded supports **`--jinja`** and says so; Claw needs that flag to stop a
+thinking brain reasoning until its budget runs out (see `docs/MODELS.md`). If
+the check fails, Claw still runs, but take a newer build from
+https://github.com/ggml-org/llama.cpp/releases, unzip it into
+`backend\runtime\llama` and re-run setup with `-SkipEngine`.
+
+Once a brain is installed, **Settings → Claw's brain → test the brain** does
+the live version of that check and warns if the engine refused it.
+
 ### 3. Run
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\start.ps1

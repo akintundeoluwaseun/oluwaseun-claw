@@ -53,11 +53,23 @@ MOCK-ONLY, BLOCKED or NOT IMPLEMENTED — with the evidence for it.
 ## Honest status (v0.5.0)
 
 Everything above is tested, but this repository is built and tested on Linux.
-**It has never run on Windows**, no real model has ever answered here (the
-weight hosts are unreachable from the build container), and there is no public
-internet. Those four gaps are listed, with reproducible steps, in
-`docs/WINDOWS_ACCEPTANCE.md` and `docs/KNOWN_ISSUES.md`. Nothing in this
-repository claims a mock pass as a real one.
+**It has never run on Windows.** Those gaps are listed, with reproducible
+steps, in `docs/WINDOWS_ACCEPTANCE.md` and `docs/KNOWN_ISSUES.md`. Nothing in
+this repository claims a mock pass as a real one.
+
+**A real brain has now answered (15 November 2026)**, and it changed the
+picture more than any code change had. Measured against a real `llama-server`
+with Qwen3.5-2B on four CPU cores: a *thinking* brain never answered at all —
+the planner produced a usable plan **2 times in 16** — because it spent its
+whole reply budget reasoning. Asking it not to think made that **16/16 usable,
+14/16 correct, and seven times faster**, and took conversation from no answer
+to a 1.8-second median. Five earlier rounds of performance work had measured
+the wrong engine, which hides the problem. If you read one thing, read the
+contract at the top of `backend/claw/models/openai_compat.py`; the numbers are
+in `docs/PERFORMANCE.md` and `research/performance-audit/FINAL-REPORT.md`.
+
+Still untested: **Windows (PARTIAL)**, the Qwen3-VL vision brains, and model
+specialisation (**NOT TESTED** — only one brain was ever available).
 
 ## Quick start (Windows 10/11, developers)
 

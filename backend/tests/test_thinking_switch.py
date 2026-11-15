@@ -164,3 +164,50 @@ def test_the_chat_lane_asks_for_no_thinking():
     assert "thinking=False" in chat_call, (
         "the chat lane must ask the brain not to think: with thinking on, a 2B "
         "spent its entire budget reasoning and never answered at all")
+
+
+# ------------------------------------------- the self-test says so out loud
+
+def test_the_self_test_warns_when_the_engine_refuses_the_switch(make_client, fake_server):
+    """The one moment Claw can tell somebody, while they are looking.
+
+    An engine that will not be asked to stop thinking is where the worst
+    failure measured in this audit can still happen. The self-test is the only
+    place a brain is loaded AND a person is waiting for a verdict, so it is
+    where this belongs.
+    """
+    fake_server.rejects_thinking_switch = True
+    fake_server.default_reply = "ready"
+    c = make_client({"model": {"mode": "custom", "provider": "openai_compatible",
+                               "base_url": fake_server.base_url, "model": "qwen2.5:7b"}})
+    body = c.post("/models/selftest", json={}).json()
+
+    assert body["ok"] is True, "the brain answered, so the test must still pass"
+    assert body["thinking_switch"] is False
+    assert "answer nothing" in body["warning"]
+    assert "Update the AI engine" in body["warning"]
+
+
+def test_the_self_test_is_quiet_when_the_engine_is_fine(make_client, fake_server):
+    """No warning on a healthy engine - a message that always appears is noise."""
+    fake_server.default_reply = "ready"
+    c = make_client({"model": {"mode": "custom", "provider": "openai_compatible",
+                               "base_url": fake_server.base_url, "model": "qwen2.5:7b"}})
+    body = c.post("/models/selftest", json={}).json()
+
+    assert body["ok"] is True
+    assert body["thinking_switch"] is True
+    assert "warning" not in body
+
+
+def test_setup_checks_the_flag_the_switch_depends_on():
+    """scripts/setup.ps1 fetches whichever llama.cpp build was newest at the
+    time, so the engine version is not reproducible. A build without --jinja
+    cannot honour chat_template_kwargs, and a thinking brain then answers
+    nothing. Setup must say so rather than leave it to be discovered."""
+    from pathlib import Path
+
+    setup = Path(__file__).resolve().parents[2] / "scripts" / "setup.ps1"
+    text = setup.read_text()
+    assert "--help" in text and "'--jinja'" in text, "setup no longer verifies --jinja"
+    assert "answer nothing at all" in text, "the warning no longer says what goes wrong"

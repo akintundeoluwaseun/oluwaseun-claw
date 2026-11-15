@@ -25,9 +25,16 @@ a card at the top telling you what it can do, and no red banner.
 **2. The brain answers.**
 Settings → Claw's brain → **Test connection**.
 It should quote an actual reply and the time it took, like "Ready — 1.2s".
-*This is the big one. No real model has ever answered in testing. If this fails,
-every task below will fail too, and the message it gives me is the most useful
-thing in this whole list.*
+*This is the big one. If this fails, every task below will fail too, and the
+message it gives me is the most useful thing in this whole list.*
+
+*A real brain has now answered in testing — on Linux, 15 November 2026 — so
+this is no longer completely unknown. Two things to watch for here. If it
+shows a **warning about the thinking switch**, your AI engine is too old to be
+told to stop reasoning, and a thinking brain may answer nothing at all: tell
+me, because a newer llama.cpp build fixes it. And if the reply takes tens of
+seconds rather than a few, tell me that too — on four CPU cores a 2B answered
+this in 1.4s.*
 
 **3. Pick your folders.**
 Settings → Folders → add your **Documents** folder. Claw can only read and write

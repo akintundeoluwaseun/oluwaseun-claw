@@ -335,6 +335,14 @@ port 11434), so every run below happened without it.
 `tests/make_tiny_gguf.py`; Hugging Face is a local fake (`tests/fake_hub.py`). Real Qwen3-VL
 weights were not downloaded (Hugging Face downloads are blocked here).
 
+That is still true of the **automated suite**, which must run without network
+or weights. It is no longer true of the project as a whole: a real brain
+(Qwen3.5-2B Q4) on a real `llama-server` was measured end to end on 15
+November 2026, which overturned several conclusions the stand-in had hidden.
+Those runs are reported in `docs/PERFORMANCE.md` and
+`research/performance-audit/FINAL-REPORT.md`, not here, because they are not
+reproducible from this container.
+
 | Command | Result |
 |---|---|
 | `scripts/check.sh` (compile, `xvfb-run pytest -q`, `npm run check`, `npm test`, e2e) | **All checks passed**: backend **151 passed**; desktop unit **5 passed**; end-to-end **52/52** |

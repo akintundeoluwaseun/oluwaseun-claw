@@ -272,6 +272,7 @@ All six verified resolved against the code as it now stands.
 | 4 | `/tasks/plan` was unbounded while the desktop waits **fifteen minutes** for it (`desktop/src/backend.js` marks it "slow"), and it had never received the enumeration fix the runner got. | Bounded by the moderate band; expiry answers **504 `planning_timed_out`** saying it was a time limit; now sends the same `tools_note`. | `test_plan_route_gates.py` (2 tests) |
 | 5 | The executor's safety net had a hole: `ModelAction.tool` must be optional because a "finish" has no tool, so the flat schema **permitted `{"action":"tool"}` with nothing to call** — and the constrained retry could therefore re-serve the same invalid reply. It was the commonest rejection in both runs. | The model-facing schema states the two actions as alternatives with their own required fields: a tool action must name a tool, a finish must say something. `ModelAction` untouched and still validates. **0/4 → 2/4** from this fix alone. | `test_action_schema_shape.py` (8 tests) |
 | 6 | A duplicated `_MODEL_CALL_CEILING_S`, written out in both the executor and the planner. | Defined once as `MODEL_CALL_CEILING_S` in the executor and imported. | verified by inspection |
+| 7 | **Found by Windows CI, not by me.** `_next_action` returned `None` both when the clock stopped it and when the model gave nothing usable, and `run_agent` distinguished them by re-reading the clock — a race at the boundary, since the call is cut off with the time remaining as its timeout. Windows' coarser timers lose that race, and a task its own deadline had stopped was reported as "The model did not give a usable next action". | The reason is carried with the failure (`DeadlineReached`, as `make_plan` already did) instead of inferred. | `test_a_call_cut_off_for_time_is_incomplete_even_if_the_clock_disagrees`, confirmed to fail with the old logic restored |
 
 ---
 
@@ -317,6 +318,31 @@ Windows machine against `llama-server.exe`.**
 
 ### What has been done
 
+**Correction to this report's earlier wording.** I described Windows as having
+no evidence at all. That was wrong, and I found it only by looking at CI:
+`.github/workflows/test-windows.yml` runs the **whole backend suite on
+`windows-latest`** on every push to this branch, and
+`.github/workflows/build-windows.yml` parses every `.ps1` and actually runs
+`setup.ps1` with the real llama.cpp download. So the suite — including the
+eleven Windows launch tests — does run on real Windows.
+
+**And it earned its keep: it caught a bug Linux hid.** Four of this audit's
+commits were red on `windows-latest` while I was reporting Linux results, all
+on the same test: `test_running_out_of_time_is_not_reported_as_the_model_
+failing`, `1 failed, 1754 passed`. It was not a flaky test. `_next_action`
+returned `None` for two different reasons — "the clock stopped me" and "the
+model gave nothing usable" — and `run_agent` told them apart by **re-reading
+the clock afterwards**. That is a race precisely at the boundary, because the
+call is cut off with the time remaining as its own timeout, so the clock can
+read a hair short of expired on the very next line. Linux overshoots enough to
+hide it; Windows' coarser timers do not. The symptom was the exact
+blame-the-brain confusion defect #1 was written to prevent, reappearing
+through the back door. The reason is now carried with the failure rather than
+inferred, matching `make_plan`. A deterministic test
+(`test_a_call_cut_off_for_time_is_incomplete_even_if_the_clock_disagrees`)
+reproduces it with no reliance on timing, and was confirmed to fail with the
+old logic restored. **The one green Windows run was luck, not proof.**
+
 - The runtime was exercised against real `llama-server` rather than
   `llama-cpp-python` — which mattered more than anything else in this audit.
 - Grammar-constrained generation re-verified under production flags (§3.2).
@@ -331,9 +357,12 @@ Windows machine against `llama-server.exe`.**
 
 ### What those tests do NOT establish
 
-They verify **Claw's decisions**, not that `llama-server.exe` behaves as the
-Linux build does. No Windows machine was available and the Windows engine was
-never started.
+They verify **Claw's decisions and its Python behaviour on real Windows**, not
+that `llama-server.exe` behaves as the Linux build does. In CI there are no
+model weights, no interactive desktop session and no installed app, so:
+**no brain has ever answered on Windows**, no desktop automation has run, the
+live thinking-switch probe has never been done, and no installer has been
+built or installed. `llama-server.exe` itself was never started by me.
 
 ### Required to move PARTIAL → VALIDATED
 

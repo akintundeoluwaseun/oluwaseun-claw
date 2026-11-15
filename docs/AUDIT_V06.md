@@ -26,7 +26,7 @@ with stand-ins) · **INC** = incomplete · **NI** = not implemented.
 |---|---|---|
 | Task input, plan, timeline, approvals, history, stop, notifications, tray, quick bar | WT | 52-check end-to-end test (Linux) |
 | Planner → executor with schemas, permissions, retries, replanning, limits | WT | scripted model |
-| Real brain (Qwen3-VL) quality | IU | only a tiny stand-in model was ever loaded |
+| Real brain (Qwen3-VL) quality | IU | Qwen3-VL itself was never loaded. A real non-vision brain (Qwen3.5-2B Q4) has been measured end to end on Linux (15 Nov 2026): 14/16 capability selection on held-out tasks, and a thinking brain answered nothing at all until the thinking switch was added. See `docs/PERFORMANCE.md`. |
 | llama.cpp engine management, downloads, checksums | WT | Linux; Windows job object untested |
 | Browser: search, open, read, links, tabs, click button, history | WT | local test site |
 | Browser: fill permitted forms | WT | Phase A: `fill_field` (secrets refused, never submits) |

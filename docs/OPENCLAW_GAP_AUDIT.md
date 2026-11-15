@@ -57,7 +57,7 @@ Verified by reading the code in this working tree, not from history:
 | Tool registry, typed args, risk per tool | `backend/claw/tools/registry.py`, `tools/base.py` | yes — **76 tools**, counted via `build_registry().names()` |
 | Plan → act → verify loop | `agent/planner.py`, `agent/executor.py` (`run_agent`) | yes — tools execute, results are fed back as observations, outcome comes from recorded events |
 | Permissions with a destructive floor | `permissions/policy.py` | yes — `tests/test_permissions.py`, `test_jobs.py` |
-| Local brain (llama.cpp) + hosted + user-configured | `runtime/engine.py`, `models/`, `edition.py` | partly — code verified, **no model has ever answered here** |
+| Local brain (llama.cpp) + hosted + user-configured | `runtime/engine.py`, `models/`, `edition.py` | partly — code verified, and a **real local brain has now answered** (Qwen3.5-2B on a real `llama-server`, Linux, 15 Nov 2026; `docs/PERFORMANCE.md`). Hosted is still unproven. |
 | SQLite: tasks, events, memories, jobs | `storage/db.py`, schema v4 | yes |
 | Calendar (.ics), reminders, briefing, memory, jobs | `claw/calendar/`, `brief.py`, `memory/`, `jobs/` | yes — logic tested; delivery on Windows is not |
 | Desktop control (UI Automation) | `tools/desktop_tools.py`, `computer/driver.py` | **code only** — `pywinauto` is not importable on this machine |

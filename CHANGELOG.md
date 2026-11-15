@@ -1,5 +1,125 @@
 # Changelog
 
+## Unreleased — the brain that never stopped thinking
+
+The whole application was measured against a **real** `llama-server` with a
+**real brain** for the first time. It overturned more than any code change in
+this cycle, because five earlier rounds of performance work had been measured
+against `llama-cpp-python`, which hides the problem.
+
+A *thinking* brain never answered. Not slowly — never, at any budget:
+
+    reply budget   time     answer
+      512 tokens   38.2s    nothing
+     1024 tokens   82.7s    nothing
+     1536 tokens  127.1s    nothing
+     2048 tokens  160.7s    nothing
+
+The reasoning grows to fill whatever it is given, so a larger budget cannot
+help and a smaller one was never the cause — an earlier entry in this file
+blamed the token cap, and that was wrong. `llama-server` returns the monologue
+in a separate `reasoning_content` field, so all of this arrived as HTTP 200
+with the answer field **empty**; `llama-cpp-python` inlines it into the answer,
+where `jsonfix` digs the JSON out and everything looks fine.
+
+Asking the chat template not to think answered the same question in **1.4
+seconds**. On sixteen held-out planning tasks:
+
+    thinking on     usable  2/16   right  2/16   median 162.0s
+    thinking off    usable 16/16   right 14/16   median  15.7s
+
+Seven times faster and seven times more accurate at once, which is only
+possible because the failure was total rather than slow. It is the "gets stuck
+thinking without producing a useful response" this project kept hearing about,
+reproduced deterministically and fixed at the cause.
+
+- Every lane now asks the brain not to think — planner, executor, replan, the
+  chat reply, two document lanes and the brain self-test. Support is
+  **discovered per engine**, never assumed: a server that refuses the field is
+  detected, the request is re-sent without it, and the refusal is logged
+  because it predicts the next failure. `reasoning_format: none` is **not**
+  used and is tested against — measured, it leaves thinking on and puts the
+  raw monologue in front of the person.
+- A test walks the package's syntax tree and checks **every** model call,
+  because this failure is silent: a new lane added without the flag does not
+  raise, it quietly answers nothing after eighty seconds.
+- `--jinja` is pinned by a test on both platforms. `llama-server` can only
+  honour the switch through the model's own chat template, which it reads only
+  under that flag, so removing it would look like Claw going back to answering
+  nothing. `setup.ps1` now checks the build it downloads supports it, and
+  **Settings → Claw's brain → test the brain** warns when an engine refuses
+  the switch — the one moment a brain is loaded and a person is waiting.
+- Conversation went from never answering to a **1.8s median** (7 of 7, slowest
+  4.1s). Canned replies still cost nothing.
+
+**Six further defects**, found by reviewing the audit's own commits as one
+change rather than one at a time:
+
+- The planner's model call was never bounded by the task deadline, so planning
+  was inside the budget only *arithmetically*: one call could run for the
+  adapter's own 600s timeout and spend a whole ten-minute task, after which the
+  clock was checked for the first time and the task reported running out of
+  time having started nothing. Expiry during planning is now `incomplete`, not
+  "the model did not produce a usable plan", which sent people looking for a
+  broken brain.
+- The conversation lane tightened the **task's** clock to 15 seconds before its
+  call. A failed chat reply may fall through to real work, and that work
+  inherited the 15 seconds; planning alone takes about 20, so it expired the
+  instant it began. The bound belongs on the call.
+- The lanes that answer *without* working returned before timings were
+  recorded, so conversation — one of the three things being measured
+  separately — was the one path measuring nothing. Five gates had drifted
+  copies of the same ending; they now share one.
+- `/tasks/plan` was unbounded while the desktop waits **fifteen minutes** for
+  it, and had never received the enumeration fix the runner got. That was the
+  stuck loading indicator, hiding in the one route generous enough to conceal
+  it.
+- The executor's safety net had a hole: a "finish" action has no tool, so
+  `tool` must be optional, so the schema **permitted a tool action with nothing
+  to call** — and the constrained retry could serve the same invalid reply
+  again. It was the commonest rejection. The schema now states the two actions
+  as alternatives with their own required fields; four read-only tasks went
+  0/4 to 2/4 on that alone.
+- One ceiling on a single model call had been written out twice.
+
+**A seventh, found by Windows CI rather than by me.** Four of this audit's
+commits were red on `windows-latest` while Linux results were being reported,
+all on one test, and it was not flaky. `_next_action` returned nothing both
+when the clock stopped it and when the model gave nothing usable, and the
+caller told those apart by **re-reading the clock afterwards** — a race exactly
+at the boundary, because the call is cut off with the time remaining as its own
+timeout. Linux overshoots past it; Windows' coarser timers do not, and a task
+its own deadline had stopped was reported as "The model did not give a usable
+next action" — the blame-the-brain confusion the first defect above was written
+to prevent, back through a side door. The reason is now carried with the
+failure instead of inferred, and a test reproduces it with no reliance on
+timing at all. The one green Windows run was luck, not proof.
+
+The Ollama adapter had the same empty-answer hole and it is closed: an empty
+string is a string, so it was returned *as if it were an answer* and the caller
+failed later on what looked like bad JSON. One explanation now serves both
+adapters so they cannot drift.
+
+**Measured and rejected**, recorded because the near-miss is the point: four
+tasks suggested constraining the executor's *first* attempt (3/4 against 2/4).
+Eight reversed it — 5/8 against 4/8, with 63% more generation — because the
+model satisfies the grammar with a valid but *wrong* action and repeats it. The
+only reason the wrong change was not shipped is that the sample was widened
+first.
+
+The simple-action budget stays at **30 seconds**. A floor of 25 was tried and
+reverted: it binds at ordinary planning times and quietly turned "a 30 second
+simple action" into "30 seconds *after* planning", which is a different
+promise. The measured cost is stated instead — a one-step job that must be
+planned can time out — and the shortcut that skips planning does the same work
+in about a third of the budget.
+
+Reports: `research/performance-audit/FINAL-REPORT.md` (architecture, evidence,
+limits, and the seven checks to move Windows from PARTIAL to VALIDATED) and
+`docs/PERFORMANCE.md`. Tests: 1802 passing. **Windows stays PARTIAL** — all of
+this is Linux, and `llama-server.exe` was never started. Model specialisation
+remains **NOT TESTED**: only one brain was ever available.
+
 ## Unreleased — the format is S-CLAW's own, and a plugin provably works
 
 - The plugin format is named and versioned: `sclaw-plugin/1`. A plugin says

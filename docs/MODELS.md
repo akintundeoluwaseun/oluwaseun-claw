@@ -19,6 +19,43 @@ account, no API key and no internet connection once the brain is on the machine.
   newest official Windows build from `scripts\setup.ps1` (looked up in llama.cpp's GitHub release
   list at run time, checksum-verified when GitHub publishes one).
 
+## Thinking brains — the one thing to know before choosing one
+
+Some brains "think" before answering: they write a chain of reasoning, then the
+answer. **On a small brain on a plain processor this can mean no answer at
+all.** Measured on a real `llama-server` with a 2B brain on four cores,
+temperature 0, asked "What is the capital of France?":
+
+| reply budget | time | answer |
+|---|---|---|
+| 512 tokens | 38.2s | **nothing** |
+| 1024 tokens | 82.7s | **nothing** |
+| 1536 tokens | 127.1s | **nothing** |
+| 2048 tokens | 160.7s | **nothing** |
+
+The reasoning simply grows to fill whatever budget it is given, so a bigger
+budget does not help — it just costs more. The same question, with thinking
+switched off: **1.4 seconds, answered correctly.** On planning it was the
+difference between a usable plan 2 times in 16 and 16 times in 16.
+
+So **Claw asks every brain not to think**, on every call. Two consequences
+worth knowing:
+
+- **The engine has to support being asked.** Claw sends
+  `chat_template_kwargs`, which `llama-server` only honours when started with
+  `--jinja` — which Claw always does. An engine too old to accept the field is
+  detected, falls back safely, and is **reported in Settings → Claw's brain
+  when you test the brain**. On such an engine a thinking brain may answer
+  nothing; the fix is a newer llama.cpp build, or a brain that doesn't think.
+  `scripts\setup.ps1` checks the build it downloads.
+- **Claw never shows you a brain's private reasoning.** `llama-server` returns
+  it in a separate field; Claw reads it in exactly one place, to explain an
+  empty answer in plain words, and never repeats it as a reply.
+
+The contract and the measurements are written into
+`backend/claw/models/openai_compat.py`, at the top, because getting this wrong
+cost five rounds of performance work aimed at the wrong thing.
+
 ## The brains
 | | Standard brain | Pro brain |
 |---|---|---|

@@ -31,6 +31,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from claw.agent import constraints, jsonfix, persona, report, skills
+# Imported for real, not just as an annotation: DeadlineReached is raised
+# and caught at runtime, so `from __future__ import annotations` does not
+# cover it the way it covers the `Deadline` type hints below.
+from claw.agent.deadline import Deadline, DeadlineReached
 from claw.config import describe_validation_error
 from claw.logging_setup import log_event
 from claw.models.base import ChatMessage, ModelAdapter, ModelError, ModelResponseError
@@ -1608,17 +1612,20 @@ async def run_agent(
             # was rolled back, so nothing says it was.
             return outcome("incomplete", final=_stopped_summary(steps, step_no, "starting"),
                            error=deadline.why_stopped())
-        action = await _next_action(adapter, messages, emit, step_no, window_tokens, deadline, timings)
+        # Two very different reasons to have no action, and they must not be
+        # reported as the same thing. Running out of time is not the model
+        # failing to answer: it was still answering when the clock stopped it,
+        # and saying "did not give a usable next action" would blame the brain
+        # for a limit Claw imposed. The reason now arrives with the failure
+        # instead of being re-derived from the clock - see _next_action.
+        try:
+            action = await _next_action(adapter, messages, emit, step_no, window_tokens,
+                                        deadline, timings)
+        except DeadlineReached as stopped:
+            return outcome("incomplete",
+                           final=_stopped_summary(steps, step_no, "thinking about"),
+                           error=stopped.message)
         if action is None:
-            # Two very different reasons to have no action, and they must not
-            # be reported as the same thing. Running out of time is not the
-            # model failing to answer: it was still answering when the clock
-            # stopped it, and saying "did not give a usable next action" would
-            # blame the brain for a limit Claw imposed.
-            if deadline is not None and deadline.expired:
-                return outcome("incomplete",
-                               final=_stopped_summary(steps, step_no, "thinking about"),
-                               error=deadline.why_stopped())
             return outcome("failed", error="The model did not give a usable next action.")
         messages.append(ChatMessage(role="assistant", content=action.model_dump_json()))
 
@@ -1861,7 +1868,7 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
             # Out of time between attempts: do not start another one.
             emit("deadline_reached", {"step": step_no, "budget_s": int(deadline.budget_s),
                                       "band": deadline.band, "during": "thinking"})
-            return None
+            raise DeadlineReached(deadline)
         try:
             # Same reasoning as make_plan: the schema constrains a RETRY, not
             # the first attempt. Constraining every call makes the model write
@@ -1919,9 +1926,22 @@ async def _next_action(adapter: ModelAdapter, messages: list[ChatMessage], emit:
                         timings.add("retry", spent)
         except asyncio.TimeoutError:
             # The task ran out of time while the model was still writing.
+            #
+            # RAISED, not returned as None, and that distinction was a real bug.
+            # `None` meant two different things - "the clock stopped me" and
+            # "the model never gave me anything usable" - and run_agent told
+            # them apart by RE-READING the clock afterwards. At the boundary
+            # that is a race: the call is cut off because `timeout_for` handed
+            # it the time remaining, so the clock can still read a hair short
+            # of expired on the next line. Linux overshoots enough to hide it;
+            # Windows' coarser timers do not, and CI caught it reporting
+            # "The model did not give a usable next action" for a task its own
+            # deadline had stopped - exactly the blame-the-brain confusion this
+            # was written to prevent. The reason is known here, so it is
+            # carried rather than inferred. Same shape as make_plan.
             emit("deadline_reached", {"step": step_no, "during": "thinking",
                                       "budget_s": int(deadline.budget_s) if deadline else None})
-            return None
+            raise DeadlineReached(deadline) from None
         except ModelResponseError as exc:
             emit("model_reply_rejected", {"step": step_no, "problem": exc.message})
             continue

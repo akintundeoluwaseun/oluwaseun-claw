@@ -97,6 +97,49 @@ if (-not $SkipEngine) {
   Set-Content (Join-Path $dest 'VERSION.txt') "llama.cpp $($rel.tag_name) $($asset.name)"
   & (Join-Path $dest 'llama-server.exe') --version
   Write-Host "   llama-server $($rel.tag_name) installed"
+
+  # Claw stops a thinking model reasoning forever by sending
+  # chat_template_kwargs, which llama-server can only honour by passing it to
+  # the model's own Jinja chat template - and it only does that under --jinja.
+  # Checked here because this script fetches whichever build was newest at the
+  # time, so the engine version is NOT reproducible: an older build silently
+  # leaves thinking on, and a thinking brain then spends its whole budget
+  # reasoning and answers nothing at all. Measured: zero characters of answer
+  # at 512, 1024, 1536 and 2048 tokens (research/performance-audit/).
+  #
+  # No brain is downloaded yet, so this verifies the flag rather than
+  # generating with it. The live probe is the brain self-test in
+  # Settings > Claw's brain, which runs once a brain exists.
+  # Defensive on purpose: this is a CHECK, and a check must never be the thing
+  # that stops an install. $ErrorActionPreference is 'Stop' for this script, and
+  # under PowerShell 5.1 a native command whose output is redirected with 2>&1
+  # can raise a terminating error merely for writing to stderr - which some
+  # builds do for --help. So the preference is relaxed around the call and the
+  # whole thing is wrapped.
+  $help = ''
+  $prev = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $help = (& (Join-Path $dest 'llama-server.exe') --help 2>&1 | Out-String)
+  } catch {
+    $help = ''
+  } finally {
+    $ErrorActionPreference = $prev
+  }
+  if ($help -match '--jinja') {
+    Write-Host '   --jinja supported (Claw needs it for the thinking switch)'
+  } elseif (-not $help.Trim()) {
+    # Not the same as "missing": saying it is absent when we simply could not
+    # read the help would send somebody chasing a problem they do not have.
+    Write-Host '   (could not read the engine help, so --jinja was not verified)'
+    Write-Host '   If a thinking brain answers nothing, check that this build supports --jinja.'
+  } else {
+    Write-Host '!! This llama.cpp build has no --jinja support.' -ForegroundColor Red
+    Write-Host '   Claw needs it to stop a thinking brain reasoning until its budget runs out.'
+    Write-Host '   Claw will still run, but a thinking brain may answer nothing at all.'
+    Write-Host '   Fix: take a newer build from https://github.com/ggml-org/llama.cpp/releases,'
+    Write-Host '   unzip it into backend\runtime\llama, then run setup again with -SkipEngine.'
+  }
 }
 
 if (-not $SkipOcr) {

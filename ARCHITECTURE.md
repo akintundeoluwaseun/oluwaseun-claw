@@ -17,8 +17,12 @@
 ┌──────────────────────────── Python agent runtime (backend/claw/) ───────────────┐
 │ api/app.py      FastAPI routes, token + Host guard, error format                │
 │ config.py       Settings schema, plain-English validation, atomic save          │
-│ agent/          planner · executor (bounded loop, replans, taint) · runner      │
-│ tools/          43 tools: browser, files, documents, desktop, PDF/OCR           │
+│ agent/          runner (six routing gates: persona, canned reply, pasted        │
+│                 path, conversation, conflict, then work) · simple_action        │
+│                 (one obvious action, no planning call) · planner ·              │
+│                 executor (bounded loop, replans, taint) · deadline (one         │
+│                 clock per task) · timings (per-phase cost) · conversation       │
+│ tools/          147 tools: browser, files, documents, desktop, PDF/OCR          │
 │ documents/      readers.py (Word/Excel/text) · ocr.py (Tesseract) ·              │
 │                 pdf_pipeline.py (text vs scan per page, OCR, rotation, cache,   │
 │                 searchable copy, page-aware chunks) · service.py (jobs)         │

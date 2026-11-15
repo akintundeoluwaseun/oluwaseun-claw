@@ -1,5 +1,30 @@
 # Windows acceptance tests
 
+> **Windows status: PARTIAL.** It must stay PARTIAL until section 0 below and
+> the rest of this file have been run on a real Windows machine against
+> `llama-server.exe`. The audit of 15 November 2026 exercised the real engine
+> and the whole application path **on Linux**. Detail:
+> `research/performance-audit/FINAL-REPORT.md` §6.
+>
+> **What already runs on real Windows, automatically.** Two workflows, so this
+> page is not starting from nothing:
+>
+> - `.github/workflows/test-windows.yml` — the **whole backend suite on
+>   `windows-latest`**, on every push to the working branch. That includes the
+>   eleven Windows engine-launch tests.
+> - `.github/workflows/build-windows.yml` — parses every `.ps1`, then actually
+>   runs `setup.ps1` with the real llama.cpp download, so **check 0.1 below is
+>   largely automated** (dispatch it from the Actions tab).
+>
+> It is worth trusting: it caught a deadline bug that Linux hid, where a task
+> stopped by its own clock was reported as the brain failing. Windows' timer
+> granularity loses a boundary race that Linux overshoots past.
+>
+> **What CI cannot do, and why this page still exists.** No model weights, no
+> interactive desktop session, no installed app. So no brain has ever answered
+> on Windows, no desktop automation has run, the live thinking-switch probe
+> (0.2) has never been done, and no installer has been built or installed.
+
 Everything in this file needs a real Windows 10/11 desktop with a logged-in,
 unlocked session. None of it can be run in the Linux build container, and none
 of it is claimed to pass. The automated desktop tests that *do* pass run against
@@ -18,6 +43,33 @@ cd backend
 Record the machine: Windows build, RAM, CPU, GPU, screen resolution and scaling.
 UI Automation behaves differently at 125% and 150% scaling, so the scaling
 matters.
+
+## 0. The engine and the thinking switch (Priority 0 — do this first)
+
+**Run this before anything else.** If step 0.2 fails, every later result on
+this page is measured on a Claw whose single most important fix is inactive,
+and a thinking brain will appear to hang rather than answer.
+
+Background: Claw stops a brain reasoning forever by sending
+`chat_template_kwargs`, which `llama-server` only honours under `--jinja`.
+`scripts\setup.ps1` fetches **whichever build was newest at install time**, so
+the engine version is not reproducible and an older build silently leaves
+thinking on. Measured on Linux with a 2B brain: zero characters of answer at
+512, 1024, 1536 *and* 2048 tokens — the brain never answered at all.
+
+| # | Do this | Passes when |
+|---|---|---|
+| 0.1 | Run `scripts\setup.ps1`. Read the engine lines it prints. | `VERSION.txt` exists in `backend\runtime\llama`, `llama-server.exe --version` ran, and setup printed `--jinja supported`. **Record the llama.cpp release tag.** |
+| 0.2 | Install a brain, then **Settings → Claw's brain → test the brain**. | It reports a reply **and no warning**. A warning naming the thinking switch means the engine is too old: the fix is a newer llama.cpp build. Record either way. |
+| 0.3 | Ask Claw `What is the capital of France?` | It answers in seconds, not tens of seconds, and the answer is not empty. Record the wall time; Linux measured 1.4–4.1s on a 2B. |
+| 0.4 | With a brain loaded, POST the four schemas from `FINAL-REPORT.md` §3.2 to the engine with `response_format` | all four return HTTP 200 and the engine is still alive afterwards (this is the 42KB-grammar check; it passes on Linux `llama-server` and crashed only `llama-cpp-python`) |
+| 0.5 | Force-close Claw from Task Manager while a task runs. | `llama-server.exe` disappears too — the job object did its work. This is written but has only ever been tested on Linux (by a different mechanism). |
+| 0.6 | Check `llama-server.exe` starts with its DLLs resolving from its own folder. | the engine starts from `backend\runtime\llama` with no PATH help |
+| 0.7 | Time a one-step job (e.g. `Open Notepad`) and a planned one-step job. | Record planning and action time separately from the task's `timings`. Linux measured planning at 9–14s on a 2B, which is why a planned one-step job can exhaust the 30s simple-action budget. Decide from the real numbers whether `simple_deadline_s` needs raising on the target machine. |
+
+Also record the three task shapes as `docs/PERFORMANCE.md` does — a
+conversation, a one-action job, and a multi-step job — because Windows CPU
+scheduling and Defender may change generation throughput.
 
 ## A. Desktop control (Priority 2)
 

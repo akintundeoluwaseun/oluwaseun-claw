@@ -9,7 +9,18 @@ hardening, Notepad Test A logic, browser forms and downloads, file copies); **Ph
 unread check, notifications, send with approval); **Phase C removed** (a sale through a specific local app's screen; dropped so the app carries nothing region-specific); **Phase D done** (flyers and image edits;
 Photoshop when installed). Next: **Phase E — video**, then E video,
 F calendar apps on the PC, G packaging and security.
-**Version:** 0.5.0 · **Last updated:** 2026-10-31
+**Intelligence, performance and reliability audit (15 Nov 2026): complete.** The
+whole application path was measured against a **real** `llama-server` with a
+**real brain** for the first time, which overturned several conclusions reached
+without one. Headline: a thinking brain never answered at all — the planner
+produced a usable plan **2 times in 16** — and switching thinking off made it
+**16/16 usable, 14/16 correct, seven times faster**. Conversation went from
+never answering to a 1.8s median. Six further defects were found by reviewing
+the audit's own commits as one change, and all six are fixed. Reports:
+`research/performance-audit/FINAL-REPORT.md`, `docs/PERFORMANCE.md`.
+**Windows remains PARTIAL** — all of it is Linux.
+
+**Version:** 0.5.0 · **Last updated:** 2026-11-15
 **Latest (31 Oct):** fixes from the user's first real install and the first real-brain trial on Windows: chats
 (one entry per conversation, model-written titles), Settings re-read/verified, starter folders, finish guard,
 VC++ runtime shipped with the engine, dark chat-style window. Not yet re-tested with the real brain.
@@ -37,8 +48,19 @@ page's text with where it came from and how sure Claw is; search it; ask Claw ab
 searchable copy of a scanned PDF; and run with its own engine and brain — no Ollama, no keys.
 
 ## Known issues / limits
-- **Never run on Windows, and never with the real Qwen3-VL weights.** All engine runs used a tiny
-  random test model; how well a 4B/8B local brain follows the action format is the biggest open risk.
+- **Never run on Windows.** Everything is Linux. `docs/WINDOWS_ACCEPTANCE.md`
+  now opens with a Priority 0 section: the engine must be checked first,
+  because `setup.ps1` fetches whichever llama.cpp build was newest at install
+  time and an older one silently disables the thinking switch the whole fix
+  depends on.
+- **The real Qwen3-VL weights have still never been loaded.** A real non-vision
+  brain (Qwen3.5-2B Q4) has now been measured end to end, so "no model has
+  ever answered" no longer holds — but vision, `mmproj` and `see()` are
+  untested, and `see()` is knowingly unguarded against the thinking failure
+  (see `docs/KNOWN_ISSUES.md`).
+- **Model specialisation is NOT TESTED.** Only one brain was ever available.
+- How well a 4B/8B brain follows the action format is still open; a 2B managed
+  14/16 on capability selection, which is a floor rather than a target.
 - Windows-only code untested: job object (engine killed with backend), UI Automation driver,
   setup.ps1 downloads, build-release.ps1, Inno Setup installers.
 - The Pro installer is `Setup.exe` + `.bin` parts (Inno Setup's single-file limit is ~4.2 GB).
@@ -62,3 +84,8 @@ powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1 -Edition Stan
 ## Next action
 Run `setup.ps1`, the app and `build-release.ps1 -Edition Standard` on a Windows 10 PC; install
 the result on a clean Windows 10 machine and go through `docs/DESKTOP.md` and the Batch 5 checklist.
+
+Do **section 0 of `docs/WINDOWS_ACCEPTANCE.md` first**. If the engine there
+cannot be asked to stop thinking, every other result on that page is measured
+on a Claw with its most important fix inactive, and a thinking brain will look
+like a hang rather than an answer.
